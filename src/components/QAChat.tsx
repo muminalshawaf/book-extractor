@@ -56,24 +56,28 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
 
-        const events = buffer.split("\n\n");
+        const events = buffer.split(/\r?\n\r?\n/);
         buffer = events.pop() || "";
 
         for (const evt of events) {
-          const line = evt.trim();
-          if (!line) continue;
-          if (line.startsWith("data:")) {
-            const payload = line.slice(5).trim();
-            if (payload === "[DONE]") continue;
-            accumulated += payload;
-            setMessages((m) => {
-              const copy = [...m];
-              const lastIdx = copy.length - 1;
-              if (lastIdx >= 0 && copy[lastIdx].role === "assistant") {
-                copy[lastIdx] = { role: "assistant", content: accumulated };
-              }
-              return copy;
-            });
+          // Parse SSE event lines without trimming payload (to preserve spaces)
+          const lines = evt.split(/\r?\n/);
+          for (const ln of lines) {
+            if (ln.startsWith("data:")) {
+              let payload = ln.slice(5);
+              if (payload.startsWith(" ")) payload = payload.slice(1); // remove single space after colon only
+              if (payload === "[DONE]") continue;
+
+              accumulated += payload;
+              setMessages((m) => {
+                const copy = [...m];
+                const lastIdx = copy.length - 1;
+                if (lastIdx >= 0 && copy[lastIdx].role === "assistant") {
+                  copy[lastIdx] = { role: "assistant", content: accumulated };
+                }
+                return copy;
+              });
+            }
           }
         }
       }

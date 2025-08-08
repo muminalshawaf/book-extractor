@@ -126,6 +126,7 @@ You can answer any question the student asks. If page context is provided, use i
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
         "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
       },
     });
   } catch (e) {
