@@ -1,10 +1,25 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BookViewer from "@/components/BookViewer";
 import { books, getBookById } from "@/data/books";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useNavigate, useParams } from "react-router-dom";
 
 const Index = () => {
-  const [selectedId, setSelectedId] = useState<string>(books[0].id);
+  const params = useParams();
+  const navigate = useNavigate();
+  const initialId = useMemo(() => params.bookId ?? books[0].id, [params.bookId]);
+  const [selectedId, setSelectedId] = useState<string>(initialId);
+
+  useEffect(() => {
+    if (selectedId !== initialId) setSelectedId(initialId);
+  }, [initialId]);
+
+  useEffect(() => {
+    if (params.bookId && !books.some((b) => b.id === params.bookId)) {
+      navigate(`/book/${books[0].id}`, { replace: true });
+    }
+  }, [params.bookId, navigate]);
+
   const selectedBook = useMemo(() => getBookById(selectedId), [selectedId]);
   const pages = useMemo(() => selectedBook.buildPages(), [selectedBook]);
   const rtl = selectedBook.rtl ?? true;
@@ -29,7 +44,7 @@ const Index = () => {
             اختر كتابًا من القائمة، وسيتم حفظ OCR والملخصات بشكل منفصل لكل كتاب.
           </p>
           <div className="mt-4 flex items-center justify-center">
-            <Select value={selectedId} onValueChange={setSelectedId}>
+            <Select value={selectedId} onValueChange={(v) => { setSelectedId(v); navigate(`/book/${v}`); }}>
               <SelectTrigger className="w-[280px]" aria-label="اختيار كتاب">
                 <SelectValue placeholder="اختر كتابًا" />
               </SelectTrigger>
