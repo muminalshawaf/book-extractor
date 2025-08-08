@@ -16,6 +16,9 @@ import { FullscreenMode } from "@/components/FullscreenMode";
 import { ZoomControls, ZoomMode } from "@/components/ZoomControls";
 import { MiniMap } from "@/components/MiniMap";
 import { useImagePreloader } from "@/hooks/useImagePreloader";
+import { EnhancedSummary } from "@/components/EnhancedSummary";
+import { ContentSearch } from "@/components/ContentSearch";
+import { ImprovedErrorHandler } from "@/components/ImprovedErrorHandler";
 export type BookPage = {
   src: string;
   alt: string;
@@ -101,6 +104,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   
   // Image preloading
   const { getPreloadStatus } = useImagePreloader(pages, index);
+  
+  // Phase 3 enhancements
+  const [searchHighlight, setSearchHighlight] = useState("");
+  const [lastError, setLastError] = useState<Error | string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [summaryConfidence, setSummaryConfidence] = useState<number | undefined>();
+  
+  // Store extracted text for all pages for search
+  const [allExtractedTexts, setAllExtractedTexts] = useState<Record<number, string>>({});
 
 
 
@@ -181,20 +193,28 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     try {
       const cachedText = localStorage.getItem(ocrKey) || "";
       const cachedSummary = localStorage.getItem(sumKey) || "";
-      if (cachedText) setExtractedText(cachedText);
+      if (cachedText) {
+        setExtractedText(cachedText);
+        setAllExtractedTexts(prev => ({ ...prev, [index]: cachedText }));
+      }
       if (cachedSummary) setSummary(cachedSummary);
+      
+      // Clear error state when changing pages
+      setLastError(null);
+      setRetryCount(0);
     } catch {}
   }, [index, ocrKey, sumKey]);
 
 
 
 
-  // OCR function to extract text from page image
+  // Enhanced OCR function with better error handling
   const extractTextFromPage = async () => {
     setOcrLoading(true);
     setOcrProgress(0);
     setExtractedText("");
     setSummary("");
+    setLastError(null);
     
     try {
       console.log('Starting OCR process...');
@@ -290,33 +310,36 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       console.log('First 200 chars:', text.substring(0, 200));
       
       if (!text.trim()) {
-        toast.error(rtl ? "لم يتم العثور على نص في الصورة" : "No text found in image");
-        return;
+        throw new Error(rtl ? "لم يتم العثور على نص في الصورة" : "No text found in image");
       }
       
       setExtractedText(text);
+      setAllExtractedTexts(prev => ({ ...prev, [index]: text }));
       try { localStorage.setItem(ocrKey, text); } catch {}
       console.log('Starting summarization...');
       await summarizeExtractedText(text);
       toast.success(rtl ? "تم استخراج النص من الصفحة بنجاح" : "Text extracted successfully");
+      setRetryCount(0); // Reset retry count on success
     } catch (error: any) {
       console.error('OCR error details:', error);
-      const message = error?.message || (typeof error === 'string' ? error : 'Unknown error');
-      toast.error(rtl ? `فشل في استخراج النص: ${message}` : `Failed to extract text: ${message}`);
+      const errorMsg = error?.message || (typeof error === 'string' ? error : 'Unknown error');
+      setLastError(error);
+      setRetryCount(prev => prev + 1);
+      toast.error(rtl ? `فشل في استخراج النص: ${errorMsg}` : `Failed to extract text: ${errorMsg}`);
     } finally {
       setOcrLoading(false);
       setOcrProgress(0);
     }
   };
 
-  // Function to summarize extracted text (server via DeepSeek)
+  // Enhanced summarization function with confidence scoring
   const summarizeExtractedText = async (text: string) => {
     setSummLoading(true);
     setSummaryProgress(0);
     try {
       console.log('Starting summarization with text length:', text.length);
       setSummaryProgress(25);
-      const data = await callFunction<{ summary?: string; error?: string }>("summarize", {
+      const data = await callFunction<{ summary?: string; error?: string; confidence?: number }>("summarize", {
         text,
         lang: rtl ? "ar" : "en",
         page: index + 1,
@@ -330,13 +353,18 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       }
       
       const s = data?.summary || "";
+      const confidence = data?.confidence || 0.8; // Default confidence if not provided
       setSummary(s);
+      setSummaryConfidence(confidence);
       setSummaryProgress(100);
       try { localStorage.setItem(sumKey, s); } catch {}
       toast.success(rtl ? "تم إنشاء الملخص" : "Summary ready");
+      setRetryCount(0); // Reset retry count on success
     } catch (e: any) {
       console.error('Summarize error details:', e);
       const errorMsg = e?.message || String(e);
+      setLastError(e);
+      setRetryCount(prev => prev + 1);
       toast.error(rtl ? `فشل التلخيص: ${errorMsg}` : `Failed to summarize: ${errorMsg}`);
     } finally {
       setSummLoading(false);
@@ -560,58 +588,49 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           )}
         </FullscreenMode>
 
-        {/* Summary below */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">{rtl ? "ملخص الصفحة" : "Page Summary"}</CardTitle>
-              <Button 
-                onClick={extractTextFromPage}
-                disabled={ocrLoading || summLoading}
-                variant="outline"
-                size="sm"
-              >
-                {(ocrLoading || summLoading) ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    {rtl ? "جارٍ الإنشاء..." : "Processing..."}
-                  </>
-                ) : (
-                  rtl ? "إنشاء الملخص" : "Generate Summary"
-                )}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {ocrLoading && (
-              <LoadingProgress 
-                type="ocr" 
-                progress={ocrProgress} 
-                estimatedTime={Math.max(5, Math.round((100 - ocrProgress) * 0.1))}
-                rtl={rtl} 
-              />
-            )}
-            {summLoading && (
-              <LoadingProgress 
-                type="summary" 
-                progress={summaryProgress} 
-                estimatedTime={Math.max(3, Math.round((100 - summaryProgress) * 0.05))}
-                rtl={rtl} 
-              />
-            )}
-            {!ocrLoading && !summLoading && summary ? (
-              <MathRenderer content={summary} className="text-sm" />
-            ) : !ocrLoading && !summLoading ? (
-              <div className="text-sm text-muted-foreground">
-                {rtl ? "اضغط على 'إنشاء الملخص' لتحليل الصفحة" : "Click 'Generate Summary' to analyze this page"}
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
+        {/* Content Search */}
+        <ContentSearch
+          pages={allExtractedTexts}
+          currentPageIndex={index}
+          onPageChange={setIndex}
+          onHighlight={setSearchHighlight}
+          rtl={rtl}
+        />
 
+        {/* Error Handler */}
+        {lastError && (
+          <ImprovedErrorHandler
+            error={lastError}
+            onRetry={extractTextFromPage}
+            isRetrying={ocrLoading || summLoading}
+            retryCount={retryCount}
+            context={ocrLoading ? (rtl ? "استخراج النص" : "OCR") : (rtl ? "التلخيص" : "Summarization")}
+            rtl={rtl}
+          />
+        )}
 
-          {/* AI Q&A at the bottom */}
-          <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
+        {/* Enhanced Summary */}
+        <EnhancedSummary
+          summary={summary}
+          onSummaryChange={(newSummary) => {
+            setSummary(newSummary);
+            try { localStorage.setItem(sumKey, newSummary); } catch {}
+          }}
+          onRegenerate={() => {
+            if (extractedText) {
+              summarizeExtractedText(extractedText);
+            } else {
+              toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
+            }
+          }}
+          isRegenerating={summLoading}
+          confidence={summaryConfidence}
+          pageNumber={index + 1}
+          rtl={rtl}
+        />
+
+        {/* AI Q&A at the bottom */}
+        <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
         </div>
       </div>
     </section>
