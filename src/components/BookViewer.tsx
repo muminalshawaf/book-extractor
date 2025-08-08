@@ -12,7 +12,7 @@ import { callFunction } from "@/lib/functionsClient";
 import { LoadingProgress } from "@/components/LoadingProgress";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { ThumbnailSidebar } from "@/components/ThumbnailSidebar";
-import { FullscreenMode } from "@/components/FullscreenMode";
+import { FullscreenMode, FullscreenButton } from "@/components/FullscreenMode";
 import { ZoomControls, ZoomMode } from "@/components/ZoomControls";
 import { MiniMap } from "@/components/MiniMap";
 import { useImagePreloader } from "@/hooks/useImagePreloader";
@@ -478,22 +478,25 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         {/* Main Content */}
         <div className="flex-1 flex flex-col gap-6">
 
-        {/* Enhanced Zoom Controls */}
-        <ZoomControls
-          zoom={zoom}
-          minZoom={Z.min}
-          maxZoom={Z.max}
-          zoomStep={Z.step}
-          mode={zoomMode}
-          onZoomIn={zoomIn}
-          onZoomOut={zoomOut}
-          onFitWidth={fitToWidth}
-          onFitHeight={fitToHeight}
-          onActualSize={actualSize}
-          showMiniMap={showMiniMap}
-          onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
-          rtl={rtl}
-        />
+        {/* Top Bar */}
+        <div className="flex items-center justify-between bg-card rounded-lg p-4 shadow-sm">
+          <ZoomControls
+            zoom={zoom}
+            minZoom={Z.min}
+            maxZoom={Z.max}
+            zoomStep={Z.step}
+            mode={zoomMode}
+            onZoomIn={zoomIn}
+            onZoomOut={zoomOut}
+            onFitWidth={fitToWidth}
+            onFitHeight={fitToHeight}
+            onActualSize={actualSize}
+            showMiniMap={showMiniMap}
+            onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
+            rtl={rtl}
+          />
+          <FullscreenButton rtl={rtl} />
+        </div>
 
         {/* Page Area with Fullscreen */}
         <FullscreenMode rtl={rtl}>

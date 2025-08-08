@@ -8,7 +8,8 @@ interface FullscreenModeProps {
   rtl?: boolean;
 }
 
-export const FullscreenMode: React.FC<FullscreenModeProps> = ({ children, rtl = false }) => {
+// Hook for fullscreen functionality
+export const useFullscreen = (rtl = false) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const toggleFullscreen = () => {
@@ -52,6 +53,35 @@ export const FullscreenMode: React.FC<FullscreenModeProps> = ({ children, rtl = 
     };
   }, [isFullscreen]);
 
+  return { isFullscreen, toggleFullscreen };
+};
+
+// Button component for fullscreen toggle
+interface FullscreenButtonProps {
+  rtl?: boolean;
+  className?: string;
+}
+
+export const FullscreenButton: React.FC<FullscreenButtonProps> = ({ rtl = false, className }) => {
+  const { toggleFullscreen } = useFullscreen(rtl);
+  
+  return (
+    <Button
+      variant="ghost"
+      onClick={toggleFullscreen}
+      title={rtl ? "ملء الشاشة (F)" : "Full Screen (F)"}
+      className={cn("bg-background/80 backdrop-blur-sm hover:bg-accent", className)}
+    >
+      <Maximize className="h-4 w-4 mr-2" />
+      {rtl ? "ملء الشاشة" : "Full Screen"}
+    </Button>
+  );
+};
+
+// Container component for fullscreen display
+export const FullscreenMode: React.FC<FullscreenModeProps> = ({ children, rtl = false }) => {
+  const { isFullscreen, toggleFullscreen } = useFullscreen(rtl);
+
   if (isFullscreen) {
     return (
       <div className="fixed inset-0 bg-background z-50 flex flex-col">
@@ -75,18 +105,5 @@ export const FullscreenMode: React.FC<FullscreenModeProps> = ({ children, rtl = 
     );
   }
 
-  return (
-    <div className="relative">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={toggleFullscreen}
-        title={rtl ? "ملء الشاشة (F)" : "Fullscreen (F)"}
-        className="absolute top-2 right-2 z-10 bg-background/80 backdrop-blur-sm hover:bg-accent"
-      >
-        <Maximize className="h-4 w-4" />
-      </Button>
-      {children}
-    </div>
-  );
+  return <>{children}</>;
 };
