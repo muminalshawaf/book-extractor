@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Minus, Plus, Loader2, FileText } from "lucide-react";
 import { createWorker } from 'tesseract.js';
+import QAChat from "@/components/QAChat";
 export type BookPage = {
   src: string;
   alt: string;
@@ -73,6 +74,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
   // Notes per page (localStorage persistence)
   const storageKey = useMemo(() => `book:notes:${title}:${index}`, [title, index]);
+  const ocrKey = useMemo(() => `book:ocr:${title}:${index}`, [title, index]);
+  const sumKey = useMemo(() => `book:summary:${title}:${index}`, [title, index]);
   const [note, setNote] = useState("");
   const [summary, setSummary] = useState("");
   const [summLoading, setSummLoading] = useState(false);
@@ -125,6 +128,21 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [total, rtl]);
+
+  // Auto process page: load cached summary or run OCR+summary
+  useEffect(() => {
+    try {
+      const cachedText = localStorage.getItem(ocrKey) || "";
+      const cachedSummary = localStorage.getItem(sumKey) || "";
+      if (cachedText) setExtractedText(cachedText);
+      if (cachedSummary) {
+        setSummary(cachedSummary);
+      } else {
+        // Trigger OCR + summarization automatically
+        extractTextFromPage();
+      }
+    } catch {}
+  }, [index, ocrKey, sumKey]);
 
   const copyNote = async () => {
     try {
@@ -273,6 +291,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       }
       
       setExtractedText(text);
+      try { localStorage.setItem(ocrKey, text); } catch {}
       console.log('Starting summarization...');
       await summarizeExtractedText(text);
       toast.success(rtl ? "تم استخراج النص من الصفحة بنجاح" : "Text extracted successfully");
@@ -285,15 +304,20 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }
   };
 
-  // Function to summarize extracted text
+  // Function to summarize extracted text (server via DeepSeek)
   const summarizeExtractedText = async (text: string) => {
     setSummLoading(true);
     try {
-      // For now, create a simple client-side summary
-      const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
-      const summary = sentences.slice(0, 5).join('. ') + (sentences.length > 5 ? '.' : '');
-      
-      setSummary(summary || text.substring(0, 500) + '...');
+      const res = await fetch("/functions/v1/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, lang: rtl ? "ar" : "en", page: index + 1, title }),
+      });
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      const data = await res.json();
+      const s = data?.summary || "";
+      setSummary(s);
+      try { localStorage.setItem(sumKey, s); } catch {}
       toast.success(rtl ? "تم إنشاء الملخص" : "Summary ready");
     } catch (e) {
       console.error('Summarize error:', e);
@@ -421,6 +445,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       <div className="leading-relaxed">{extractedText.substring(0, 500)}...</div>
                     </div>
                   )}
+                  
+                  {/* Q&A Chat Panel */}
+                  <QAChat summary={summary} rtl={rtl} title={title} page={index + 1} />
               </div>
             </CardContent>
           </Card>
