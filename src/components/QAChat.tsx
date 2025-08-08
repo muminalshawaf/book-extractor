@@ -127,7 +127,12 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
                 {messages.map((m, i) => (
                   <div key={i} className={cn("text-sm", m.role === "assistant" ? "" : "font-medium")}>
                     {m.role === "assistant" ? (
-                      <MathRenderer content={m.content} className="text-sm" />
+                      // During streaming, render raw text to avoid heavy KaTeX re-renders
+                      loading && i === messages.length - 1 ? (
+                        <div className="whitespace-pre-wrap text-sm">{m.content}</div>
+                      ) : (
+                        <MathRenderer content={m.content} className="text-sm" />
+                      )
                     ) : (
                       <div className="whitespace-pre-wrap">{m.content}</div>
                     )}
