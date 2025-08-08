@@ -8,6 +8,7 @@ import { Edit3, Save, X, RefreshCw, Clock, FileText, Copy, Check, Share2, Printe
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { renderContent } from "@/lib/mathRenderer";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface EnhancedSummaryProps {
   summary: string;
@@ -45,6 +46,13 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
   // Calculate reading metrics
   const wordCount = summary.trim().split(/\s+/).filter(word => word.length > 0).length;
   const readingTime = Math.max(1, Math.ceil(wordCount / 200)); // 200 WPM average
+
+  // Sharing helpers
+  const canSystemShare = typeof (navigator as any).share === "function";
+  const shareTitle = `${title || (rtl ? "ملخص" : "Summary")} — ${rtl ? "صفحة" : "Page"} ${pageNumber}`;
+  const shareSnippet = summary.slice(0, 280);
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+
 
   const handleSave = () => {
     onSummaryChange(editedSummary);
@@ -192,16 +200,61 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
                 >
                   <RefreshCw className={cn("h-3 w-3", isRegenerating && "animate-spin")} />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleShare}
-                  disabled={!summary}
-                  title={rtl ? "مشاركة الملخص" : "Share summary"}
-                  className="h-8 w-8"
-                >
-                  <Share2 className="h-3 w-3" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={!summary}
+                      title={rtl ? "مشاركة الملخص" : "Share summary"}
+                      className="h-8 w-8"
+                    >
+                      <Share2 className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align={rtl ? "start" : "end"}>
+                    {canSystemShare && (
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          try {
+                            await (navigator as any).share({ title: shareTitle, text: shareSnippet, url: currentUrl });
+                            toast.success(rtl ? "تمت المشاركة" : "Shared");
+                          } catch (e: any) {
+                            if (e?.name !== 'AbortError') {
+                              toast.error(rtl ? "تعذر المشاركة" : "Share failed");
+                            }
+                          }
+                        }}
+                      >
+                        {rtl ? "مشاركة عبر النظام" : "System Share"}
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareTitle}\n\n${currentUrl}`)}`, '_blank', 'noopener,noreferrer')}>
+                      {rtl ? "واتساب" : "WhatsApp"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(currentUrl)}`, '_blank', 'noopener,noreferrer')}>
+                      {rtl ? "X (تويتر)" : "X (Twitter)"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(shareTitle)}`, '_blank', 'noopener,noreferrer')}>
+                      {rtl ? "تيليجرام" : "Telegram"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`, '_blank', 'noopener,noreferrer')}>
+                      {rtl ? "فيسبوك" : "Facebook"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(`${shareTitle}\n\n${summary}\n\n${currentUrl}`);
+                          toast.success(rtl ? "تم نسخ النص + الرابط" : "Copied text + link");
+                        } catch {
+                          toast.error(rtl ? "فشل النسخ" : "Copy failed");
+                        }
+                      }}
+                    >
+                      {rtl ? "نسخ النص + الرابط" : "Copy text + link"}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   variant="ghost"
                   size="icon"
