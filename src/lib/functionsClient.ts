@@ -22,7 +22,6 @@ export async function callFunction<T = any>(name: string, body: Record<string, a
 
   // 2) Absolute URL using env vars (works even if /functions proxy isn't wired)
   try {
-    // Using import.meta.env directly here avoids importing the supabase client which may throw
     // eslint-disable-next-line no-undef
     const url = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
     // eslint-disable-next-line no-undef
@@ -38,7 +37,8 @@ export async function callFunction<T = any>(name: string, body: Record<string, a
         body: JSON.stringify(body),
       });
       if (res.ok) return (await res.json()) as T;
-      // fall through to relative if 404/other
+      const text = await res.text().catch(() => "");
+      throw new Error(`Function ${name} HTTP ${res.status}: ${text}`);
     }
   } catch (_) {
     // ignore and try relative fallback
@@ -50,7 +50,10 @@ export async function callFunction<T = any>(name: string, body: Record<string, a
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Function ${name} HTTP ${res.status}`);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Function ${name} HTTP ${res.status}: ${text}`);
+  }
   return (await res.json()) as T;
 }
 
