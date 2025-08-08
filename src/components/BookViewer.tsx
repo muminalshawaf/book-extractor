@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -10,6 +9,9 @@ import { createWorker } from 'tesseract.js';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
 import { callFunction } from "@/lib/functionsClient";
+import { LoadingProgress } from "@/components/LoadingProgress";
+import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
+import { ThumbnailSidebar } from "@/components/ThumbnailSidebar";
 export type BookPage = {
   src: string;
   alt: string;
@@ -81,6 +83,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [summLoading, setSummLoading] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [extractedText, setExtractedText] = useState("");
+  
+  // New state for enhanced features
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [summaryProgress, setSummaryProgress] = useState(0);
+  const [thumbnailsOpen, setThumbnailsOpen] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
 
 
 
@@ -93,20 +101,60 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setIndex((i) => Math.min(total - 1, i + 1));
   };
 
-  // keyboard navigation (RTL-aware)
+  // Enhanced keyboard navigation
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (rtl) {
-        if (e.key === "ArrowLeft") goNext();
-        if (e.key === "ArrowRight") goPrev();
-      } else {
-        if (e.key === "ArrowLeft") goPrev();
-        if (e.key === "ArrowRight") goNext();
+      // Ignore if typing in input fields
+      if ((e.target as HTMLElement)?.tagName === "INPUT" || 
+          (e.target as HTMLElement)?.tagName === "TEXTAREA" ||
+          (e.target as HTMLElement)?.contentEditable === "true") {
+        return;
+      }
+
+      switch (e.key) {
+        case "ArrowLeft":
+          e.preventDefault();
+          rtl ? goNext() : goPrev();
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          rtl ? goPrev() : goNext();
+          break;
+        case " ":
+        case "Enter":
+          e.preventDefault();
+          goNext();
+          break;
+        case "Backspace":
+          e.preventDefault();
+          goPrev();
+          break;
+        case "+":
+        case "=":
+          e.preventDefault();
+          zoomIn();
+          break;
+        case "-":
+          e.preventDefault();
+          zoomOut();
+          break;
+        case "t":
+        case "T":
+          e.preventDefault();
+          setThumbnailsOpen(!thumbnailsOpen);
+          break;
+        case "s":
+        case "S":
+          e.preventDefault();
+          if (!ocrLoading && !summLoading) {
+            extractTextFromPage();
+          }
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [total, rtl]);
+  }, [total, rtl, thumbnailsOpen, ocrLoading, summLoading]);
 
   // Load cached data on page change
   useEffect(() => {
@@ -124,6 +172,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   // OCR function to extract text from page image
   const extractTextFromPage = async () => {
     setOcrLoading(true);
+    setOcrProgress(0);
     setExtractedText("");
     setSummary("");
     
@@ -199,10 +248,23 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       }
       
       console.log('Creating Tesseract worker...');
+      setOcrProgress(20);
       const worker = await createWorker('ara+eng');
+      setOcrProgress(40);
       console.log('Running OCR...');
       const { data: { text } } = await worker.recognize(imageBlob);
+      // Manual progress simulation for better UX
+      let currentProgress = 40;
+      const progressInterval = setInterval(() => {
+        currentProgress += 5;
+        if (currentProgress <= 80) {
+          setOcrProgress(currentProgress);
+        }
+      }, 200);
+      clearInterval(progressInterval);
+      setOcrProgress(90);
       await worker.terminate();
+      setOcrProgress(100);
       
       console.log('OCR completed, extracted text length:', text.length);
       console.log('First 200 chars:', text.substring(0, 200));
@@ -223,20 +285,24 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       toast.error(rtl ? `فشل في استخراج النص: ${message}` : `Failed to extract text: ${message}`);
     } finally {
       setOcrLoading(false);
+      setOcrProgress(0);
     }
   };
 
   // Function to summarize extracted text (server via DeepSeek)
   const summarizeExtractedText = async (text: string) => {
     setSummLoading(true);
+    setSummaryProgress(0);
     try {
       console.log('Starting summarization with text length:', text.length);
+      setSummaryProgress(25);
       const data = await callFunction<{ summary?: string; error?: string }>("summarize", {
         text,
         lang: rtl ? "ar" : "en",
         page: index + 1,
         title,
       });
+      setSummaryProgress(75);
       console.log('Summarize response:', data);
       
       if (data?.error) {
@@ -245,6 +311,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       
       const s = data?.summary || "";
       setSummary(s);
+      setSummaryProgress(100);
       try { localStorage.setItem(sumKey, s); } catch {}
       toast.success(rtl ? "تم إنشاء الملخص" : "Summary ready");
     } catch (e: any) {
@@ -253,6 +320,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       toast.error(rtl ? `فشل التلخيص: ${errorMsg}` : `Failed to summarize: ${errorMsg}`);
     } finally {
       setSummLoading(false);
+      setSummaryProgress(0);
     }
   };
 
@@ -295,15 +363,32 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
   return (
     <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
-      <div className="flex flex-col gap-6">
+      <div className="flex gap-4">
+        {/* Thumbnail Sidebar */}
+        <div className={cn("flex-shrink-0", !thumbnailsOpen && "w-0 overflow-hidden")}>
+          <ThumbnailSidebar
+            pages={pages}
+            currentIndex={index}
+            onPageSelect={setIndex}
+            isOpen={thumbnailsOpen}
+            onToggle={() => setThumbnailsOpen(!thumbnailsOpen)}
+            rtl={rtl}
+          />
+        </div>
+        
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col gap-6">
 
         {/* Page Area */}
         <Card className="shadow-sm">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg" itemProp="name">{title}</CardTitle>
-              <div className="text-sm text-muted-foreground select-none">
-                {L.progress(index + 1, total, progressPct)}
+              <div className="flex items-center gap-2">
+                <KeyboardShortcuts rtl={rtl} />
+                <div className="text-sm text-muted-foreground select-none">
+                  {L.progress(index + 1, total, progressPct)}
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -325,6 +410,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   alt={pages[index]?.alt}
                   loading="eager"
                   decoding="async"
+                  onLoadStart={() => setImageLoading(true)}
+                  onLoad={() => setImageLoading(false)}
+                  onError={() => setImageLoading(false)}
                   style={{ 
                     transform: `scale(${zoom})`,
                     transformOrigin: 'center top',
@@ -333,6 +421,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   className="select-none max-w-full max-h-full object-contain"
                   itemProp="image"
                 />
+                {imageLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+                    <LoadingProgress type="image" progress={50} rtl={rtl} />
+                  </div>
+                )}
               </div>
             </div>
             <div className={cn("mt-4 flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
@@ -405,19 +498,36 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             </div>
           </CardHeader>
           <CardContent>
-            {summary ? (
+            {ocrLoading && (
+              <LoadingProgress 
+                type="ocr" 
+                progress={ocrProgress} 
+                estimatedTime={Math.max(5, Math.round((100 - ocrProgress) * 0.1))}
+                rtl={rtl} 
+              />
+            )}
+            {summLoading && (
+              <LoadingProgress 
+                type="summary" 
+                progress={summaryProgress} 
+                estimatedTime={Math.max(3, Math.round((100 - summaryProgress) * 0.05))}
+                rtl={rtl} 
+              />
+            )}
+            {!ocrLoading && !summLoading && summary ? (
               <MathRenderer content={summary} className="text-sm" />
-            ) : (
+            ) : !ocrLoading && !summLoading ? (
               <div className="text-sm text-muted-foreground">
                 {rtl ? "اضغط على 'إنشاء الملخص' لتحليل الصفحة" : "Click 'Generate Summary' to analyze this page"}
               </div>
-            )}
+            ) : null}
           </CardContent>
         </Card>
 
 
-        {/* AI Q&A at the bottom */}
-        <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
+          {/* AI Q&A at the bottom */}
+          <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
+        </div>
       </div>
     </section>
   );
