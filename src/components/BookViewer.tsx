@@ -192,36 +192,73 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       const imageSrc = pages[index]?.src;
       console.log('Image source:', imageSrc);
       
-      // Create an image element to load the imported image
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
+      // For external images with CORS restrictions, we need to use a proxy approach
+      // Try to load the image through different methods
+      let imageBlob: Blob;
       
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = imageSrc;
-      });
-      
-      console.log('Image loaded successfully');
-      
-      // Create canvas and convert to blob for better compatibility
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Could not get canvas context');
-      
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      ctx.drawImage(img, 0, 0);
-      
-      console.log('Image drawn to canvas');
+      try {
+        // First try direct fetch
+        const response = await fetch(imageSrc, { 
+          mode: 'cors',
+          headers: {
+            'Accept': 'image/*'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        imageBlob = await response.blob();
+        console.log('Image fetched successfully via direct fetch');
+      } catch (fetchError) {
+        console.log('Direct fetch failed, trying image element approach:', fetchError);
+        
+        // Fallback: Load through image element and convert to canvas
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = () => {
+            // If crossOrigin fails, try without it
+            img.crossOrigin = '';
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = imageSrc;
+          };
+          img.src = imageSrc;
+        });
+        
+        console.log('Image loaded via img element');
+        
+        // Convert to canvas then to blob
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Could not get canvas context');
+        
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        ctx.drawImage(img, 0, 0);
+        
+        imageBlob = await new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Failed to convert canvas to blob'));
+          }, 'image/jpeg', 0.9);
+        });
+        
+        console.log('Image converted to blob via canvas');
+      }
       
       const worker = await createWorker('ara+eng');
       console.log('Tesseract worker created');
       
-      const { data: { text } } = await worker.recognize(canvas);
+      const { data: { text } } = await worker.recognize(imageBlob);
       await worker.terminate();
       
-      console.log('OCR completed, extracted text:', text.substring(0, 100));
+      console.log('OCR completed, extracted text length:', text.length);
+      console.log('First 200 chars:', text.substring(0, 200));
       
       setExtractedText(text);
       
@@ -229,12 +266,14 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       if (text.trim()) {
         console.log('Starting summarization...');
         await summarizeExtractedText(text);
+      } else {
+        toast.error(rtl ? "لم يتم العثور على نص في الصورة" : "No text found in image");
       }
       
       toast.success(rtl ? "تم استخراج النص من الصفحة" : "Text extracted from page");
     } catch (error) {
-      console.error('OCR error:', error);
-      toast.error(rtl ? "فشل في استخراج النص" : "Failed to extract text");
+      console.error('OCR error details:', error);
+      toast.error(rtl ? "فشل في استخراج النص - يرجى المحاولة مرة أخرى" : "Failed to extract text - please try again");
     } finally {
       setOcrLoading(false);
     }
