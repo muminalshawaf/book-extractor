@@ -40,7 +40,7 @@ export const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ rtl = fals
       action: rtl ? "الصفحة السابقة" : "Previous page",
     },
     {
-      key: "+ / -",
+      key: "Cmd/Ctrl + / -",
       action: rtl ? "تكبير / تصغير" : "Zoom in / out",
     },
     {
@@ -48,11 +48,11 @@ export const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ rtl = fals
       action: rtl ? "ملء الشاشة" : "Fullscreen",
     },
     {
-      key: "T",
+      key: "Cmd/Ctrl + T",
       action: rtl ? "عرض المصغرات" : "Toggle thumbnails",
     },
     {
-      key: "S",
+      key: "Cmd/Ctrl + S",
       action: rtl ? "إنشاء ملخص" : "Generate summary",
     },
     {
