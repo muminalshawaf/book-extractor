@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import HTMLFlipBook from "react-pageflip";
+import { BookPageView } from "./BookPageView";
 
 export type BookPage = {
   src: string;
@@ -208,17 +209,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   onFlip={(e: any) => setIndex(e.data)}
                 >
                   {pages.map((p, i) => (
-                    <div key={i} className="bg-card h-full w-full">
-                      <div className="flex items-center justify-center h-full w-full p-3">
-                        <img
-                          src={p.src}
-                          alt={p.alt}
-                          loading="lazy"
-                          decoding="async"
-                          className="max-w-full max-h-full object-contain select-none"
-                        />
-                      </div>
-                    </div>
+                    <BookPageView key={i} page={p} />
                   ))}
                 </HTMLFlipBook>
               </div>
