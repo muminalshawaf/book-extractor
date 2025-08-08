@@ -77,10 +77,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [summLoading, setSummLoading] = useState(false);
   const debounceRef = useRef<number | null>(null);
 
-  // OCR cache key and state
-  const ocrKey = useMemo(() => `book:ocr:${title}:${index}`, [title, index]);
-  const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrProgress, setOcrProgress] = useState(0);
   useEffect(() => {
     const existing = localStorage.getItem(storageKey) ?? "";
     setNote(existing);
@@ -165,81 +161,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }
   };
 
-  // OCR the current page image and summarize via DeepSeek
-  const summarizePage = async () => {
-    try {
-      setOcrLoading(true);
-      setOcrProgress(0);
-
-      let text = localStorage.getItem(ocrKey) ?? "";
-
-      if (!text) {
-        const { recognize } = await import("tesseract.js");
-        const primaryLang = rtl ? "ara" : "eng";
-        
-        // Get proxied image URL to avoid CORS issues
-        const getProxiedImage = async (imageUrl: string) => {
-          try {
-            const response = await fetch("/functions/v1/proxy-image", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ url: imageUrl }),
-            });
-            
-            if (!response.ok) throw new Error("Proxy failed");
-            return response.blob();
-          } catch {
-            // Fallback to original URL if proxy fails
-            return imageUrl;
-          }
-        };
-
-        const runRecognize = async (lang: string) => {
-          const imageSource = await getProxiedImage(pages[index]?.src);
-          const result = await recognize(imageSource, lang, {
-            logger: (m: any) => {
-              if (m.status === "recognizing text" && typeof m.progress === "number") {
-                setOcrProgress(Math.round(m.progress * 100));
-              }
-            },
-          });
-          return result?.data?.text?.trim() ?? "";
-        };
-
-        text = await runRecognize(primaryLang);
-        if (!text && primaryLang !== "eng") {
-          // fallback to English if Arabic data isn't available
-          text = await runRecognize("eng");
-        }
-
-        if (text) {
-          try { localStorage.setItem(ocrKey, text); } catch {}
-        }
-      }
-
-      if (!text) {
-        toast.error(rtl ? "تعذّر استخراج نص الصفحة" : "Couldn't extract page text");
-        return;
-      }
-
-      setSummLoading(true);
-      const res = await fetch("/functions/v1/summarize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, lang: rtl ? "ar" : "en", page: index + 1, title }),
-      });
-      if (!res.ok) throw new Error("summarize-failed");
-      const data = await res.json();
-      setSummary(data.summary || "");
-      toast.success(rtl ? "تم تلخيص الصفحة" : "Page summarized");
-    } catch (e) {
-      toast.error(rtl ? "فشل تلخيص الصفحة" : "Failed to summarize page");
-    } finally {
-      setSummLoading(false);
-      setOcrLoading(false);
-      setOcrProgress(0);
-    }
-  };
   const zoomOut = useCallback(() => setZoom((z) => Math.max(Z.min, +(z - Z.step).toFixed(2))), []);
   const zoomIn = useCallback(() => setZoom((z) => Math.min(Z.max, +(z + Z.step).toFixed(2))), []);
   const progressPct = total > 1 ? Math.round(((index + 1) / total) * 100) : 100;
@@ -317,27 +238,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     <Button variant="outline" onClick={copyNote} aria-label={L.copy}>
                       {L.copy}
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={summarizePage}
-                      disabled={ocrLoading || summLoading}
-                      aria-label={rtl ? "تلخيص الصفحة" : "Summarize page"}
-                    >
-                      {ocrLoading || summLoading ? (
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          {rtl ? "جارٍ معالجة الصفحة…" : "Processing page…"}
-                          {ocrLoading && ocrProgress ? <span className="tabular-nums"> {ocrProgress}%</span> : null}
-                        </div>
-                      ) : (
-                        rtl ? "تلخيص الصفحة" : "Summarize page"
-                      )}
-                    </Button>
-                    <Button variant="default" onClick={summarizeNotes} disabled={summLoading || !note.trim()} aria-label={rtl ? "تلخيص الملاحظات" : "Summarize notes"}>
+                    <Button variant="default" onClick={summarizeNotes} disabled={summLoading || !note.trim()} aria-label={rtl ? "تلخيص" : "Summarize"}>
                       {summLoading ? (
                         <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> {rtl ? "جارٍ التلخيص…" : "Summarizing…"}</div>
                       ) : (
-                        rtl ? "تلخيص الملاحظات" : "Summarize notes"
+                        rtl ? "تلخيص" : "Summarize"
                       )}
                     </Button>
                   </div>
