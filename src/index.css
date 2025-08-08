@@ -123,6 +123,18 @@ All colors MUST be HSL.
   font-size: 0.9em;
 }
 
+/* Bold text styling */
+.prose strong,
+.prose b {
+  font-weight: 700 !important;
+  color: hsl(var(--foreground));
+}
+
+.prose em,
+.prose i {
+  font-style: italic;
+}
+
 /* RTL-specific prose adjustments */
 .prose[dir="rtl"] {
   text-align: right;

@@ -34,10 +34,10 @@ export function renderContent(content: string, targetElement: HTMLElement): void
 
   const { text: markdownContent, mathBlocks } = normalizeAndExtractMath(content);
   
-  // Parse markdown
+  // Parse markdown with proper configuration  
   const parsedMarkdown = marked.parse(markdownContent, { 
     gfm: true, 
-    breaks: true 
+    breaks: true
   });
   
   targetElement.innerHTML = typeof parsedMarkdown === 'string' ? parsedMarkdown : '';

@@ -21,7 +21,10 @@ const MathRenderer: React.FC<MathRendererProps> = ({ content, className }) => {
       ref={containerRef}
       className={cn(
         "prose prose-sm max-w-none summary-content leading-relaxed",
-        "prose-p:my-3 prose-headings:my-4 prose-strong:font-bold",
+        "prose-p:my-3 prose-headings:my-4",
+        "prose-strong:font-bold prose-strong:text-foreground",
+        "prose-b:font-bold prose-b:text-foreground",
+        "prose-em:italic prose-i:italic",
         "prose-table:border-collapse prose-table:w-full prose-table:my-4",
         "prose-table:shadow-sm prose-table:border prose-table:border-border prose-table:rounded-lg prose-table:overflow-hidden",
         "prose-th:p-3 prose-th:border-b prose-th:border-border prose-th:bg-muted prose-th:font-semibold prose-th:text-right",
@@ -30,7 +33,9 @@ const MathRenderer: React.FC<MathRendererProps> = ({ content, className }) => {
         "prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:text-left prose-pre:dir-ltr",
         "prose-code:bg-muted prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm",
         "[&_.katex]:text-lg [&_.katex-display]:my-4",
-        "[&_strong]:font-bold [&_b]:font-bold",
+        "[&_strong]:font-bold [&_strong]:text-foreground",
+        "[&_b]:font-bold [&_b]:text-foreground",
+        "[&_em]:italic [&_i]:italic",
         "font-cairo",
         className
       )}
