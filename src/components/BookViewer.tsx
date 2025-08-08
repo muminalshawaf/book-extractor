@@ -47,6 +47,7 @@ interface BookViewerProps {
   title?: string;
   rtl?: boolean;
   labels?: Labels;
+  bookId?: string; // used for per-book caching keys
 }
 
 export const BookViewer: React.FC<BookViewerProps> = ({
@@ -54,6 +55,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   title = "Book",
   rtl = false,
   labels = {},
+  bookId,
 }) => {
   const [index, setIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
@@ -88,10 +90,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       ((c: number, t: number, p: number) => `Page ${c} of ${t} • ${p}%`),
   } as const;
 
-  // Caching keys and state
-  const ocrKey = useMemo(() => `book:ocr:${title}:${index}`, [title, index]);
-  const sumKey = useMemo(() => `book:summary:${title}:${index}`, [title, index]);
-  const [summary, setSummary] = useState("");
+// Caching keys and state
+const cacheId = useMemo(() => (bookId || title), [bookId, title]);
+const ocrKey = useMemo(() => `book:ocr:${cacheId}:${index}`, [cacheId, index]);
+const sumKey = useMemo(() => `book:summary:${cacheId}:${index}`, [cacheId, index]);
+const [summary, setSummary] = useState("");
   const [summLoading, setSummLoading] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [extractedText, setExtractedText] = useState("");
@@ -233,10 +236,16 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+// Reset state when switching books
+useEffect(() => {
+  setIndex(0);
+  setSummary("");
+  setExtractedText("");
+  setAllExtractedTexts({});
+  setLastError(null);
+}, [bookId, pages]);
 
-
-
-  // Enhanced OCR function with better error handling
+// Enhanced OCR function with better error handling
   const extractTextFromPage = async () => {
     setOcrLoading(true);
     setOcrProgress(0);

@@ -1,21 +1,20 @@
+import { useMemo, useState } from "react";
 import BookViewer from "@/components/BookViewer";
+import { books, getBookById } from "@/data/books";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Index = () => {
-  // External chemistry book pages
-  const baseUrl = "https://ksa.idros.ai/books/chem12-1-3/";
-  const pageId = "a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8";
-  
-  const pages = Array.from({ length: 177 }, (_, i) => ({
-    src: `${baseUrl}${pageId}-${i + 1}.jpg`,
-    alt: `صفحة كتاب الكيمياء ${i + 1}`
-  }));
+  const [selectedId, setSelectedId] = useState<string>(books[0].id);
+  const selectedBook = useMemo(() => getBookById(selectedId), [selectedId]);
+  const pages = useMemo(() => selectedBook.buildPages(), [selectedBook]);
+  const rtl = selectedBook.rtl ?? true;
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "CreativeWork",
-    name: "عارض كتاب تفاعلي",
-    description: "تصفح صفحات الكتاب مع كتابة ملاحظات بجانب كل صفحة.",
-  };
+    name: selectedBook.title,
+    description: "تصفح عدة كتب، سيتم حفظ OCR والملخصات لكل كتاب على حدة.",
+  } as const;
 
   return (
     <>
@@ -27,15 +26,29 @@ const Index = () => {
         <header className="mb-8 text-center">
           <h1 className="text-4xl font-bold tracking-tight">عارض كتاب تفاعلي</h1>
           <p className="mt-2 text-muted-foreground max-w-2xl mx-auto">
-            تصفح صفحات كتابك، وسيتم تلخيص كل صفحة تلقائيًا، ثم اسأل الذكاء الاصطناعي في الأسفل.
+            اختر كتابًا من القائمة، وسيتم حفظ OCR والملخصات بشكل منفصل لكل كتاب.
           </p>
+          <div className="mt-4 flex items-center justify-center">
+            <Select value={selectedId} onValueChange={setSelectedId}>
+              <SelectTrigger className="w-[280px]" aria-label="اختيار كتاب">
+                <SelectValue placeholder="اختر كتابًا" />
+              </SelectTrigger>
+              <SelectContent>
+                {books.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </header>
         
         <main>
           <BookViewer
+            key={selectedBook.id}
+            bookId={selectedBook.id}
             pages={pages}
-            title="كتاب تجريبي"
-            rtl={true}
+            title={selectedBook.title}
+            rtl={rtl}
             labels={{
               previous: "السابق",
               next: "التالي",
