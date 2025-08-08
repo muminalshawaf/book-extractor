@@ -27,7 +27,7 @@ const Index = () => {
         <header className="mb-8 text-center">
           <h1 className="text-4xl font-bold tracking-tight">عارض كتاب تفاعلي</h1>
           <p className="mt-2 text-muted-foreground max-w-2xl mx-auto">
-            تصفح صفحات كتابك صفحة بصفحة، ودون ملاحظاتك على الهامش. استخدم مفاتيح الأسهم للتنقل.
+            تصفح صفحات كتابك، وسيتم تلخيص كل صفحة تلقائيًا، ثم اسأل الذكاء الاصطناعي في الأسفل.
           </p>
         </header>
         

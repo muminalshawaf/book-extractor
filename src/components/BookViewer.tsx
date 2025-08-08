@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, Loader2, FileText } from "lucide-react";
+import { Minus, Plus, Loader2 } from "lucide-react";
 import { createWorker } from 'tesseract.js';
 import QAChat from "@/components/QAChat";
 export type BookPage = {
@@ -72,39 +72,16 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       ((c: number, t: number, p: number) => `Page ${c} of ${t} • ${p}%`),
   } as const;
 
-  // Notes per page (localStorage persistence)
-  const storageKey = useMemo(() => `book:notes:${title}:${index}`, [title, index]);
+  // Caching keys and state
   const ocrKey = useMemo(() => `book:ocr:${title}:${index}`, [title, index]);
   const sumKey = useMemo(() => `book:summary:${title}:${index}`, [title, index]);
-  const [note, setNote] = useState("");
   const [summary, setSummary] = useState("");
   const [summLoading, setSummLoading] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [extractedText, setExtractedText] = useState("");
-  const debounceRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    const existing = localStorage.getItem(storageKey) ?? "";
-    setNote(existing);
-  }, [storageKey]);
 
-  const saveNote = useCallback(
-    (value: string) => {
-      try {
-        localStorage.setItem(storageKey, value);
-      } catch (e) {
-        // ignore quota errors gracefully
-      }
-    },
-    [storageKey]
-  );
 
-  const handleChange = (v: string) => {
-    setNote(v);
-    // simple debounce to reduce writes
-    if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    debounceRef.current = window.setTimeout(() => saveNote(v), 400);
-  };
 
   const goPrev = () => {
     setIndex((i) => Math.max(0, i - 1));
@@ -144,60 +121,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     } catch {}
   }, [index, ocrKey, sumKey]);
 
-  const copyNote = async () => {
-    try {
-      await navigator.clipboard.writeText(note);
-      toast.success(L.toastCopied);
-    } catch {
-      toast.error(L.toastCopyFailed);
-    }
-  };
 
-  const clearNote = () => {
-    setNote("");
-    saveNote("");
-    toast(L.toastCleared);
-  };
 
-  const summarizeNotes = async () => {
-    console.log('Summarize function called');
-    if (!note.trim()) {
-      console.log('No note content');
-      toast.error(rtl ? "يرجى كتابة ملاحظتك أولاً" : "Please write a note first");
-      return;
-    }
-    console.log('Starting summarization...', { note: note.substring(0, 50), rtl, index, title });
-    setSummLoading(true);
-    try {
-      console.log('Making API call to /functions/v1/summarize');
-      // Use relative path for edge function in Lovable/Supabase environment
-      const res = await fetch("/functions/v1/summarize", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ text: note, lang: rtl ? "ar" : "en", page: index + 1, title }),
-      });
-      
-      console.log('API response status:', res.status);
-      
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error('Summarize API error:', res.status, errorText);
-        throw new Error(`API error: ${res.status}`);
-      }
-      
-      const data = await res.json();
-      console.log('API response data:', data);
-      setSummary(data?.summary || "");
-      toast.success(rtl ? "تم إنشاء الملخص" : "Summary ready");
-    } catch (e) {
-      console.error('Summarize error:', e);
-      toast.error(rtl ? "تعذّر إنشاء الملخص" : "Failed to summarize");
-    } finally {
-      setSummLoading(false);
-    }
-  };
 
   // OCR function to extract text from page image
   const extractTextFromPage = async () => {
@@ -365,99 +290,14 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   }, [isPanning, zoom]);
 
   return (
-    <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full">
-      <div
-        className={cn(
-          "grid grid-cols-1 gap-6 items-start",
-          rtl
-            ? "lg:grid-cols-[minmax(280px,380px)_1fr]"
-            : "lg:grid-cols-[1fr_minmax(280px,380px)]"
-        )}
-      >
-        {/* Notes Sidebar (RTL-first) */}
-        <aside className="w-full">
-          <Card className="sticky top-6">
-            <CardHeader>
-              <CardTitle className="text-base">{L.notesTitle(index + 1)}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <Textarea
-                  value={note}
-                  onChange={(e) => handleChange(e.target.value)}
-                  placeholder={rtl ? "اكتب ملاحظاتك هنا…" : "Write your thoughts here…"}
-                  aria-label={rtl ? "ملاحظات" : "Notes"}
-                  className="min-h-[220px]"
-                />
-                {summary && (
-                  <div className="p-3 rounded-md bg-muted/50 animate-fade-in">
-                    <div className="text-xs font-medium mb-1">{rtl ? "ملخص الملاحظات" : "Notes summary"}</div>
-                    <div className="text-sm leading-6 whitespace-pre-wrap">{summary}</div>
-                  </div>
-                )}
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-muted-foreground">{L.autosaves}</div>
-                  <div className="flex gap-2">
-                    <Button variant="secondary" onClick={clearNote} aria-label={L.clear}>
-                      {L.clear}
-                    </Button>
-                    <Button variant="outline" onClick={copyNote} aria-label={L.copy}>
-                      {L.copy}
-                    </Button>
-                    <Button variant="default" onClick={summarizeNotes} disabled={summLoading || !note.trim()} aria-label={rtl ? "تلخيص" : "Summarize"}>
-                      {summLoading ? (
-                        <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> {rtl ? "جارٍ التلخيص…" : "Summarizing…"}</div>
-                      ) : (
-                        rtl ? "تلخيص" : "Summarize"
-                      )}
-                    </Button>
-                  </div>
-                  </div>
-                </div>
-                
-                {/* OCR Section */}
-                <div className="mt-4 pt-3 border-t">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="text-sm font-medium">{rtl ? "استخراج النص من الصفحة" : "Extract Page Text"}</div>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={extractTextFromPage} 
-                      disabled={ocrLoading}
-                      className="flex items-center gap-2"
-                    >
-                      {ocrLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          {rtl ? "جارٍ الاستخراج..." : "Extracting..."}
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="h-4 w-4" />
-                          {rtl ? "استخراج وتلخيص" : "Extract & Summarize"}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  {extractedText && (
-                    <div className="p-3 rounded-md bg-muted/30 text-xs max-h-32 overflow-y-auto">
-                      <div className="font-medium mb-1">{rtl ? "النص المستخرج:" : "Extracted text:"}</div>
-                      <div className="leading-relaxed">{extractedText.substring(0, 500)}...</div>
-                    </div>
-                  )}
-                  
-                  {/* Q&A Chat Panel */}
-                  <QAChat summary={summary} rtl={rtl} title={title} page={index + 1} />
-              </div>
-            </CardContent>
-          </Card>
-        </aside>
+    <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
+      <div className="flex flex-col gap-6">
 
         {/* Page Area */}
-        <Card ref={containerRef} className="shadow-sm">
+        <Card className="shadow-sm">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">{title}</CardTitle>
+              <CardTitle className="text-lg" itemProp="name">{title}</CardTitle>
               <div className="text-sm text-muted-foreground select-none">
                 {L.progress(index + 1, total, progressPct)}
               </div>
@@ -487,6 +327,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     transition: 'transform 0.2s ease-out'
                   }}
                   className="select-none max-w-full max-h-full object-contain"
+                  itemProp="image"
                 />
               </div>
             </div>
@@ -536,6 +377,30 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             </div>
           </CardContent>
         </Card>
+
+        {/* Summary below */}
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base">{rtl ? "ملخص الصفحة" : "Page Summary"}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(ocrLoading || summLoading) ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {rtl ? "جارٍ إنشاء الملخص..." : "Generating summary..."}
+              </div>
+            ) : summary ? (
+              <article className="text-sm leading-6 whitespace-pre-wrap" itemProp="abstract">{summary}</article>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                {rtl ? "سيظهر ملخص الصفحة هنا بعد التحليل..." : "The page summary will appear here after analysis..."}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* AI Q&A at the bottom */}
+        <QAChat summary={summary} rtl={rtl} title={title} page={index + 1} />
       </div>
     </section>
   );
