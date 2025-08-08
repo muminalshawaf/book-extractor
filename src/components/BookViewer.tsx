@@ -19,6 +19,9 @@ import { useImagePreloader } from "@/hooks/useImagePreloader";
 import { EnhancedSummary } from "@/components/EnhancedSummary";
 import { ContentSearch } from "@/components/ContentSearch";
 import { ImprovedErrorHandler } from "@/components/ImprovedErrorHandler";
+import { AccessibilityPanel } from "@/components/AccessibilityPanel";
+import { TouchGestureHandler } from "@/components/TouchGestureHandler";
+import { PerformanceMonitor } from "@/components/PerformanceMonitor";
 export type BookPage = {
   src: string;
   alt: string;
@@ -113,6 +116,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   
   // Store extracted text for all pages for search
   const [allExtractedTexts, setAllExtractedTexts] = useState<Record<number, string>>({});
+  
+  // Phase 4 enhancements
+  const [accessibilityPanelOpen, setAccessibilityPanelOpen] = useState(false);
+  const [performanceMonitorOpen, setPerformanceMonitorOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
 
 
@@ -204,6 +212,17 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       setRetryCount(0);
     } catch {}
   }, [index, ocrKey, sumKey]);
+
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
 
 
@@ -482,69 +501,103 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg" itemProp="name">{title}</CardTitle>
-                <div className="flex items-center gap-2">
-                  <KeyboardShortcuts rtl={rtl} />
-                  <div className="text-sm text-muted-foreground select-none">
-                    {L.progress(index + 1, total, progressPct)}
-                  </div>
+              <div className="flex items-center gap-2">
+                <AccessibilityPanel 
+                  isOpen={accessibilityPanelOpen}
+                  onToggle={() => setAccessibilityPanelOpen(!accessibilityPanelOpen)}
+                  rtl={rtl}
+                />
+                <PerformanceMonitor 
+                  isOpen={performanceMonitorOpen}
+                  onToggle={() => setPerformanceMonitorOpen(!performanceMonitorOpen)}
+                  rtl={rtl}
+                />
+                <KeyboardShortcuts rtl={rtl} />
+                <div className="text-sm text-muted-foreground select-none">
+                  {L.progress(index + 1, total, progressPct)}
                 </div>
+              </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div 
-                ref={containerRef}
-                className={cn("relative w-full overflow-auto border rounded-lg mb-4", zoom > 1 && "cursor-grab")}
-                style={{ 
-                  maxHeight: '70vh'
+              <TouchGestureHandler
+                onSwipeLeft={rtl ? goPrev : goNext}
+                onSwipeRight={rtl ? goNext : goPrev}
+                onPinch={(scale) => {
+                  const newZoom = Math.min(Z.max, Math.max(Z.min, zoom * scale));
+                  setZoom(newZoom);
+                  setZoomMode("custom");
                 }}
-                onMouseDown={onPanStart}
-                onMouseMove={onPanMove}
-                onMouseUp={onPanEnd}
-                onMouseLeave={onPanEnd}
+                disabled={!isMobile}
+                className="relative"
               >
-                <div className="flex items-start justify-center min-w-[820px] min-h-[1120px] py-2">
-                  <img
-                    src={pages[index]?.src}
-                    alt={pages[index]?.alt}
-                    loading="eager"
-                    decoding="async"
-                    onLoadStart={() => setImageLoading(true)}
-                    onLoad={() => {
-                      setImageLoading(false);
-                      // Update container dimensions for mini-map
-                      if (containerRef.current) {
-                        setContainerDimensions({
-                          width: containerRef.current.clientWidth,
-                          height: containerRef.current.clientHeight
-                        });
-                      }
-                    }}
-                    onError={() => setImageLoading(false)}
-                    style={{ 
-                      transform: `scale(${zoom})`,
-                      transformOrigin: 'center top',
-                      transition: 'transform 0.2s ease-out'
-                    }}
-                    className="select-none max-w-full max-h-full object-contain"
-                    itemProp="image"
-                  />
-                  {imageLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                      <LoadingProgress 
-                        type="image" 
-                        progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} 
-                        rtl={rtl} 
-                      />
-                    </div>
+                <div 
+                  ref={containerRef}
+                  className={cn(
+                    "relative w-full overflow-auto border rounded-lg mb-4", 
+                    zoom > 1 && "cursor-grab",
+                    isMobile && "book-viewer-mobile"
                   )}
+                  style={{ 
+                    maxHeight: '70vh'
+                  }}
+                  onMouseDown={onPanStart}
+                  onMouseMove={onPanMove}
+                  onMouseUp={onPanEnd}
+                  onMouseLeave={onPanEnd}
+                  role="img"
+                  aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`}
+                  tabIndex={0}
+                >
+                  <div className="flex items-start justify-center min-w-[820px] min-h-[1120px] py-2">
+                    <img
+                      src={pages[index]?.src}
+                      alt={pages[index]?.alt}
+                      loading="eager"
+                      decoding="async"
+                      onLoadStart={() => setImageLoading(true)}
+                      onLoad={() => {
+                        setImageLoading(false);
+                        // Update container dimensions for mini-map
+                        if (containerRef.current) {
+                          setContainerDimensions({
+                            width: containerRef.current.clientWidth,
+                            height: containerRef.current.clientHeight
+                          });
+                        }
+                      }}
+                      onError={() => setImageLoading(false)}
+                      style={{ 
+                        transform: `scale(${zoom})`,
+                        transformOrigin: 'center top',
+                        transition: 'transform 0.2s ease-out'
+                      }}
+                      className="select-none max-w-full max-h-full object-contain will-change-transform"
+                      itemProp="image"
+                      aria-describedby={`page-${index}-description`}
+                    />
+                    {imageLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+                        <LoadingProgress 
+                          type="image" 
+                          progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} 
+                          rtl={rtl} 
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div id={`page-${index}-description`} className="sr-only">
+                    {rtl ? `صفحة ${index + 1} من ${total}` : `Page ${index + 1} of ${total}`}
+                  </div>
                 </div>
-              </div>
+              </TouchGestureHandler>
               <div className={cn("mt-4 flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
                 <Button
                   onClick={goPrev}
                   variant="secondary"
                   disabled={index === 0}
                   aria-label={L.previous}
+                  className={cn(isMobile && "min-h-[48px] min-w-[48px]")}
                 >
                   {rtl ? `${L.previous} →` : "← " + L.previous}
                 </Button>
@@ -558,6 +611,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   variant="default"
                   disabled={index === total - 1}
                   aria-label={L.next}
+                  className={cn(isMobile && "min-h-[48px] min-w-[48px]")}
                 >
                   {rtl ? `← ${L.next}` : L.next + " →"}
                 </Button>

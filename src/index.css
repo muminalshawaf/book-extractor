@@ -249,6 +249,124 @@ All colors MUST be HSL.
   100% { transform: rotate(360deg); }
 }
 
+/* Accessibility Enhancements */
+
+/* High contrast mode */
+.high-contrast {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 0%;
+  --primary: 220 100% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 90%;
+  --secondary-foreground: 0 0% 10%;
+  --muted: 0 0% 85%;
+  --muted-foreground: 0 0% 15%;
+  --accent: 220 100% 50%;
+  --accent-foreground: 0 0% 100%;
+  --border: 0 0% 50%;
+  --input: 0 0% 50%;
+  --ring: 220 100% 50%;
+}
+
+.dark.high-contrast {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --primary: 220 100% 60%;
+  --primary-foreground: 0 0% 0%;
+  --secondary: 0 0% 10%;
+  --secondary-foreground: 0 0% 90%;
+  --muted: 0 0% 15%;
+  --muted-foreground: 0 0% 85%;
+  --accent: 220 100% 60%;
+  --accent-foreground: 0 0% 0%;
+  --border: 0 0% 50%;
+  --input: 0 0% 50%;
+  --ring: 220 100% 60%;
+}
+
+/* Enhanced focus indicators */
+.force-focus-visible *:focus,
+.force-focus-visible *:focus-visible {
+  outline: 3px solid hsl(var(--ring)) !important;
+  outline-offset: 2px !important;
+}
+
+/* Reduced motion */
+.reduce-motion,
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Mobile touch improvements */
+@media (max-width: 768px) {
+  /* Larger touch targets */
+  button,
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Better spacing for mobile */
+  .prose p {
+    margin-bottom: 1.5rem;
+  }
+
+  .prose li {
+    margin-bottom: 0.75rem;
+  }
+
+  /* Mobile-specific book viewer adjustments */
+  .book-viewer-mobile {
+    padding: 0.5rem;
+  }
+
+  .book-viewer-mobile .card {
+    margin-bottom: 1rem;
+  }
+
+  /* Touch-friendly zoom controls */
+  .zoom-controls-mobile button {
+    min-height: 48px;
+    min-width: 48px;
+    font-size: 1.1rem;
+  }
+}
+
+/* Performance optimizations */
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-scroll {
+  will-change: scroll-position;
+}
+
+/* Improved scrolling performance */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* GPU acceleration for animations */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Loading performance enhancements */
+.lazy-load {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 200px;
+}
+
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
