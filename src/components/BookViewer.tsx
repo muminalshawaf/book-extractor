@@ -184,17 +184,50 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   // OCR function to extract text from page image
   const extractTextFromPage = async () => {
     setOcrLoading(true);
+    setExtractedText("");
+    setSummary("");
+    
     try {
+      console.log('Starting OCR process...');
       const imageSrc = pages[index]?.src;
+      console.log('Image source:', imageSrc);
       
-      const worker = await createWorker('ara+eng'); // Support both Arabic and English
-      const { data: { text } } = await worker.recognize(imageSrc);
+      // Create an image element to load the imported image
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = imageSrc;
+      });
+      
+      console.log('Image loaded successfully');
+      
+      // Create canvas and convert to blob for better compatibility
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Could not get canvas context');
+      
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctx.drawImage(img, 0, 0);
+      
+      console.log('Image drawn to canvas');
+      
+      const worker = await createWorker('ara+eng');
+      console.log('Tesseract worker created');
+      
+      const { data: { text } } = await worker.recognize(canvas);
       await worker.terminate();
+      
+      console.log('OCR completed, extracted text:', text.substring(0, 100));
       
       setExtractedText(text);
       
       // Auto-summarize the extracted text
       if (text.trim()) {
+        console.log('Starting summarization...');
         await summarizeExtractedText(text);
       }
       
