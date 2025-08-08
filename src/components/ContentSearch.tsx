@@ -35,6 +35,12 @@ export const ContentSearch: React.FC<ContentSearchProps> = ({
   const [isSearching, setIsSearching] = useState(false);
 
   const performSearch = useCallback((term: string) => {
+    console.log('ContentSearch: Performing search for term:', term);
+    console.log('ContentSearch: Available pages with text:', Object.keys(pages));
+    console.log('ContentSearch: Pages content preview:', Object.entries(pages).map(([key, text]) => 
+      `Page ${key}: ${text.substring(0, 100)}...`
+    ));
+    
     if (!term.trim()) {
       setSearchResults([]);
       setCurrentResultIndex(0);
@@ -74,6 +80,7 @@ export const ContentSearch: React.FC<ContentSearchProps> = ({
       }
     });
 
+    console.log('ContentSearch: Search completed, found', results.length, 'results');
     setSearchResults(results);
     setCurrentResultIndex(0);
     setIsSearching(false);
@@ -81,7 +88,10 @@ export const ContentSearch: React.FC<ContentSearchProps> = ({
 
     // Navigate to first result if found
     if (results.length > 0) {
+      console.log('ContentSearch: Navigating to first result on page', results[0].pageIndex);
       onPageChange(results[0].pageIndex);
+    } else {
+      console.log('ContentSearch: No results found for term:', term);
     }
   }, [pages, onPageChange, onHighlight]);
 
@@ -128,9 +138,20 @@ export const ContentSearch: React.FC<ContentSearchProps> = ({
     );
   };
 
+  const hasAnyExtractedText = Object.keys(pages).length > 0;
+
   return (
     <Card className="shadow-sm">
       <CardContent className="p-4">
+        {!hasAnyExtractedText && (
+          <div className="mb-3 p-3 bg-muted rounded-lg">
+            <div className="text-sm text-muted-foreground" dir={rtl ? "rtl" : "ltr"}>
+              {rtl 
+                ? "لاستخدام البحث، يجب أولاً استخراج النص من الصفحات باستخدام زر OCR" 
+                : "To use search, first extract text from pages using the OCR button"}
+            </div>
+          </div>
+        )}
         <form onSubmit={handleSearch} className="space-y-3">
           <div className={cn("flex gap-2", rtl && "flex-row-reverse")}>
             <div className="relative flex-1">
