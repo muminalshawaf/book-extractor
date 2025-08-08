@@ -503,32 +503,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
             rtl={rtl}
           />
-          <form
-            className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}
-            onSubmit={(e) => {
-              e.preventDefault();
-              const n = parseInt(gotoInput, 10);
-              if (!Number.isNaN(n)) {
-                jumpToPage(n);
-              }
-            }}
-            aria-label={rtl ? "اذهب إلى صفحة معينة" : "Jump to page"}
-          >
-            <Input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={total}
-              placeholder={rtl ? "اذهب إلى صفحة" : "Go to page"}
-              value={gotoInput}
-              onChange={(e) => setGotoInput(e.target.value)}
-              className="w-28"
-              aria-label={rtl ? "أدخل رقم الصفحة" : "Enter page number"}
-            />
-            <Button type="submit" variant="outline">
-              {rtl ? "اذهب" : "Go"}
-            </Button>
-          </form>
           <FullscreenButton rtl={rtl} />
         </div>
 
@@ -638,10 +612,38 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 >
                   {rtl ? `${L.previous} →` : "← " + L.previous}
                 </Button>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="tabular-nums">{index + 1}</span>
-                  <Separator orientation="vertical" className="h-5" />
-                  <span className="tabular-nums">{total}</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="tabular-nums">{index + 1}</span>
+                    <Separator orientation="vertical" className="h-5" />
+                    <span className="tabular-nums">{total}</span>
+                  </div>
+                  <form
+                    className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const n = parseInt(gotoInput, 10);
+                      if (!Number.isNaN(n)) {
+                        jumpToPage(n);
+                      }
+                    }}
+                    aria-label={rtl ? "اذهب إلى صفحة معينة" : "Jump to page"}
+                  >
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={total}
+                      placeholder={rtl ? "اذهب إلى صفحة" : "Go to page"}
+                      value={gotoInput}
+                      onChange={(e) => setGotoInput(e.target.value)}
+                      className="w-24"
+                      aria-label={rtl ? "أدخل رقم الصفحة" : "Enter page number"}
+                    />
+                    <Button type="submit" variant="outline" size="sm">
+                      {rtl ? "اذهب" : "Go"}
+                    </Button>
+                  </form>
                 </div>
                 <Button
                   onClick={goNext}
