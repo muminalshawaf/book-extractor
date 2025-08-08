@@ -38,7 +38,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
     try {
       const res = await fetch(streamUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
         body: JSON.stringify({ question, summary, lang, page, title }),
       });
 
@@ -50,6 +50,18 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
       const decoder = new TextDecoder();
       let buffer = "";
       let accumulated = "";
+      let lastFlush = 0;
+
+      const flush = () => {
+        setMessages((m) => {
+          const copy = [...m];
+          const lastIdx = copy.length - 1;
+          if (lastIdx >= 0 && copy[lastIdx].role === "assistant") {
+            copy[lastIdx] = { role: "assistant", content: accumulated };
+          }
+          return copy;
+        });
+      };
 
       while (true) {
         const { value, done } = await reader.read();
@@ -60,27 +72,26 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
         buffer = events.pop() || "";
 
         for (const evt of events) {
-          // Parse SSE event lines without trimming payload (to preserve spaces)
           const lines = evt.split(/\r?\n/);
           for (const ln of lines) {
             if (ln.startsWith("data:")) {
-              let payload = ln.slice(5);
-              if (payload.startsWith(" ")) payload = payload.slice(1); // remove single space after colon only
-              if (payload === "[DONE]") continue;
+              // Preserve payload exactly (including leading spaces)
+              const payload = ln.slice(5);
+              if (payload.trim() === "[DONE]") continue;
 
               accumulated += payload;
-              setMessages((m) => {
-                const copy = [...m];
-                const lastIdx = copy.length - 1;
-                if (lastIdx >= 0 && copy[lastIdx].role === "assistant") {
-                  copy[lastIdx] = { role: "assistant", content: accumulated };
-                }
-                return copy;
-              });
+
+              const now = (globalThis.performance?.now?.() ?? Date.now());
+              if (now - lastFlush > 50) {
+                flush();
+                lastFlush = now;
+              }
             }
           }
         }
       }
+      // Final flush after stream completes
+      flush();
     } catch (e) {
       console.warn("Streaming failed, falling back to non-streaming:", e);
       try {
