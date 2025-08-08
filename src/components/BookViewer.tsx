@@ -192,56 +192,74 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       const imageSrc = pages[index]?.src;
       console.log('Image source:', imageSrc);
       
-      let imageBlob: Blob;
+      let imageBlob: Blob | null = null;
       
-      // Check if it's an external image that needs proxy
-      if (imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin)) {
-        console.log('Using proxy for external image...');
-        
-        // Use our Supabase edge function as proxy
-        const proxyUrl = `/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
-        const response = await fetch(proxyUrl);
-        
-        if (!response.ok) {
-          throw new Error(`Proxy failed: ${response.status}`);
+      // If external image, try proxy and public image CDN fallbacks
+      const isExternal = imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin);
+      if (isExternal) {
+        // 1) Try Supabase Edge Function proxy
+        try {
+          console.log('Trying Supabase image-proxy...');
+          const proxyUrl = `/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
+          const response = await fetch(proxyUrl);
+          if (!response.ok) throw new Error(`Proxy failed: ${response.status}`);
+          const ct = response.headers.get('content-type') || '';
+          if (!ct.includes('image')) throw new Error(`Proxy returned non-image (content-type: ${ct})`);
+          imageBlob = await response.blob();
+          console.log('Image fetched via proxy successfully');
+        } catch (e) {
+          console.log('Proxy fetch failed, will try weserv fallback:', e);
         }
-        
-        imageBlob = await response.blob();
-        console.log('Image fetched via proxy successfully');
-      } else {
-        // For local images, load directly
-        console.log('Loading local image...');
+
+        // 2) Fallback to images.weserv.nl (public image proxy with CORS)
+        if (!imageBlob) {
+          try {
+            const hostless = imageSrc.replace(/^https?:\/\//, '');
+            const weservUrl = `https://images.weserv.nl/?url=${encodeURIComponent(hostless)}&output=jpg`;
+            console.log('Trying weserv proxy:', weservUrl);
+            const wesRes = await fetch(weservUrl, { headers: { 'Accept': 'image/*' } });
+            if (!wesRes.ok) throw new Error(`weserv failed: ${wesRes.status}`);
+            const ct2 = wesRes.headers.get('content-type') || '';
+            if (!ct2.includes('image')) throw new Error(`weserv returned non-image (content-type: ${ct2})`);
+            imageBlob = await wesRes.blob();
+            console.log('Image fetched via weserv successfully');
+          } catch (wesErr) {
+            console.log('weserv proxy failed:', wesErr);
+          }
+        }
+      }
+
+      // 3) Local images or last-resort canvas conversion
+      if (!imageBlob) {
+        console.log('Attempting to load image via HTMLImageElement + canvas...');
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        
         await new Promise((resolve, reject) => {
           img.onload = resolve;
           img.onerror = reject;
           img.src = imageSrc;
         });
-        
-        // Convert to canvas then to blob
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) throw new Error('Could not get canvas context');
-        
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
         ctx.drawImage(img, 0, 0);
-        
-        imageBlob = await new Promise((resolve, reject) => {
+        imageBlob = await new Promise<Blob>((resolve, reject) => {
           canvas.toBlob((blob) => {
             if (blob) resolve(blob);
             else reject(new Error('Failed to convert canvas to blob'));
           }, 'image/jpeg', 0.9);
         });
-        
-        console.log('Local image converted to blob');
+        console.log('Image converted to blob via canvas');
+      }
+
+      if (!imageBlob) {
+        throw new Error('Unable to load image due to CORS or network restrictions');
       }
       
       console.log('Creating Tesseract worker...');
       const worker = await createWorker('ara+eng');
-      
       console.log('Running OCR...');
       const { data: { text } } = await worker.recognize(imageBlob);
       await worker.terminate();
@@ -255,15 +273,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       }
       
       setExtractedText(text);
-      
-      // Auto-summarize the extracted text
       console.log('Starting summarization...');
       await summarizeExtractedText(text);
-      
       toast.success(rtl ? "تم استخراج النص من الصفحة بنجاح" : "Text extracted successfully");
-    } catch (error) {
+    } catch (error: any) {
       console.error('OCR error details:', error);
-      toast.error(rtl ? `فشل في استخراج النص: ${error.message}` : `Failed to extract text: ${error.message}`);
+      const message = error?.message || (typeof error === 'string' ? error : 'Unknown error');
+      toast.error(rtl ? `فشل في استخراج النص: ${message}` : `Failed to extract text: ${message}`);
     } finally {
       setOcrLoading(false);
     }
