@@ -12,7 +12,7 @@ import { callFunction } from "@/lib/functionsClient";
 import { LoadingProgress } from "@/components/LoadingProgress";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { ThumbnailSidebar } from "@/components/ThumbnailSidebar";
-import { FullscreenMode, FullscreenButton } from "@/components/FullscreenMode";
+import { FullscreenMode, FullscreenButton } from "./FullscreenMode";
 import { ZoomControls, ZoomMode } from "@/components/ZoomControls";
 import { MiniMap } from "@/components/MiniMap";
 import { useImagePreloader } from "@/hooks/useImagePreloader";
