@@ -11,6 +11,7 @@ import { runLocalOcr } from '@/lib/ocr/localOcr';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
 import { callFunction } from "@/lib/functionsClient";
+import { supabase } from "@/integrations/supabase/client";
 import { LoadingProgress } from "@/components/LoadingProgress";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { ThumbnailSidebar } from "@/components/ThumbnailSidebar";
@@ -94,6 +95,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 const cacheId = useMemo(() => (bookId || title), [bookId, title]);
 const ocrKey = useMemo(() => `book:ocr:${cacheId}:${index}`, [cacheId, index]);
 const sumKey = useMemo(() => `book:summary:${cacheId}:${index}`, [cacheId, index]);
+const dbBookId = useMemo(() => (bookId || title || 'book'), [bookId, title]);
 const [summary, setSummary] = useState("");
   const [summLoading, setSummLoading] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -225,6 +227,42 @@ const [summary, setSummary] = useState("");
       setRetryCount(0);
     } catch {}
   }, [index, ocrKey, sumKey]);
+
+  // Fetch OCR and summary from Supabase for current page
+  useEffect(() => {
+    let cancelled = false;
+    const fetchFromDb = async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from('page_summaries')
+          .select('ocr_text, summary_md')
+          .eq('book_id', dbBookId)
+          .eq('page_number', index + 1)
+          .maybeSingle();
+        if (error) {
+          console.warn('Supabase fetch error:', error);
+          return;
+        }
+        if (!cancelled && data) {
+          const ocr = data.ocr_text || '';
+          const sum = data.summary_md || '';
+          if (ocr) {
+            setExtractedText(ocr);
+            setAllExtractedTexts(prev => ({ ...prev, [index]: ocr }));
+            try { localStorage.setItem(ocrKey, ocr); } catch {}
+          }
+          if (sum) {
+            setSummary(sum);
+            try { localStorage.setItem(sumKey, sum); } catch {}
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to fetch page from DB:', e);
+      }
+    };
+    fetchFromDb();
+    return () => { cancelled = true; };
+  }, [index, dbBookId]);
 
   // Mobile detection
   useEffect(() => {
