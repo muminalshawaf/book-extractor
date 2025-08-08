@@ -3,22 +3,19 @@ import BookViewer from "@/components/BookViewer";
 import ImageUploader, { UploadedImage } from "@/components/ImageUploader";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Upload } from "lucide-react";
-import page1 from "@/assets/book/page-1.jpg";
-import page2 from "@/assets/book/page-2.jpg";
-import page3 from "@/assets/book/page-3.jpg";
-import page4 from "@/assets/book/page-4.jpg";
 
 const Index = () => {
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [showUploader, setShowUploader] = useState(false);
 
-  // Default sample pages
-  const defaultPages = [
-    { src: page1, alt: "صفحة كتاب الكيمياء 1" },
-    { src: page2, alt: "صفحة كتاب الكيمياء 2" },
-    { src: page3, alt: "صفحة كتاب الكيمياء 3" },
-    { src: page4, alt: "صفحة كتاب الكيمياء 4" },
-  ];
+  // External chemistry book pages
+  const baseUrl = "https://ksa.idros.ai/books/chem12-1-3/";
+  const pageId = "a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8";
+  
+  const defaultPages = Array.from({ length: 8 }, (_, i) => ({
+    src: `${baseUrl}${pageId}-${i + 1}.jpg`,
+    alt: `صفحة كتاب الكيمياء ${i + 1}`
+  }));
 
   // Use uploaded images if available, otherwise use default pages
   const pages = uploadedImages.length > 0 
