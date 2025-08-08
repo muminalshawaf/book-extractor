@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import HTMLFlipBook from "react-pageflip";
+import { Minus, Plus } from "lucide-react";
 import { BookPageView } from "./BookPageView";
 
 export type BookPage = {
@@ -40,6 +41,19 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   labels = {},
 }) => {
   const [index, setIndex] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const Z = { min: 0.75, max: 2, step: 0.25 } as const;
+  const dims = useMemo(
+    () => ({
+      width: Math.round(800 * zoom),
+      height: Math.round(1100 * zoom),
+      minWidth: Math.round(320 * zoom),
+      maxWidth: Math.round(900 * zoom),
+      minHeight: Math.round(480 * zoom),
+      maxHeight: Math.round(1400 * zoom),
+    }),
+    [zoom]
+  );
   const total = pages.length;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const flipRef = useRef<any>(null);
@@ -133,6 +147,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     toast(L.toastCleared);
   };
 
+  const zoomOut = useCallback(() => setZoom((z) => Math.max(Z.min, +(z - Z.step).toFixed(2))), []);
+  const zoomIn = useCallback(() => setZoom((z) => Math.min(Z.max, +(z + Z.step).toFixed(2))), []);
   const progressPct = total > 1 ? Math.round(((index + 1) / total) * 100) : 100;
 
   return (
@@ -188,30 +204,32 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-center">
-              <div className="relative w-full max-w-[920px]">
-                <HTMLFlipBook
-                  ref={flipRef}
-                  width={800}
-                  height={1100}
-                  size="stretch"
-                  minWidth={320}
-                  maxWidth={900}
-                  minHeight={480}
-                  maxHeight={1400}
-                  maxShadowOpacity={0.4}
-                  showCover={false}
-                  mobileScrollSupport={true}
-                  usePortrait={true}
-                  drawShadow={true}
-                  flippingTime={800}
-                  className="w-full rounded-lg border shadow-sm"
-                  direction={rtl ? ("rtl" as any) : ("ltr" as any)}
-                  onFlip={(e: any) => setIndex(e.data)}
-                >
-                  {pages.map((p, i) => (
-                    <BookPageView key={i} page={p} />
-                  ))}
-                </HTMLFlipBook>
+              <div className="relative w-full overflow-auto">
+                <div className="inline-block">
+                  <HTMLFlipBook
+                    ref={flipRef}
+                    width={dims.width}
+                    height={dims.height}
+                    size="stretch"
+                    minWidth={dims.minWidth}
+                    maxWidth={dims.maxWidth}
+                    minHeight={dims.minHeight}
+                    maxHeight={dims.maxHeight}
+                    maxShadowOpacity={0.4}
+                    showCover={false}
+                    mobileScrollSupport={true}
+                    usePortrait={true}
+                    drawShadow={true}
+                    flippingTime={800}
+                    className="w-full rounded-lg border shadow-sm"
+                    direction={rtl ? ("rtl" as any) : ("ltr" as any)}
+                    onFlip={(e: any) => setIndex(e.data)}
+                  >
+                    {pages.map((p, i) => (
+                      <BookPageView key={i} page={p} />
+                    ))}
+                  </HTMLFlipBook>
+                </div>
               </div>
             </div>
             <div className={cn("mt-4 flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
@@ -227,6 +245,27 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 <span className="tabular-nums">{index + 1}</span>
                 <Separator orientation="vertical" className="h-5" />
                 <span className="tabular-nums">{total}</span>
+                <Separator orientation="vertical" className="h-5" />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={zoomOut}
+                  disabled={zoom <= Z.min}
+                  aria-label={rtl ? "تصغير" : "Zoom out"}
+                  className="hover-scale"
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={zoomIn}
+                  disabled={zoom >= Z.max}
+                  aria-label={rtl ? "تكبير" : "Zoom in"}
+                  className="hover-scale"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
               </div>
               <Button
                 onClick={goNext}
