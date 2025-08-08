@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Minus, Plus, Loader2 } from "lucide-react";
 import { createWorker } from 'tesseract.js';
 import QAChat from "@/components/QAChat";
+import MathRenderer from "@/components/MathRenderer";
 import { callFunction } from "@/lib/functionsClient";
 export type BookPage = {
   src: string;
@@ -405,7 +406,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           </CardHeader>
           <CardContent>
             {summary ? (
-              <article className="text-sm leading-6 whitespace-pre-wrap" itemProp="abstract">{summary}</article>
+              <MathRenderer content={summary} className="text-sm" />
             ) : (
               <div className="text-sm text-muted-foreground">
                 {rtl ? "اضغط على 'إنشاء الملخص' لتحليل الصفحة" : "Click 'Generate Summary' to analyze this page"}
