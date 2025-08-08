@@ -204,32 +204,41 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-center">
-              <div className="relative w-full overflow-auto">
-                <div className="inline-block">
-                  <HTMLFlipBook
-                    ref={flipRef}
-                    width={dims.width}
-                    height={dims.height}
-                    size="stretch"
-                    minWidth={dims.minWidth}
-                    maxWidth={dims.maxWidth}
-                    minHeight={dims.minHeight}
-                    maxHeight={dims.maxHeight}
-                    maxShadowOpacity={0.4}
-                    showCover={false}
-                    mobileScrollSupport={true}
-                    usePortrait={true}
-                    drawShadow={true}
-                    flippingTime={800}
-                    className="w-full rounded-lg border shadow-sm"
-                    direction={rtl ? ("rtl" as any) : ("ltr" as any)}
-                    onFlip={(e: any) => setIndex(e.data)}
-                  >
-                    {pages.map((p, i) => (
-                      <BookPageView key={i} page={p} />
-                    ))}
-                  </HTMLFlipBook>
-                </div>
+              <div 
+                className="relative w-full overflow-auto border rounded-lg"
+                style={{ 
+                  transform: `scale(${zoom})`,
+                  transformOrigin: 'center top',
+                  transition: 'transform 0.2s ease-out'
+                }}
+              >
+                <HTMLFlipBook
+                  ref={flipRef}
+                  width={800}
+                  height={1100}
+                  size="stretch"
+                  minWidth={320}
+                  maxWidth={900}
+                  minHeight={480}
+                  maxHeight={1400}
+                  maxShadowOpacity={0.4}
+                  showCover={false}
+                  mobileScrollSupport={true}
+                  usePortrait={false}
+                  startPage={0}
+                  drawShadow={true}
+                  flippingTime={800}
+                  useMouseEvents={true}
+                  swipeDistance={50}
+                  clickEventForward={false}
+                  className="w-full shadow-sm"
+                  direction={rtl ? ("rtl" as any) : ("ltr" as any)}
+                  onFlip={(e: any) => setIndex(e.data)}
+                >
+                  {pages.map((p, i) => (
+                    <BookPageView key={i} page={p} />
+                  ))}
+                </HTMLFlipBook>
               </div>
             </div>
             <div className={cn("mt-4 flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
