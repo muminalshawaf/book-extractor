@@ -556,102 +556,137 @@ useEffect(() => {
     setZoomMode("actual-size");
   }, []);
 
-  // Process whole book: OCR -> summarize -> save
+  // Process whole book: OCR -> summarize -> save (skips already-processed pages)
   const processFirstTenPages = async () => {
     if (batchRunning) return;
     const bookIdentifier = (bookId || title || 'book');
-    const limit = total;
+
     setBatchRunning(true);
-    setBatchProgress({ current: 0, total: limit });
-
-    toast.message(rtl ? 'بدء معالجة كل الكتاب' : 'Starting full book');
-
-    const getImageBlob = async (imageSrc: string): Promise<Blob> => {
-      let imageBlob: Blob | null = null;
-      const isExternal = imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin);
-      if (isExternal) {
-        try {
-          const proxyUrl = `/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
-          const response = await fetch(proxyUrl);
-          if (!response.ok) throw new Error(`Proxy failed: ${response.status}`);
-          const ct = response.headers.get('content-type') || '';
-          if (!ct.includes('image')) throw new Error(`Proxy returned non-image (content-type: ${ct})`);
-          imageBlob = await response.blob();
-        } catch {}
-        if (!imageBlob) {
-          try {
-            const hostless = imageSrc.replace(/^https?:\/\//, '');
-            const weservUrl = `https://images.weserv.nl/?url=${encodeURIComponent(hostless)}&output=jpg`;
-            const wesRes = await fetch(weservUrl, { headers: { 'Accept': 'image/*' } });
-            if (!wesRes.ok) throw new Error(`weserv failed: ${wesRes.status}`);
-            const ct2 = wesRes.headers.get('content-type') || '';
-            if (!ct2.includes('image')) throw new Error(`weserv returned non-image (content-type: ${ct2})`);
-            imageBlob = await wesRes.blob();
-          } catch {}
-        }
-      }
-      if (!imageBlob) {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        await new Promise((resolve, reject) => {
-          img.onload = resolve as any;
-          img.onerror = reject as any;
-          img.src = imageSrc;
-        });
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Could not get canvas context');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        ctx.drawImage(img, 0, 0);
-        imageBlob = await new Promise<Blob>((resolve, reject) => {
-          canvas.toBlob((blob) => {
-            if (blob) resolve(blob);
-            else reject(new Error('Failed to convert canvas to blob'));
-          }, 'image/jpeg', 0.9);
-        });
-      }
-      return imageBlob;
-    };
-
     try {
-      for (let i = 0; i < limit; i++) {
-        setBatchProgress({ current: i + 1, total: limit });
+      // 1) Find pages already processed to avoid duplicate work
+      const { data: existingRows, error: existingErr } = await (supabase as any)
+        .from('page_summaries')
+        .select('page_number')
+        .eq('book_id', bookIdentifier);
+      if (existingErr) {
+        console.warn('Failed to fetch existing pages:', existingErr);
+      }
+      const processed = new Set<number>((existingRows || []).map((r: any) => r.page_number));
+
+      // 2) Build processing queue (only missing pages)
+      const toProcessIndices: number[] = [];
+      for (let i = 0; i < total; i++) {
+        const pageNo = i + 1;
+        if (!processed.has(pageNo)) toProcessIndices.push(i);
+      }
+
+      const limit = toProcessIndices.length;
+      setBatchProgress({ current: 0, total: limit });
+
+      if (limit === 0) {
+        toast.info(rtl ? 'كل الصفحات معالجة مسبقًا' : 'All pages are already processed');
+        return;
+      }
+
+      toast.message(rtl ? 'بدء معالجة كل الكتاب' : 'Starting full book');
+
+      const getImageBlob = async (imageSrc: string): Promise<Blob> => {
+        let imageBlob: Blob | null = null;
+        const isExternal = imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin);
+        if (isExternal) {
+          try {
+            const proxyUrl = `/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
+            const response = await fetch(proxyUrl);
+            if (!response.ok) throw new Error(`Proxy failed: ${response.status}`);
+            const ct = response.headers.get('content-type') || '';
+            if (!ct.includes('image')) throw new Error(`Proxy returned non-image (content-type: ${ct})`);
+            imageBlob = await response.blob();
+          } catch {}
+          if (!imageBlob) {
+            try {
+              const hostless = imageSrc.replace(/^https?:\/\//, '');
+              const weservUrl = `https://images.weserv.nl/?url=${encodeURIComponent(hostless)}&output=jpg`;
+              const wesRes = await fetch(weservUrl, { headers: { 'Accept': 'image/*' } });
+              if (!wesRes.ok) throw new Error(`weserv failed: ${wesRes.status}`);
+              const ct2 = wesRes.headers.get('content-type') || '';
+              if (!ct2.includes('image')) throw new Error(`weserv returned non-image (content-type: ${ct2})`);
+              imageBlob = await wesRes.blob();
+            } catch {}
+          }
+        }
+        if (!imageBlob) {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          await new Promise((resolve, reject) => {
+            img.onload = resolve as any;
+            img.onerror = reject as any;
+            img.src = imageSrc;
+          });
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('Could not get canvas context');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          ctx.drawImage(img, 0, 0);
+          imageBlob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob((blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error('Failed to convert canvas to blob'));
+            }, 'image/jpeg', 0.9);
+          });
+        }
+        return imageBlob;
+      };
+
+      // 3) Process queue sequentially to avoid CPU overload and function timeouts
+      for (let k = 0; k < toProcessIndices.length; k++) {
+        const i = toProcessIndices[k];
+        setBatchProgress({ current: k + 1, total: limit });
         const page = pages[i];
         if (!page) continue;
 
-        // OCR
-        const blob = await getImageBlob(page.src);
-        const ocrRes = await runLocalOcr(blob, {
-          lang: rtl ? 'ara+eng' : 'eng',
-          psm: 6,
-          preprocess: {
-            upsample: true,
-            targetMinWidth: 1400,
-            denoise: true,
-            binarize: true,
-            cropMargins: true,
-          },
-        });
-        const text = ocrRes.text || '';
+        try {
+          // OCR
+          const blob = await getImageBlob(page.src);
+          const ocrRes = await runLocalOcr(blob, {
+            lang: rtl ? 'ara+eng' : 'eng',
+            psm: 6,
+            preprocess: {
+              upsample: true,
+              targetMinWidth: 1200, // slightly lower for speed in batch
+              denoise: true,
+              binarize: true,
+              cropMargins: true,
+            },
+          });
+          const text = ocrRes.text || '';
 
-        // Summarize (non-stream for batch reliability)
-        const data = await callFunction<{ summary?: string; error?: string }>('summarize', {
-          text,
-          lang: rtl ? 'ar' : 'en',
-          page: i + 1,
-          title,
-        });
-        if (data?.error) throw new Error(data.error);
-        const summaryMd = data?.summary || '';
+          // Summarize (non-stream for batch reliability)
+          const maxChars = 6000;
+          const summaryInput = text.length > maxChars ? text.slice(0, maxChars) : text;
+          const data = await callFunction<{ summary?: string; error?: string }>('summarize', {
+            text: summaryInput,
+            lang: rtl ? 'ar' : 'en',
+            page: i + 1,
+            title,
+          });
+          if (data?.error) throw new Error(data.error);
+          const summaryMd = data?.summary || '';
 
-        // Save to DB via Edge Function
-        await callFunction('save-page-summary', {
-          book_id: bookIdentifier,
-          page_number: i + 1,
-          ocr_text: text,
-          summary_md: summaryMd,
-        });
+          // Save to DB via Edge Function
+          await callFunction('save-page-summary', {
+            book_id: bookIdentifier,
+            page_number: i + 1,
+            ocr_text: text,
+            summary_md: summaryMd,
+          });
+        } catch (pageErr: any) {
+          console.warn(`Failed processing page ${i + 1}:`, pageErr);
+          // Continue with next page
+        }
+
+        // Yield to the browser to keep UI responsive
+        await new Promise((r) => setTimeout(r, 0));
       }
 
       toast.success(rtl ? 'اكتملت معالجة الكتاب' : 'Processed whole book successfully');
