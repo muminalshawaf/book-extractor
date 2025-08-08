@@ -151,6 +151,39 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const zoomIn = useCallback(() => setZoom((z) => Math.min(Z.max, +(z + Z.step).toFixed(2))), []);
   const progressPct = total > 1 ? Math.round(((index + 1) / total) * 100) : 100;
 
+  // Drag-to-pan when zoomed in
+  const [isPanning, setIsPanning] = useState(false);
+  const panRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+
+  const onPanStart = useCallback((e: React.MouseEvent) => {
+    if (zoom <= 1) return;
+    const el = containerRef.current;
+    if (!el) return;
+    setIsPanning(true);
+    panRef.current = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop };
+    el.style.cursor = 'grabbing';
+    e.preventDefault();
+    e.stopPropagation();
+  }, [zoom]);
+
+  const onPanMove = useCallback((e: React.MouseEvent) => {
+    if (!isPanning || zoom <= 1) return;
+    const el = containerRef.current;
+    if (!el || !panRef.current) return;
+    const dx = e.clientX - panRef.current.x;
+    const dy = e.clientY - panRef.current.y;
+    el.scrollLeft = panRef.current.left - dx;
+    el.scrollTop = panRef.current.top - dy;
+  }, [isPanning, zoom]);
+
+  const onPanEnd = useCallback(() => {
+    if (!isPanning) return;
+    setIsPanning(false);
+    const el = containerRef.current;
+    if (el) el.style.cursor = zoom > 1 ? 'grab' : '';
+    panRef.current = null;
+  }, [isPanning, zoom]);
+
   return (
     <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full">
       <div
@@ -204,11 +237,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           </CardHeader>
           <CardContent>
             <div 
-              className="relative w-full overflow-auto border rounded-lg mb-4"
+              className={cn("relative w-full overflow-auto border rounded-lg mb-4", zoom > 1 && "cursor-grab")}
               style={{ 
                 height: `${1100 * zoom + 40}px`,
                 maxHeight: '70vh'
               }}
+              onMouseDown={onPanStart}
+              onMouseMove={onPanMove}
+              onMouseUp={onPanEnd}
+              onMouseLeave={onPanEnd}
             >
               <div 
                 className="flex items-center justify-center"
@@ -233,11 +270,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   maxShadowOpacity={0.4}
                   showCover={false}
                   mobileScrollSupport={true}
-                  usePortrait={false}
+                  usePortrait={true}
                   startPage={0}
                   drawShadow={true}
                   flippingTime={800}
-                  useMouseEvents={true}
+                  useMouseEvents={zoom <= 1}
                   swipeDistance={50}
                   clickEventForward={false}
                   className="w-full shadow-sm"
