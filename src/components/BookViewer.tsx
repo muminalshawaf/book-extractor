@@ -653,6 +653,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           onHighlight={setSearchHighlight}
           rtl={rtl}
         />
+        
+        {/* Debug info */}
+        <div className="p-2 bg-muted rounded text-xs">
+          <p>Debug: Available pages with text: {Object.keys(allExtractedTexts).join(', ') || 'None'}</p>
+          <p>Debug: Current page has text: {allExtractedTexts[index] ? 'Yes' : 'No'}</p>
+          <p>Debug: Total pages with extracted text: {Object.keys(allExtractedTexts).length}</p>
+        </div>
 
         {/* Error Handler */}
         {lastError && (
