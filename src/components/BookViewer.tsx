@@ -192,45 +192,33 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       const imageSrc = pages[index]?.src;
       console.log('Image source:', imageSrc);
       
-      // For external images with CORS restrictions, we need to use a proxy approach
-      // Try to load the image through different methods
       let imageBlob: Blob;
       
-      try {
-        // First try direct fetch
-        const response = await fetch(imageSrc, { 
-          mode: 'cors',
-          headers: {
-            'Accept': 'image/*'
-          }
-        });
+      // Check if it's an external image that needs proxy
+      if (imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin)) {
+        console.log('Using proxy for external image...');
+        
+        // Use our Supabase edge function as proxy
+        const proxyUrl = `/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
+        const response = await fetch(proxyUrl);
         
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`Proxy failed: ${response.status}`);
         }
         
         imageBlob = await response.blob();
-        console.log('Image fetched successfully via direct fetch');
-      } catch (fetchError) {
-        console.log('Direct fetch failed, trying image element approach:', fetchError);
-        
-        // Fallback: Load through image element and convert to canvas
+        console.log('Image fetched via proxy successfully');
+      } else {
+        // For local images, load directly
+        console.log('Loading local image...');
         const img = new Image();
         img.crossOrigin = 'anonymous';
         
         await new Promise((resolve, reject) => {
           img.onload = resolve;
-          img.onerror = () => {
-            // If crossOrigin fails, try without it
-            img.crossOrigin = '';
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = imageSrc;
-          };
+          img.onerror = reject;
           img.src = imageSrc;
         });
-        
-        console.log('Image loaded via img element');
         
         // Convert to canvas then to blob
         const canvas = document.createElement('canvas');
@@ -248,32 +236,34 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           }, 'image/jpeg', 0.9);
         });
         
-        console.log('Image converted to blob via canvas');
+        console.log('Local image converted to blob');
       }
       
+      console.log('Creating Tesseract worker...');
       const worker = await createWorker('ara+eng');
-      console.log('Tesseract worker created');
       
+      console.log('Running OCR...');
       const { data: { text } } = await worker.recognize(imageBlob);
       await worker.terminate();
       
       console.log('OCR completed, extracted text length:', text.length);
       console.log('First 200 chars:', text.substring(0, 200));
       
+      if (!text.trim()) {
+        toast.error(rtl ? "لم يتم العثور على نص في الصورة" : "No text found in image");
+        return;
+      }
+      
       setExtractedText(text);
       
       // Auto-summarize the extracted text
-      if (text.trim()) {
-        console.log('Starting summarization...');
-        await summarizeExtractedText(text);
-      } else {
-        toast.error(rtl ? "لم يتم العثور على نص في الصورة" : "No text found in image");
-      }
+      console.log('Starting summarization...');
+      await summarizeExtractedText(text);
       
-      toast.success(rtl ? "تم استخراج النص من الصفحة" : "Text extracted from page");
+      toast.success(rtl ? "تم استخراج النص من الصفحة بنجاح" : "Text extracted successfully");
     } catch (error) {
       console.error('OCR error details:', error);
-      toast.error(rtl ? "فشل في استخراج النص - يرجى المحاولة مرة أخرى" : "Failed to extract text - please try again");
+      toast.error(rtl ? `فشل في استخراج النص: ${error.message}` : `Failed to extract text: ${error.message}`);
     } finally {
       setOcrLoading(false);
     }
