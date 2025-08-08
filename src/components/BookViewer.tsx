@@ -5,10 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import HTMLFlipBook from "react-pageflip";
-import { Minus, Plus } from "lucide-react";
-import { BookPageView } from "./BookPageView";
-
+import { Minus, Plus, Loader2 } from "lucide-react";
 export type BookPage = {
   src: string;
   alt: string;
@@ -56,7 +53,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   );
   const total = pages.length;
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const flipRef = useRef<any>(null);
+// const flipRef = useRef<any>(null);
 
   const L = {
     previous: labels.previous ?? "Previous",
@@ -76,6 +73,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   // Notes per page (localStorage persistence)
   const storageKey = useMemo(() => `book:notes:${title}:${index}`, [title, index]);
   const [note, setNote] = useState("");
+  const [summary, setSummary] = useState("");
+  const [summLoading, setSummLoading] = useState(false);
   const debounceRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -102,19 +101,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   };
 
   const goPrev = () => {
-    if (flipRef.current?.pageFlip) {
-      flipRef.current.pageFlip().flipPrev();
-    } else {
-      setIndex((i) => Math.max(0, i - 1));
-    }
+    setIndex((i) => Math.max(0, i - 1));
   };
 
   const goNext = () => {
-    if (flipRef.current?.pageFlip) {
-      flipRef.current.pageFlip().flipNext();
-    } else {
-      setIndex((i) => Math.min(total - 1, i + 1));
-    }
+    setIndex((i) => Math.min(total - 1, i + 1));
   };
 
   // keyboard navigation (RTL-aware)
@@ -145,6 +136,29 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setNote("");
     saveNote("");
     toast(L.toastCleared);
+  };
+
+  const summarizeNotes = async () => {
+    if (!note.trim()) {
+      toast.error(rtl ? "يرجى كتابة ملاحظتك أولاً" : "Please write a note first");
+      return;
+    }
+    setSummLoading(true);
+    try {
+      const res = await fetch("/functions/v1/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: note, lang: rtl ? "ar" : "en", page: index + 1, title }),
+      });
+      if (!res.ok) throw new Error("summarize-failed");
+      const data = await res.json();
+      setSummary(data.summary || "");
+      toast.success(rtl ? "تم إنشاء الملخص" : "Summary ready");
+    } catch (e) {
+      toast.error(rtl ? "تعذّر إنشاء الملخص" : "Failed to summarize");
+    } finally {
+      setSummLoading(false);
+    }
   };
 
   const zoomOut = useCallback(() => setZoom((z) => Math.max(Z.min, +(z - Z.step).toFixed(2))), []);
@@ -209,6 +223,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   aria-label={rtl ? "ملاحظات" : "Notes"}
                   className="min-h-[220px]"
                 />
+                {summary && (
+                  <div className="p-3 rounded-md bg-muted/50 animate-fade-in">
+                    <div className="text-xs font-medium mb-1">{rtl ? "ملخص الملاحظات" : "Notes summary"}</div>
+                    <div className="text-sm leading-6 whitespace-pre-wrap">{summary}</div>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <div className="text-xs text-muted-foreground">{L.autosaves}</div>
                   <div className="flex gap-2">
@@ -217,6 +237,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     </Button>
                     <Button variant="outline" onClick={copyNote} aria-label={L.copy}>
                       {L.copy}
+                    </Button>
+                    <Button variant="default" onClick={summarizeNotes} disabled={summLoading || !note.trim()} aria-label={rtl ? "تلخيص" : "Summarize"}>
+                      {summLoading ? (
+                        <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> {rtl ? "جارٍ التلخيص…" : "Summarizing…"}</div>
+                      ) : (
+                        rtl ? "تلخيص" : "Summarize"
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -237,9 +264,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           </CardHeader>
           <CardContent>
             <div 
+              ref={containerRef}
               className={cn("relative w-full overflow-auto border rounded-lg mb-4", zoom > 1 && "cursor-grab")}
               style={{ 
-                height: `${1100 * zoom + 40}px`,
                 maxHeight: '70vh'
               }}
               onMouseDown={onPanStart}
@@ -247,44 +274,19 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               onMouseUp={onPanEnd}
               onMouseLeave={onPanEnd}
             >
-              <div 
-                className="flex items-center justify-center"
-                style={{ 
-                  transform: `scale(${zoom})`,
-                  transformOrigin: 'center top',
-                  transition: 'transform 0.2s ease-out',
-                  height: '1100px',
-                  width: '800px',
-                  margin: '0 auto'
-                }}
-              >
-                <HTMLFlipBook
-                  ref={flipRef}
-                  width={800}
-                  height={1100}
-                  size="stretch"
-                  minWidth={320}
-                  maxWidth={900}
-                  minHeight={480}
-                  maxHeight={1400}
-                  maxShadowOpacity={0.4}
-                  showCover={false}
-                  mobileScrollSupport={true}
-                  usePortrait={true}
-                  startPage={0}
-                  drawShadow={true}
-                  flippingTime={800}
-                  useMouseEvents={zoom <= 1}
-                  swipeDistance={50}
-                  clickEventForward={false}
-                  className="w-full shadow-sm"
-                  direction={rtl ? ("rtl" as any) : ("ltr" as any)}
-                  onFlip={(e: any) => setIndex(e.data)}
-                >
-                  {pages.map((p, i) => (
-                    <BookPageView key={i} page={p} />
-                  ))}
-                </HTMLFlipBook>
+              <div className="flex items-start justify-center min-w-[820px] min-h-[1120px] py-2">
+                <img
+                  src={pages[index]?.src}
+                  alt={pages[index]?.alt}
+                  loading="eager"
+                  decoding="async"
+                  style={{ 
+                    transform: `scale(${zoom})`,
+                    transformOrigin: 'center top',
+                    transition: 'transform 0.2s ease-out'
+                  }}
+                  className="select-none max-w-full max-h-full object-contain"
+                />
               </div>
             </div>
             <div className={cn("mt-4 flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
