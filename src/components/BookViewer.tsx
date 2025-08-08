@@ -139,12 +139,16 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   };
 
   const summarizeNotes = async () => {
+    console.log('Summarize function called');
     if (!note.trim()) {
+      console.log('No note content');
       toast.error(rtl ? "يرجى كتابة ملاحظتك أولاً" : "Please write a note first");
       return;
     }
+    console.log('Starting summarization...', { note: note.substring(0, 50), rtl, index, title });
     setSummLoading(true);
     try {
+      console.log('Making API call to /functions/v1/summarize');
       // Use relative path for edge function in Lovable/Supabase environment
       const res = await fetch("/functions/v1/summarize", {
         method: "POST",
@@ -154,6 +158,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         body: JSON.stringify({ text: note, lang: rtl ? "ar" : "en", page: index + 1, title }),
       });
       
+      console.log('API response status:', res.status);
+      
       if (!res.ok) {
         const errorText = await res.text();
         console.error('Summarize API error:', res.status, errorText);
@@ -161,6 +167,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       }
       
       const data = await res.json();
+      console.log('API response data:', data);
       setSummary(data?.summary || "");
       toast.success(rtl ? "تم إنشاء الملخص" : "Summary ready");
     } catch (e) {
