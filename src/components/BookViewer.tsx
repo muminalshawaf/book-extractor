@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
@@ -121,6 +122,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [accessibilityPanelOpen, setAccessibilityPanelOpen] = useState(false);
   const [performanceMonitorOpen, setPerformanceMonitorOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [gotoInput, setGotoInput] = useState<string>("");
 
 
 
@@ -132,6 +134,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const goNext = () => {
     setIndex((i) => Math.min(total - 1, i + 1));
   };
+
+  const jumpToPage = useCallback((n: number) => {
+    if (!Number.isFinite(n)) return;
+    const clamped = Math.min(Math.max(1, Math.floor(n)), total);
+    setIndex(clamped - 1);
+  }, [total]);
 
   // Enhanced keyboard navigation
   useEffect(() => {
@@ -495,6 +503,32 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
             rtl={rtl}
           />
+          <form
+            className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}
+            onSubmit={(e) => {
+              e.preventDefault();
+              const n = parseInt(gotoInput, 10);
+              if (!Number.isNaN(n)) {
+                jumpToPage(n);
+              }
+            }}
+            aria-label={rtl ? "اذهب إلى صفحة معينة" : "Jump to page"}
+          >
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={total}
+              placeholder={rtl ? "اذهب إلى صفحة" : "Go to page"}
+              value={gotoInput}
+              onChange={(e) => setGotoInput(e.target.value)}
+              className="w-28"
+              aria-label={rtl ? "أدخل رقم الصفحة" : "Enter page number"}
+            />
+            <Button type="submit" variant="outline">
+              {rtl ? "اذهب" : "Go"}
+            </Button>
+          </form>
           <FullscreenButton rtl={rtl} />
         </div>
 
