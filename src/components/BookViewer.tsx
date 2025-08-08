@@ -5,7 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, Loader2 } from "lucide-react";
+import { Minus, Plus, Loader2, FileText } from "lucide-react";
+import { createWorker } from 'tesseract.js';
 export type BookPage = {
   src: string;
   alt: string;
@@ -75,6 +76,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [note, setNote] = useState("");
   const [summary, setSummary] = useState("");
   const [summLoading, setSummLoading] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [extractedText, setExtractedText] = useState("");
   const debounceRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -178,6 +181,48 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }
   };
 
+  // OCR function to extract text from page image
+  const extractTextFromPage = async () => {
+    setOcrLoading(true);
+    try {
+      const worker = await createWorker('ara+eng'); // Support both Arabic and English
+      const { data: { text } } = await worker.recognize(pages[index]?.src);
+      await worker.terminate();
+      
+      setExtractedText(text);
+      
+      // Auto-summarize the extracted text
+      if (text.trim()) {
+        await summarizeExtractedText(text);
+      }
+      
+      toast.success(rtl ? "تم استخراج النص من الصفحة" : "Text extracted from page");
+    } catch (error) {
+      console.error('OCR error:', error);
+      toast.error(rtl ? "فشل في استخراج النص" : "Failed to extract text");
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
+  // Function to summarize extracted text
+  const summarizeExtractedText = async (text: string) => {
+    setSummLoading(true);
+    try {
+      // For now, create a simple client-side summary
+      const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
+      const summary = sentences.slice(0, 5).join('. ') + (sentences.length > 5 ? '.' : '');
+      
+      setSummary(summary || text.substring(0, 500) + '...');
+      toast.success(rtl ? "تم إنشاء الملخص" : "Summary ready");
+    } catch (e) {
+      console.error('Summarize error:', e);
+      toast.error(rtl ? "تعذّر إنشاء الملخص" : "Failed to summarize");
+    } finally {
+      setSummLoading(false);
+    }
+  };
+
   const zoomOut = useCallback(() => setZoom((z) => Math.max(Z.min, +(z - Z.step).toFixed(2))), []);
   const zoomIn = useCallback(() => setZoom((z) => Math.min(Z.max, +(z + Z.step).toFixed(2))), []);
   const progressPct = total > 1 ? Math.round(((index + 1) / total) * 100) : 100;
@@ -263,7 +308,39 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       )}
                     </Button>
                   </div>
+                  </div>
                 </div>
+                
+                {/* OCR Section */}
+                <div className="mt-4 pt-3 border-t">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-sm font-medium">{rtl ? "استخراج النص من الصفحة" : "Extract Page Text"}</div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={extractTextFromPage} 
+                      disabled={ocrLoading}
+                      className="flex items-center gap-2"
+                    >
+                      {ocrLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          {rtl ? "جارٍ الاستخراج..." : "Extracting..."}
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="h-4 w-4" />
+                          {rtl ? "استخراج وتلخيص" : "Extract & Summarize"}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  {extractedText && (
+                    <div className="p-3 rounded-md bg-muted/30 text-xs max-h-32 overflow-y-auto">
+                      <div className="font-medium mb-1">{rtl ? "النص المستخرج:" : "Extracted text:"}</div>
+                      <div className="leading-relaxed">{extractedText.substring(0, 500)}...</div>
+                    </div>
+                  )}
               </div>
             </CardContent>
           </Card>
