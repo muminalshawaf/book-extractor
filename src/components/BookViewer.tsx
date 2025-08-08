@@ -400,7 +400,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         </Card>
 
         {/* AI Q&A at the bottom */}
-        <QAChat summary={summary} rtl={rtl} title={title} page={index + 1} />
+        <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
       </div>
     </section>
   );
