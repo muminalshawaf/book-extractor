@@ -5,7 +5,7 @@ const Index = () => {
   const baseUrl = "https://ksa.idros.ai/books/chem12-1-3/";
   const pageId = "a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8";
   
-  const pages = Array.from({ length: 8 }, (_, i) => ({
+  const pages = Array.from({ length: 177 }, (_, i) => ({
     src: `${baseUrl}${pageId}-${i + 1}.jpg`,
     alt: `صفحة كتاب الكيمياء ${i + 1}`
   }));
