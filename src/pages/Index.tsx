@@ -1,16 +1,29 @@
+import { useState } from "react";
 import BookViewer from "@/components/BookViewer";
+import ImageUploader, { UploadedImage } from "@/components/ImageUploader";
+import { Button } from "@/components/ui/button";
+import { BookOpen, Upload } from "lucide-react";
 import page1 from "@/assets/book/page-1.jpg";
 import page2 from "@/assets/book/page-2.jpg";
 import page3 from "@/assets/book/page-3.jpg";
 import page4 from "@/assets/book/page-4.jpg";
 
 const Index = () => {
-  const pages = [
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
+  const [showUploader, setShowUploader] = useState(false);
+
+  // Default sample pages
+  const defaultPages = [
     { src: page1, alt: "صفحة كتاب الكيمياء 1" },
     { src: page2, alt: "صفحة كتاب الكيمياء 2" },
     { src: page3, alt: "صفحة كتاب الكيمياء 3" },
     { src: page4, alt: "صفحة كتاب الكيمياء 4" },
   ];
+
+  // Use uploaded images if available, otherwise use default pages
+  const pages = uploadedImages.length > 0 
+    ? uploadedImages.map(img => ({ src: img.src, alt: img.alt }))
+    : defaultPages;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -31,8 +44,34 @@ const Index = () => {
           <p className="mt-2 text-muted-foreground max-w-2xl mx-auto">
             تصفح صفحات كتابك صفحة بصفحة، ودون ملاحظاتك على الهامش. استخدم مفاتيح الأسهم للتنقل.
           </p>
+          <div className="mt-4 flex justify-center gap-3">
+            <Button 
+              variant={showUploader ? "secondary" : "default"}
+              onClick={() => setShowUploader(!showUploader)}
+              className="flex items-center gap-2"
+            >
+              {showUploader ? <BookOpen className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+              {showUploader ? "عرض الكتاب" : "رفع صور جديدة"}
+            </Button>
+          </div>
         </header>
-        <main>
+        
+        {showUploader ? (
+          <div className="max-w-4xl mx-auto">
+            <ImageUploader 
+              onImagesChange={setUploadedImages} 
+              rtl={true}
+            />
+            {uploadedImages.length > 0 && (
+              <div className="mt-6 text-center">
+                <Button onClick={() => setShowUploader(false)}>
+                  ابدأ قراءة الكتاب ({uploadedImages.length} صفحة)
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <main>
           <BookViewer
             pages={pages}
             title="كتاب تجريبي"
@@ -51,6 +90,7 @@ const Index = () => {
             }}
           />
         </main>
+        )}
       </div>
     </>
   );
