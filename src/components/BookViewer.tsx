@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Minus, Plus, Loader2 } from "lucide-react";
 import { createWorker } from 'tesseract.js';
 import QAChat from "@/components/QAChat";
+import { callFunction } from "@/lib/functionsClient";
 export type BookPage = {
   src: string;
   alt: string;
@@ -233,13 +234,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const summarizeExtractedText = async (text: string) => {
     setSummLoading(true);
     try {
-      const res = await fetch("/functions/v1/summarize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, lang: rtl ? "ar" : "en", page: index + 1, title }),
+      const data = await callFunction<{ summary?: string }>("summarize", {
+        text,
+        lang: rtl ? "ar" : "en",
+        page: index + 1,
+        title,
       });
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
-      const data = await res.json();
       const s = data?.summary || "";
       setSummary(s);
       try { localStorage.setItem(sumKey, s); } catch {}

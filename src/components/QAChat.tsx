@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { callFunction } from "@/lib/functionsClient";
 
 interface QAChatProps {
   summary: string;
@@ -30,13 +31,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
     setMessages((m) => [...m, { role: "user", content: question }]);
 
     try {
-      const res = await fetch("/functions/v1/qa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, summary, lang: rtl ? "ar" : "en", page, title }),
-      });
-      if (!res.ok) throw new Error(`API ${res.status}`);
-      const data = await res.json();
+      const data = await callFunction<{ answer?: string }>("qa", { question, summary, lang: rtl ? "ar" : "en", page, title });
       const answer = data?.answer || (rtl ? "تعذّر الحصول على إجابة" : "Failed to get answer");
       setMessages((m) => [...m, { role: "assistant", content: answer }]);
     } catch (e: any) {
