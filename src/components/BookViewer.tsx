@@ -187,15 +187,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     try {
       const imageSrc = pages[index]?.src;
       
-      // Convert image to blob to handle CORS issues
-      const response = await fetch(imageSrc, { mode: 'cors' });
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status}`);
-      }
-      const blob = await response.blob();
-      
       const worker = await createWorker('ara+eng'); // Support both Arabic and English
-      const { data: { text } } = await worker.recognize(blob);
+      const { data: { text } } = await worker.recognize(imageSrc);
       await worker.terminate();
       
       setExtractedText(text);
