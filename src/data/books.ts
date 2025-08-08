@@ -26,6 +26,20 @@ export const books: BookDef[] = [
     },
   },
   {
+    id: "physics12-1-3",
+    title: "كتاب الفيزياء 12 (الفصل 1–3)",
+    rtl: true,
+    buildPages: () => {
+      const baseUrl = "https://ksa.idros.ai/books/physics12-1-3/";
+      const name = "book-alfizya3-1-page-";
+      const pad = (n: number) => n.toString().padStart(3, "0");
+      return Array.from({ length: 218 }, (_, i) => ({
+        src: `${baseUrl}${name}${pad(i + 1)}.jpg`,
+        alt: `صفحة كتاب الفيزياء ${i + 1}`,
+      }));
+    },
+  },
+  {
     id: "sample-local",
     title: "كتاب عينة مصوّر",
     rtl: true,
