@@ -21,7 +21,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const disabled = useMemo(() => loading || !summary.trim() || q.trim().length === 0, [loading, summary, q]);
+  const disabled = useMemo(() => loading || q.trim().length === 0, [loading, q]);
 
   const ask = async () => {
     if (disabled) return;
@@ -77,7 +77,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
               onKeyDown={handleKey}
               placeholder={rtl ? "اكتب سؤالك هنا..." : "Type your question..."}
               aria-label={rtl ? "سؤال" : "Question"}
-              disabled={loading || !summary.trim()}
+              disabled={loading}
             />
             <Button onClick={ask} disabled={disabled} aria-label={rtl ? "إرسال" : "Send"}>
               {loading ? (
@@ -88,7 +88,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
             </Button>
           </div>
           {!summary.trim() && (
-            <div className="text-xs text-muted-foreground">{rtl ? "سيتم تفعيل الأسئلة بعد إنشاء الملخص تلقائياً" : "Q&A unlocks after the summary is generated automatically."}</div>
+            <div className="text-xs text-muted-foreground">{rtl ? "يمكنك طرح أي سؤال، أو إنشاء ملخص للصفحة أولاً للحصول على إجابات أكثر دقة" : "You can ask any question, or generate a page summary first for more accurate answers."}</div>
           )}
         </div>
       </CardContent>

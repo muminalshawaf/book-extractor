@@ -107,18 +107,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     return () => window.removeEventListener("keydown", onKey);
   }, [total, rtl]);
 
-  // Auto process page: load cached summary or run OCR+summary
+  // Load cached data on page change
   useEffect(() => {
     try {
       const cachedText = localStorage.getItem(ocrKey) || "";
       const cachedSummary = localStorage.getItem(sumKey) || "";
       if (cachedText) setExtractedText(cachedText);
-      if (cachedSummary) {
-        setSummary(cachedSummary);
-      } else {
-        // Trigger OCR + summarization automatically
-        extractTextFromPage();
-      }
+      if (cachedSummary) setSummary(cachedSummary);
     } catch {}
   }, [index, ocrKey, sumKey]);
 
@@ -389,19 +384,31 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         {/* Summary below */}
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">{rtl ? "ملخص الصفحة" : "Page Summary"}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">{rtl ? "ملخص الصفحة" : "Page Summary"}</CardTitle>
+              <Button 
+                onClick={extractTextFromPage}
+                disabled={ocrLoading || summLoading}
+                variant="outline"
+                size="sm"
+              >
+                {(ocrLoading || summLoading) ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    {rtl ? "جارٍ الإنشاء..." : "Processing..."}
+                  </>
+                ) : (
+                  rtl ? "إنشاء الملخص" : "Generate Summary"
+                )}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            {(ocrLoading || summLoading) ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {rtl ? "جارٍ إنشاء الملخص..." : "Generating summary..."}
-              </div>
-            ) : summary ? (
+            {summary ? (
               <article className="text-sm leading-6 whitespace-pre-wrap" itemProp="abstract">{summary}</article>
             ) : (
               <div className="text-sm text-muted-foreground">
-                {rtl ? "سيظهر ملخص الصفحة هنا بعد التحليل..." : "The page summary will appear here after analysis..."}
+                {rtl ? "اضغط على 'إنشاء الملخص' لتحليل الصفحة" : "Click 'Generate Summary' to analyze this page"}
               </div>
             )}
           </CardContent>

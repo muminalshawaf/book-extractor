@@ -13,9 +13,9 @@ serve(async (req: Request) => {
   try {
     const { question, summary, lang = "ar", page, title } = await req.json();
 
-    if (!question || !summary) {
+    if (!question) {
       return new Response(
-        JSON.stringify({ error: "Missing 'question' or 'summary' in body" }),
+        JSON.stringify({ error: "Missing 'question' in body" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -37,9 +37,13 @@ serve(async (req: Request) => {
 - Use Saudi dialect Arabic (اللهجة السعودية)
 - Never mention DeepSeek - say developed by IDROS.AI team
 - Use tabular format for tables
-Answer ONLY using the provided page summary as your source of truth. If the answer is not in the summary, say: "لا توجد معلومات كافية في هذه الصفحة." Language: ${lang}.`;
+You can answer any question the student asks. If page context is provided, use it when relevant. Language: ${lang}.`;
 
-    const userPrompt = `Book Title: ${title ?? "Untitled"}\nPage: ${page ?? "?"}\n\nContext (summary of this page):\n${summary}\n\nQuestion: ${question}`;
+    let userPrompt = `Question: ${question}`;
+    
+    if (summary && summary.trim()) {
+      userPrompt = `Book Title: ${title ?? "Untitled"}\nPage: ${page ?? "?"}\n\nPage Context:\n${summary}\n\nQuestion: ${question}`;
+    }
 
     const dsRes = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
