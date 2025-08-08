@@ -234,19 +234,27 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const summarizeExtractedText = async (text: string) => {
     setSummLoading(true);
     try {
-      const data = await callFunction<{ summary?: string }>("summarize", {
+      console.log('Starting summarization with text length:', text.length);
+      const data = await callFunction<{ summary?: string; error?: string }>("summarize", {
         text,
         lang: rtl ? "ar" : "en",
         page: index + 1,
         title,
       });
+      console.log('Summarize response:', data);
+      
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      
       const s = data?.summary || "";
       setSummary(s);
       try { localStorage.setItem(sumKey, s); } catch {}
       toast.success(rtl ? "تم إنشاء الملخص" : "Summary ready");
-    } catch (e) {
-      console.error('Summarize error:', e);
-      toast.error(rtl ? "تعذّر إنشاء الملخص" : "Failed to summarize");
+    } catch (e: any) {
+      console.error('Summarize error details:', e);
+      const errorMsg = e?.message || String(e);
+      toast.error(rtl ? `فشل التلخيص: ${errorMsg}` : `Failed to summarize: ${errorMsg}`);
     } finally {
       setSummLoading(false);
     }
