@@ -33,9 +33,9 @@ export const books: BookDef[] = [
       const baseUrl = "https://ksa.idros.ai/books/physics12-1-3/";
       const name = "book-alfizya3-1-page-";
       const pad = (n: number) => n.toString().padStart(3, "0");
-      return Array.from({ length: 218 }, (_, i) => ({
-        src: `${baseUrl}${name}${pad(i + 1)}.jpg`,
-        alt: `صفحة كتاب الفيزياء ${i + 1}`,
+      return Array.from({ length: 217 }, (_, i) => ({
+        src: `${baseUrl}${name}${pad(i + 2)}.jpg`,
+        alt: `صفحة كتاب الفيزياء ${i + 2}`,
       }));
     },
   },
