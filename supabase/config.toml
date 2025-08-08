@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.summarize-stream]
 verify_jwt = false
+
+[functions.save-page-summary]
+verify_jwt = false

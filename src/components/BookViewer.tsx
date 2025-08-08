@@ -128,8 +128,9 @@ const [summary, setSummary] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const [gotoInput, setGotoInput] = useState<string>("");
 
-
-
+  // Batch processing state
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
 
   const goPrev = () => {
     setIndex((i) => Math.max(0, i - 1));
@@ -514,6 +515,113 @@ useEffect(() => {
     setZoomMode("actual-size");
   }, []);
 
+  // Process first 10 pages: OCR -> summarize -> save
+  const processFirstTenPages = async () => {
+    if (batchRunning) return;
+    const bookIdentifier = (bookId || title || 'book');
+    const limit = Math.min(10, total);
+    setBatchRunning(true);
+    setBatchProgress({ current: 0, total: limit });
+
+    toast.message(rtl ? 'بدء معالجة أول 10 صفحات' : 'Starting first 10 pages');
+
+    const getImageBlob = async (imageSrc: string): Promise<Blob> => {
+      let imageBlob: Blob | null = null;
+      const isExternal = imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin);
+      if (isExternal) {
+        try {
+          const proxyUrl = `/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
+          const response = await fetch(proxyUrl);
+          if (!response.ok) throw new Error(`Proxy failed: ${response.status}`);
+          const ct = response.headers.get('content-type') || '';
+          if (!ct.includes('image')) throw new Error(`Proxy returned non-image (content-type: ${ct})`);
+          imageBlob = await response.blob();
+        } catch {}
+        if (!imageBlob) {
+          try {
+            const hostless = imageSrc.replace(/^https?:\/\//, '');
+            const weservUrl = `https://images.weserv.nl/?url=${encodeURIComponent(hostless)}&output=jpg`;
+            const wesRes = await fetch(weservUrl, { headers: { 'Accept': 'image/*' } });
+            if (!wesRes.ok) throw new Error(`weserv failed: ${wesRes.status}`);
+            const ct2 = wesRes.headers.get('content-type') || '';
+            if (!ct2.includes('image')) throw new Error(`weserv returned non-image (content-type: ${ct2})`);
+            imageBlob = await wesRes.blob();
+          } catch {}
+        }
+      }
+      if (!imageBlob) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise((resolve, reject) => {
+          img.onload = resolve as any;
+          img.onerror = reject as any;
+          img.src = imageSrc;
+        });
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Could not get canvas context');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        ctx.drawImage(img, 0, 0);
+        imageBlob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Failed to convert canvas to blob'));
+          }, 'image/jpeg', 0.9);
+        });
+      }
+      return imageBlob;
+    };
+
+    try {
+      for (let i = 0; i < limit; i++) {
+        setBatchProgress({ current: i + 1, total: limit });
+        const page = pages[i];
+        if (!page) continue;
+
+        // OCR
+        const blob = await getImageBlob(page.src);
+        const ocrRes = await runLocalOcr(blob, {
+          lang: rtl ? 'ara+eng' : 'eng',
+          psm: 6,
+          preprocess: {
+            upsample: true,
+            targetMinWidth: 1400,
+            denoise: true,
+            binarize: true,
+            cropMargins: true,
+          },
+        });
+        const text = ocrRes.text || '';
+
+        // Summarize (non-stream for batch reliability)
+        const data = await callFunction<{ summary?: string; error?: string }>('summarize', {
+          text,
+          lang: rtl ? 'ar' : 'en',
+          page: i + 1,
+          title,
+        });
+        if (data?.error) throw new Error(data.error);
+        const summaryMd = data?.summary || '';
+
+        // Save to DB via Edge Function
+        await callFunction('save-page-summary', {
+          book_id: bookIdentifier,
+          page_number: i + 1,
+          ocr_text: text,
+          summary_md: summaryMd,
+        });
+      }
+
+      toast.success(rtl ? 'اكتملت معالجة 10 صفحات' : 'Processed 10 pages successfully');
+    } catch (e: any) {
+      console.error('Batch processing failed:', e);
+      toast.error((rtl ? 'فشل المعالجة: ' : 'Processing failed: ') + (e?.message || e));
+    } finally {
+      setBatchRunning(false);
+    }
+  };
+
   const progressPct = total > 1 ? Math.round(((index + 1) / total) * 100) : 100;
 
   // Drag-to-pan when zoomed in
@@ -800,14 +908,14 @@ useEffect(() => {
                   variant="outline"
                   size="sm"
                   onClick={extractTextFromPage}
-                  disabled={ocrLoading}
+                  disabled={ocrLoading || batchRunning}
                 >
                   {ocrLoading ? (rtl ? "جارٍ..." : "Working...") : (rtl ? "تشغيل OCR" : "Run OCR")}
                 </Button>
                 <Button
                   variant="secondary"
                   size="sm"
-                  disabled={!extractedText}
+                  disabled={!extractedText || batchRunning}
                   onClick={async () => {
                     try {
                       await navigator.clipboard.writeText(extractedText);
@@ -818,6 +926,16 @@ useEffect(() => {
                   }}
                 >
                   {rtl ? "نسخ" : "Copy"}
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={processFirstTenPages}
+                  disabled={batchRunning}
+                >
+                  {batchRunning
+                    ? (rtl ? `جارٍ المعالجة ${batchProgress.current}/${batchProgress.total}` : `Processing ${batchProgress.current}/${batchProgress.total}`)
+                    : (rtl ? "معالجة أول 10 صفحات" : "Process first 10 pages")}
                 </Button>
               </div>
             </div>
