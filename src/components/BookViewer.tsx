@@ -176,8 +176,27 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       if (!text) {
         const { recognize } = await import("tesseract.js");
         const primaryLang = rtl ? "ara" : "eng";
+        
+        // Get proxied image URL to avoid CORS issues
+        const getProxiedImage = async (imageUrl: string) => {
+          try {
+            const response = await fetch("/functions/v1/proxy-image", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ url: imageUrl }),
+            });
+            
+            if (!response.ok) throw new Error("Proxy failed");
+            return response.blob();
+          } catch {
+            // Fallback to original URL if proxy fails
+            return imageUrl;
+          }
+        };
+
         const runRecognize = async (lang: string) => {
-          const result = await recognize(pages[index]?.src, lang, {
+          const imageSource = await getProxiedImage(pages[index]?.src);
+          const result = await recognize(imageSource, lang, {
             logger: (m: any) => {
               if (m.status === "recognizing text" && typeof m.progress === "number") {
                 setOcrProgress(Math.round(m.progress * 100));
