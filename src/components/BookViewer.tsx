@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Minus, Plus, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 export type BookPage = {
   src: string;
   alt: string;
@@ -145,16 +146,16 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }
     setSummLoading(true);
     try {
-      const res = await fetch("/functions/v1/summarize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: note, lang: rtl ? "ar" : "en", page: index + 1, title }),
+      const { data, error } = await supabase.functions.invoke('summarize', {
+        body: { text: note, lang: rtl ? "ar" : "en", page: index + 1, title }
       });
-      if (!res.ok) throw new Error("summarize-failed");
-      const data = await res.json();
-      setSummary(data.summary || "");
+      
+      if (error) throw error;
+      
+      setSummary(data?.summary || "");
       toast.success(rtl ? "تم إنشاء الملخص" : "Summary ready");
     } catch (e) {
+      console.error('Summarize error:', e);
       toast.error(rtl ? "تعذّر إنشاء الملخص" : "Failed to summarize");
     } finally {
       setSummLoading(false);
