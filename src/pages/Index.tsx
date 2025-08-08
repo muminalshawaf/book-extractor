@@ -6,17 +6,17 @@ import page4 from "@/assets/book/page-4.jpg";
 
 const Index = () => {
   const pages = [
-    { src: page1, alt: "Book page 1 - chapter introduction with serif text" },
-    { src: page2, alt: "Book page 2 - continuing text with pull quote" },
-    { src: page3, alt: "Book page 3 - section heading and paragraph" },
-    { src: page4, alt: "Book page 4 - illustrated margin with text" },
+    { src: page1, alt: "صفحة كتاب 1 - مقدمة الفصل بخط نسخي أنيق" },
+    { src: page2, alt: "صفحة كتاب 2 - استمرار النص مع عنوان في المنتصف" },
+    { src: page3, alt: "صفحة كتاب 3 - عنوان قسم فرعي وفقرة" },
+    { src: page4, alt: "صفحة كتاب 4 - رسمة نباتية دقيقة في الهامش" },
   ];
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "CreativeWork",
-    name: "Interactive Book Viewer",
-    description: "Flip through book pages and write notes alongside each page.",
+    name: "عارض كتاب تفاعلي",
+    description: "تصفح صفحات الكتاب مع كتابة ملاحظات بجانب كل صفحة.",
   };
 
   return (
@@ -27,14 +27,29 @@ const Index = () => {
       />
       <div className="container mx-auto py-10">
         <header className="mb-8 text-center">
-          <h1 className="text-4xl font-bold tracking-tight">Interactive Book Viewer</h1>
+          <h1 className="text-4xl font-bold tracking-tight">عارض كتاب تفاعلي</h1>
           <p className="mt-2 text-muted-foreground max-w-2xl mx-auto">
-            Flip through your book page by page and keep organized notes on the side. Use the
-            arrow keys for navigation.
+            تصفح صفحات كتابك صفحة بصفحة، ودون ملاحظاتك على الهامش. استخدم مفاتيح الأسهم للتنقل.
           </p>
         </header>
         <main>
-          <BookViewer pages={pages} title="Sample Book" />
+          <BookViewer
+            pages={pages}
+            title="كتاب تجريبي"
+            rtl={true}
+            labels={{
+              previous: "السابق",
+              next: "التالي",
+              notesTitle: (n) => `ملاحظات للصفحة ${n}`,
+              autosaves: "حفظ تلقائي محلي",
+              clear: "مسح",
+              copy: "نسخ",
+              toastCopied: "تم نسخ الملاحظة إلى الحافظة",
+              toastCopyFailed: "تعذّر نسخ الملاحظة",
+              toastCleared: "تم مسح الملاحظات لهذه الصفحة",
+              progress: (c, t, p) => `الصفحة ${c} من ${t} • ${p}%`,
+            }}
+          />
         </main>
       </div>
     </>
