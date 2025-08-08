@@ -203,13 +203,22 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-center">
+            <div 
+              className="relative w-full overflow-auto border rounded-lg mb-4"
+              style={{ 
+                height: `${1100 * zoom + 40}px`,
+                maxHeight: '70vh'
+              }}
+            >
               <div 
-                className="relative w-full overflow-auto border rounded-lg"
+                className="flex items-center justify-center"
                 style={{ 
                   transform: `scale(${zoom})`,
                   transformOrigin: 'center top',
-                  transition: 'transform 0.2s ease-out'
+                  transition: 'transform 0.2s ease-out',
+                  height: '1100px',
+                  width: '800px',
+                  margin: '0 auto'
                 }}
               >
                 <HTMLFlipBook
