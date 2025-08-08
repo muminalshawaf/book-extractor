@@ -37,22 +37,9 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
     const streamUrl = "https://ukznsekygmipnucpouoy.supabase.co/functions/v1/qa-stream";
 
     try {
-      const res = await fetch(streamUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
-        body: JSON.stringify({ question, summary, lang, page, title }),
-      });
-
-      if (!res.ok || !res.body) {
-        throw new Error(`Stream request failed (${res.status})`);
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+      // Shared accumulators for both streaming methods
       let accumulated = "";
       let lastFlush = 0;
-
       const flush = () => {
         setMessages((m) => {
           const copy = [...m];
@@ -64,45 +51,104 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
         });
       };
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
+      // Prefer EventSource (GET) when the payload is small enough
+      const canUseES = !summary || summary.length <= 1500;
+      if (canUseES) {
+        await new Promise<void>((resolve, reject) => {
+          const params = new URLSearchParams();
+          params.set("question", question);
+          if (summary) {
+            // Encode summary safely for URL (UTF-8 -> base64)
+            const b64 = btoa(unescape(encodeURIComponent(summary)));
+            params.set("summary_b64", b64);
+          }
+          params.set("lang", lang);
+          params.set("page", String(page));
+          params.set("title", title);
 
-        const events = buffer.split(/\r?\n\r?\n/);
-        buffer = events.pop() || "";
+          const es = new EventSource(`${streamUrl}?${params.toString()}`);
 
-        for (const evt of events) {
-          const lines = evt.split(/\r?\n/);
-          for (const ln of lines) {
-            if (ln.startsWith("data:")) {
-              const raw = ln.slice(5);
-              const trimmed = raw.trim();
-              if (trimmed === "[DONE]") continue;
+          es.onmessage = (ev) => {
+            let chunk = ev.data;
+            try {
+              const j = JSON.parse(chunk);
+              chunk = j?.text ?? j?.delta ?? j?.content ?? chunk;
+            } catch {}
+            accumulated += chunk;
+            if (streamRef.current) streamRef.current.textContent = accumulated;
 
-              let chunk = raw;
-              try {
-                const j = JSON.parse(raw);
-                chunk = j?.text ?? j?.delta ?? j?.content ?? raw;
-              } catch {}
+            const now = (globalThis.performance?.now?.() ?? Date.now());
+            if (now - lastFlush > 200) {
+              flush();
+              lastFlush = now;
+            }
+          };
+          es.addEventListener("done", () => {
+            flush();
+            es.close();
+            resolve();
+          });
+          es.onerror = (err) => {
+            es.close();
+            reject(err);
+          };
+        });
+      } else {
+        // Fallback to POST fetch streaming for larger payloads
+        const res = await fetch(streamUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+          body: JSON.stringify({ question, summary, lang, page, title }),
+        });
 
-              accumulated += chunk;
+        if (!res.ok || !res.body) {
+          throw new Error(`Stream request failed (${res.status})`);
+        }
 
-              if (streamRef.current) {
-                streamRef.current.textContent = accumulated;
-              }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-              const now = (globalThis.performance?.now?.() ?? Date.now());
-              if (now - lastFlush > 200) {
-                flush();
-                lastFlush = now;
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const events = buffer.split(/\r?\n\r?\n/);
+          buffer = events.pop() || "";
+
+          for (const evt of events) {
+            const lines = evt.split(/\r?\n/);
+            for (const ln of lines) {
+              if (ln.startsWith("data:")) {
+                const raw = ln.slice(5);
+                const trimmed = raw.trim();
+                if (trimmed === "[DONE]") continue;
+
+                let chunk = raw;
+                try {
+                  const j = JSON.parse(raw);
+                  chunk = j?.text ?? j?.delta ?? j?.content ?? raw;
+                } catch {}
+
+                accumulated += chunk;
+                if (streamRef.current) {
+                  streamRef.current.textContent = accumulated;
+                }
+
+                const now = (globalThis.performance?.now?.() ?? Date.now());
+                if (now - lastFlush > 200) {
+                  flush();
+                  lastFlush = now;
+                }
               }
             }
           }
         }
+        // Final flush after stream completes
+        flush();
       }
-      // Final flush after stream completes
-      flush();
+
     } catch (e) {
       console.warn("Streaming failed, falling back to non-streaming:", e);
       try {

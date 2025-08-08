@@ -11,7 +11,39 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { question, summary, lang = "ar", page, title } = await req.json();
+    // Support both POST (JSON) and GET (query params) for SSE via EventSource
+    let question = "";
+    let summary = "";
+    let lang = "ar";
+    let page: number | undefined = undefined;
+    let title = "";
+
+    if (req.method === "GET") {
+      const url = new URL(req.url);
+      question = url.searchParams.get("question") ?? url.searchParams.get("q") ?? "";
+      const b64 = url.searchParams.get("summary_b64");
+      if (b64) {
+        try {
+          const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+          summary = new TextDecoder().decode(bytes);
+        } catch (_) {
+          summary = "";
+        }
+      } else {
+        summary = url.searchParams.get("summary") ?? "";
+      }
+      lang = url.searchParams.get("lang") ?? "ar";
+      const pg = url.searchParams.get("page");
+      page = pg ? Number(pg) : undefined;
+      title = url.searchParams.get("title") ?? "";
+    } else {
+      const body = await req.json();
+      question = body?.question ?? "";
+      summary = body?.summary ?? "";
+      lang = body?.lang ?? "ar";
+      page = body?.page;
+      title = body?.title ?? "";
+    }
 
     if (!question) {
       return new Response(
@@ -44,11 +76,12 @@ You can answer any question the student asks. If page context is provided, use i
       userPrompt = `Book Title: ${title ?? "Untitled"}\nPage: ${page ?? "?"}\n\nPage Context:\n${summary}\n\nQuestion: ${question}`;
     }
 
-    const dsRes = await fetch("https://api.deepseek.com/chat/completions", {
+    const dsRes = await fetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        "Accept": "text/event-stream",
       },
       body: JSON.stringify({
         model: "deepseek-chat",
@@ -79,6 +112,9 @@ You can answer any question the student asks. If page context is provided, use i
 
         // Optional: notify client stream opened
         controller.enqueue(encoder.encode(`event: open\ndata: ok\n\n`));
+        const ping = setInterval(() => {
+          try { controller.enqueue(encoder.encode(`:ping\n\n`)); } catch (_) {}
+        }, 15000);
 
         try {
           while (true) {
@@ -86,7 +122,7 @@ You can answer any question the student asks. If page context is provided, use i
             if (done) break;
             buffer += decoder.decode(value, { stream: true });
 
-            const parts = buffer.split("\n\n");
+            const parts = buffer.split(/\r?\n\r?\n/);
             buffer = parts.pop() || "";
 
             for (const part of parts) {
@@ -114,6 +150,7 @@ You can answer any question the student asks. If page context is provided, use i
         } catch (err) {
           controller.enqueue(encoder.encode(`event: error\ndata: ${String(err)}\n\n`));
         } finally {
+          clearInterval(ping);
           controller.enqueue(encoder.encode(`event: done\ndata: [DONE]\n\n`));
           controller.close();
         }
