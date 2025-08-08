@@ -415,26 +415,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           </CardContent>
         </Card>
 
-        {/* Extracted text */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">{rtl ? "النص المستخرج" : "Extracted Text"}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {ocrLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {rtl ? "جارٍ استخراج النص..." : "Extracting text..."}
-              </div>
-            ) : extractedText ? (
-              <div className="text-xs leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap">{extractedText}</div>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                {rtl ? "سيظهر النص المستخرج هنا..." : "The extracted text will appear here..."}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* AI Q&A at the bottom */}
         <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
