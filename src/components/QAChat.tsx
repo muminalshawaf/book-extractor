@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { callFunction } from "@/lib/functionsClient";
+import MathRenderer from "@/components/MathRenderer";
 
 interface QAChatProps {
   summary: string;
@@ -64,7 +65,13 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
             ) : (
               <div className="space-y-3">
                 {messages.map((m, i) => (
-                  <div key={i} className={cn("text-sm leading-6 whitespace-pre-wrap", m.role === "assistant" ? "" : "font-medium")}>{m.content}</div>
+                  <div key={i} className={cn("text-sm", m.role === "assistant" ? "" : "font-medium")}>
+                    {m.role === "assistant" ? (
+                      <MathRenderer content={m.content} className="text-sm" />
+                    ) : (
+                      <div className="whitespace-pre-wrap">{m.content}</div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
