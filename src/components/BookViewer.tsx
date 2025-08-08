@@ -12,6 +12,10 @@ import { callFunction } from "@/lib/functionsClient";
 import { LoadingProgress } from "@/components/LoadingProgress";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { ThumbnailSidebar } from "@/components/ThumbnailSidebar";
+import { FullscreenMode } from "@/components/FullscreenMode";
+import { ZoomControls, ZoomMode } from "@/components/ZoomControls";
+import { MiniMap } from "@/components/MiniMap";
+import { useImagePreloader } from "@/hooks/useImagePreloader";
 export type BookPage = {
   src: string;
   alt: string;
@@ -89,6 +93,14 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [summaryProgress, setSummaryProgress] = useState(0);
   const [thumbnailsOpen, setThumbnailsOpen] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
+  
+  // Phase 2 enhancements
+  const [zoomMode, setZoomMode] = useState<ZoomMode>("custom");
+  const [showMiniMap, setShowMiniMap] = useState(false);
+  const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 600 });
+  
+  // Image preloading
+  const { getPreloadStatus } = useImagePreloader(pages, index);
 
 
 
@@ -131,23 +143,31 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           break;
         case "+":
         case "=":
-          e.preventDefault();
-          zoomIn();
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            zoomIn();
+          }
           break;
         case "-":
-          e.preventDefault();
-          zoomOut();
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            zoomOut();
+          }
           break;
         case "t":
         case "T":
-          e.preventDefault();
-          setThumbnailsOpen(!thumbnailsOpen);
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            setThumbnailsOpen(!thumbnailsOpen);
+          }
           break;
         case "s":
         case "S":
-          e.preventDefault();
-          if (!ocrLoading && !summLoading) {
-            extractTextFromPage();
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            if (!ocrLoading && !summLoading) {
+              extractTextFromPage();
+            }
           }
           break;
       }
@@ -324,8 +344,40 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }
   };
 
-  const zoomOut = useCallback(() => setZoom((z) => Math.max(Z.min, +(z - Z.step).toFixed(2))), []);
-  const zoomIn = useCallback(() => setZoom((z) => Math.min(Z.max, +(z + Z.step).toFixed(2))), []);
+  // Enhanced zoom functions
+  const zoomOut = useCallback(() => {
+    setZoom((z) => Math.max(Z.min, +(z - Z.step).toFixed(2)));
+    setZoomMode("custom");
+  }, []);
+  
+  const zoomIn = useCallback(() => {
+    setZoom((z) => Math.min(Z.max, +(z + Z.step).toFixed(2)));
+    setZoomMode("custom");
+  }, []);
+  
+  const fitToWidth = useCallback(() => {
+    if (containerRef.current) {
+      const containerWidth = containerRef.current.clientWidth - 32; // padding
+      const newZoom = Math.min(Z.max, containerWidth / 800);
+      setZoom(newZoom);
+      setZoomMode("fit-width");
+    }
+  }, []);
+  
+  const fitToHeight = useCallback(() => {
+    if (containerRef.current) {
+      const containerHeight = containerRef.current.clientHeight - 32; // padding
+      const newZoom = Math.min(Z.max, containerHeight / 1100);
+      setZoom(newZoom);
+      setZoomMode("fit-height");
+    }
+  }, []);
+  
+  const actualSize = useCallback(() => {
+    setZoom(1);
+    setZoomMode("actual-size");
+  }, []);
+
   const progressPct = total > 1 ? Math.round(((index + 1) / total) * 100) : 100;
 
   // Drag-to-pan when zoomed in
@@ -379,101 +431,134 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         {/* Main Content */}
         <div className="flex-1 flex flex-col gap-6">
 
-        {/* Page Area */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg" itemProp="name">{title}</CardTitle>
-              <div className="flex items-center gap-2">
-                <KeyboardShortcuts rtl={rtl} />
-                <div className="text-sm text-muted-foreground select-none">
-                  {L.progress(index + 1, total, progressPct)}
+        {/* Enhanced Zoom Controls */}
+        <ZoomControls
+          zoom={zoom}
+          minZoom={Z.min}
+          maxZoom={Z.max}
+          zoomStep={Z.step}
+          mode={zoomMode}
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onFitWidth={fitToWidth}
+          onFitHeight={fitToHeight}
+          onActualSize={actualSize}
+          showMiniMap={showMiniMap}
+          onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
+          rtl={rtl}
+        />
+
+        {/* Page Area with Fullscreen */}
+        <FullscreenMode rtl={rtl}>
+          <Card className="shadow-sm">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg" itemProp="name">{title}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <KeyboardShortcuts rtl={rtl} />
+                  <div className="text-sm text-muted-foreground select-none">
+                    {L.progress(index + 1, total, progressPct)}
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div 
-              ref={containerRef}
-              className={cn("relative w-full overflow-auto border rounded-lg mb-4", zoom > 1 && "cursor-grab")}
-              style={{ 
-                maxHeight: '70vh'
+            </CardHeader>
+            <CardContent>
+              <div 
+                ref={containerRef}
+                className={cn("relative w-full overflow-auto border rounded-lg mb-4", zoom > 1 && "cursor-grab")}
+                style={{ 
+                  maxHeight: '70vh'
+                }}
+                onMouseDown={onPanStart}
+                onMouseMove={onPanMove}
+                onMouseUp={onPanEnd}
+                onMouseLeave={onPanEnd}
+              >
+                <div className="flex items-start justify-center min-w-[820px] min-h-[1120px] py-2">
+                  <img
+                    src={pages[index]?.src}
+                    alt={pages[index]?.alt}
+                    loading="eager"
+                    decoding="async"
+                    onLoadStart={() => setImageLoading(true)}
+                    onLoad={() => {
+                      setImageLoading(false);
+                      // Update container dimensions for mini-map
+                      if (containerRef.current) {
+                        setContainerDimensions({
+                          width: containerRef.current.clientWidth,
+                          height: containerRef.current.clientHeight
+                        });
+                      }
+                    }}
+                    onError={() => setImageLoading(false)}
+                    style={{ 
+                      transform: `scale(${zoom})`,
+                      transformOrigin: 'center top',
+                      transition: 'transform 0.2s ease-out'
+                    }}
+                    className="select-none max-w-full max-h-full object-contain"
+                    itemProp="image"
+                  />
+                  {imageLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+                      <LoadingProgress 
+                        type="image" 
+                        progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} 
+                        rtl={rtl} 
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className={cn("mt-4 flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
+                <Button
+                  onClick={goPrev}
+                  variant="secondary"
+                  disabled={index === 0}
+                  aria-label={L.previous}
+                >
+                  {rtl ? `${L.previous} →` : "← " + L.previous}
+                </Button>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="tabular-nums">{index + 1}</span>
+                  <Separator orientation="vertical" className="h-5" />
+                  <span className="tabular-nums">{total}</span>
+                </div>
+                <Button
+                  onClick={goNext}
+                  variant="default"
+                  disabled={index === total - 1}
+                  aria-label={L.next}
+                >
+                  {rtl ? `← ${L.next}` : L.next + " →"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Mini-map overlay */}
+          {showMiniMap && zoom > 1 && containerRef.current && (
+            <MiniMap
+              imageSrc={pages[index]?.src}
+              imageAlt={pages[index]?.alt}
+              containerWidth={containerDimensions.width}
+              containerHeight={containerDimensions.height}
+              imageWidth={800}
+              imageHeight={1100}
+              scrollLeft={containerRef.current.scrollLeft}
+              scrollTop={containerRef.current.scrollTop}
+              zoom={zoom}
+              onNavigate={(x, y) => {
+                if (containerRef.current) {
+                  containerRef.current.scrollLeft = x;
+                  containerRef.current.scrollTop = y;
+                }
               }}
-              onMouseDown={onPanStart}
-              onMouseMove={onPanMove}
-              onMouseUp={onPanEnd}
-              onMouseLeave={onPanEnd}
-            >
-              <div className="flex items-start justify-center min-w-[820px] min-h-[1120px] py-2">
-                <img
-                  src={pages[index]?.src}
-                  alt={pages[index]?.alt}
-                  loading="eager"
-                  decoding="async"
-                  onLoadStart={() => setImageLoading(true)}
-                  onLoad={() => setImageLoading(false)}
-                  onError={() => setImageLoading(false)}
-                  style={{ 
-                    transform: `scale(${zoom})`,
-                    transformOrigin: 'center top',
-                    transition: 'transform 0.2s ease-out'
-                  }}
-                  className="select-none max-w-full max-h-full object-contain"
-                  itemProp="image"
-                />
-                {imageLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                    <LoadingProgress type="image" progress={50} rtl={rtl} />
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className={cn("mt-4 flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
-              <Button
-                onClick={goPrev}
-                variant="secondary"
-                disabled={index === 0}
-                aria-label={L.previous}
-              >
-                {rtl ? `${L.previous} →` : "← " + L.previous}
-              </Button>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="tabular-nums">{index + 1}</span>
-                <Separator orientation="vertical" className="h-5" />
-                <span className="tabular-nums">{total}</span>
-                <Separator orientation="vertical" className="h-5" />
-                <Button
-                  size="icon"
-                  variant="outline"
-                  onClick={zoomOut}
-                  disabled={zoom <= Z.min}
-                  aria-label={rtl ? "تصغير" : "Zoom out"}
-                  className="hover-scale"
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  onClick={zoomIn}
-                  disabled={zoom >= Z.max}
-                  aria-label={rtl ? "تكبير" : "Zoom in"}
-                  className="hover-scale"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <Button
-                onClick={goNext}
-                variant="default"
-                disabled={index === total - 1}
-                aria-label={L.next}
-              >
-                {rtl ? `← ${L.next}` : L.next + " →"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              rtl={rtl}
+            />
+          )}
+        </FullscreenMode>
 
         {/* Summary below */}
         <Card className="shadow-sm">
