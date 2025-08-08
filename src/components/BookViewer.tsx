@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Minus, Plus, Loader2 } from "lucide-react";
-import { createWorker } from 'tesseract.js';
+import { runLocalOcr } from '@/lib/ocr/localOcr';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
 import { callFunction } from "@/lib/functionsClient";
@@ -324,24 +324,22 @@ useEffect(() => {
         throw new Error('Unable to load image due to CORS or network restrictions');
       }
       
-      console.log('Creating Tesseract worker...');
+      console.log('Running enhanced local OCR...');
       setOcrProgress(20);
-      const worker = await createWorker('ara+eng');
-      setOcrProgress(40);
-      console.log('Running OCR...');
-      const { data: { text } } = await worker.recognize(imageBlob);
-      // Manual progress simulation for better UX
-      let currentProgress = 40;
-      const progressInterval = setInterval(() => {
-        currentProgress += 5;
-        if (currentProgress <= 80) {
-          setOcrProgress(currentProgress);
-        }
-      }, 200);
-      clearInterval(progressInterval);
-      setOcrProgress(90);
-      await worker.terminate();
+      const result = await runLocalOcr(imageBlob, {
+        lang: rtl ? 'ara+eng' : 'eng',
+        psm: 6,
+        preprocess: {
+          upsample: true,
+          targetMinWidth: 1400,
+          denoise: true,
+          binarize: true,
+          cropMargins: true,
+        },
+        onProgress: (p) => setOcrProgress(Math.max(20, Math.min(95, p))),
+      });
       setOcrProgress(100);
+      const text = result.text;
       
       console.log('OCR completed, extracted text length:', text.length);
       console.log('First 200 chars:', text.substring(0, 200));
