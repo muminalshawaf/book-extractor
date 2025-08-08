@@ -29,19 +29,75 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
     const question = q.trim();
     setQ("");
     setLoading(true);
-    setMessages((m) => [...m, { role: "user", content: question }]);
+    // Add the user message and an empty assistant message to stream into
+    setMessages((m) => [...m, { role: "user", content: question }, { role: "assistant", content: "" }]);
+
+    const lang = rtl ? "ar" : "en";
+    const streamUrl = "https://ukznsekygmipnucpouoy.supabase.co/functions/v1/qa-stream";
 
     try {
-      console.log('Sending to QA function:', { question, summary: summary.substring(0, 100) + '...', summaryLength: summary.length, lang: rtl ? "ar" : "en", page, title });
-      const data = await callFunction<{ answer?: string }>("qa", { question, summary, lang: rtl ? "ar" : "en", page, title });
-      console.log('QA response:', data);
-      const answer = data?.answer || (rtl ? "تعذّر الحصول على إجابة" : "Failed to get answer");
-      setMessages((m) => [...m, { role: "assistant", content: answer }]);
-    } catch (e: any) {
-      setMessages((m) => [
-        ...m,
-        { role: "assistant", content: rtl ? `حدث خطأ: ${e?.message ?? "غير معروف"}` : `Error: ${e?.message ?? "Unknown"}` },
-      ]);
+      const res = await fetch(streamUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, summary, lang, page, title }),
+      });
+
+      if (!res.ok || !res.body) {
+        throw new Error(`Stream request failed (${res.status})`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let accumulated = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const events = buffer.split("\n\n");
+        buffer = events.pop() || "";
+
+        for (const evt of events) {
+          const line = evt.trim();
+          if (!line) continue;
+          if (line.startsWith("data:")) {
+            const payload = line.slice(5).trim();
+            if (payload === "[DONE]") continue;
+            accumulated += payload;
+            setMessages((m) => {
+              const copy = [...m];
+              const lastIdx = copy.length - 1;
+              if (lastIdx >= 0 && copy[lastIdx].role === "assistant") {
+                copy[lastIdx] = { role: "assistant", content: accumulated };
+              }
+              return copy;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Streaming failed, falling back to non-streaming:", e);
+      try {
+        const data = await callFunction<{ answer?: string }>("qa", { question, summary, lang, page, title });
+        const answer = data?.answer || (rtl ? "تعذّر الحصول على إجابة" : "Failed to get answer");
+        setMessages((m) => {
+          const copy = [...m];
+          const lastIdx = copy.length - 1;
+          if (lastIdx >= 0 && copy[lastIdx].role === "assistant") {
+            copy[lastIdx] = { role: "assistant", content: answer };
+          } else {
+            copy.push({ role: "assistant", content: answer });
+          }
+          return copy;
+        });
+      } catch (err: any) {
+        setMessages((m) => [
+          ...m,
+          { role: "assistant", content: rtl ? `حدث خطأ: ${err?.message ?? "غير معروف"}` : `Error: ${err?.message ?? "Unknown"}` },
+        ]);
+      }
     } finally {
       setLoading(false);
       inputRef.current?.focus();
