@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
@@ -708,6 +709,49 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             rtl={rtl}
           />
         )}
+
+        {/* OCR (Extracted Text) */}
+        <Card className="shadow-sm">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">{rtl ? "النص المستخرج (OCR)" : "OCR Text"}</CardTitle>
+              <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={extractTextFromPage}
+                  disabled={ocrLoading}
+                >
+                  {ocrLoading ? (rtl ? "جارٍ..." : "Working...") : (rtl ? "تشغيل OCR" : "Run OCR")}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={!extractedText}
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(extractedText);
+                      toast.success(rtl ? "تم نسخ النص" : "Copied");
+                    } catch {
+                      toast.error(rtl ? "فشل النسخ" : "Copy failed");
+                    }
+                  }}
+                >
+                  {rtl ? "نسخ" : "Copy"}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              readOnly
+              dir={rtl ? "rtl" : "ltr"}
+              value={extractedText}
+              placeholder={rtl ? "لا يوجد نص مستخرج بعد. اضغط تشغيل OCR." : "No extracted text yet. Click Run OCR."}
+              className="min-h-40"
+            />
+          </CardContent>
+        </Card>
 
         {/* Enhanced Summary */}
         <EnhancedSummary
