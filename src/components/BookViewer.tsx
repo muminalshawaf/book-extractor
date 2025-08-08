@@ -556,15 +556,15 @@ useEffect(() => {
     setZoomMode("actual-size");
   }, []);
 
-  // Process first 10 pages: OCR -> summarize -> save
+  // Process whole book: OCR -> summarize -> save
   const processFirstTenPages = async () => {
     if (batchRunning) return;
     const bookIdentifier = (bookId || title || 'book');
-    const limit = Math.min(10, total);
+    const limit = total;
     setBatchRunning(true);
     setBatchProgress({ current: 0, total: limit });
 
-    toast.message(rtl ? 'بدء معالجة أول 10 صفحات' : 'Starting first 10 pages');
+    toast.message(rtl ? 'بدء معالجة كل الكتاب' : 'Starting full book');
 
     const getImageBlob = async (imageSrc: string): Promise<Blob> => {
       let imageBlob: Blob | null = null;
@@ -654,7 +654,7 @@ useEffect(() => {
         });
       }
 
-      toast.success(rtl ? 'اكتملت معالجة 10 صفحات' : 'Processed 10 pages successfully');
+      toast.success(rtl ? 'اكتملت معالجة الكتاب' : 'Processed whole book successfully');
     } catch (e: any) {
       console.error('Batch processing failed:', e);
       toast.error((rtl ? 'فشل المعالجة: ' : 'Processing failed: ') + (e?.message || e));
@@ -976,7 +976,7 @@ useEffect(() => {
                 >
                   {batchRunning
                     ? (rtl ? `جارٍ المعالجة ${batchProgress.current}/${batchProgress.total}` : `Processing ${batchProgress.current}/${batchProgress.total}`)
-                    : (rtl ? "معالجة أول 10 صفحات" : "Process first 10 pages")}
+                    : (rtl ? "معالجة كل الكتاب" : "Process whole book")}
                 </Button>
               </div>
             </div>
