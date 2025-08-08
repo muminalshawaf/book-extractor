@@ -1,1 +1,7 @@
 project_id = "ukznsekygmipnucpouoy"
+
+[functions.summarize]
+verify_jwt = false
+
+[functions.qa]
+verify_jwt = false
