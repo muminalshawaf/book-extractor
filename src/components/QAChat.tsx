@@ -31,7 +31,9 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
     setMessages((m) => [...m, { role: "user", content: question }]);
 
     try {
+      console.log('Sending to QA function:', { question, summary: summary.substring(0, 100) + '...', summaryLength: summary.length, lang: rtl ? "ar" : "en", page, title });
       const data = await callFunction<{ answer?: string }>("qa", { question, summary, lang: rtl ? "ar" : "en", page, title });
+      console.log('QA response:', data);
       const answer = data?.answer || (rtl ? "تعذّر الحصول على إجابة" : "Failed to get answer");
       setMessages((m) => [...m, { role: "assistant", content: answer }]);
     } catch (e: any) {
