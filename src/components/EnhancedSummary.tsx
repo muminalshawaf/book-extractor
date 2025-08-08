@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Edit3, Save, X, RefreshCw, Clock, FileText, Copy, Check } from "lucide-react";
+import { Edit3, Save, X, RefreshCw, Clock, FileText, Copy, Check, Share2, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { renderContent } from "@/lib/mathRenderer";
@@ -17,6 +17,7 @@ interface EnhancedSummaryProps {
   confidence?: number;
   rtl?: boolean;
   pageNumber: number;
+  title?: string;
 }
 
 export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
@@ -27,6 +28,7 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
   confidence,
   rtl = false,
   pageNumber,
+  title,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedSummary, setEditedSummary] = useState(summary);
@@ -65,6 +67,54 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
       toast.error(rtl ? "فشل في النسخ" : "Failed to copy");
     }
   };
+
+  const handleShare = async () => {
+    if (!summary) return;
+    const shareTitle = `${title || (rtl ? "ملخص" : "Summary")} — ${rtl ? "صفحة" : "Page"} ${pageNumber}`;
+    const shareText = summary.slice(0, 280);
+    const url = window.location.href;
+    if ((navigator as any).share) {
+      try {
+        await (navigator as any).share({ title: shareTitle, text: shareText, url });
+        toast.success(rtl ? "تمت المشاركة" : "Shared");
+      } catch (e) {
+        // user cancelled or error; no toast needed
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(`${shareTitle}\n\n${summary}\n\n${url}`);
+        toast.success(rtl ? "تم نسخ النص — الصقه في أي تطبيق اجتماعي" : "Copied — paste into any social app");
+      } catch {
+        toast.error(rtl ? "جهازك لا يدعم المشاركة" : "Sharing not supported");
+      }
+    }
+  };
+
+  const handlePrint = () => {
+    if (!summary) return;
+    const win = window.open("", "_blank", "width=900,height=700");
+    if (!win) return;
+    const dir = rtl ? "rtl" : "ltr";
+    const lang = rtl ? "ar" : "en";
+    const titleText = `${title || (rtl ? "ملخص" : "Summary")} — ${rtl ? "صفحة" : "Page"} ${pageNumber}`;
+    const contentHtml = contentRef.current?.innerHTML || summary.replace(/\n/g, "<br/>");
+    win.document.write(`<!DOCTYPE html><html lang="${lang}" dir="${dir}"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>${titleText}</title><style>
+      body{font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Naskh Arabic', 'Cairo', Arial, sans-serif; padding:24px; line-height:1.7; color:#111;}
+      h1{font-size:20px; margin:0 0 12px;}
+      .meta{color:#555; margin-bottom:16px; font-size:12px;}
+      .content{font-size:14px;}
+      table{border-collapse: collapse; width:100%;}
+      th,td{border:1px solid #999; padding:6px;}
+      blockquote{border-${rtl ? 'right' : 'left'}:4px solid #888; padding-${rtl ? 'right' : 'left'}:12px; background:#f6f6f6;}
+      @media print { @page { margin: 12mm; } }
+    </style></head><body>
+      <h1>${titleText}</h1>
+      <div class="meta">${new Date().toLocaleString()}</div>
+      <div class="content">${contentHtml}</div>
+      <script>window.onload=()=>{setTimeout(()=>{window.print();window.close();},300);};</script>
+    </body></html>`);
+    win.document.close();
+  }; 
 
   const getConfidenceColor = (score: number) => {
     if (score >= 0.8) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
@@ -141,6 +191,26 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
                   className="h-8 w-8"
                 >
                   <RefreshCw className={cn("h-3 w-3", isRegenerating && "animate-spin")} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleShare}
+                  disabled={!summary}
+                  title={rtl ? "مشاركة الملخص" : "Share summary"}
+                  className="h-8 w-8"
+                >
+                  <Share2 className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handlePrint}
+                  disabled={!summary}
+                  title={rtl ? "طباعة الملخص" : "Print summary"}
+                  className="h-8 w-8"
+                >
+                  <Printer className="h-3 w-3" />
                 </Button>
               </div>
             ) : (

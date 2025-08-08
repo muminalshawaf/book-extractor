@@ -780,6 +780,7 @@ useEffect(() => {
           confidence={summaryConfidence}
           pageNumber={index + 1}
           rtl={rtl}
+          title={title}
         />
 
         {/* AI Q&A at the bottom */}
