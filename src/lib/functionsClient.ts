@@ -1,59 +1,23 @@
-// Lightweight helper to call Supabase Edge Functions with graceful fallbacks
-// Order:
-// 1) supabase-js functions.invoke if available
-// 2) Absolute Supabase Functions URL via env (Authorization: Bearer anon key)
-// 3) Relative /functions/v1 fallback (dev proxy)
+// Helper to call Supabase Edge Functions
+import { supabase } from "@/integrations/supabase/client";
 
 export async function callFunction<T = any>(name: string, body: Record<string, any>): Promise<T> {
-  // 1) Try supabase-js dynamically to avoid build-time env errors
   try {
-    const mod = await import("@/lib/supabase");
-    const supabase = (mod as any).supabase as {
-      functions: { invoke: (fn: string, opts: { body?: any }) => Promise<{ data: T | null; error: any }> };
-    };
-    if (supabase?.functions?.invoke) {
-      const { data, error } = await supabase.functions.invoke(name, { body });
-      if (error) throw error;
-      if (data != null) return data as T;
+    const { data, error } = await supabase.functions.invoke(name, { body });
+    
+    if (error) {
+      console.error(`Function ${name} error:`, error);
+      throw new Error(error.message || error.toString());
     }
-  } catch (_) {
-    // ignore and try HTTP-based fallbacks
-  }
-
-  // 2) Absolute URL using env vars (works even if /functions proxy isn't wired)
-  try {
-    // eslint-disable-next-line no-undef
-    const url = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
-    // eslint-disable-next-line no-undef
-    const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined;
-    if (url && anon) {
-      const abs = `${url.replace(/\/$/, '')}/functions/v1/${name}`;
-      const res = await fetch(abs, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${anon}`,
-        },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) return (await res.json()) as T;
-      const text = await res.text().catch(() => "");
-      throw new Error(`Function ${name} HTTP ${res.status}: ${text}`);
+    
+    if (data != null) {
+      return data as T;
     }
-  } catch (_) {
-    // ignore and try relative fallback
+    
+    throw new Error(`Function ${name} returned null data`);
+  } catch (err: any) {
+    console.error(`Failed to call function ${name}:`, err);
+    throw new Error(err.message || `Failed to call function ${name}`);
   }
-
-  // 3) Relative fallback (works when dev proxy is configured)
-  const res = await fetch(`/functions/v1/${name}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Function ${name} HTTP ${res.status}: ${text}`);
-  }
-  return (await res.json()) as T;
 }
 
