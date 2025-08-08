@@ -6,7 +6,6 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Minus, Plus, Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 export type BookPage = {
   src: string;
   alt: string;
@@ -146,12 +145,22 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }
     setSummLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('summarize', {
-        body: { text: note, lang: rtl ? "ar" : "en", page: index + 1, title }
+      // Use relative path for edge function in Lovable/Supabase environment
+      const res = await fetch("/functions/v1/summarize", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ text: note, lang: rtl ? "ar" : "en", page: index + 1, title }),
       });
       
-      if (error) throw error;
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Summarize API error:', res.status, errorText);
+        throw new Error(`API error: ${res.status}`);
+      }
       
+      const data = await res.json();
       setSummary(data?.summary || "");
       toast.success(rtl ? "تم إنشاء الملخص" : "Summary ready");
     } catch (e) {
