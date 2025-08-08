@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Edit3, Save, X, RefreshCw, Clock, FileText, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import MathRenderer from "@/components/MathRenderer";
 
 interface EnhancedSummaryProps {
   summary: string;
@@ -176,18 +177,12 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
         ) : (
           <div 
             className={cn(
-              "summary-content prose prose-sm max-w-none dark:prose-invert leading-relaxed text-sm font-cairo",
+              "summary-content leading-relaxed text-sm font-cairo",
               rtl && "text-right"
             )}
             dir={rtl ? "rtl" : "ltr"}
           >
-            {summary.split('\n').map((paragraph, index) => (
-              paragraph.trim() && (
-                <p key={index} className="mb-3 last:mb-0">
-                  {paragraph}
-                </p>
-              )
-            ))}
+            <MathRenderer content={summary} className="prose prose-sm max-w-none dark:prose-invert" />
           </div>
         )}
       </CardContent>

@@ -150,23 +150,80 @@ All colors MUST be HSL.
   text-align: left;
 }
 
-/* Enhanced summary container */
+/* Enhanced summary container with better formatting */
 .summary-content {
   font-family: 'Cairo', sans-serif;
-  line-height: 1.7;
+  line-height: 1.8;
   color: hsl(var(--foreground));
+  font-size: 14px;
 }
 
 .summary-content[dir="rtl"] {
   text-align: right;
 }
 
-.summary-content p {
-  margin-bottom: 1rem;
+/* Better paragraph spacing for summaries */
+.summary-content .prose p {
+  margin-bottom: 1.2rem;
+  line-height: 1.8;
 }
 
-.summary-content p:last-child {
+.summary-content .prose p:last-child {
   margin-bottom: 0;
+}
+
+/* Enhanced list formatting */
+.summary-content .prose ul,
+.summary-content .prose ol {
+  margin: 1rem 0;
+  padding-right: 1.5rem;
+}
+
+.summary-content .prose[dir="rtl"] ul,
+.summary-content .prose[dir="rtl"] ol {
+  padding-right: 1.5rem;
+  padding-left: 0;
+}
+
+.summary-content .prose li {
+  margin-bottom: 0.5rem;
+  line-height: 1.7;
+}
+
+/* Better heading styles for summaries */
+.summary-content .prose h1,
+.summary-content .prose h2,
+.summary-content .prose h3,
+.summary-content .prose h4 {
+  font-family: 'Cairo', sans-serif;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.8rem;
+  color: hsl(var(--foreground));
+}
+
+.summary-content .prose h1 { font-size: 1.4rem; }
+.summary-content .prose h2 { font-size: 1.2rem; }
+.summary-content .prose h3 { font-size: 1.1rem; }
+.summary-content .prose h4 { font-size: 1rem; }
+
+/* Better blockquote styling */
+.summary-content .prose blockquote {
+  border-right: 4px solid hsl(var(--primary));
+  border-left: none;
+  padding-right: 1rem;
+  padding-left: 0;
+  margin: 1.5rem 0;
+  font-style: italic;
+  background: hsl(var(--muted) / 0.3);
+  border-radius: 0.25rem;
+}
+
+.summary-content .prose[dir="ltr"] blockquote {
+  border-left: 4px solid hsl(var(--primary));
+  border-right: none;
+  padding-left: 1rem;
+  padding-right: 0;
 }
 
 .summary-content .katex {
@@ -174,7 +231,7 @@ All colors MUST be HSL.
 }
 
 .summary-content .katex-display {
-  margin: 1em 0;
+  margin: 1.5rem 0;
 }
 
 /* Loader animation */
