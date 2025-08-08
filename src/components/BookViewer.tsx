@@ -239,30 +239,33 @@ const [summary, setSummary] = useState("");
           .eq('book_id', dbBookId)
           .eq('page_number', index + 1)
           .maybeSingle();
+
         if (error) {
           console.warn('Supabase fetch error:', error);
           return;
         }
-        if (!cancelled && data) {
-          const ocr = data.ocr_text || '';
-          const sum = data.summary_md || '';
-          if (ocr) {
-            setExtractedText(ocr);
-            setAllExtractedTexts(prev => ({ ...prev, [index]: ocr }));
-            try { localStorage.setItem(ocrKey, ocr); } catch {}
-          }
-          if (sum) {
-            setSummary(sum);
-            try { localStorage.setItem(sumKey, sum); } catch {}
-          }
-        }
+
+        if (cancelled) return;
+
+        const ocr = (data?.ocr_text ?? '').trim();
+        const sum = (data?.summary_md ?? '').trim();
+
+        // Always mirror DB state. If no value in DB, fields should be empty
+        setExtractedText(ocr);
+        setAllExtractedTexts(prev => ({ ...prev, [index]: ocr }));
+        setSummary(sum);
+
+        try {
+          if (ocr) localStorage.setItem(ocrKey, ocr); else localStorage.removeItem(ocrKey);
+          if (sum) localStorage.setItem(sumKey, sum); else localStorage.removeItem(sumKey);
+        } catch {}
       } catch (e) {
         console.warn('Failed to fetch page from DB:', e);
       }
     };
     fetchFromDb();
     return () => { cancelled = true; };
-  }, [index, dbBookId]);
+  }, [index, dbBookId, ocrKey, sumKey]);
 
   // Mobile detection
   useEffect(() => {
