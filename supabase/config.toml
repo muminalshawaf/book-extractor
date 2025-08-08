@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.qa-stream]
 verify_jwt = false
+
+[functions.summarize-stream]
+verify_jwt = false

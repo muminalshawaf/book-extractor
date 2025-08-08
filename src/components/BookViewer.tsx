@@ -367,40 +367,113 @@ useEffect(() => {
     }
   };
 
-  // Enhanced summarization function with confidence scoring
+  // Enhanced summarization function with confidence scoring (streaming)
   const summarizeExtractedText = async (text: string) => {
     setSummLoading(true);
     setSummaryProgress(0);
     try {
       console.log('Starting summarization with text length:', text.length);
-      setSummaryProgress(25);
-      const data = await callFunction<{ summary?: string; error?: string; confidence?: number }>("summarize", {
-        text,
-        lang: rtl ? "ar" : "en",
-        page: index + 1,
-        title,
-      });
-      setSummaryProgress(75);
-      console.log('Summarize response:', data);
-      
-      if (data?.error) {
-        throw new Error(data.error);
+      setSummary('');
+      setSummaryConfidence(0.8);
+
+      const streamUrl = "https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream";
+      const lang = rtl ? 'ar' : 'en';
+      let accumulated = '';
+      let lastFlush = 0;
+
+      const flush = () => {
+        setSummary(accumulated);
+      };
+
+      // Prefer EventSource for smaller payloads
+      const canUseES = text.length <= 3000; // safe size when base64 encoded
+      if (canUseES) {
+        await new Promise<void>((resolve, reject) => {
+          const params = new URLSearchParams();
+          const b64 = btoa(unescape(encodeURIComponent(text)));
+          params.set('text_b64', b64);
+          params.set('lang', lang);
+          params.set('page', String(index + 1));
+          params.set('title', title);
+
+          const es = new EventSource(`${streamUrl}?${params.toString()}`);
+
+          es.onmessage = (ev) => {
+            let chunk = ev.data;
+            try { const j = JSON.parse(chunk); chunk = j?.text ?? chunk; } catch {}
+            accumulated += chunk;
+            const now = (globalThis.performance?.now?.() ?? Date.now());
+            if (now - lastFlush > 150) { flush(); lastFlush = now; }
+          };
+          es.addEventListener('done', () => { flush(); es.close(); resolve(); });
+          es.onerror = (err) => { es.close(); reject(err); };
+        });
+      } else {
+        // Fallback to POST streaming
+        const res = await fetch(streamUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+          body: JSON.stringify({ text, lang, page: index + 1, title }),
+        });
+        if (!res.ok || !res.body) throw new Error(`Stream request failed (${res.status})`);
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const events = buffer.split(/\r?\n\r?\n/);
+          buffer = events.pop() || '';
+          for (const evt of events) {
+            const lines = evt.split(/\r?\n/);
+            for (const ln of lines) {
+              if (ln.startsWith('data:')) {
+                const raw = ln.slice(5);
+                if (raw.trim() === '[DONE]') continue;
+                let chunk = raw;
+                try { const j = JSON.parse(raw); chunk = j?.text ?? chunk; } catch {}
+                accumulated += chunk;
+                const now = (globalThis.performance?.now?.() ?? Date.now());
+                if (now - lastFlush > 150) { flush(); lastFlush = now; }
+              }
+            }
+          }
+        }
+        flush();
       }
-      
-      const s = data?.summary || "";
-      const confidence = data?.confidence || 0.8; // Default confidence if not provided
-      setSummary(s);
-      setSummaryConfidence(confidence);
+
       setSummaryProgress(100);
-      try { localStorage.setItem(sumKey, s); } catch {}
+      try { localStorage.setItem(sumKey, accumulated); } catch {}
       toast.success(rtl ? "تم إنشاء الملخص" : "Summary ready");
-      setRetryCount(0); // Reset retry count on success
+      setRetryCount(0);
     } catch (e: any) {
-      console.error('Summarize error details:', e);
-      const errorMsg = e?.message || String(e);
-      setLastError(e);
-      setRetryCount(prev => prev + 1);
-      toast.error(rtl ? `فشل التلخيص: ${errorMsg}` : `Failed to summarize: ${errorMsg}`);
+      console.error('Summarize stream error, falling back:', e);
+      try {
+        setSummaryProgress(25);
+        const data = await callFunction<{ summary?: string; error?: string; confidence?: number }>('summarize', {
+          text,
+          lang: rtl ? 'ar' : 'en',
+          page: index + 1,
+          title,
+        });
+        setSummaryProgress(75);
+        if (data?.error) throw new Error(data.error);
+        const s = data?.summary || '';
+        setSummary(s);
+        setSummaryConfidence(data?.confidence || 0.8);
+        setSummaryProgress(100);
+        try { localStorage.setItem(sumKey, s); } catch {}
+        toast.success(rtl ? 'تم إنشاء الملخص' : 'Summary ready');
+        setRetryCount(0);
+      } catch (err: any) {
+        console.error('Summarize error details:', err);
+        const errorMsg = err?.message || String(err);
+        setLastError(err);
+        setRetryCount(prev => prev + 1);
+        toast.error(rtl ? `فشل التلخيص: ${errorMsg}` : `Failed to summarize: ${errorMsg}`);
+      }
     } finally {
       setSummLoading(false);
       setSummaryProgress(0);
