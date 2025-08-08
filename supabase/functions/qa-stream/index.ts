@@ -104,7 +104,7 @@ You can answer any question the student asks. If page context is provided, use i
                 const json = JSON.parse(dataStr);
                 const delta = json?.choices?.[0]?.delta?.content ?? "";
                 if (delta) {
-                  controller.enqueue(encoder.encode(`data: ${delta}\n\n`));
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`));
                 }
               } catch (_) {
                 // ignore non-JSON lines

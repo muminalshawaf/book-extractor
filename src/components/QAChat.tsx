@@ -21,6 +21,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const streamRef = useRef<HTMLDivElement | null>(null);
 
   const disabled = useMemo(() => loading || q.trim().length === 0, [loading, q]);
 
@@ -75,14 +76,24 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
           const lines = evt.split(/\r?\n/);
           for (const ln of lines) {
             if (ln.startsWith("data:")) {
-              // Preserve payload exactly (including leading spaces)
-              const payload = ln.slice(5);
-              if (payload.trim() === "[DONE]") continue;
+              const raw = ln.slice(5);
+              const trimmed = raw.trim();
+              if (trimmed === "[DONE]") continue;
 
-              accumulated += payload;
+              let chunk = raw;
+              try {
+                const j = JSON.parse(raw);
+                chunk = j?.text ?? j?.delta ?? j?.content ?? raw;
+              } catch {}
+
+              accumulated += chunk;
+
+              if (streamRef.current) {
+                streamRef.current.textContent = accumulated;
+              }
 
               const now = (globalThis.performance?.now?.() ?? Date.now());
-              if (now - lastFlush > 50) {
+              if (now - lastFlush > 200) {
                 flush();
                 lastFlush = now;
               }
@@ -140,7 +151,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
                     {m.role === "assistant" ? (
                       // During streaming, render raw text to avoid heavy KaTeX re-renders
                       loading && i === messages.length - 1 ? (
-                        <div className="whitespace-pre-wrap text-sm">{m.content}</div>
+                        <div ref={i === messages.length - 1 ? streamRef : undefined} className="whitespace-pre-wrap text-sm">{m.content}</div>
                       ) : (
                         <MathRenderer content={m.content} className="text-sm" />
                       )
