@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import HTMLFlipBook from "react-pageflip";
 
 export type BookPage = {
   src: string;
@@ -39,8 +40,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 }) => {
   const [index, setIndex] = useState(0);
   const total = pages.length;
-  const imgKey = `${index}`; // used to retrigger animation on page change
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const flipRef = useRef<any>(null);
 
   const L = {
     previous: labels.previous ?? "Previous",
@@ -85,8 +86,21 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     debounceRef.current = window.setTimeout(() => saveNote(v), 400);
   };
 
-  const goPrev = () => setIndex((i) => Math.max(0, i - 1));
-  const goNext = () => setIndex((i) => Math.min(total - 1, i + 1));
+  const goPrev = () => {
+    if (flipRef.current?.pageFlip) {
+      flipRef.current.pageFlip().flipPrev();
+    } else {
+      setIndex((i) => Math.max(0, i - 1));
+    }
+  };
+
+  const goNext = () => {
+    if (flipRef.current?.pageFlip) {
+      flipRef.current.pageFlip().flipNext();
+    } else {
+      setIndex((i) => Math.min(total - 1, i + 1));
+    }
+  };
 
   // keyboard navigation (RTL-aware)
   useEffect(() => {
@@ -173,20 +187,40 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-center">
-              <div
-                key={imgKey}
-                className={cn(
-                  "relative w-full max-w-[900px] overflow-hidden rounded-lg border",
-                  "animate-fade-in"
-                )}
-              >
-                <img
-                  src={pages[index]?.src}
-                  alt={pages[index]?.alt}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-auto block select-none"
-                />
+              <div className="relative w-full max-w-[920px]">
+                <HTMLFlipBook
+                  ref={flipRef}
+                  width={800}
+                  height={1100}
+                  size="stretch"
+                  minWidth={320}
+                  maxWidth={900}
+                  minHeight={480}
+                  maxHeight={1400}
+                  maxShadowOpacity={0.4}
+                  showCover={false}
+                  mobileScrollSupport={true}
+                  usePortrait={true}
+                  drawShadow={true}
+                  flippingTime={800}
+                  className="w-full rounded-lg border shadow-sm"
+                  direction={rtl ? ("rtl" as any) : ("ltr" as any)}
+                  onFlip={(e: any) => setIndex(e.data)}
+                >
+                  {pages.map((p, i) => (
+                    <div key={i} className="bg-card h-full w-full">
+                      <div className="flex items-center justify-center h-full w-full p-3">
+                        <img
+                          src={p.src}
+                          alt={p.alt}
+                          loading="lazy"
+                          decoding="async"
+                          className="max-w-full max-h-full object-contain select-none"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </HTMLFlipBook>
               </div>
             </div>
             <div className={cn("mt-4 flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
