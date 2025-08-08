@@ -52,7 +52,133 @@ All colors MUST be HSL.
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary) / 0.95), hsl(var(--primary-glow) / 0.65));
     --shadow-elegant: 0 12px 30px -10px hsl(var(--primary) / 0.15);
     --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  }
+}
+
+/* Arabic/RTL Typography and Layout */
+[dir="rtl"] {
+  font-family: 'Cairo', sans-serif;
+}
+
+/* Enhanced Prose Styles for Summary Content */
+.prose {
+  max-width: 100%;
+  font-family: 'Cairo', sans-serif;
+}
+
+.prose.text-sm {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.prose.text-sm p {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+.prose .katex {
+  font-size: 1.1em !important;
+}
+
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.prose th,
+.prose td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid hsl(var(--border));
+  text-align: right;
+}
+
+.prose th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+}
+
+.prose tr:last-child td {
+  border-bottom: none;
+}
+
+.prose pre {
+  background-color: hsl(var(--muted));
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 0.9em;
+  direction: ltr;
+  text-align: left;
+}
+
+.prose code {
+  background-color: hsl(var(--muted));
+  padding: 0.2em 0.4em;
+  border-radius: 0.3em;
+  font-size: 0.9em;
+}
+
+/* RTL-specific prose adjustments */
+.prose[dir="rtl"] {
+  text-align: right;
+}
+
+.prose[dir="rtl"] th,
+.prose[dir="rtl"] td {
+  text-align: right;
+}
+
+.prose[dir="rtl"] pre {
+  direction: ltr;
+  text-align: left;
+}
+
+/* Enhanced summary container */
+.summary-content {
+  font-family: 'Cairo', sans-serif;
+  line-height: 1.7;
+  color: hsl(var(--foreground));
+}
+
+.summary-content[dir="rtl"] {
+  text-align: right;
+}
+
+.summary-content p {
+  margin-bottom: 1rem;
+}
+
+.summary-content p:last-child {
+  margin-bottom: 0;
+}
+
+.summary-content .katex {
+  font-size: 1.1em !important;
+}
+
+.summary-content .katex-display {
+  margin: 1em 0;
+}
+
+/* Loader animation */
+.loader {
+  border: 2px solid hsl(var(--muted));
+  border-top: 2px solid hsl(var(--primary));
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
   .dark {
     --background: 222.2 84% 4.9%;

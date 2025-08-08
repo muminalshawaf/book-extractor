@@ -73,7 +73,7 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
     <Card className="shadow-sm">
       <CardHeader>
         <div className={cn("flex items-center justify-between", rtl && "flex-row-reverse")}>
-          <CardTitle className="text-lg flex items-center gap-2">
+          <CardTitle className={cn("text-lg flex items-center gap-2 font-cairo", rtl && "flex-row-reverse")}>
             <FileText className="h-5 w-5" />
             {rtl ? `ملخص الصفحة ${pageNumber}` : `Page ${pageNumber} Summary`}
           </CardTitle>
@@ -81,12 +81,12 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
           <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
             {/* Metrics */}
             {summary && (
-              <div className={cn("flex items-center gap-3 text-sm text-muted-foreground", rtl && "flex-row-reverse")}>
-                <div className="flex items-center gap-1">
+              <div className={cn("flex items-center gap-3 text-sm text-muted-foreground font-cairo", rtl && "flex-row-reverse")}>
+                <div className={cn("flex items-center gap-1", rtl && "flex-row-reverse")}>
                   <FileText className="h-3 w-3" />
                   <span>{wordCount} {rtl ? "كلمة" : "words"}</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className={cn("flex items-center gap-1", rtl && "flex-row-reverse")}>
                   <Clock className="h-3 w-3" />
                   <span>{readingTime} {rtl ? "دقيقة" : "min read"}</span>
                 </div>
@@ -162,7 +162,7 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
       
       <CardContent>
         {!summary ? (
-          <div className="text-center text-muted-foreground py-8">
+          <div className={cn("text-center text-muted-foreground py-8 font-cairo", rtl && "text-right")}>
             {rtl ? "لا يوجد ملخص متاح لهذه الصفحة" : "No summary available for this page"}
           </div>
         ) : isEditing ? (
@@ -170,18 +170,23 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
             value={editedSummary}
             onChange={(e) => setEditedSummary(e.target.value)}
             placeholder={rtl ? "تحرير الملخص..." : "Edit summary..."}
-            className="min-h-[120px] resize-none"
+            className={cn("min-h-[120px] resize-none font-cairo", rtl && "text-right")}
             dir={rtl ? "rtl" : "ltr"}
           />
         ) : (
           <div 
-            className="prose prose-sm max-w-none dark:prose-invert leading-relaxed"
+            className={cn(
+              "summary-content prose prose-sm max-w-none dark:prose-invert leading-relaxed text-sm font-cairo",
+              rtl && "text-right"
+            )}
             dir={rtl ? "rtl" : "ltr"}
           >
             {summary.split('\n').map((paragraph, index) => (
-              <p key={index} className="mb-3 last:mb-0">
-                {paragraph}
-              </p>
+              paragraph.trim() && (
+                <p key={index} className="mb-3 last:mb-0">
+                  {paragraph}
+                </p>
+              )
             ))}
           </div>
         )}

@@ -41,6 +41,11 @@ export function renderContent(content: string, targetElement: HTMLElement): void
   });
   
   targetElement.innerHTML = typeof parsedMarkdown === 'string' ? parsedMarkdown : '';
+  
+  // Add font family for Arabic content
+  if (targetElement.closest('[dir="rtl"]')) {
+    targetElement.classList.add('font-cairo');
+  }
 
   // Render math expressions
   mathBlocks.forEach(block => {
@@ -48,10 +53,14 @@ export function renderContent(content: string, targetElement: HTMLElement): void
     if (placeholderEl) {
       try {
         katex.render(block.math.trim(), placeholderEl, {
-          throwOnError: false,
-          displayMode: block.displayMode,
-          macros: { '\\chem': '\\ce{#1}' }
-        });
+            throwOnError: false,
+            displayMode: block.displayMode,
+            macros: { 
+              '\\chem': '\\ce{#1}',
+              '\\ce': '\\ce{#1}'
+            },
+            trust: true
+          });
       } catch (error) {
         console.error("KaTeX rendering error:", error);
         placeholderEl.textContent = `[KaTeX Error: ${(error as Error).message}]`;

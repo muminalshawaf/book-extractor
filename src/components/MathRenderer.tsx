@@ -20,7 +20,7 @@ const MathRenderer: React.FC<MathRendererProps> = ({ content, className }) => {
     <div 
       ref={containerRef}
       className={cn(
-        "prose prose-sm max-w-none text-right leading-relaxed",
+        "prose prose-sm max-w-none summary-content leading-relaxed",
         "prose-p:my-3 prose-headings:my-4 prose-strong:font-bold",
         "prose-table:border-collapse prose-table:w-full prose-table:my-4",
         "prose-table:shadow-sm prose-table:border prose-table:border-border prose-table:rounded-lg prose-table:overflow-hidden",
@@ -31,8 +31,10 @@ const MathRenderer: React.FC<MathRendererProps> = ({ content, className }) => {
         "prose-code:bg-muted prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm",
         "[&_.katex]:text-lg [&_.katex-display]:my-4",
         "[&_strong]:font-bold [&_b]:font-bold",
+        "font-cairo",
         className
       )}
+      dir={content.includes('ا') || content.includes('ب') || content.includes('ت') ? 'rtl' : 'ltr'}
     />
   );
 };
