@@ -1,15 +1,15 @@
 import BookViewer from "@/components/BookViewer";
-import page1 from "@/assets/book/page-1.jpg";
-import page2 from "@/assets/book/page-2.jpg";
-import page3 from "@/assets/book/page-3.jpg";
-import page4 from "@/assets/book/page-4.jpg";
 
 const Index = () => {
   const pages = [
-    { src: page1, alt: "صفحة كتاب 1 - مقدمة الفصل بخط نسخي أنيق" },
-    { src: page2, alt: "صفحة كتاب 2 - استمرار النص مع عنوان في المنتصف" },
-    { src: page3, alt: "صفحة كتاب 3 - عنوان قسم فرعي وفقرة" },
-    { src: page4, alt: "صفحة كتاب 4 - رسمة نباتية دقيقة في الهامش" },
+    { src: "https://ksa.idros.ai/books/chem12-1-3/a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8-1.jpg", alt: "صفحة كتاب الكيمياء 1" },
+    { src: "https://ksa.idros.ai/books/chem12-1-3/a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8-2.jpg", alt: "صفحة كتاب الكيمياء 2" },
+    { src: "https://ksa.idros.ai/books/chem12-1-3/a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8-3.jpg", alt: "صفحة كتاب الكيمياء 3" },
+    { src: "https://ksa.idros.ai/books/chem12-1-3/a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8-4.jpg", alt: "صفحة كتاب الكيمياء 4" },
+    { src: "https://ksa.idros.ai/books/chem12-1-3/a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8-5.jpg", alt: "صفحة كتاب الكيمياء 5" },
+    { src: "https://ksa.idros.ai/books/chem12-1-3/a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8-6.jpg", alt: "صفحة كتاب الكيمياء 6" },
+    { src: "https://ksa.idros.ai/books/chem12-1-3/a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8-7.jpg", alt: "صفحة كتاب الكيمياء 7" },
+    { src: "https://ksa.idros.ai/books/chem12-1-3/a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8-8.jpg", alt: "صفحة كتاب الكيمياء 8" },
   ];
 
   const jsonLd = {
