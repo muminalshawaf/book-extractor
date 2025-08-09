@@ -727,38 +727,36 @@ useEffect(() => {
 
   const progressPct = total > 1 ? Math.round(((index + 1) / total) * 100) : 100;
 
-  // Drag-to-pan when zoomed in
+  // Drag-to-pan
   const [isPanning, setIsPanning] = useState(false);
-  const panRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const panRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
   const onPanStart = useCallback((e: React.MouseEvent) => {
-    if (zoom <= 1) return;
     const el = containerRef.current;
     if (!el) return;
     setIsPanning(true);
-    panRef.current = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop };
+    panRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
     el.style.cursor = 'grabbing';
     e.preventDefault();
     e.stopPropagation();
-  }, [zoom]);
+  }, [pan.x, pan.y]);
 
   const onPanMove = useCallback((e: React.MouseEvent) => {
-    if (!isPanning || zoom <= 1) return;
-    const el = containerRef.current;
-    if (!el || !panRef.current) return;
+    if (!isPanning || !panRef.current) return;
     const dx = e.clientX - panRef.current.x;
     const dy = e.clientY - panRef.current.y;
-    el.scrollLeft = panRef.current.left - dx;
-    el.scrollTop = panRef.current.top - dy;
-  }, [isPanning, zoom]);
+    setPan({ x: panRef.current.panX + dx, y: panRef.current.panY + dy });
+    e.preventDefault();
+  }, [isPanning]);
 
   const onPanEnd = useCallback(() => {
     if (!isPanning) return;
     setIsPanning(false);
     const el = containerRef.current;
-    if (el) el.style.cursor = zoom > 1 ? 'grab' : '';
+    if (el) el.style.cursor = 'grab';
     panRef.current = null;
-  }, [isPanning, zoom]);
+  }, [isPanning]);
 
   return (
     <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
@@ -847,8 +845,7 @@ useEffect(() => {
                   <div 
                     ref={containerRef}
                     className={cn(
-                      "relative w-full border rounded-lg mb-4",
-                      zoom > 1 ? "overflow-auto cursor-grab" : "overflow-hidden",
+                      "relative w-full border rounded-lg mb-4 overflow-hidden cursor-grab",
                       isMobile && "book-viewer-mobile"
                     )}
                     style={{ 
@@ -868,6 +865,7 @@ useEffect(() => {
                         alt={pages[index]?.alt}
                         loading="eager"
                         decoding="async"
+                        draggable={false}
                         onLoadStart={() => setImageLoading(true)}
                         onLoad={() => {
                           setImageLoading(false);
@@ -881,9 +879,9 @@ useEffect(() => {
                         }}
                         onError={() => setImageLoading(false)}
                         style={{ 
-                          transform: `scale(${zoom})`,
+                          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                           transformOrigin: 'center top',
-                          transition: 'transform 0.2s ease-out'
+                          transition: 'transform 0.02s linear'
                         }}
                         className="select-none max-w-full max-h-full object-contain will-change-transform"
                         itemProp="image"
