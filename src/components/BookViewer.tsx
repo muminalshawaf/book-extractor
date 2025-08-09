@@ -841,9 +841,6 @@ useEffect(() => {
             <Button size="sm" variant={readerMode === 'page' ? 'default' : 'outline'} onClick={() => setReaderMode('page')}>
               {rtl ? "شرائح" : "Slides"}
             </Button>
-            <Button size="sm" variant={readerMode === 'continuous' ? 'default' : 'outline'} onClick={() => setReaderMode('continuous')}>
-              {rtl ? "متواصل" : "Continuous"}
-            </Button>
           </div>
           <FullscreenButton rtl={rtl} />
         </div>
