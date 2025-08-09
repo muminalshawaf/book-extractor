@@ -107,6 +107,9 @@ const [summary, setSummary] = useState("");
   const [summaryProgress, setSummaryProgress] = useState(0);
   const [thumbnailsOpen, setThumbnailsOpen] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
+  const [displaySrc, setDisplaySrc] = useState<string>(pages[0]?.src ?? "");
+  const [imgTriedProxy, setImgTriedProxy] = useState(false);
+  const [imgTriedWeserv, setImgTriedWeserv] = useState(false);
   
   // Phase 2 enhancements
   const [zoomMode, setZoomMode] = useState<ZoomMode>("custom");
@@ -231,6 +234,14 @@ const [summary, setSummary] = useState("");
       setRetryCount(0);
     } catch {}
   }, [index, ocrKey, sumKey]);
+
+  // Reset display source and fallback flags when page changes
+  useEffect(() => {
+    const src = pages[index]?.src || "";
+    setDisplaySrc(src);
+    setImgTriedProxy(false);
+    setImgTriedWeserv(false);
+  }, [index, pages]);
 
   // Fetch OCR and summary from Supabase for current page
   useEffect(() => {
@@ -851,8 +862,9 @@ useEffect(() => {
                 >
                   <div className="flex items-start justify-center min-w-[820px] min-h-[1120px] py-2">
                     <img
-                      src={pages[index]?.src}
+                      src={displaySrc}
                       alt={pages[index]?.alt}
+                      crossOrigin="anonymous"
                       loading="eager"
                       decoding="async"
                       onLoadStart={() => setImageLoading(true)}
@@ -866,7 +878,20 @@ useEffect(() => {
                           });
                         }
                       }}
-                      onError={() => setImageLoading(false)}
+                      onError={() => {
+                        const orig = pages[index]?.src || "";
+                        const isExternal = orig.startsWith("http") && !orig.includes(window.location.origin);
+                        if (isExternal && !imgTriedProxy) {
+                          setImgTriedProxy(true);
+                          setDisplaySrc(`/functions/v1/image-proxy?url=${encodeURIComponent(orig)}`);
+                        } else if (isExternal && !imgTriedWeserv) {
+                          setImgTriedWeserv(true);
+                          const hostless = orig.replace(/^https?:\/\//, "");
+                          setDisplaySrc(`https://images.weserv.nl/?url=${encodeURIComponent(hostless)}&output=jpg`);
+                        } else {
+                          setImageLoading(false);
+                        }
+                      }}
                       style={{ 
                         transform: `scale(${zoom})`,
                         transformOrigin: 'center top',
