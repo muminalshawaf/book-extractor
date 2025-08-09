@@ -25,6 +25,7 @@ import { ImprovedErrorHandler } from "@/components/ImprovedErrorHandler";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { TouchGestureHandler } from "@/components/TouchGestureHandler";
 import { PerformanceMonitor } from "@/components/PerformanceMonitor";
+import { ContinuousReader, ContinuousReaderRef } from "@/components/reader/ContinuousReader";
 export type BookPage = {
   src: string;
   alt: string;
@@ -111,6 +112,8 @@ const [summary, setSummary] = useState("");
   const [zoomMode, setZoomMode] = useState<ZoomMode>("custom");
   const [showMiniMap, setShowMiniMap] = useState(false);
   const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 600 });
+  const [readerMode, setReaderMode] = useState<'page' | 'continuous'>("page");
+  const continuousRef = useRef<ContinuousReaderRef | null>(null);
   
   // Image preloading
   const { getPreloadStatus } = useImagePreloader(pages, index);
@@ -138,18 +141,34 @@ const [summary, setSummary] = useState("");
   const [rangeEnd, setRangeEnd] = useState<number>(10);
 
   const goPrev = () => {
-    setIndex((i) => Math.max(0, i - 1));
+    setIndex((i) => {
+      const ni = Math.max(0, i - 1);
+      if (readerMode === 'continuous') {
+        continuousRef.current?.scrollToIndex(ni);
+      }
+      return ni;
+    });
   };
 
   const goNext = () => {
-    setIndex((i) => Math.min(total - 1, i + 1));
+    setIndex((i) => {
+      const ni = Math.min(total - 1, i + 1);
+      if (readerMode === 'continuous') {
+        continuousRef.current?.scrollToIndex(ni);
+      }
+      return ni;
+    });
   };
 
   const jumpToPage = useCallback((n: number) => {
     if (!Number.isFinite(n)) return;
     const clamped = Math.min(Math.max(1, Math.floor(n)), total);
-    setIndex(clamped - 1);
-  }, [total]);
+    const target = clamped - 1;
+    setIndex(target);
+    if (readerMode === 'continuous') {
+      continuousRef.current?.scrollToIndex(target);
+    }
+  }, [total, readerMode]);
 
   // Enhanced keyboard navigation
   useEffect(() => {
@@ -749,7 +768,7 @@ useEffect(() => {
           <ThumbnailSidebar
             pages={pages}
             currentIndex={index}
-            onPageSelect={setIndex}
+            onPageSelect={(i) => { setIndex(i); if (readerMode === 'continuous') { continuousRef.current?.scrollToIndex(i); } }}
             isOpen={thumbnailsOpen}
             onToggle={() => setThumbnailsOpen(!thumbnailsOpen)}
             rtl={rtl}
@@ -772,10 +791,19 @@ useEffect(() => {
             onFitWidth={fitToWidth}
             onFitHeight={fitToHeight}
             onActualSize={actualSize}
-            showMiniMap={showMiniMap}
+            showMiniMap={showMiniMap && readerMode === 'page'}
             onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
             rtl={rtl}
           />
+          <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}
+               aria-label={rtl ? "وضع القراءة" : "Reader mode"}>
+            <Button size="sm" variant={readerMode === 'page' ? 'default' : 'outline'} onClick={() => setReaderMode('page')}>
+              {rtl ? "شرائح" : "Slides"}
+            </Button>
+            <Button size="sm" variant={readerMode === 'continuous' ? 'default' : 'outline'} onClick={() => setReaderMode('continuous')}>
+              {rtl ? "متواصل" : "Continuous"}
+            </Button>
+          </div>
           <FullscreenButton rtl={rtl} />
         </div>
 
@@ -812,68 +840,85 @@ useEffect(() => {
                   setZoom(newZoom);
                   setZoomMode("custom");
                 }}
-                disabled={!isMobile}
+                disabled={!isMobile || readerMode === 'continuous'}
                 className="relative"
               >
-                <div 
-                  ref={containerRef}
-                  className={cn(
-                    "relative w-full overflow-auto border rounded-lg mb-4", 
-                    zoom > 1 && "cursor-grab",
-                    isMobile && "book-viewer-mobile"
-                  )}
-                  style={{ 
-                    maxHeight: '70vh'
-                  }}
-                  onMouseDown={onPanStart}
-                  onMouseMove={onPanMove}
-                  onMouseUp={onPanEnd}
-                  onMouseLeave={onPanEnd}
-                  role="img"
-                  aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`}
-                  tabIndex={0}
-                >
-                  <div className="flex items-start justify-center min-w-[820px] min-h-[1120px] py-2">
-                    <img
-                      src={pages[index]?.src}
-                      alt={pages[index]?.alt}
-                      loading="eager"
-                      decoding="async"
-                      onLoadStart={() => setImageLoading(true)}
-                      onLoad={() => {
-                        setImageLoading(false);
-                        // Update container dimensions for mini-map
-                        if (containerRef.current) {
-                          setContainerDimensions({
-                            width: containerRef.current.clientWidth,
-                            height: containerRef.current.clientHeight
-                          });
-                        }
-                      }}
-                      onError={() => setImageLoading(false)}
-                      style={{ 
-                        transform: `scale(${zoom})`,
-                        transformOrigin: 'center top',
-                        transition: 'transform 0.2s ease-out'
-                      }}
-                      className="select-none max-w-full max-h-full object-contain will-change-transform"
-                      itemProp="image"
-                      aria-describedby={`page-${index}-description`}
-                    />
-                    {imageLoading && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                        <LoadingProgress 
-                          type="image" 
-                          progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} 
-                          rtl={rtl} 
-                        />
-                      </div>
+                {readerMode === 'page' ? (
+                  <div 
+                    ref={containerRef}
+                    className={cn(
+                      "relative w-full overflow-auto border rounded-lg mb-4", 
+                      zoom > 1 && "cursor-grab",
+                      isMobile && "book-viewer-mobile"
                     )}
+                    style={{ 
+                      maxHeight: '70vh'
+                    }}
+                    onMouseDown={onPanStart}
+                    onMouseMove={onPanMove}
+                    onMouseUp={onPanEnd}
+                    onMouseLeave={onPanEnd}
+                    role="img"
+                    aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`}
+                    tabIndex={0}
+                  >
+                    <div className="flex items-start justify-center min-w-[820px] min-h-[1120px] py-2">
+                      <img
+                        src={pages[index]?.src}
+                        alt={pages[index]?.alt}
+                        loading="eager"
+                        decoding="async"
+                        onLoadStart={() => setImageLoading(true)}
+                        onLoad={() => {
+                          setImageLoading(false);
+                          // Update container dimensions for mini-map
+                          if (containerRef.current) {
+                            setContainerDimensions({
+                              width: containerRef.current.clientWidth,
+                              height: containerRef.current.clientHeight
+                            });
+                          }
+                        }}
+                        onError={() => setImageLoading(false)}
+                        style={{ 
+                          transform: `scale(${zoom})`,
+                          transformOrigin: 'center top',
+                          transition: 'transform 0.2s ease-out'
+                        }}
+                        className="select-none max-w-full max-h-full object-contain will-change-transform"
+                        itemProp="image"
+                        aria-describedby={`page-${index}-description`}
+                      />
+                      {imageLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+                          <LoadingProgress 
+                            type="image" 
+                            progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} 
+                            rtl={rtl} 
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div id={`page-${index}-description`} className="sr-only">
+                      {rtl ? `صفحة ${index + 1} من ${total}` : `Page ${index + 1} of ${total}`}
+                    </div>
                   </div>
-                  <div id={`page-${index}-description`} className="sr-only">
-                    {rtl ? `صفحة ${index + 1} من ${total}` : `Page ${index + 1} of ${total}`}
+                ) : (
+                  <div className="relative w-full overflow-hidden border rounded-lg mb-4" style={{ maxHeight: '70vh' }}>
+                    <ContinuousReader
+                      ref={continuousRef}
+                      pages={pages}
+                      index={index}
+                      onIndexChange={setIndex}
+                      zoom={zoom}
+                      rtl={rtl}
+                      onScrollerReady={(el) => {
+                        containerRef.current = el as HTMLDivElement;
+                        setContainerDimensions({ width: el.clientWidth, height: el.clientHeight });
+                      }}
+                    />
                   </div>
-                </div>
+                )}
               </TouchGestureHandler>
               <div className={cn("mt-4 flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
                 <Button
@@ -932,7 +977,7 @@ useEffect(() => {
           </Card>
 
           {/* Mini-map overlay */}
-          {showMiniMap && zoom > 1 && containerRef.current && (
+          {readerMode === 'page' && showMiniMap && zoom > 1 && containerRef.current && (
             <MiniMap
               imageSrc={pages[index]?.src}
               imageAlt={pages[index]?.alt}
