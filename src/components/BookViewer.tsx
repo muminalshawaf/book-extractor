@@ -130,9 +130,12 @@ const [summary, setSummary] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const [gotoInput, setGotoInput] = useState<string>("");
 
-  // Batch processing state
+// Batch processing state
   const [batchRunning, setBatchRunning] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
+  // Page range selection for batch processing
+  const [rangeStart, setRangeStart] = useState<number>(1);
+  const [rangeEnd, setRangeEnd] = useState<number>(10);
 
   const goPrev = () => {
     setIndex((i) => Math.max(0, i - 1));
@@ -573,23 +576,29 @@ useEffect(() => {
       }
       const processed = new Set<number>((existingRows || []).map((r: any) => r.page_number));
 
-      // 2) Build processing queue (only missing pages)
+      // 2) Build processing queue for selected range (only missing pages)
+      const s = Math.max(1, Math.min(total, Math.floor(rangeStart || 1)));
+      const e = Math.max(1, Math.min(total, Math.floor(rangeEnd || s)));
+      if (s > e) {
+        toast.error(rtl ? 'الرجاء تحديد نطاق صحيح: البداية أقل من أو تساوي النهاية' : 'Please select a valid range: start <= end');
+        return;
+      }
+
       const toProcessIndices: number[] = [];
-      for (let i = 0; i < total; i++) {
+      for (let i = s - 1; i <= e - 1; i++) {
         const pageNo = i + 1;
         if (!processed.has(pageNo)) toProcessIndices.push(i);
       }
 
-      const chunk = toProcessIndices.slice(0, 10);
-      const limit = chunk.length;
+      const limit = toProcessIndices.length;
       setBatchProgress({ current: 0, total: limit });
 
       if (limit === 0) {
-        toast.info(rtl ? 'كل الصفحات معالجة مسبقًا' : 'All pages are already processed');
+        toast.info(rtl ? 'النطاق المحدد مُعالج مسبقًا' : 'Selected range already processed');
         return;
       }
 
-      toast.message(rtl ? `بدء معالجة ${limit} صفحة` : `Starting batch of ${limit} pages`);
+      toast.message(rtl ? `بدء معالجة الصفحات من ${s} إلى ${e}` : `Starting pages ${s} to ${e}`);
 
       const getImageBlob = async (imageSrc: string): Promise<Blob> => {
         let imageBlob: Blob | null = null;
@@ -640,8 +649,8 @@ useEffect(() => {
       };
 
       // 3) Process queue sequentially to avoid CPU overload and function timeouts
-      for (let k = 0; k < chunk.length; k++) {
-        const i = chunk[k];
+      for (let k = 0; k < toProcessIndices.length; k++) {
+        const i = toProcessIndices[k];
         setBatchProgress({ current: k + 1, total: limit });
         const page = pages[i];
         if (!page) continue;
@@ -688,7 +697,7 @@ useEffect(() => {
         await new Promise((r) => setTimeout(r, 0));
       }
 
-      toast.success(rtl ? 'اكتملت معالجة الدفعة' : 'Processed batch successfully');
+      toast.success(rtl ? 'اكتملت معالجة الصفحات المحددة' : 'Processed selected pages successfully');
     } catch (e: any) {
       console.error('Batch processing failed:', e);
       toast.error((rtl ? 'فشل المعالجة: ' : 'Processing failed: ') + (e?.message || e));
@@ -1002,6 +1011,31 @@ useEffect(() => {
                 >
                   {rtl ? "نسخ" : "Copy"}
                 </Button>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={total}
+                  value={rangeStart}
+                  onChange={(e) => setRangeStart(Math.max(1, Math.min(total, parseInt(e.target.value || '1', 10))))}
+                  className="w-20"
+                  placeholder={rtl ? "من" : "From"}
+                  aria-label={rtl ? "من الصفحة" : "From page"}
+                  disabled={batchRunning}
+                />
+                <span className="text-muted-foreground">-</span>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={total}
+                  value={rangeEnd}
+                  onChange={(e) => setRangeEnd(Math.max(1, Math.min(total, parseInt(e.target.value || String(total), 10))))}
+                  className="w-20"
+                  placeholder={rtl ? "إلى" : "To"}
+                  aria-label={rtl ? "إلى الصفحة" : "To page"}
+                  disabled={batchRunning}
+                />
                 <Button
                   variant="default"
                   size="sm"
@@ -1010,7 +1044,7 @@ useEffect(() => {
                 >
                   {batchRunning
                     ? (rtl ? `جارٍ المعالجة ${batchProgress.current}/${batchProgress.total}` : `Processing ${batchProgress.current}/${batchProgress.total}`)
-                    : (rtl ? "معالجة ١٠ صفحات" : "Process 10 pages")}
+                    : (rtl ? `معالجة من ${rangeStart} إلى ${rangeEnd}` : `Process ${rangeStart}-${rangeEnd}`)}
                 </Button>
               </div>
             </div>
