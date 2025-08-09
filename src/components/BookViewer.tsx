@@ -11,7 +11,7 @@ import { runLocalOcr } from '@/lib/ocr/localOcr';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
 import { callFunction } from "@/lib/functionsClient";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_FUNCTIONS_BASE } from "@/integrations/supabase/client";
 import { LoadingProgress } from "@/components/LoadingProgress";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { ThumbnailSidebar } from "@/components/ThumbnailSidebar";
@@ -338,7 +338,7 @@ useEffect(() => {
         // 1) Try Supabase Edge Function proxy
         try {
           console.log('Trying Supabase image-proxy...');
-          const proxyUrl = `/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
+          const proxyUrl = `${SUPABASE_FUNCTIONS_BASE}/image-proxy?url=${encodeURIComponent(imageSrc)}`;
           const response = await fetch(proxyUrl);
           if (!response.ok) throw new Error(`Proxy failed: ${response.status}`);
           const ct = response.headers.get('content-type') || '';
@@ -632,7 +632,7 @@ useEffect(() => {
         const isExternal = imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin);
         if (isExternal) {
           try {
-            const proxyUrl = `/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
+            const proxyUrl = `${SUPABASE_FUNCTIONS_BASE}/image-proxy?url=${encodeURIComponent(imageSrc)}`;
             const response = await fetch(proxyUrl);
             if (!response.ok) throw new Error(`Proxy failed: ${response.status}`);
             const ct = response.headers.get('content-type') || '';
@@ -883,7 +883,7 @@ useEffect(() => {
                         const isExternal = orig.startsWith("http") && !orig.includes(window.location.origin);
                         if (isExternal && !imgTriedProxy) {
                           setImgTriedProxy(true);
-                          setDisplaySrc(`/functions/v1/image-proxy?url=${encodeURIComponent(orig)}`);
+                          setDisplaySrc(`${SUPABASE_FUNCTIONS_BASE}/image-proxy?url=${encodeURIComponent(orig)}`);
                         } else if (isExternal && !imgTriedWeserv) {
                           setImgTriedWeserv(true);
                           const hostless = orig.replace(/^https?:\/\//, "");
