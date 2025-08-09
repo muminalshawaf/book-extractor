@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, Loader2 } from "lucide-react";
+import { Minus, Plus, Loader2, Grid3X3 } from "lucide-react";
 import { runLocalOcr } from '@/lib/ocr/localOcr';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
@@ -805,7 +805,7 @@ useEffect(() => {
     <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
       <div className="flex gap-4">
         {/* Thumbnail Sidebar */}
-        <div className={cn("flex-shrink-0", !thumbnailsOpen && "w-0 overflow-hidden")}>
+        <div className={cn("flex-shrink-0 animate-fade-in transition-all duration-300", !thumbnailsOpen && "w-0 overflow-hidden")}>
           <ThumbnailSidebar
             pages={pages}
             currentIndex={index}
@@ -820,7 +820,7 @@ useEffect(() => {
         <div className="flex-1 flex flex-col gap-6">
 
         {/* Top Bar */}
-        <div className="flex items-center justify-between bg-card rounded-lg p-4 shadow-sm">
+        <div className="sticky top-0 z-20 flex items-center justify-between bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/70 rounded-lg p-4 shadow-sm border">
           <ZoomControls
             zoom={zoom}
             minZoom={Z.min}
@@ -837,17 +837,18 @@ useEffect(() => {
             rtl={rtl}
           />
           <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}
-               aria-label={rtl ? "وضع القراءة" : "Reader mode"}>
-            <Button size="sm" variant={readerMode === 'page' ? 'default' : 'outline'} onClick={() => setReaderMode('page')}>
-              {rtl ? "شرائح" : "Slides"}
+               aria-label={rtl ? "إجراءات" : "Actions"}>
+            <Button size="sm" variant="outline" onClick={() => setThumbnailsOpen(!thumbnailsOpen)}>
+              <Grid3X3 className="h-4 w-4 mr-2" />
+              {rtl ? "المصغرات" : "Thumbnails"}
             </Button>
+            <FullscreenButton rtl={rtl} />
           </div>
-          <FullscreenButton rtl={rtl} />
         </div>
 
         {/* Page Area with Fullscreen */}
         <FullscreenMode rtl={rtl}>
-          <Card className="shadow-sm">
+          <Card className="shadow-sm animate-fade-in">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg" itemProp="name">{title}</CardTitle>
@@ -890,7 +891,7 @@ useEffect(() => {
                       isMobile && "book-viewer-mobile"
                     )}
                     style={{ 
-                      maxHeight: '70vh'
+                      maxHeight: '78vh'
                     }}
                     onWheel={handleWheelNav}
                     role="img"
