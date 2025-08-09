@@ -30,7 +30,7 @@ export const ContinuousReader = forwardRef<ContinuousReaderRef, ContinuousReader
     }));
 
     return (
-      <div className="w-full h-[70vh]">
+      <div className="w-full h-[70vh]" role="region" aria-label="Continuous reader" aria-live="polite">
         <Virtuoso
           ref={virtuosoRef}
           totalCount={pages.length}

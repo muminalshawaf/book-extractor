@@ -786,6 +786,15 @@ useEffect(() => {
     }
   }, [readerMode, transformState.scale]);
 
+  const panningEnabled = useMemo(() => {
+    const el = containerRef.current;
+    if (!el) return false;
+    const containerWidth = el.clientWidth - 32;
+    const containerHeight = el.clientHeight - 32;
+    const fitScale = Math.min(containerWidth / 800, containerHeight / 1100);
+    return transformState.scale > fitScale + 0.001;
+  }, [transformState.scale, containerDimensions, readerMode, index]);
+
   return (
     <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
       <div className="flex gap-4">
@@ -874,7 +883,7 @@ useEffect(() => {
                     ref={containerRef}
                     className={cn(
                       "relative w-full border rounded-lg mb-4 overflow-hidden",
-                      isPanning ? "cursor-grabbing" : "cursor-grab",
+                      panningEnabled ? (isPanning ? "cursor-grabbing" : "cursor-grab") : "cursor-default",
                       isMobile && "book-viewer-mobile"
                     )}
                     style={{ 
@@ -892,6 +901,7 @@ useEffect(() => {
                       maxScale={Z.max}
                       centerZoomedOut
                       limitToBounds
+                      panning={{ disabled: !panningEnabled }}
                       wheel={{ activationKeys: ["Control", "Meta"], step: Z.step }}
                       doubleClick={{ disabled: false, step: 0.5, mode: "zoomIn" }}
                       onTransformed={(refState) => {
