@@ -116,6 +116,7 @@ const [summary, setSummary] = useState("");
   const [zoomMode, setZoomMode] = useState<ZoomMode>("custom");
   const [showMiniMap, setShowMiniMap] = useState(false);
   const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 600 });
+  const [naturalSize, setNaturalSize] = useState<{ width: number; height: number }>({ width: 800, height: 1100 });
   const [readerMode, setReaderMode] = useState<'page' | 'continuous'>("page");
   const continuousRef = useRef<ContinuousReaderRef | null>(null);
   
@@ -771,10 +772,12 @@ useEffect(() => {
     const now = (globalThis.performance?.now?.() ?? Date.now());
 
     // Compute "fit" scale to decide if wheel should navigate
-    const containerWidth = el.clientWidth - 32;
-    const containerHeight = el.clientHeight - 32;
-    const fitWidthScale = containerWidth / 800;
-    const fitHeightScale = containerHeight / 1100;
+    const containerWidth = el.clientWidth;
+    const containerHeight = el.clientHeight;
+    const imgW = naturalSize.width || 800;
+    const imgH = naturalSize.height || 1100;
+    const fitWidthScale = containerWidth / imgW;
+    const fitHeightScale = containerHeight / imgH;
     const fitScale = Math.min(fitWidthScale, fitHeightScale);
     const atOrBelowFit = transformState.scale <= fitScale + 0.001;
 
@@ -784,16 +787,19 @@ useEffect(() => {
       lastWheelNavRef.current = now;
       if (e.deltaY > 0) goNext(); else goPrev();
     }
-  }, [readerMode, transformState.scale]);
+  }, [readerMode, transformState.scale, naturalSize]);
 
   const panningEnabled = useMemo(() => {
     const el = containerRef.current;
     if (!el) return false;
-    const containerWidth = el.clientWidth - 32;
-    const containerHeight = el.clientHeight - 32;
-    const fitScale = Math.min(containerWidth / 800, containerHeight / 1100);
-    return transformState.scale > fitScale + 0.001;
-  }, [transformState.scale, containerDimensions, readerMode, index]);
+    const wrapperW = el.clientWidth;
+    const wrapperH = el.clientHeight;
+    const imgW = naturalSize.width || 800;
+    const imgH = naturalSize.height || 1100;
+    const contentW = imgW * transformState.scale;
+    const contentH = imgH * transformState.scale;
+    return contentW > wrapperW + 1 || contentH > wrapperH + 1;
+  }, [transformState.scale, naturalSize, readerMode, index]);
 
   return (
     <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
@@ -924,8 +930,10 @@ useEffect(() => {
                           decoding="async"
                           draggable={false}
                           onLoadStart={() => setImageLoading(true)}
-                          onLoad={() => {
+                          onLoad={(e) => {
                             setImageLoading(false);
+                            const imgEl = e.currentTarget;
+                            setNaturalSize({ width: imgEl.naturalWidth, height: imgEl.naturalHeight });
                             if (containerRef.current) {
                               setContainerDimensions({
                                 width: containerRef.current.clientWidth,
