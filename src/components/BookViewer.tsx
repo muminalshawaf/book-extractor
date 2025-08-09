@@ -580,7 +580,8 @@ useEffect(() => {
         if (!processed.has(pageNo)) toProcessIndices.push(i);
       }
 
-      const limit = toProcessIndices.length;
+      const chunk = toProcessIndices.slice(0, 10);
+      const limit = chunk.length;
       setBatchProgress({ current: 0, total: limit });
 
       if (limit === 0) {
@@ -588,7 +589,7 @@ useEffect(() => {
         return;
       }
 
-      toast.message(rtl ? 'بدء معالجة كل الكتاب' : 'Starting full book');
+      toast.message(rtl ? `بدء معالجة ${limit} صفحة` : `Starting batch of ${limit} pages`);
 
       const getImageBlob = async (imageSrc: string): Promise<Blob> => {
         let imageBlob: Blob | null = null;
@@ -639,8 +640,8 @@ useEffect(() => {
       };
 
       // 3) Process queue sequentially to avoid CPU overload and function timeouts
-      for (let k = 0; k < toProcessIndices.length; k++) {
-        const i = toProcessIndices[k];
+      for (let k = 0; k < chunk.length; k++) {
+        const i = chunk[k];
         setBatchProgress({ current: k + 1, total: limit });
         const page = pages[i];
         if (!page) continue;
@@ -662,10 +663,8 @@ useEffect(() => {
           const text = ocrRes.text || '';
 
           // Summarize (non-stream for batch reliability)
-          const maxChars = 6000;
-          const summaryInput = text.length > maxChars ? text.slice(0, maxChars) : text;
           const data = await callFunction<{ summary?: string; error?: string }>('summarize', {
-            text: summaryInput,
+            text,
             lang: rtl ? 'ar' : 'en',
             page: i + 1,
             title,
@@ -689,7 +688,7 @@ useEffect(() => {
         await new Promise((r) => setTimeout(r, 0));
       }
 
-      toast.success(rtl ? 'اكتملت معالجة الكتاب' : 'Processed whole book successfully');
+      toast.success(rtl ? 'اكتملت معالجة الدفعة' : 'Processed batch successfully');
     } catch (e: any) {
       console.error('Batch processing failed:', e);
       toast.error((rtl ? 'فشل المعالجة: ' : 'Processing failed: ') + (e?.message || e));
@@ -1011,7 +1010,7 @@ useEffect(() => {
                 >
                   {batchRunning
                     ? (rtl ? `جارٍ المعالجة ${batchProgress.current}/${batchProgress.total}` : `Processing ${batchProgress.current}/${batchProgress.total}`)
-                    : (rtl ? "معالجة كل الكتاب" : "Process whole book")}
+                    : (rtl ? "معالجة ١٠ صفحات" : "Process 10 pages")}
                 </Button>
               </div>
             </div>
