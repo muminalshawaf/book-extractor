@@ -11,7 +11,7 @@ import { runLocalOcr } from '@/lib/ocr/localOcr';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
 import { callFunction } from "@/lib/functionsClient";
-import { supabase, SUPABASE_FUNCTIONS_BASE } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { LoadingProgress } from "@/components/LoadingProgress";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { ThumbnailSidebar } from "@/components/ThumbnailSidebar";
@@ -95,7 +95,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 const cacheId = useMemo(() => (bookId || title), [bookId, title]);
 const ocrKey = useMemo(() => `book:ocr:${cacheId}:${index}`, [cacheId, index]);
 const sumKey = useMemo(() => `book:summary:${cacheId}:${index}`, [cacheId, index]);
-const lastPageKey = useMemo(() => `book:last:${cacheId}`, [cacheId]);
 const dbBookId = useMemo(() => (bookId || title || 'book'), [bookId, title]);
 const [summary, setSummary] = useState("");
   const [summLoading, setSummLoading] = useState(false);
@@ -107,9 +106,6 @@ const [summary, setSummary] = useState("");
   const [summaryProgress, setSummaryProgress] = useState(0);
   const [thumbnailsOpen, setThumbnailsOpen] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
-  const [displaySrc, setDisplaySrc] = useState<string>(pages[0]?.src ?? "");
-  const [imgTriedProxy, setImgTriedProxy] = useState(false);
-  const [imgTriedWeserv, setImgTriedWeserv] = useState(false);
   
   // Phase 2 enhancements
   const [zoomMode, setZoomMode] = useState<ZoomMode>("custom");
@@ -235,14 +231,6 @@ const [summary, setSummary] = useState("");
     } catch {}
   }, [index, ocrKey, sumKey]);
 
-  // Reset display source and fallback flags when page changes
-  useEffect(() => {
-    const src = pages[index]?.src || "";
-    setDisplaySrc(src);
-    setImgTriedProxy(false);
-    setImgTriedWeserv(false);
-  }, [index, pages]);
-
   // Fetch OCR and summary from Supabase for current page
   useEffect(() => {
     let cancelled = false;
@@ -293,29 +281,14 @@ const [summary, setSummary] = useState("");
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-// Reset state when switching books (restore last viewed page if available)
+// Reset state when switching books
 useEffect(() => {
-  let initial = 0;
-  try {
-    const saved = localStorage.getItem(lastPageKey);
-    if (saved) {
-      const n = parseInt(saved, 10);
-      if (Number.isFinite(n)) {
-        initial = Math.min(Math.max(0, n), total - 1);
-      }
-    }
-  } catch {}
-  setIndex(initial);
+  setIndex(0);
   setSummary("");
   setExtractedText("");
   setAllExtractedTexts({});
   setLastError(null);
-}, [lastPageKey, pages, total]);
-
-// Persist last viewed page
-useEffect(() => {
-  try { localStorage.setItem(lastPageKey, String(index)); } catch {}
-}, [index, lastPageKey]);
+}, [bookId, pages]);
 
 // Enhanced OCR function with better error handling
   const extractTextFromPage = async () => {
@@ -338,7 +311,7 @@ useEffect(() => {
         // 1) Try Supabase Edge Function proxy
         try {
           console.log('Trying Supabase image-proxy...');
-          const proxyUrl = `${SUPABASE_FUNCTIONS_BASE}/image-proxy?url=${encodeURIComponent(imageSrc)}`;
+          const proxyUrl = `/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
           const response = await fetch(proxyUrl);
           if (!response.ok) throw new Error(`Proxy failed: ${response.status}`);
           const ct = response.headers.get('content-type') || '';
@@ -632,7 +605,7 @@ useEffect(() => {
         const isExternal = imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin);
         if (isExternal) {
           try {
-            const proxyUrl = `${SUPABASE_FUNCTIONS_BASE}/image-proxy?url=${encodeURIComponent(imageSrc)}`;
+            const proxyUrl = `/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
             const response = await fetch(proxyUrl);
             if (!response.ok) throw new Error(`Proxy failed: ${response.status}`);
             const ct = response.headers.get('content-type') || '';
@@ -862,9 +835,8 @@ useEffect(() => {
                 >
                   <div className="flex items-start justify-center min-w-[820px] min-h-[1120px] py-2">
                     <img
-                      src={displaySrc}
+                      src={pages[index]?.src}
                       alt={pages[index]?.alt}
-                      crossOrigin="anonymous"
                       loading="eager"
                       decoding="async"
                       onLoadStart={() => setImageLoading(true)}
@@ -878,20 +850,7 @@ useEffect(() => {
                           });
                         }
                       }}
-                      onError={() => {
-                        const orig = pages[index]?.src || "";
-                        const isExternal = orig.startsWith("http") && !orig.includes(window.location.origin);
-                        if (isExternal && !imgTriedProxy) {
-                          setImgTriedProxy(true);
-                          setDisplaySrc(`${SUPABASE_FUNCTIONS_BASE}/image-proxy?url=${encodeURIComponent(orig)}`);
-                        } else if (isExternal && !imgTriedWeserv) {
-                          setImgTriedWeserv(true);
-                          const hostless = orig.replace(/^https?:\/\//, "");
-                          setDisplaySrc(`https://images.weserv.nl/?url=${encodeURIComponent(hostless)}&output=jpg`);
-                        } else {
-                          setImageLoading(false);
-                        }
-                      }}
+                      onError={() => setImageLoading(false)}
                       style={{ 
                         transform: `scale(${zoom})`,
                         transformOrigin: 'center top',
