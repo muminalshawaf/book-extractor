@@ -26,6 +26,7 @@ import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { TouchGestureHandler } from "@/components/TouchGestureHandler";
 import { PerformanceMonitor } from "@/components/PerformanceMonitor";
 import { ContinuousReader, ContinuousReaderRef } from "@/components/reader/ContinuousReader";
+import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 export type BookPage = {
   src: string;
   alt: string;
@@ -61,7 +62,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 }) => {
   const [index, setIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
-  const Z = { min: 0.75, max: 2, step: 0.25 } as const;
+  const Z = { min: 0.25, max: 4, step: 0.1 } as const;
   const dims = useMemo(
     () => ({
       width: Math.round(800 * zoom),
@@ -75,6 +76,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   );
   const total = pages.length;
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const zoomApiRef = useRef<ReactZoomPanPinchRef | null>(null);
+  const [transformState, setTransformState] = useState<{ scale: number; positionX: number; positionY: number }>({ scale: 1, positionX: 0, positionY: 0 });
+  const lastWheelNavRef = useRef<number>(0);
 // const flipRef = useRef<any>(null);
 
   const L = {
@@ -544,39 +548,68 @@ useEffect(() => {
     }
   };
 
-  // Enhanced zoom functions
-  const zoomOut = useCallback(() => {
-    setZoom((z) => Math.max(Z.min, +(z - Z.step).toFixed(2)));
-    setZoomMode("custom");
+  // Utility to compute best-fit scale for current container
+  const getFitScale = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return 1;
+    const containerWidth = el.clientWidth - 32;
+    const containerHeight = el.clientHeight - 32;
+    const fitWidthScale = containerWidth / 800;
+    const fitHeightScale = containerHeight / 1100;
+    return Math.min(fitWidthScale, fitHeightScale);
   }, []);
+
+  // Enhanced zoom functions (prefer engine API in Slides mode)
+  const zoomOut = useCallback(() => {
+    if (readerMode === 'page' && zoomApiRef.current) {
+      zoomApiRef.current.zoomOut(Z.step, 200, 'easeOut');
+      setZoomMode('custom');
+    } else {
+      setZoom((z) => Math.max(Z.min, +(z - Z.step).toFixed(2)));
+      setZoomMode('custom');
+    }
+  }, [readerMode]);
   
   const zoomIn = useCallback(() => {
-    setZoom((z) => Math.min(Z.max, +(z + Z.step).toFixed(2)));
-    setZoomMode("custom");
-  }, []);
+    if (readerMode === 'page' && zoomApiRef.current) {
+      zoomApiRef.current.zoomIn(Z.step, 200, 'easeOut');
+      setZoomMode('custom');
+    } else {
+      setZoom((z) => Math.min(Z.max, +(z + Z.step).toFixed(2)));
+      setZoomMode('custom');
+    }
+  }, [readerMode]);
   
   const fitToWidth = useCallback(() => {
-    if (containerRef.current) {
-      const containerWidth = containerRef.current.clientWidth - 32; // padding
-      const newZoom = Math.min(Z.max, containerWidth / 800);
+    const el = containerRef.current;
+    const newZoom = el ? Math.min(Z.max, (el.clientWidth - 32) / 800) : 1;
+    if (readerMode === 'page' && zoomApiRef.current) {
+      zoomApiRef.current.setTransform(transformState.positionX, transformState.positionY, newZoom, 200, 'easeOut');
+    } else {
       setZoom(newZoom);
-      setZoomMode("fit-width");
     }
-  }, []);
+    setZoomMode('fit-width');
+  }, [readerMode, transformState.positionX, transformState.positionY]);
   
   const fitToHeight = useCallback(() => {
-    if (containerRef.current) {
-      const containerHeight = containerRef.current.clientHeight - 32; // padding
-      const newZoom = Math.min(Z.max, containerHeight / 1100);
+    const el = containerRef.current;
+    const newZoom = el ? Math.min(Z.max, (el.clientHeight - 32) / 1100) : 1;
+    if (readerMode === 'page' && zoomApiRef.current) {
+      zoomApiRef.current.setTransform(transformState.positionX, transformState.positionY, newZoom, 200, 'easeOut');
+    } else {
       setZoom(newZoom);
-      setZoomMode("fit-height");
     }
-  }, []);
+    setZoomMode('fit-height');
+  }, [readerMode, transformState.positionX, transformState.positionY]);
   
   const actualSize = useCallback(() => {
-    setZoom(1);
-    setZoomMode("actual-size");
-  }, []);
+    if (readerMode === 'page' && zoomApiRef.current) {
+      zoomApiRef.current.setTransform(transformState.positionX, transformState.positionY, 1, 200, 'easeOut');
+    } else {
+      setZoom(1);
+    }
+    setZoomMode('actual-size');
+  }, [readerMode, transformState.positionX, transformState.positionY]);
 
   // Process whole book: OCR -> summarize -> save (skips already-processed pages)
   const processFirstTenPages = async () => {
@@ -727,36 +760,31 @@ useEffect(() => {
 
   const progressPct = total > 1 ? Math.round(((index + 1) / total) * 100) : 100;
 
-  // Drag-to-pan
+  // Pan/zoom engine state (managed by react-zoom-pan-pinch)
   const [isPanning, setIsPanning] = useState(false);
-  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const panRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
-  const onPanStart = useCallback((e: React.MouseEvent) => {
+  const handleWheelNav = useCallback((e: React.WheelEvent) => {
+    if (readerMode !== 'page') return;
+    if (e.ctrlKey || e.metaKey) return; // let ctrl/cmd+wheel zoom
     const el = containerRef.current;
     if (!el) return;
-    setIsPanning(true);
-    panRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
-    el.style.cursor = 'grabbing';
-    e.preventDefault();
-    e.stopPropagation();
-  }, [pan.x, pan.y]);
+    const now = (globalThis.performance?.now?.() ?? Date.now());
 
-  const onPanMove = useCallback((e: React.MouseEvent) => {
-    if (!isPanning || !panRef.current) return;
-    const dx = e.clientX - panRef.current.x;
-    const dy = e.clientY - panRef.current.y;
-    setPan({ x: panRef.current.panX + dx, y: panRef.current.panY + dy });
-    e.preventDefault();
-  }, [isPanning]);
+    // Compute "fit" scale to decide if wheel should navigate
+    const containerWidth = el.clientWidth - 32;
+    const containerHeight = el.clientHeight - 32;
+    const fitWidthScale = containerWidth / 800;
+    const fitHeightScale = containerHeight / 1100;
+    const fitScale = Math.min(fitWidthScale, fitHeightScale);
+    const atOrBelowFit = transformState.scale <= fitScale + 0.001;
 
-  const onPanEnd = useCallback(() => {
-    if (!isPanning) return;
-    setIsPanning(false);
-    const el = containerRef.current;
-    if (el) el.style.cursor = 'grab';
-    panRef.current = null;
-  }, [isPanning]);
+    if (atOrBelowFit) {
+      e.preventDefault();
+      if (now - lastWheelNavRef.current < 350) return; // throttle navigation
+      lastWheelNavRef.current = now;
+      if (e.deltaY > 0) goNext(); else goPrev();
+    }
+  }, [readerMode, transformState.scale]);
 
   return (
     <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
@@ -845,58 +873,74 @@ useEffect(() => {
                   <div 
                     ref={containerRef}
                     className={cn(
-                      "relative w-full border rounded-lg mb-4 overflow-hidden cursor-grab",
+                      "relative w-full border rounded-lg mb-4 overflow-hidden",
+                      isPanning ? "cursor-grabbing" : "cursor-grab",
                       isMobile && "book-viewer-mobile"
                     )}
                     style={{ 
                       maxHeight: '70vh'
                     }}
-                    onMouseDown={onPanStart}
-                    onMouseMove={onPanMove}
-                    onMouseUp={onPanEnd}
-                    onMouseLeave={onPanEnd}
+                    onWheel={handleWheelNav}
                     role="img"
                     aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`}
                     tabIndex={0}
                   >
-                    <div className="flex items-start justify-center py-2">
-                      <img
-                        src={pages[index]?.src}
-                        alt={pages[index]?.alt}
-                        loading="eager"
-                        decoding="async"
-                        draggable={false}
-                        onLoadStart={() => setImageLoading(true)}
-                        onLoad={() => {
-                          setImageLoading(false);
-                          // Update container dimensions for mini-map
-                          if (containerRef.current) {
-                            setContainerDimensions({
-                              width: containerRef.current.clientWidth,
-                              height: containerRef.current.clientHeight
-                            });
-                          }
-                        }}
-                        onError={() => setImageLoading(false)}
-                        style={{ 
-                          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                          transformOrigin: 'center top',
-                          transition: 'transform 0.02s linear'
-                        }}
-                        className="select-none max-w-full max-h-full object-contain will-change-transform"
-                        itemProp="image"
-                        aria-describedby={`page-${index}-description`}
-                      />
-                      {imageLoading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                          <LoadingProgress 
-                            type="image" 
-                            progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} 
-                            rtl={rtl} 
-                          />
-                        </div>
-                      )}
-                    </div>
+                    <TransformWrapper
+                      ref={zoomApiRef as any}
+                      initialScale={zoom}
+                      minScale={Z.min}
+                      maxScale={Z.max}
+                      centerZoomedOut
+                      limitToBounds
+                      wheel={{ activationKeys: ["Control", "Meta"], step: Z.step }}
+                      doubleClick={{ disabled: false, step: 0.5, mode: "zoomIn" }}
+                      onTransformed={(refState) => {
+                        const { scale, positionX, positionY } = refState.state;
+                        setTransformState({ scale, positionX, positionY });
+                        setZoomMode("custom");
+                        setZoom(scale);
+                      }}
+                      onPanningStart={() => setIsPanning(true)}
+                      onPanningStop={() => setIsPanning(false)}
+                    >
+                      <TransformComponent
+                        wrapperClass="w-full h-[70vh]"
+                        contentClass="flex items-start justify-center py-2"
+                      >
+                        <img
+                          src={pages[index]?.src}
+                          alt={pages[index]?.alt}
+                          loading="eager"
+                          decoding="async"
+                          draggable={false}
+                          onLoadStart={() => setImageLoading(true)}
+                          onLoad={() => {
+                            setImageLoading(false);
+                            if (containerRef.current) {
+                              setContainerDimensions({
+                                width: containerRef.current.clientWidth,
+                                height: containerRef.current.clientHeight
+                              });
+                            }
+                          }}
+                          onError={() => setImageLoading(false)}
+                          className="select-none max-w-full max-h-full object-contain will-change-transform"
+                          itemProp="image"
+                          aria-describedby={`page-${index}-description`}
+                        />
+                      </TransformComponent>
+                    </TransformWrapper>
+
+                    {imageLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+                        <LoadingProgress 
+                          type="image" 
+                          progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} 
+                          rtl={rtl} 
+                        />
+                      </div>
+                    )}
+
                     <div id={`page-${index}-description`} className="sr-only">
                       {rtl ? `صفحة ${index + 1} من ${total}` : `Page ${index + 1} of ${total}`}
                     </div>
