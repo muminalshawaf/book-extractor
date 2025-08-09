@@ -847,8 +847,8 @@ useEffect(() => {
                   <div 
                     ref={containerRef}
                     className={cn(
-                      "relative w-full overflow-auto border rounded-lg mb-4", 
-                      zoom > 1 && "cursor-grab",
+                      "relative w-full border rounded-lg mb-4",
+                      zoom > 1 ? "overflow-auto cursor-grab" : "overflow-hidden",
                       isMobile && "book-viewer-mobile"
                     )}
                     style={{ 
@@ -862,7 +862,7 @@ useEffect(() => {
                     aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`}
                     tabIndex={0}
                   >
-                    <div className="flex items-start justify-center min-w-[820px] min-h-[1120px] py-2">
+                    <div className="flex items-start justify-center py-2">
                       <img
                         src={pages[index]?.src}
                         alt={pages[index]?.alt}
