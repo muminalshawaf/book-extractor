@@ -38,16 +38,16 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentRendered, setContentRendered] = useState(false);
 
-  // Render content when summary changes
+  // Render content when summary changes or when streaming/regeneration finishes
   useEffect(() => {
-    if (contentRef.current && summary && !isEditing) {
+    if (contentRef.current && summary && !isEditing && !isRegenerating) {
       renderContent(summary, contentRef.current);
       const hasContent = !!contentRef.current.innerHTML && contentRef.current.innerHTML.trim().length > 0;
       setContentRendered(hasContent);
     } else {
       setContentRendered(false);
     }
-  }, [summary, isEditing]);
+  }, [summary, isEditing, isRegenerating]);
 
   // Calculate reading metrics
   const wordCount = summary.trim().split(/\s+/).filter(word => word.length > 0).length;
