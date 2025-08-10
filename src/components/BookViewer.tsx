@@ -1125,31 +1125,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     return contentW > wrapperW + 1 || contentH > wrapperH + 1;
   }, [transformState.scale, naturalSize, readerMode, index]);
 
-  // Auto-center when content fits the viewport (prevents "snapping" and drifting)
-  useEffect(() => {
-    if (readerMode !== 'page') return;
-    const el = containerRef.current;
-    const api = zoomApiRef.current;
-    if (!el || !api) return;
-    const wrapperW = el.clientWidth;
-    const wrapperH = el.clientHeight;
-    const imgW = naturalSize.width || 800;
-    const imgH = naturalSize.height || 1100;
-    const fitScale = Math.min(wrapperW / imgW, wrapperH / imgH);
-    if (transformState.scale <= fitScale + 0.0001) {
-      try {
-        // Prefer native center method when available
-        // @ts-ignore
-        if (typeof (api as any).centerView === 'function') {
-          // @ts-ignore
-          (api as any).centerView(200, 'easeOut');
-        } else {
-          api.setTransform(0, 0, Math.min(transformState.scale, fitScale), 200, 'easeOut');
-        }
-      } catch { /* noop */ }
-    }
-  }, [transformState.scale, naturalSize, readerMode, index]);
-
   return <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
       {isMobile ? <div className="flex flex-col gap-4">
 
@@ -1178,9 +1153,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 }}
                   disabled={!isMobile || readerMode === 'continuous'}
                   className="relative">
-                  <div ref={containerRef} className={cn("relative w-full overflow-hidden", !isMobile && "border rounded-lg mb-4", panningEnabled ? isPanning ? "cursor-grabbing" : "cursor-grab" : "cursor-default", isMobile && "book-viewer-mobile")} style={{}} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
-                    <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} centerZoomedOut limitToBounds panning={{
-                  disabled: !panningEnabled
+                  <div ref={containerRef} className={cn("relative w-full overflow-hidden", !isMobile && "border rounded-lg mb-4", isPanning ? "cursor-grabbing" : "cursor-grab", isMobile && "book-viewer-mobile")} style={{}} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
+                    <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} limitToBounds={false} panning={{
+                  disabled: false
                 }} wheel={{
                   activationKeys: ["Control", "Meta"],
                   step: Z.step
@@ -1341,9 +1316,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     setZoom(newZoom);
                     setZoomMode("custom");
                   }} disabled={!isMobile || readerMode === 'continuous'} className="relative">
-                        {readerMode === 'page' ? <div ref={containerRef} className={cn("relative w-full border rounded-lg mb-1 overflow-hidden max-h-[85vh] md:max-h-[78vh] lg:max-h-[85vh]", panningEnabled ? isPanning ? "cursor-grabbing" : "cursor-grab" : "cursor-default", isMobile && "book-viewer-mobile")} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
-                            <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} centerZoomedOut limitToBounds panning={{
-                        disabled: !panningEnabled
+                        {readerMode === 'page' ? <div ref={containerRef} className={cn("relative w-full border rounded-lg mb-1 overflow-hidden max-h-[85vh] md:max-h-[78vh] lg:max-h-[85vh]", isPanning ? "cursor-grabbing" : "cursor-grab", isMobile && "book-viewer-mobile")} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
+                            <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} limitToBounds={false} panning={{
+                        disabled: false
                       }} wheel={{
                         activationKeys: ["Control", "Meta"],
                         step: Z.step
