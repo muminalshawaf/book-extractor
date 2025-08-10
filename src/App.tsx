@@ -7,6 +7,7 @@ import { books } from "@/data/books";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Library from "./pages/Library";
+import GlobalSearch from "./components/search/GlobalSearch";
 
 const queryClient = new QueryClient();
 
@@ -15,6 +16,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <GlobalSearch />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to={`/book/${books[0].id}`} replace />} />
