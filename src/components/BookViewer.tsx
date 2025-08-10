@@ -29,9 +29,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { PerformanceMonitor } from "@/components/PerformanceMonitor";
 import { ContinuousReader, ContinuousReaderRef } from "@/components/reader/ContinuousReader";
-import { MobileReaderChrome } from "@/components/reader/MobileReaderChrome";
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileControlsOverlay } from "@/components/reader/MobileControlsOverlay";
 export type BookPage = {
   src: string;
   alt: string;
@@ -807,21 +807,6 @@ useEffect(() => {
     <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
       {isMobile ? (
         <div className="flex flex-col gap-4">
-          {/* Top Bar */}
-          <MobileReaderChrome
-            title={title}
-            progressText={L.progress(index + 1, total, progressPct)}
-            rtl={rtl}
-            onToggleThumbnails={() => setThumbnailsOpen(!thumbnailsOpen)}
-            onOpenInsights={() => setMobileInsightsOpen(true)}
-            onPrev={goPrev}
-            onNext={goNext}
-            canPrev={index > 0}
-            canNext={index < total - 1}
-            onZoomIn={zoomIn}
-            onZoomOut={zoomOut}
-            fullscreenButton={<FullscreenButton rtl={rtl} />}
-          />
 
           {/* Viewer */}
           <FullscreenMode rtl={rtl}>
@@ -883,7 +868,7 @@ useEffect(() => {
                       onPanningStop={() => setIsPanning(false)}
                     >
                       <TransformComponent
-                        wrapperClass="w-full h-[calc(100svh-128px)]"
+                        wrapperClass="w-full h-svh"
                         contentClass="flex items-start justify-center py-2"
                       >
                         <img
@@ -908,6 +893,20 @@ useEffect(() => {
                         />
                       </TransformComponent>
                     </TransformWrapper>
+
+                    <MobileControlsOverlay
+                      progressText={L.progress(index + 1, total, progressPct)}
+                      rtl={rtl}
+                      onToggleThumbnails={() => setThumbnailsOpen(!thumbnailsOpen)}
+                      onOpenInsights={() => setMobileInsightsOpen(true)}
+                      onPrev={goPrev}
+                      onNext={goNext}
+                      canPrev={index > 0}
+                      canNext={index < total - 1}
+                      onZoomIn={zoomIn}
+                      onZoomOut={zoomOut}
+                      fullscreenButton={<FullscreenButton rtl={rtl} />}
+                    />
 
                     {imageLoading && (
                       <div className="absolute inset-0 flex items-center justify-center bg-background/80">
