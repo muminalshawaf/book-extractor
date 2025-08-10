@@ -27,6 +27,9 @@ serve(async (req) => {
     const page_number = Number(body?.page_number);
     const ocr_text = typeof body?.ocr_text === 'string' ? body.ocr_text : null;
     const summary_md = typeof body?.summary_md === 'string' ? body.summary_md : null;
+    const confidence = typeof body?.confidence === 'number' ? body.confidence : null;
+    const ocr_confidence = typeof body?.ocr_confidence === 'number' ? body.ocr_confidence : null;
+    const confidence_meta = body?.confidence_meta && typeof body.confidence_meta === 'object' ? body.confidence_meta : null;
 
     if (!book_id || !Number.isFinite(page_number) || page_number < 1) {
       return new Response(JSON.stringify({ error: 'Invalid payload' }), {
@@ -35,7 +38,10 @@ serve(async (req) => {
       });
     }
 
-    const payload = { book_id, page_number, ocr_text, summary_md };
+    const payload: Record<string, any> = { book_id, page_number, ocr_text, summary_md };
+    if (confidence !== null) payload.confidence = confidence;
+    if (ocr_confidence !== null) payload.ocr_confidence = ocr_confidence;
+    if (confidence_meta !== null) payload.confidence_meta = confidence_meta;
 
     const { data, error } = await supabase
       .from('page_summaries')

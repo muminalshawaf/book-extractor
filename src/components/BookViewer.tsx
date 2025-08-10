@@ -20,6 +20,7 @@ import { ZoomControls, ZoomMode } from "@/components/ZoomControls";
 import { MiniMap } from "@/components/MiniMap";
 import { useImagePreloader } from "@/hooks/useImagePreloader";
 import { EnhancedSummary } from "@/components/EnhancedSummary";
+import { calculateSummaryConfidence } from "@/lib/confidence";
 import { ContentSearch } from "@/components/ContentSearch";
 import { ImprovedErrorHandler } from "@/components/ImprovedErrorHandler";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
@@ -149,6 +150,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [lastError, setLastError] = useState<Error | string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [summaryConfidence, setSummaryConfidence] = useState<number | undefined>();
+  const [ocrQuality, setOcrQuality] = useState<number | undefined>();
 
   // Store extracted text for all pages for search
   const [allExtractedTexts, setAllExtractedTexts] = useState<Record<number, string>>({});
@@ -290,7 +292,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         const {
           data,
           error
-        } = await (supabase as any).from('page_summaries').select('ocr_text, summary_md').eq('book_id', dbBookId).eq('page_number', index + 1).maybeSingle();
+        } = await (supabase as any).from('page_summaries').select('ocr_text, summary_md, confidence, ocr_confidence').eq('book_id', dbBookId).eq('page_number', index + 1).maybeSingle();
         if (error) {
           console.warn('Supabase fetch error:', error);
           return;
@@ -306,6 +308,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           [index]: ocr
         }));
         setSummary(sum);
+        setSummaryConfidence(typeof (data as any)?.confidence === 'number' ? (data as any).confidence : undefined);
+        setOcrQuality(typeof (data as any)?.ocr_confidence === 'number' ? (data as any).ocr_confidence : undefined);
         try {
           if (ocr) localStorage.setItem(ocrKey, ocr);else localStorage.removeItem(ocrKey);
           if (sum) localStorage.setItem(sumKey, sum);else localStorage.removeItem(sumKey);
@@ -423,6 +427,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       });
       setOcrProgress(100);
       const text = result.text;
+      setOcrQuality(typeof (result as any).confidence === 'number' ? Math.max(0, Math.min(1, ((result as any).confidence as number) / 100)) : undefined);
       console.log('OCR completed, extracted text length:', text.length);
       console.log('First 200 chars:', text.substring(0, 200));
       if (!text.trim()) {
@@ -462,7 +467,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     try {
       console.log('Starting summarization with text length:', text.length);
       setSummary('');
-      setSummaryConfidence(0.8);
+      setSummaryConfidence(undefined);
       const streamUrl = "https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream";
       const lang = rtl ? 'ar' : 'en';
       let accumulated = '';
@@ -606,18 +611,22 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       try {
         localStorage.setItem(sumKey, accumulated);
       } catch {}
-      // Save to DB
+      // Compute and save confidence to DB
       try {
+        const { score, meta } = calculateSummaryConfidence(text, accumulated, ocrQuality, rtl);
+        setSummaryConfidence(score);
         await callFunction('save-page-summary', {
           book_id: dbBookId,
           page_number: index + 1,
           ocr_text: text,
-          summary_md: accumulated
+          summary_md: accumulated,
+          confidence: score,
+          ocr_confidence: ocrQuality ?? null,
+          confidence_meta: meta
         });
       } catch (saveErr) {
         console.warn('Failed to save summary to DB:', saveErr);
       }
-      toast.success(rtl ? "تم إنشاء الملخص" : "Summary ready");
       setRetryCount(0);
     } catch (e: any) {
       console.error('Summarize stream error, falling back:', e);
@@ -638,17 +647,21 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         const raw = data?.summary || '';
         const clean = raw.replace(/^\s*ok[\s,:-]*/i, '');
         setSummary(clean);
-        setSummaryConfidence(data?.confidence || 0.8);
         setSummaryProgress(100);
         try {
           localStorage.setItem(sumKey, clean);
         } catch {}
         try {
+          const { score, meta } = calculateSummaryConfidence(text, clean, ocrQuality, rtl);
+          setSummaryConfidence(score);
           await callFunction('save-page-summary', {
             book_id: dbBookId,
             page_number: index + 1,
             ocr_text: text,
-            summary_md: clean
+            summary_md: clean,
+            confidence: score,
+            ocr_confidence: ocrQuality ?? null,
+            confidence_meta: meta
           });
         } catch (saveErr) {
           console.warn('Failed to save summary to DB:', saveErr);
@@ -936,12 +949,17 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           if (data?.error) throw new Error(data.error);
           const summaryMd = data?.summary || '';
 
-          // Save to DB via Edge Function
+          // Compute confidence and save to DB via Edge Function
+          const ocrQ = typeof (ocrRes as any).confidence === 'number' ? Math.max(0, Math.min(1, ((ocrRes as any).confidence as number) / 100)) : undefined;
+          const { score, meta } = calculateSummaryConfidence(text, summaryMd, ocrQ, rtl);
           await callFunction('save-page-summary', {
             book_id: bookIdentifier,
             page_number: i + 1,
             ocr_text: text,
-            summary_md: summaryMd
+            summary_md: summaryMd,
+            confidence: score,
+            ocr_confidence: ocrQ ?? null,
+            confidence_meta: meta
           });
         } catch (pageErr: any) {
           console.warn(`Failed processing page ${i + 1}:`, pageErr);
