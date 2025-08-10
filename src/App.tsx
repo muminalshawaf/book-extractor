@@ -16,8 +16,8 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <GlobalSearch />
       <BrowserRouter>
+        <GlobalSearch />
         <Routes>
           <Route path="/" element={<Navigate to={`/book/${books[0].id}`} replace />} />
           <Route path="/library" element={<Library />} />
