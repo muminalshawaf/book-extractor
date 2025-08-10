@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const perplexityApiKey = Deno.env.get('PERPLEXITY_API_KEY');
+const deepseekApiKey = Deno.env.get('DEEPSEEK_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,7 +16,7 @@ serve(async (req) => {
   try {
     const { summary, lang = 'ar' } = await req.json();
 
-    if (!summary || !perplexityApiKey) {
+    if (!summary || !deepseekApiKey) {
       return new Response(
         JSON.stringify({ error: 'Missing summary or API key' }), 
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -32,7 +32,7 @@ serve(async (req) => {
 
 الملخص: ${summary}
 
-يرجى إرجاع النتيجة كـ JSON array بالتنسيق التالي:
+يرجى إرجاع النتيجة كـ JSON array بالتنسيق التالي فقط بدون أي نص إضافي:
 [
   {"title": "اشرح المفهوم الأساسي", "query": "اشرح المفهوم الأساسي المذكور في هذا النص"},
   {"title": "أعط أمثلة", "query": "أعط أمثلة عملية على ما ورد في النص"}
@@ -41,37 +41,39 @@ serve(async (req) => {
 
 Summary: ${summary}
 
-Please return the result as a JSON array in this format:
+Please return the result as a JSON array in this format only without any additional text:
 [
   {"title": "Explain the main concept", "query": "Explain the main concept mentioned in this text"},
   {"title": "Give examples", "query": "Give practical examples of what's mentioned in the text"}
 ]`;
 
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+    console.log('Sending request to DeepSeek API...');
+
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${perplexityApiKey}`,
+        'Authorization': `Bearer ${deepseekApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-online',
+        model: 'deepseek-chat',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.3,
-        top_p: 0.9,
         max_tokens: 1000,
-        return_images: false,
-        return_related_questions: false,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Perplexity API error: ${response.status}`);
+      console.error('DeepSeek API error:', response.status, await response.text());
+      throw new Error(`DeepSeek API error: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('DeepSeek API response:', data);
+    
     const content = data.choices[0].message.content;
 
     // Try to extract JSON from the response
@@ -95,6 +97,7 @@ Please return the result as a JSON array in this format:
       }
     } catch (parseError) {
       console.error('Failed to parse suggestions:', parseError);
+      console.log('Raw content:', content);
       // Provide default suggestions if parsing fails
       suggestions = lang === 'ar' ? [
         { title: 'اشرح النقاط الرئيسية', query: 'اشرح النقاط الرئيسية في هذا النص' },
@@ -109,6 +112,8 @@ Please return the result as a JSON array in this format:
 
     // Ensure we have valid suggestions
     suggestions = suggestions.filter(s => s.title && s.query).slice(0, 6);
+
+    console.log('Final suggestions:', suggestions);
 
     return new Response(JSON.stringify({ suggestions }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

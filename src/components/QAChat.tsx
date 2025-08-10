@@ -42,10 +42,55 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
 
   // Sidebar suggestions
   const [suggestions, setSuggestions] = useState<Array<{ title: string; query: string }>>([]);
-    rtl
-      ? [ { title: "اشرح مفهوم النظرية النسبية", query: "اشرح مفهوم النظرية النسبية لأينشتاين" } ]
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+
+  // Generate suggestions from summary
+  useEffect(() => {
+    const generateSuggestions = async () => {
+      if (!summary.trim()) {
+        const defaultSuggestions = rtl
+          ? [{ title: "اشرح مفهوم النظرية النسبية", query: "اشرح مفهوم النظرية النسبية لأينشتاين" }]
+          : [{ title: "Explain relativity", query: "Explain Einstein's theory of relativity" }];
+        setSuggestions(defaultSuggestions);
+        return;
+      }
+
+      setSuggestionsLoading(true);
+      try {
+        const response = await fetch('https://ukznsekygmipnucpouoy.supabase.co/functions/v1/generate-suggestions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ summary, lang: rtl ? 'ar' : 'en' }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setSuggestions(data.suggestions || []);
+        } else {
+          throw new Error('Failed to generate suggestions');
+        }
+      } catch (error) {
+        console.error('Error generating suggestions:', error);
+        const fallbackSuggestions = rtl
+          ? [
+              { title: "اشرح النقاط الرئيسية", query: "اشرح النقاط الرئيسية في هذا النص" },
+              { title: "أعط أمثلة عملية", query: "أعط أمثلة عملية على المفاهيم المذكورة" }
+            ]
+          : [
+              { title: "Explain key points", query: "Explain the key points in this text" },
+              { title: "Give practical examples", query: "Give practical examples of the mentioned concepts" }
+            ];
+        setSuggestions(fallbackSuggestions);
+      } finally {
+        setSuggestionsLoading(false);
+      }
+    };
+
+    generateSuggestions();
+  }, [summary, rtl]);
+      
       : [ { title: "Explain relativity", query: "Explain Einstein’s theory of relativity" } ]
-  ), [rtl]);
+  
 
   useEffect(() => {
     const onMouseUp = () => {
