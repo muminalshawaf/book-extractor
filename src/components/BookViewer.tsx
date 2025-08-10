@@ -472,8 +472,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       };
 
       // Prefer EventSource for smaller payloads
-      const canUseES = text.length <= 3000; // safe size when base64 encoded
+      const canUseES = text.length <= 8000; // allow larger payloads via GET EventSource for better streaming
       if (canUseES) {
+        console.info('Using summarize-stream via EventSource (GET)');
         await new Promise<void>((resolve) => {
           const params = new URLSearchParams();
           const b64 = btoa(unescape(encodeURIComponent(text)));
@@ -543,11 +544,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         });
       } else {
         // Fallback to POST streaming
+        console.info('Using summarize-stream via POST SSE');
         const res = await fetch(streamUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'text/event-stream'
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache'
           },
           body: JSON.stringify({
             text,
@@ -671,7 +674,10 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummLoading(true);
     setSummaryProgress(0);
 
-    const totalLen = full.length;
+    // Sanitize any accidental leading "ok" prefix from stored text
+    const fullText = (full || "").replace(/^\s*ok[\s,:-]*/i, "");
+
+    const totalLen = fullText.length;
     // Target natural typing speed (chars per second)
     const cps = rtl ? 20 : 28; // Arabic is a bit slower to read
     const tickMs = 50; // update cadence
@@ -682,7 +688,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
     while (pos < totalLen) {
       const next = Math.min(perTick, totalLen - pos);
-      const chunk = full.slice(pos, pos + next);
+      const chunk = fullText.slice(pos, pos + next);
       pos += next;
       setSummary(prev => prev + chunk);
 
@@ -694,7 +700,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
     setSummaryProgress(100);
     setSummLoading(false);
-    try { localStorage.setItem(sumKey, full); } catch {}
+    try { localStorage.setItem(sumKey, fullText); } catch {}
   };
 
   // Smart summarize button: prefer DB if available, otherwise process page
