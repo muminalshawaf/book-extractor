@@ -1452,7 +1452,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
                 {/* Insight Panel under reader (desktop) */}
                 <div ref={insightsRef}>
-                  <Card className="shadow-sm">
+                  <Card className="shadow-sm text-[13px] md:text-[14px] lg:text-base">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm md:text-sm lg:text-base">
                         <span className="inline-flex items-center gap-2">
