@@ -24,6 +24,8 @@ import { ContentSearch } from "@/components/ContentSearch";
 import { ImprovedErrorHandler } from "@/components/ImprovedErrorHandler";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { TouchGestureHandler } from "@/components/TouchGestureHandler";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PerformanceMonitor } from "@/components/PerformanceMonitor";
 import { ContinuousReader, ContinuousReaderRef } from "@/components/reader/ContinuousReader";
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
@@ -809,391 +811,306 @@ useEffect(() => {
 
   return (
     <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
-      <div className="flex gap-4">
-        {/* Thumbnail Sidebar */}
-        <div className={cn("flex-shrink-0 animate-fade-in transition-all duration-300", !thumbnailsOpen && "w-0 overflow-hidden")}>
-          <ThumbnailSidebar
-            pages={pages}
-            currentIndex={index}
-            onPageSelect={(i) => { setIndex(i); if (readerMode === 'continuous') { continuousRef.current?.scrollToIndex(i); } }}
-            isOpen={thumbnailsOpen}
-            onToggle={() => setThumbnailsOpen(!thumbnailsOpen)}
-            rtl={rtl}
-          />
-        </div>
-        
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col gap-6">
+      <ResizablePanelGroup direction="horizontal" className="gap-4">
+        {/* LEFT: Viewer */}
+        <ResizablePanel defaultSize={70} minSize={55}>
+          <div className="flex gap-4">
+            {/* Thumbnail Sidebar */}
+            <div className={cn("flex-shrink-0 animate-fade-in transition-all duration-300", !thumbnailsOpen && "w-0 overflow-hidden")}>
+              <ThumbnailSidebar
+                pages={pages}
+                currentIndex={index}
+                onPageSelect={(i) => { setIndex(i); if (readerMode === 'continuous') { continuousRef.current?.scrollToIndex(i); } }}
+                isOpen={thumbnailsOpen}
+                onToggle={() => setThumbnailsOpen(!thumbnailsOpen)}
+                rtl={rtl}
+              />
+            </div>
 
-        {/* Top Bar */}
-        <div className="sticky top-0 z-20 flex items-center justify-between bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/70 rounded-lg p-4 shadow-sm border">
-          <ZoomControls
-            zoom={zoom}
-            minZoom={Z.min}
-            maxZoom={Z.max}
-            zoomStep={Z.step}
-            mode={zoomMode}
-            onZoomIn={zoomIn}
-            onZoomOut={zoomOut}
-            onFitWidth={fitToWidth}
-            onFitHeight={fitToHeight}
-            onActualSize={actualSize}
-            showMiniMap={showMiniMap && readerMode === 'page'}
-            onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
-            rtl={rtl}
-          />
-          <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}
-               aria-label={rtl ? "إجراءات" : "Actions"}>
-            <Button size="sm" variant="outline" onClick={() => setThumbnailsOpen(!thumbnailsOpen)}>
-              <Grid3X3 className="h-4 w-4 mr-2" />
-              {rtl ? "المصغرات" : "Thumbnails"}
-            </Button>
-            <FullscreenButton rtl={rtl} />
-          </div>
-        </div>
-
-        {/* Page Area with Fullscreen */}
-        <FullscreenMode rtl={rtl}>
-          <Card className="shadow-sm animate-fade-in">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg" itemProp="name">{title}</CardTitle>
-              <div className="flex items-center gap-2">
-                <AccessibilityPanel 
-                  isOpen={accessibilityPanelOpen}
-                  onToggle={() => setAccessibilityPanelOpen(!accessibilityPanelOpen)}
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col gap-6">
+              {/* Top Bar */}
+              <div className="sticky top-0 z-20 flex items-center justify-between bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/70 rounded-lg p-4 shadow-sm border">
+                <ZoomControls
+                  zoom={zoom}
+                  minZoom={Z.min}
+                  maxZoom={Z.max}
+                  zoomStep={Z.step}
+                  mode={zoomMode}
+                  onZoomIn={zoomIn}
+                  onZoomOut={zoomOut}
+                  onFitWidth={fitToWidth}
+                  onFitHeight={fitToHeight}
+                  onActualSize={actualSize}
+                  showMiniMap={showMiniMap && readerMode === 'page'}
+                  onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
                   rtl={rtl}
                 />
-                <PerformanceMonitor 
-                  isOpen={performanceMonitorOpen}
-                  onToggle={() => setPerformanceMonitorOpen(!performanceMonitorOpen)}
-                  rtl={rtl}
-                />
-                <KeyboardShortcuts rtl={rtl} />
-                <div className="text-sm text-muted-foreground select-none">
-                  {L.progress(index + 1, total, progressPct)}
+                <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} aria-label={rtl ? "إجراءات" : "Actions"}>
+                  <Button size="sm" variant="outline" onClick={() => setThumbnailsOpen(!thumbnailsOpen)}>
+                    <Grid3X3 className="h-4 w-4 mr-2" />
+                    {rtl ? "المصغرات" : "Thumbnails"}
+                  </Button>
+                  <FullscreenButton rtl={rtl} />
                 </div>
               </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <TouchGestureHandler
-                onSwipeLeft={rtl ? goPrev : goNext}
-                onSwipeRight={rtl ? goNext : goPrev}
-                onPinch={(scale) => {
-                  const newZoom = Math.min(Z.max, Math.max(Z.min, zoom * scale));
-                  setZoom(newZoom);
-                  setZoomMode("custom");
-                }}
-                disabled={!isMobile || readerMode === 'continuous'}
-                className="relative"
-              >
-                {readerMode === 'page' ? (
-                  <div 
-                    ref={containerRef}
-                    className={cn(
-                      "relative w-full border rounded-lg mb-4 overflow-hidden",
-                      panningEnabled ? (isPanning ? "cursor-grabbing" : "cursor-grab") : "cursor-default",
-                      isMobile && "book-viewer-mobile"
-                    )}
-                    style={{ 
-                      maxHeight: '78vh'
-                    }}
-                    onWheel={handleWheelNav}
-                    role="img"
-                    aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`}
-                    tabIndex={0}
-                  >
-                    <TransformWrapper
-                      ref={zoomApiRef as any}
-                      initialScale={zoom}
-                      minScale={Z.min}
-                      maxScale={Z.max}
-                      centerZoomedOut
-                      limitToBounds
-                      panning={{ disabled: !panningEnabled }}
-                      wheel={{ activationKeys: ["Control", "Meta"], step: Z.step }}
-                      doubleClick={{ disabled: false, step: 0.5, mode: "zoomIn" }}
-                      onTransformed={(refState) => {
-                        const { scale, positionX, positionY } = refState.state;
-                        setTransformState({ scale, positionX, positionY });
-                        setZoomMode("custom");
-                        setZoom(scale);
-                      }}
-                      onPanningStart={() => setIsPanning(true)}
-                      onPanningStop={() => setIsPanning(false)}
-                    >
-                      <TransformComponent
-                        wrapperClass="w-full h-[78vh]"
-                        contentClass="flex items-start justify-center py-2"
-                      >
-                        <img
-                          src={pages[index]?.src}
-                          alt={pages[index]?.alt}
-                          loading="eager"
-                          decoding="async"
-                          draggable={false}
-                          onLoadStart={() => setImageLoading(true)}
-                          onLoad={(e) => {
-                            setImageLoading(false);
-                            const imgEl = e.currentTarget;
-                            setNaturalSize({ width: imgEl.naturalWidth, height: imgEl.naturalHeight });
-                            if (containerRef.current) {
-                              setContainerDimensions({
-                                width: containerRef.current.clientWidth,
-                                height: containerRef.current.clientHeight
-                              });
-                            }
-                          }}
-                          onError={() => setImageLoading(false)}
-                          className="select-none max-w-full max-h-full object-contain will-change-transform"
-                          itemProp="image"
-                          aria-describedby={`page-${index}-description`}
-                        />
-                      </TransformComponent>
-                    </TransformWrapper>
 
-                    {imageLoading && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                        <LoadingProgress 
-                          type="image" 
-                          progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} 
-                          rtl={rtl} 
+              {/* Page Area with Fullscreen */}
+              <FullscreenMode rtl={rtl}>
+                <Card className="shadow-sm animate-fade-in">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg" itemProp="name">{title}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <AccessibilityPanel 
+                          isOpen={accessibilityPanelOpen}
+                          onToggle={() => setAccessibilityPanelOpen(!accessibilityPanelOpen)}
+                          rtl={rtl}
                         />
+                        <PerformanceMonitor 
+                          isOpen={performanceMonitorOpen}
+                          onToggle={() => setPerformanceMonitorOpen(!performanceMonitorOpen)}
+                          rtl={rtl}
+                        />
+                        <KeyboardShortcuts rtl={rtl} />
+                        <div className="text-sm text-muted-foreground select-none">
+                          {L.progress(index + 1, total, progressPct)}
+                        </div>
                       </div>
-                    )}
-
-                    <div id={`page-${index}-description`} className="sr-only">
-                      {rtl ? `صفحة ${index + 1} من ${total}` : `Page ${index + 1} of ${total}`}
                     </div>
-                  </div>
-                ) : (
-                  <div className="relative w-full overflow-hidden border rounded-lg mb-4" style={{ maxHeight: '70vh' }}>
-                    <ContinuousReader
-                      ref={continuousRef}
-                      pages={pages}
-                      index={index}
-                      onIndexChange={setIndex}
-                      zoom={zoom}
-                      rtl={rtl}
-                      onScrollerReady={(el) => {
-                        containerRef.current = el as HTMLDivElement;
-                        setContainerDimensions({ width: el.clientWidth, height: el.clientHeight });
+                  </CardHeader>
+                  <CardContent>
+                    <TouchGestureHandler
+                      onSwipeLeft={rtl ? goPrev : goNext}
+                      onSwipeRight={rtl ? goNext : goPrev}
+                      onPinch={(scale) => {
+                        const newZoom = Math.min(Z.max, Math.max(Z.min, zoom * scale));
+                        setZoom(newZoom);
+                        setZoomMode("custom");
                       }}
-                    />
-                  </div>
-                )}
-              </TouchGestureHandler>
-              <div className={cn("mt-4 flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
-                <Button
-                  onClick={goPrev}
-                  variant="secondary"
-                  disabled={index === 0}
-                  aria-label={L.previous}
-                  className={cn(isMobile && "min-h-[48px] min-w-[48px]")}
-                >
-                  {rtl ? `${L.previous} →` : "← " + L.previous}
-                </Button>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="tabular-nums">{index + 1}</span>
-                    <Separator orientation="vertical" className="h-5" />
-                    <span className="tabular-nums">{total}</span>
-                  </div>
-                  <form
-                    className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const n = parseInt(gotoInput, 10);
-                      if (!Number.isNaN(n)) {
-                        jumpToPage(n);
+                      disabled={!isMobile || readerMode === 'continuous'}
+                      className="relative"
+                    >
+                      {readerMode === 'page' ? (
+                        <div 
+                          ref={containerRef}
+                          className={cn(
+                            "relative w-full border rounded-lg mb-4 overflow-hidden",
+                            panningEnabled ? (isPanning ? "cursor-grabbing" : "cursor-grab") : "cursor-default",
+                            isMobile && "book-viewer-mobile"
+                          )}
+                          style={{ maxHeight: '78vh' }}
+                          onWheel={handleWheelNav}
+                          role="img"
+                          aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`}
+                          tabIndex={0}
+                        >
+                          <TransformWrapper
+                            ref={zoomApiRef as any}
+                            initialScale={zoom}
+                            minScale={Z.min}
+                            maxScale={Z.max}
+                            centerZoomedOut
+                            limitToBounds
+                            panning={{ disabled: !panningEnabled }}
+                            wheel={{ activationKeys: ["Control", "Meta"], step: Z.step }}
+                            doubleClick={{ disabled: false, step: 0.5, mode: "zoomIn" }}
+                            onTransformed={(refState) => {
+                              const { scale, positionX, positionY } = refState.state;
+                              setTransformState({ scale, positionX, positionY });
+                              setZoomMode("custom");
+                              setZoom(scale);
+                            }}
+                            onPanningStart={() => setIsPanning(true)}
+                            onPanningStop={() => setIsPanning(false)}
+                          >
+                            <TransformComponent
+                              wrapperClass="w-full h-[78vh]"
+                              contentClass="flex items-start justify-center py-2"
+                            >
+                              <img
+                                src={pages[index]?.src}
+                                alt={pages[index]?.alt}
+                                loading="eager"
+                                decoding="async"
+                                draggable={false}
+                                onLoadStart={() => setImageLoading(true)}
+                                onLoad={(e) => {
+                                  setImageLoading(false);
+                                  const imgEl = e.currentTarget;
+                                  setNaturalSize({ width: imgEl.naturalWidth, height: imgEl.naturalHeight });
+                                  if (containerRef.current) {
+                                    setContainerDimensions({
+                                      width: containerRef.current.clientWidth,
+                                      height: containerRef.current.clientHeight
+                                    });
+                                  }
+                                }}
+                                onError={() => setImageLoading(false)}
+                                className="select-none max-w-full max-h-full object-contain will-change-transform"
+                                itemProp="image"
+                                aria-describedby={`page-${index}-description`}
+                              />
+                            </TransformComponent>
+                          </TransformWrapper>
+
+                          {imageLoading && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+                              <LoadingProgress 
+                                type="image" 
+                                progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} 
+                                rtl={rtl} 
+                              />
+                            </div>
+                          )}
+
+                          <div id={`page-${index}-description`} className="sr-only">
+                            {rtl ? `صفحة ${index + 1} من ${total}` : `Page ${index + 1} of ${total}`}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative w-full overflow-hidden border rounded-lg mb-4" style={{ maxHeight: '70vh' }}>
+                          <ContinuousReader
+                            ref={continuousRef}
+                            pages={pages}
+                            index={index}
+                            onIndexChange={setIndex}
+                            zoom={zoom}
+                            rtl={rtl}
+                            onScrollerReady={(el) => {
+                              containerRef.current = el as HTMLDivElement;
+                              setContainerDimensions({ width: el.clientWidth, height: el.clientHeight });
+                            }}
+                          />
+                        </div>
+                      )}
+                    </TouchGestureHandler>
+                    <div className={cn("mt-4 flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
+                      <Button onClick={goPrev} variant="secondary" disabled={index === 0} aria-label={L.previous} className={cn(isMobile && "min-h-[48px] min-w-[48px]")}>
+                        {rtl ? `${L.previous} →` : "← " + L.previous}
+                      </Button>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span className="tabular-nums">{index + 1}</span>
+                          <Separator orientation="vertical" className="h-5" />
+                          <span className="tabular-nums">{total}</span>
+                        </div>
+                        <form className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} onSubmit={(e) => {
+                          e.preventDefault();
+                          const n = parseInt(gotoInput, 10);
+                          if (!Number.isNaN(n)) jumpToPage(n);
+                        }} aria-label={rtl ? "اذهب إلى صفحة معينة" : "Jump to page"}>
+                          <Input type="number" inputMode="numeric" min={1} max={total} placeholder={rtl ? "اذهب إلى صفحة" : "Go to page"} value={gotoInput} onChange={(e) => setGotoInput(e.target.value)} className="w-24" aria-label={rtl ? "أدخل رقم الصفحة" : "Enter page number"} />
+                          <Button type="submit" variant="outline" size="sm">{rtl ? "اذهب" : "Go"}</Button>
+                        </form>
+                      </div>
+                      <Button onClick={goNext} variant="default" disabled={index === total - 1} aria-label={L.next} className={cn(isMobile && "min-h-[48px] min-w-[48px]")}>
+                        {rtl ? `← ${L.next}` : L.next + " →"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Mini-map overlay */}
+                {readerMode === 'page' && showMiniMap && zoom > 1 && containerRef.current && (
+                  <MiniMap
+                    imageSrc={pages[index]?.src}
+                    imageAlt={pages[index]?.alt}
+                    containerWidth={containerDimensions.width}
+                    containerHeight={containerDimensions.height}
+                    imageWidth={800}
+                    imageHeight={1100}
+                    scrollLeft={containerRef.current.scrollLeft}
+                    scrollTop={containerRef.current.scrollTop}
+                    zoom={zoom}
+                    onNavigate={(x, y) => {
+                      if (containerRef.current) {
+                        containerRef.current.scrollLeft = x;
+                        containerRef.current.scrollTop = y;
                       }
                     }}
-                    aria-label={rtl ? "اذهب إلى صفحة معينة" : "Jump to page"}
+                    rtl={rtl}
+                  />
+                )}
+              </FullscreenMode>
+            </div>
+          </div>
+        </ResizablePanel>
+
+        <ResizableHandle withHandle />
+
+        {/* RIGHT: Insight Panel */}
+        <ResizablePanel defaultSize={30} minSize={22} className="min-w-[280px]">
+          <Card className="h-full shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3">
+              <Tabs defaultValue="summary" className="w-full">
+                <TabsList className="grid grid-cols-2 w-full">
+                  <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
+                  <TabsTrigger value="qa">{rtl ? "اسأل المستند" : "Ask the doc"}</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="summary" className="mt-4 m-0">
+                  <Button
+                    className="w-full"
+                    variant="default"
+                    onClick={() => (extractedText ? summarizeExtractedText(extractedText) : extractTextFromPage())}
+                    disabled={ocrLoading || summLoading}
                   >
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      max={total}
-                      placeholder={rtl ? "اذهب إلى صفحة" : "Go to page"}
-                      value={gotoInput}
-                      onChange={(e) => setGotoInput(e.target.value)}
-                      className="w-24"
-                      aria-label={rtl ? "أدخل رقم الصفحة" : "Enter page number"}
-                    />
-                    <Button type="submit" variant="outline" size="sm">
-                      {rtl ? "اذهب" : "Go"}
-                    </Button>
-                  </form>
-                </div>
-                <Button
-                  onClick={goNext}
-                  variant="default"
-                  disabled={index === total - 1}
-                  aria-label={L.next}
-                  className={cn(isMobile && "min-h-[48px] min-w-[48px]")}
-                >
-                  {rtl ? `← ${L.next}` : L.next + " →"}
-                </Button>
-              </div>
+                    {ocrLoading || summLoading ? (rtl ? "جارٍ التلخيص..." : "Summarizing...") : (rtl ? "لخص هذه الصفحة" : "Summarize this page")}
+                  </Button>
+                  {!summary && (
+                    <div className="mt-3 text-sm text-muted-foreground border rounded-md p-3">
+                      {rtl ? "لا يوجد ملخص بعد. اضغط \"لخص هذه الصفحة\" لإنشائه." : "No summary yet. Click Summarize this page to generate one."}
+                    </div>
+                  )}
+                  {lastError && (
+                    <div className="mt-3">
+                      <ImprovedErrorHandler
+                        error={lastError}
+                        onRetry={extractTextFromPage}
+                        isRetrying={ocrLoading || summLoading}
+                        retryCount={retryCount}
+                        context={ocrLoading ? (rtl ? "استخراج النص" : "OCR") : (rtl ? "التلخيص" : "Summarization")}
+                        rtl={rtl}
+                      />
+                    </div>
+                  )}
+                  {summary && (
+                    <div className="mt-3">
+                      <EnhancedSummary
+                        summary={summary}
+                        onSummaryChange={(newSummary) => {
+                          setSummary(newSummary);
+                          try { localStorage.setItem(sumKey, newSummary); } catch {}
+                        }}
+                        onRegenerate={() => {
+                          if (extractedText) {
+                            summarizeExtractedText(extractedText);
+                          } else {
+                            toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
+                          }
+                        }}
+                        isRegenerating={summLoading}
+                        confidence={summaryConfidence}
+                        pageNumber={index + 1}
+                        rtl={rtl}
+                        title={title}
+                      />
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="qa" className="mt-4 m-0">
+                  <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
-
-          {/* Mini-map overlay */}
-          {readerMode === 'page' && showMiniMap && zoom > 1 && containerRef.current && (
-            <MiniMap
-              imageSrc={pages[index]?.src}
-              imageAlt={pages[index]?.alt}
-              containerWidth={containerDimensions.width}
-              containerHeight={containerDimensions.height}
-              imageWidth={800}
-              imageHeight={1100}
-              scrollLeft={containerRef.current.scrollLeft}
-              scrollTop={containerRef.current.scrollTop}
-              zoom={zoom}
-              onNavigate={(x, y) => {
-                if (containerRef.current) {
-                  containerRef.current.scrollLeft = x;
-                  containerRef.current.scrollTop = y;
-                }
-              }}
-              rtl={rtl}
-            />
-          )}
-        </FullscreenMode>
-
-        {/* Content Search */}
-        <ContentSearch
-          pages={allExtractedTexts}
-          currentPageIndex={index}
-          onPageChange={setIndex}
-          onHighlight={setSearchHighlight}
-          rtl={rtl}
-        />
-        
-        {/* Debug info */}
-        <div className="p-2 bg-muted rounded text-xs">
-          <p>Debug: Available pages with text: {Object.keys(allExtractedTexts).join(', ') || 'None'}</p>
-          <p>Debug: Current page has text: {allExtractedTexts[index] ? 'Yes' : 'No'}</p>
-          <p>Debug: Total pages with extracted text: {Object.keys(allExtractedTexts).length}</p>
-        </div>
-
-        {/* Error Handler */}
-        {lastError && (
-          <ImprovedErrorHandler
-            error={lastError}
-            onRetry={extractTextFromPage}
-            isRetrying={ocrLoading || summLoading}
-            retryCount={retryCount}
-            context={ocrLoading ? (rtl ? "استخراج النص" : "OCR") : (rtl ? "التلخيص" : "Summarization")}
-            rtl={rtl}
-          />
-        )}
-
-        {/* OCR (Extracted Text) */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">{rtl ? "النص المستخرج (OCR)" : "OCR Text"}</CardTitle>
-              <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={extractTextFromPage}
-                  disabled={ocrLoading || batchRunning}
-                >
-                  {ocrLoading ? (rtl ? "جارٍ..." : "Working...") : (rtl ? "تشغيل OCR" : "Run OCR")}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={!extractedText || batchRunning}
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(extractedText);
-                      toast.success(rtl ? "تم نسخ النص" : "Copied");
-                    } catch {
-                      toast.error(rtl ? "فشل النسخ" : "Copy failed");
-                    }
-                  }}
-                >
-                  {rtl ? "نسخ" : "Copy"}
-                </Button>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={total}
-                  value={rangeStart}
-                  onChange={(e) => setRangeStart(Math.max(1, Math.min(total, parseInt(e.target.value || '1', 10))))}
-                  className="w-20"
-                  placeholder={rtl ? "من" : "From"}
-                  aria-label={rtl ? "من الصفحة" : "From page"}
-                  disabled={batchRunning}
-                />
-                <span className="text-muted-foreground">-</span>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={total}
-                  value={rangeEnd}
-                  onChange={(e) => setRangeEnd(Math.max(1, Math.min(total, parseInt(e.target.value || String(total), 10))))}
-                  className="w-20"
-                  placeholder={rtl ? "إلى" : "To"}
-                  aria-label={rtl ? "إلى الصفحة" : "To page"}
-                  disabled={batchRunning}
-                />
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={processFirstTenPages}
-                  disabled={batchRunning}
-                >
-                  {batchRunning
-                    ? (rtl ? `جارٍ المعالجة ${batchProgress.current}/${batchProgress.total}` : `Processing ${batchProgress.current}/${batchProgress.total}`)
-                    : (rtl ? `معالجة من ${rangeStart} إلى ${rangeEnd}` : `Process ${rangeStart}-${rangeEnd}`)}
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              readOnly
-              dir={rtl ? "rtl" : "ltr"}
-              value={extractedText}
-              placeholder={rtl ? "لا يوجد نص مستخرج بعد. اضغط تشغيل OCR." : "No extracted text yet. Click Run OCR."}
-              className="min-h-40"
-            />
-          </CardContent>
-        </Card>
-
-        {/* Enhanced Summary */}
-        <EnhancedSummary
-          summary={summary}
-          onSummaryChange={(newSummary) => {
-            setSummary(newSummary);
-            try { localStorage.setItem(sumKey, newSummary); } catch {}
-          }}
-          onRegenerate={() => {
-            if (extractedText) {
-              summarizeExtractedText(extractedText);
-            } else {
-              toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
-            }
-          }}
-          isRegenerating={summLoading}
-          confidence={summaryConfidence}
-          pageNumber={index + 1}
-          rtl={rtl}
-          title={title}
-        />
-
-        {/* AI Q&A at the bottom */}
-        <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </section>
   );
 };
