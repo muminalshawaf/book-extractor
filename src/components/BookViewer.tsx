@@ -142,7 +142,7 @@ const [summary, setSummary] = useState("");
   const [accessibilityPanelOpen, setAccessibilityPanelOpen] = useState(false);
   const [performanceMonitorOpen, setPerformanceMonitorOpen] = useState(false);
   const isMobile = useIsMobile();
-  const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
+  const insightsRef = useRef<HTMLDivElement | null>(null);
   const [gotoInput, setGotoInput] = useState<string>("");
   const [controlsOpen, setControlsOpen] = useState(true);
 
@@ -900,7 +900,7 @@ useEffect(() => {
                       progressText={L.progress(index + 1, total, progressPct)}
                       rtl={rtl}
                       onToggleThumbnails={() => setThumbnailsOpen(!thumbnailsOpen)}
-                      onOpenInsights={() => setMobileInsightsOpen(true)}
+                      onOpenInsights={() => insightsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                       onPrev={goPrev}
                       onNext={goNext}
                       canPrev={index > 0}
@@ -926,13 +926,13 @@ useEffect(() => {
             </Card>
           </FullscreenMode>
 
-          {/* Mobile Insights Drawer */}
-          <Drawer open={mobileInsightsOpen} onOpenChange={setMobileInsightsOpen}>
-            <DrawerContent className="h-[90svh]">
-              <DrawerHeader>
-                <DrawerTitle>{rtl ? "لوحة الرؤى" : "Insight Panel"}</DrawerTitle>
-              </DrawerHeader>
-              <div className="p-4 pt-0">
+          {/* Insights under reader (mobile) */}
+          <div ref={insightsRef} className="px-3 pt-4">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
                 <Tabs defaultValue="summary" className="w-full">
                   <TabsList className="grid grid-cols-2 w-full">
                     <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
@@ -948,8 +948,13 @@ useEffect(() => {
                         {rtl ? "لا يوجد ملخص بعد. اضغط \"لخص هذه الصفحة\" لإنشائه." : "No summary yet. Click Summarize this page to generate one."}
                       </div>
                     )}
+                    {lastError && (
+                      <div className="mt-3">
+                        <ImprovedErrorHandler error={lastError} onRetry={extractTextFromPage} isRetrying={ocrLoading || summLoading} retryCount={retryCount} context={ocrLoading ? (rtl ? "استخراج النص" : "OCR") : (rtl ? "التلخيص" : "Summarization")} rtl={rtl} />
+                      </div>
+                    )}
                     {summary && (
-                      <div className="mt-3 prose text-[15px] leading-7 md:text-[14px]">
+                      <div className="mt-3">
                         <EnhancedSummary
                           summary={summary}
                           onSummaryChange={(newSummary) => { setSummary(newSummary); try { localStorage.setItem(sumKey, newSummary); } catch {} }}
@@ -968,9 +973,9 @@ useEffect(() => {
                     <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
                   </TabsContent>
                 </Tabs>
-              </div>
-            </DrawerContent>
-          </Drawer>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       ) : (
         <ResizablePanelGroup direction="horizontal" className="gap-4">
@@ -1234,69 +1239,51 @@ useEffect(() => {
                   </CardContent>
                 </Card>
 
-                {/* Enhanced Summary (Desktop extra) */}
-                <EnhancedSummary summary={summary} onSummaryChange={(newSummary) => { setSummary(newSummary); try { localStorage.setItem(sumKey, newSummary); } catch {} }} onRegenerate={() => { if (extractedText) { summarizeExtractedText(extractedText); } else { toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first"); } }} isRegenerating={summLoading} confidence={summaryConfidence} pageNumber={index + 1} rtl={rtl} title={title} />
+                {/* Insight Panel under reader (desktop) */}
+                <div ref={insightsRef}>
+                  <Card className="shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3">
+                      <Tabs defaultValue="summary" className="w-full">
+                        <TabsList className="grid grid-cols-2 w-full">
+                          <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
+                          <TabsTrigger value="qa">{rtl ? "اسأل المستند" : "Ask the doc"}</TabsTrigger>
+                        </TabsList>
 
-                {/* AI Q&A at the bottom */}
-                <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
+                        <TabsContent value="summary" className="mt-4 m-0">
+                          <Button className="w-full" variant="default" onClick={() => (extractedText ? summarizeExtractedText(extractedText) : extractTextFromPage())} disabled={ocrLoading || summLoading}>
+                            {ocrLoading || summLoading ? (rtl ? "جارٍ التلخيص..." : "Summarizing...") : (rtl ? "لخص هذه الصفحة" : "Summarize this page")}
+                          </Button>
+                          {!summary && (
+                            <div className="mt-3 text-sm text-muted-foreground border rounded-md p-3">
+                              {rtl ? "لا يوجد ملخص بعد. اضغط \"لخص هذه الصفحة\" لإنشائه." : "No summary yet. Click Summarize this page to generate one."}
+                            </div>
+                          )}
+                          {lastError && (
+                            <div className="mt-3">
+                              <ImprovedErrorHandler error={lastError} onRetry={extractTextFromPage} isRetrying={ocrLoading || summLoading} retryCount={retryCount} context={ocrLoading ? (rtl ? "استخراج النص" : "OCR") : (rtl ? "التلخيص" : "Summarization")} rtl={rtl} />
+                            </div>
+                          )}
+                          {summary && (
+                            <div className="mt-3">
+                              <EnhancedSummary summary={summary} onSummaryChange={(newSummary) => { setSummary(newSummary); try { localStorage.setItem(sumKey, newSummary); } catch {} }} onRegenerate={() => { if (extractedText) { summarizeExtractedText(extractedText); } else { toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first"); } }} isRegenerating={summLoading} confidence={summaryConfidence} pageNumber={index + 1} rtl={rtl} title={title} />
+                            </div>
+                          )}
+                        </TabsContent>
+
+                        <TabsContent value="qa" className="mt-4 m-0">
+                          <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
             </div>
           </ResizablePanel>
 
-          <ResizableHandle withHandle />
-
-          {/* RIGHT: Insight Panel */}
-          <ResizablePanel defaultSize={30} minSize={22} className="min-w-[280px] hidden lg:block">
-            <Card className="h-full shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-3">
-                <Tabs defaultValue="summary" className="w-full">
-                  <TabsList className="grid grid-cols-2 w-full">
-                    <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
-                    <TabsTrigger value="qa">{rtl ? "اسأل المستند" : "Ask the doc"}</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="summary" className="mt-4 m-0">
-                    <Button className="w-full" variant="default" onClick={() => (extractedText ? summarizeExtractedText(extractedText) : extractTextFromPage())} disabled={ocrLoading || summLoading}>
-                      {ocrLoading || summLoading ? (rtl ? "جارٍ التلخيص..." : "Summarizing...") : (rtl ? "لخص هذه الصفحة" : "Summarize this page")}
-                    </Button>
-                    {!summary && (
-                      <div className="mt-3 text-sm text-muted-foreground border rounded-md p-3">
-                        {rtl ? "لا يوجد ملخص بعد. اضغط \"لخص هذه الصفحة\" لإنشائه." : "No summary yet. Click Summarize this page to generate one."}
-                      </div>
-                    )}
-                    {lastError && (
-                      <div className="mt-3">
-                        <ImprovedErrorHandler error={lastError} onRetry={extractTextFromPage} isRetrying={ocrLoading || summLoading} retryCount={retryCount} context={ocrLoading ? (rtl ? "استخراج النص" : "OCR") : (rtl ? "التلخيص" : "Summarization")} rtl={rtl} />
-                      </div>
-                    )}
-                    {summary && (
-                      <div className="mt-3">
-                        <EnhancedSummary summary={summary} onSummaryChange={(newSummary) => { setSummary(newSummary); try { localStorage.setItem(sumKey, newSummary); } catch {} }} onRegenerate={() => { if (extractedText) { summarizeExtractedText(extractedText); } else { toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first"); } }} isRegenerating={summLoading} confidence={summaryConfidence} pageNumber={index + 1} rtl={rtl} title={title} />
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="qa" className="mt-4 m-0">
-                    <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          </ResizablePanel>
-          {/* Burger trigger for insights on medium screens */}
-          <div className={cn("hidden md:flex lg:hidden")}> 
-            <Button
-              size="icon"
-              className={cn("fixed top-24 right-3 z-30", rtl && "left-3 right-auto")}
-              onClick={() => setMobileInsightsOpen(true)}
-              aria-label={rtl ? "لوحة الرؤى" : "Insights"}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          </div>
         </ResizablePanelGroup>
       )}
     </section>
