@@ -1084,11 +1084,16 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 </div>
               </CardHeader>
               <CardContent>
-                <TouchGestureHandler onSwipeLeft={rtl ? goPrev : goNext} onSwipeRight={rtl ? goNext : goPrev} onPinch={scale => {
-              const newZoom = Math.min(Z.max, Math.max(Z.min, zoom * scale));
-              setZoom(newZoom);
-              setZoomMode("custom");
-            }} disabled={!isMobile || readerMode === 'continuous'} className="relative">
+                <TouchGestureHandler
+                  onSwipeLeft={!panningEnabled ? (rtl ? goPrev : goNext) : undefined}
+                  onSwipeRight={!panningEnabled ? (rtl ? goNext : goPrev) : undefined}
+                  onPinch={scale => {
+                  const newZoom = Math.min(Z.max, Math.max(Z.min, zoom * scale));
+                  setZoom(newZoom);
+                  setZoomMode("custom");
+                }}
+                  disabled={!isMobile || readerMode === 'continuous'}
+                  className="relative">
                   <div ref={containerRef} className={cn("relative w-full overflow-hidden", !isMobile && "border rounded-lg mb-4", panningEnabled ? isPanning ? "cursor-grabbing" : "cursor-grab" : "cursor-default", isMobile && "book-viewer-mobile")} style={{}} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
                     <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} centerZoomedOut limitToBounds panning={{
                   disabled: !panningEnabled
