@@ -117,8 +117,39 @@ const [summary, setSummary] = useState("");
   const [summaryProgress, setSummaryProgress] = useState(0);
   const [thumbnailsOpen, setThumbnailsOpen] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
+  // Image display fallback handling
+  const [displaySrc, setDisplaySrc] = useState<string>(pages[0]?.src || "");
+  const [triedWeserv, setTriedWeserv] = useState(false);
+  const [triedNoCache, setTriedNoCache] = useState(false);
   
-  // Phase 2 enhancements
+  
+  useEffect(() => {
+    setDisplaySrc(pages[index]?.src || "");
+    setTriedWeserv(false);
+    setTriedNoCache(false);
+    setImageLoading(true);
+  }, [index, pages]);
+
+  const onImgError = () => {
+    const original = pages[index]?.src || "";
+    if (!triedWeserv && original) {
+      const hostless = original.replace(/^https?:\/\//, '');
+      const wes = `https://images.weserv.nl/?url=${encodeURIComponent(hostless)}&output=jpg`;
+      setTriedWeserv(true);
+      setDisplaySrc(wes);
+      setImageLoading(true);
+      return;
+    }
+    if (!triedNoCache && original) {
+      const sep = original.includes('?') ? '&' : '?';
+      setTriedNoCache(true);
+      setDisplaySrc(`${original}${sep}nocache=${Date.now()}`);
+      setImageLoading(true);
+      return;
+    }
+    setImageLoading(false);
+    toast.error(rtl ? "تعذّر تحميل صورة الصفحة" : "Failed to load page image");
+  };
   const [zoomMode, setZoomMode] = useState<ZoomMode>("custom");
   const [showMiniMap, setShowMiniMap] = useState(false);
   const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 600 });
@@ -960,7 +991,7 @@ useEffect(() => {
                         contentClass="flex items-start justify-center py-2"
                       >
                         <img
-                          src={pages[index]?.src}
+                          src={displaySrc}
                           alt={pages[index]?.alt}
                           loading="eager"
                           decoding="async"
@@ -974,7 +1005,7 @@ useEffect(() => {
                               setContainerDimensions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
                             }
                           }}
-                          onError={() => setImageLoading(false)}
+                          onError={onImgError}
                           className="select-none max-w-full max-h-full object-contain will-change-transform"
                           itemProp="image"
                           aria-describedby={`page-${index}-description`}
@@ -1206,7 +1237,7 @@ useEffect(() => {
                                 contentClass="flex items-start justify-center py-2"
                               >
                                 <img
-                                  src={pages[index]?.src}
+                                  src={displaySrc}
                                   alt={pages[index]?.alt}
                                   loading="eager"
                                   decoding="async"
@@ -1220,7 +1251,7 @@ useEffect(() => {
                                       setContainerDimensions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
                                     }
                                   }}
-                                  onError={() => setImageLoading(false)}
+                                  onError={onImgError}
                                   className="select-none max-w-full max-h-full object-contain will-change-transform"
                                   itemProp="image"
                                   aria-describedby={`page-${index}-description`}
