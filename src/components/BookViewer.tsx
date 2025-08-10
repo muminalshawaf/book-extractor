@@ -1212,17 +1212,23 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         const api = zoomApiRef.current as any;
                         if (readerMode === 'page' && api) {
                           try {
-                            if (typeof api.centerView === 'function') {
+                            const el = containerRef.current;
+                            const imgW = naturalSize.width || 0;
+                            const imgH = naturalSize.height || 0;
+                            const currentScale = transformState.scale ?? 1;
+
+                            if (el && imgW > 0 && imgH > 0) {
+                              const wrapperW = el.clientWidth;
+                              const wrapperH = el.clientHeight;
+                              const contentW = imgW * currentScale;
+                              const contentH = imgH * currentScale;
+                              const posX = (wrapperW - contentW) / 2;
+                              const posY = (wrapperH - contentH) / 2;
+                              api.setTransform(posX, posY, currentScale, 200, 'easeOut');
+                            } else if (typeof api.centerView === 'function') {
                               api.centerView(200, 'easeOut');
                             } else {
-                              // Hard reset to center, then restore scale
-                              const currentScale = transformState.scale;
                               api.resetTransform(200, 'easeOut');
-                              requestAnimationFrame(() => {
-                                try {
-                                  api.setTransform(0, 0, currentScale, 200, 'easeOut');
-                                } catch {}
-                              });
                             }
                           } catch {}
                         }
@@ -1411,16 +1417,23 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                                  const api = zoomApiRef.current as any;
                                  if (readerMode === 'page' && api) {
                                    try {
-                                     if (typeof api.centerView === 'function') {
+                                     const el = containerRef.current;
+                                     const imgW = naturalSize.width || 0;
+                                     const imgH = naturalSize.height || 0;
+                                     const currentScale = transformState.scale ?? 1;
+
+                                     if (el && imgW > 0 && imgH > 0) {
+                                       const wrapperW = el.clientWidth;
+                                       const wrapperH = el.clientHeight;
+                                       const contentW = imgW * currentScale;
+                                       const contentH = imgH * currentScale;
+                                       const posX = (wrapperW - contentW) / 2;
+                                       const posY = (wrapperH - contentH) / 2;
+                                       api.setTransform(posX, posY, currentScale, 200, 'easeOut');
+                                     } else if (typeof api.centerView === 'function') {
                                        api.centerView(200, 'easeOut');
                                      } else {
-                                       const currentScale = transformState.scale;
                                        api.resetTransform(200, 'easeOut');
-                                       requestAnimationFrame(() => {
-                                         try {
-                                           api.setTransform(0, 0, currentScale, 200, 'easeOut');
-                                         } catch {}
-                                       });
                                      }
                                    } catch {}
                                  }
