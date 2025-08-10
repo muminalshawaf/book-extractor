@@ -62,20 +62,9 @@ interface FullscreenButtonProps {
   className?: string;
 }
 
-export const FullscreenButton: React.FC<FullscreenButtonProps> = ({ rtl = false, className }) => {
-  const { toggleFullscreen } = useFullscreen(rtl);
-  
-  return (
-    <Button
-      variant="ghost"
-      onClick={toggleFullscreen}
-      title={rtl ? "ملء الشاشة (F)" : "Full Screen (F)"}
-      className={cn("bg-background/80 backdrop-blur-sm hover:bg-accent", className)}
-    >
-      <Maximize className="h-4 w-4 mr-2" />
-      {rtl ? "ملء الشاشة" : "Full Screen"}
-    </Button>
-  );
+export const FullscreenButton: React.FC<FullscreenButtonProps> = () => {
+  // Hidden: fullscreen is now controlled via side overlay controls
+  return null;
 };
 
 // Container component for fullscreen display
