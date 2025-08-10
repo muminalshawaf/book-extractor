@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Edit3, Save, X, RefreshCw, Clock, FileText, Copy, Check, Share2, Printer } from "lucide-react";
+import { RefreshCw, Clock, FileText, Copy, Check, Share2, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { renderContent } from "@/lib/mathRenderer";
@@ -32,22 +32,20 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
   pageNumber,
   title,
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedSummary, setEditedSummary] = useState(summary);
   const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentRendered, setContentRendered] = useState(false);
 
   // Render content when summary changes or when streaming/regeneration finishes
   useEffect(() => {
-    if (contentRef.current && summary && !isEditing && !isRegenerating) {
+    if (contentRef.current && summary && !isRegenerating) {
       renderContent(summary, contentRef.current);
       const hasContent = !!contentRef.current.innerHTML && contentRef.current.innerHTML.trim().length > 0;
       setContentRendered(hasContent);
     } else {
       setContentRendered(false);
     }
-  }, [summary, isEditing, isRegenerating]);
+  }, [summary, isRegenerating]);
 
   // Calculate reading metrics
   const wordCount = summary.trim().split(/\s+/).filter(word => word.length > 0).length;
@@ -60,16 +58,6 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
   const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
 
 
-  const handleSave = () => {
-    onSummaryChange(editedSummary);
-    setIsEditing(false);
-    toast.success(rtl ? "تم حفظ الملخص" : "Summary saved");
-  };
-
-  const handleCancel = () => {
-    setEditedSummary(summary);
-    setIsEditing(false);
-  };
 
   const handleCopy = async () => {
     try {
@@ -173,34 +161,26 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
                 </div>
               )}
               <Separator orientation="vertical" className="h-6" />
-              {!isEditing ? (
-                <div className={cn("flex items-center gap-1", rtl && "flex-row-reverse")}> 
-                  <Button variant="ghost" size="icon" onClick={handleCopy} disabled={!summary} title={rtl ? "نسخ الملخص" : "Copy summary"} className="h-8 w-8">{copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}</Button>
-                  <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)} disabled={!summary} title={rtl ? "تحرير الملخص" : "Edit summary"} className="h-8 w-8"><Edit3 className="h-3 w-3" /></Button>
-                  <Button variant="ghost" size="icon" onClick={onRegenerate} disabled={isRegenerating} title={rtl ? "إعادة إنشاء الملخص" : "Regenerate summary"} className="h-8 w-8"><RefreshCw className={cn("h-3 w-3", isRegenerating && "animate-spin")} /></Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" disabled={!summary} title={rtl ? "مشاركة الملخص" : "Share summary"} className="h-8 w-8"><Share2 className="h-3 w-3" /></Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align={rtl ? "start" : "end"} className="z-50 bg-card">
-                      {canSystemShare && (
-                        <DropdownMenuItem onClick={async () => { try { await (navigator as any).share({ title: shareTitle, text: shareSnippet, url: currentUrl }); toast.success(rtl ? "تمت المشاركة" : "Shared"); } catch (e: any) { if (e?.name !== 'AbortError') { toast.error(rtl ? "تعذر المشاركة" : "Share failed"); } } }}>{rtl ? "مشاركة عبر النظام" : "System Share"}</DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareTitle}\n\n${currentUrl}`)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "واتساب" : "WhatsApp"}</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(currentUrl)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "X (تويتر)" : "X (Twitter)"}</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(shareTitle)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "تيليجرام" : "Telegram"}</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "فيسبوك" : "Facebook"}</DropdownMenuItem>
-                      <DropdownMenuItem onClick={async () => { try { await navigator.clipboard.writeText(`${shareTitle}\n\n${summary}\n\n${currentUrl}`); toast.success(rtl ? "تم نسخ النص + الرابط" : "Copied text + link"); } catch { toast.error(rtl ? "فشل النسخ" : "Copy failed"); } }}>{rtl ? "نسخ النص + الرابط" : "Copy text + link"}</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Button variant="ghost" size="icon" onClick={handlePrint} disabled={!summary} title={rtl ? "طباعة الملخص" : "Print summary"} className="h-8 w-8"><Printer className="h-3 w-3" /></Button>
-                </div>
-              ) : (
-                <div className={cn("flex items-center gap-1", rtl && "flex-row-reverse")}> 
-                  <Button variant="ghost" size="icon" onClick={handleSave} title={rtl ? "حفظ" : "Save"} className="h-8 w-8"><Save className="h-3 w-3" /></Button>
-                  <Button variant="ghost" size="icon" onClick={handleCancel} title={rtl ? "إلغاء" : "Cancel"} className="h-8 w-8"><X className="h-3 w-3" /></Button>
-                </div>
-              )}
+              <div className={cn("flex items-center gap-1", rtl && "flex-row-reverse")}> 
+                <Button variant="ghost" size="icon" onClick={handleCopy} disabled={!summary} title={rtl ? "نسخ الملخص" : "Copy summary"} className="h-8 w-8">{copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}</Button>
+                <Button variant="ghost" size="icon" onClick={onRegenerate} disabled={isRegenerating} title={rtl ? "إعادة إنشاء الملخص" : "Regenerate summary"} className="h-8 w-8"><RefreshCw className={cn("h-3 w-3", isRegenerating && "animate-spin")} /></Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" disabled={!summary} title={rtl ? "مشاركة الملخص" : "Share summary"} className="h-8 w-8"><Share2 className="h-3 w-3" /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align={rtl ? "start" : "end"} className="z-50 bg-card">
+                    {canSystemShare && (
+                      <DropdownMenuItem onClick={async () => { try { await (navigator as any).share({ title: shareTitle, text: shareSnippet, url: currentUrl }); toast.success(rtl ? "تمت المشاركة" : "Shared"); } catch (e: any) { if (e?.name !== 'AbortError') { toast.error(rtl ? "تعذر المشاركة" : "Share failed"); } } }}>{rtl ? "مشاركة عبر النظام" : "System Share"}</DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareTitle}\n\n${currentUrl}`)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "واتساب" : "WhatsApp"}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(currentUrl)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "X (تويتر)" : "X (Twitter)"}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(shareTitle)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "تيليجرام" : "Telegram"}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "فيسبوك" : "Facebook"}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={async () => { try { await navigator.clipboard.writeText(`${shareTitle}\n\n${summary}\n\n${currentUrl}`); toast.success(rtl ? "تم نسخ النص + الرابط" : "Copied text + link"); } catch { toast.error(rtl ? "فشل النسخ" : "Copy failed"); } }}>{rtl ? "نسخ النص + الرابط" : "Copy text + link"}</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="ghost" size="icon" onClick={handlePrint} disabled={!summary} title={rtl ? "طباعة الملخص" : "Print summary"} className="h-8 w-8"><Printer className="h-3 w-3" /></Button>
+              </div>
             </div>
 
             {/* Mobile collapsible tools */}
@@ -226,34 +206,24 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
                       </div>
                     )}
                     <div className="flex flex-wrap items-center gap-1">
-                      {!isEditing ? (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={handleCopy} disabled={!summary} className="h-9 w-9">{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}</Button>
-                          <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)} disabled={!summary} className="h-9 w-9"><Edit3 className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={onRegenerate} disabled={isRegenerating} className="h-9 w-9"><RefreshCw className={cn("h-4 w-4", isRegenerating && "animate-spin")} /></Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" disabled={!summary} className="h-9 w-9"><Share2 className="h-4 w-4" /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align={rtl ? "start" : "end"} className="z-50 bg-card">
-                              {canSystemShare && (
-                                <DropdownMenuItem onClick={async () => { try { await (navigator as any).share({ title: shareTitle, text: shareSnippet, url: currentUrl }); toast.success(rtl ? "تمت المشاركة" : "Shared"); } catch (e: any) { if (e?.name !== 'AbortError') { toast.error(rtl ? "تعذر المشاركة" : "Share failed"); } } }}>{rtl ? "مشاركة عبر النظام" : "System Share"}</DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareTitle}\n\n${currentUrl}`)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "واتساب" : "WhatsApp"}</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(currentUrl)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "X (تويتر)" : "X (Twitter)"}</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(shareTitle)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "تيليجرام" : "Telegram"}</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "فيسبوك" : "Facebook"}</DropdownMenuItem>
-                              <DropdownMenuItem onClick={async () => { try { await navigator.clipboard.writeText(`${shareTitle}\n\n${summary}\n\n${currentUrl}`); toast.success(rtl ? "تم نسخ النص + الرابط" : "Copied text + link"); } catch { toast.error(rtl ? "فشل النسخ" : "Copy failed"); } }}>{rtl ? "نسخ النص + الرابط" : "Copy text + link"}</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          <Button variant="ghost" size="icon" onClick={handlePrint} disabled={!summary} className="h-9 w-9"><Printer className="h-4 w-4" /></Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={handleSave} className="h-9 w-9"><Save className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={handleCancel} className="h-9 w-9"><X className="h-4 w-4" /></Button>
-                        </>
-                      )}
+                      <Button variant="ghost" size="icon" onClick={handleCopy} disabled={!summary} className="h-9 w-9">{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}</Button>
+                      <Button variant="ghost" size="icon" onClick={onRegenerate} disabled={isRegenerating} className="h-9 w-9"><RefreshCw className={cn("h-4 w-4", isRegenerating && "animate-spin")} /></Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" disabled={!summary} className="h-9 w-9"><Share2 className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align={rtl ? "start" : "end"} className="z-50 bg-card">
+                          {canSystemShare && (
+                            <DropdownMenuItem onClick={async () => { try { await (navigator as any).share({ title: shareTitle, text: shareSnippet, url: currentUrl }); toast.success(rtl ? "تمت المشاركة" : "Shared"); } catch (e: any) { if (e?.name !== 'AbortError') { toast.error(rtl ? "تعذر المشاركة" : "Share failed"); } } }}>{rtl ? "مشاركة عبر النظام" : "System Share"}</DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareTitle}\n\n${currentUrl}`)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "واتساب" : "WhatsApp"}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(currentUrl)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "X (تويتر)" : "X (Twitter)"}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(shareTitle)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "تيليجرام" : "Telegram"}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`, '_blank', 'noopener,noreferrer')}>{rtl ? "فيسبوك" : "Facebook"}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={async () => { try { await navigator.clipboard.writeText(`${shareTitle}\n\n${summary}\n\n${currentUrl}`); toast.success(rtl ? "تم نسخ النص + الرابط" : "Copied text + link"); } catch { toast.error(rtl ? "فشل النسخ" : "Copy failed"); } }}>{rtl ? "نسخ النص + الرابط" : "Copy text + link"}</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Button variant="ghost" size="icon" onClick={handlePrint} disabled={!summary} className="h-9 w-9"><Printer className="h-4 w-4" /></Button>
                     </div>
                   </div>
                 </CollapsibleContent>
@@ -268,14 +238,6 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
           <div className={cn("text-center text-muted-foreground py-8 font-cairo", rtl && "text-right")}>
             {rtl ? "لا يوجد ملخص متاح لهذه الصفحة" : "No summary available for this page"}
           </div>
-        ) : isEditing ? (
-          <Textarea
-            value={editedSummary}
-            onChange={(e) => setEditedSummary(e.target.value)}
-            placeholder={rtl ? "تحرير الملخص..." : "Edit summary..."}
-            className={cn("min-h-[120px] resize-none font-cairo", rtl && "text-right")}
-            dir={rtl ? "rtl" : "ltr"}
-          />
         ) : (
           isRegenerating ? (
             <div
