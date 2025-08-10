@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, Loader2, ChevronDown, Menu, ZoomIn, ZoomOut, Sparkles } from "lucide-react";
+import { Minus, Plus, Loader2, ChevronDown, Menu, ZoomIn, ZoomOut, Sparkles, Bot } from "lucide-react";
 import { runLocalOcr } from '@/lib/ocr/localOcr';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
@@ -1250,7 +1250,7 @@ useEffect(() => {
                                 </>
                               ) : (
                                 <>
-                                  <Sparkles className={cn("h-4 w-4", rtl ? "ml-2" : "mr-2")} />
+                                  <Bot className={cn("h-4 w-4", rtl ? "ml-2" : "mr-2")} />
                                   <span>قم بتلخيص هذه الصفحة</span>
                                 </>
                               )}
