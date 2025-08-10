@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Minus, Plus, Loader2, ChevronDown, Menu, ZoomIn, ZoomOut, Sparkles } from "lucide-react";
 import { runLocalOcr } from '@/lib/ocr/localOcr';
+import { removeBackgroundFromBlob, captionImageFromBlob } from '@/lib/vision';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
 import { callFunction } from "@/lib/functionsClient";
@@ -427,10 +428,55 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         onProgress: p => setOcrProgress(Math.max(20, Math.min(95, p)))
       });
       setOcrProgress(100);
-      const text = result.text;
-      setOcrQuality(typeof (result as any).confidence === 'number' ? Math.max(0, Math.min(1, ((result as any).confidence as number) / 100)) : undefined);
+      let text = result.text || '';
+      const confPct = typeof (result as any).confidence === 'number' ? ((result as any).confidence as number) : undefined;
+      setOcrQuality(typeof confPct === 'number' ? Math.max(0, Math.min(1, confPct / 100)) : undefined);
       console.log('OCR completed, extracted text length:', text.length);
       console.log('First 200 chars:', text.substring(0, 200));
+
+      // If low confidence/short text, try background removal and a second OCR pass
+      if (((confPct ?? 0) < 55) || text.trim().length < 60) {
+        try {
+          console.log('Attempting background removal + second OCR pass...');
+          const bgRemoved = await removeBackgroundFromBlob(imageBlob);
+          const second = await runLocalOcr(bgRemoved, {
+            lang: rtl ? 'ara+eng' : 'eng',
+            psm: 6,
+            preprocess: {
+              upsample: true,
+              targetMinWidth: 1500,
+              denoise: true,
+              binarize: true,
+              cropMargins: true,
+              deskew: true
+            }
+          });
+          const secondText = (second.text || '').trim();
+          const secondConf = typeof (second as any).confidence === 'number' ? (second as any).confidence as number : undefined;
+          if (secondText.length > text.trim().length || (secondConf ?? 0) > (confPct ?? 0)) {
+            console.log('Second OCR pass improved results.');
+            text = secondText || text;
+            setOcrQuality(typeof secondConf === 'number' ? Math.max(0, Math.min(1, secondConf / 100)) : undefined);
+          }
+        } catch (e) {
+          console.warn('Background removal OCR fallback failed:', e);
+        }
+      }
+
+      // If still very short, try image captioning to assist summarization
+      let caption = '';
+      if (text.trim().length < 60) {
+        try {
+          caption = await captionImageFromBlob(imageBlob);
+          if (caption) {
+            const note = rtl ? `\n\n[وصف الصورة]: ${caption}` : `\n\n[Image description]: ${caption}`;
+            text += note;
+          }
+        } catch (e) {
+          console.warn('Captioning failed:', e);
+        }
+      }
+
       if (!text.trim()) {
         throw new Error(rtl ? "لم يتم العثور على نص في الصورة" : "No text found in image");
       }
