@@ -1257,7 +1257,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     setZoomMode("custom");
                   }} disabled={!isMobile || readerMode === 'continuous'} className="relative">
                         {readerMode === 'page' ? <div ref={containerRef} className={cn("relative w-full border rounded-lg mb-4 overflow-hidden", panningEnabled ? isPanning ? "cursor-grabbing" : "cursor-grab" : "cursor-default", isMobile && "book-viewer-mobile")} style={{
-                      maxHeight: '78vh'
+                      maxHeight: '85vh'
                     }} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
                             <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} centerZoomedOut limitToBounds panning={{
                         disabled: !panningEnabled
@@ -1282,7 +1282,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         setZoomMode("custom");
                         setZoom(scale);
                       }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => setIsPanning(false)}>
-                              <TransformComponent wrapperClass="w-full h-[78vh]" contentClass="flex items-start justify-center py-2">
+                              <TransformComponent wrapperClass="w-full h-[85vh]" contentClass="flex items-start justify-center py-2">
                                 <img src={pages[index]?.src} alt={pages[index]?.alt} loading="eager" decoding="async" draggable={false} onLoadStart={() => setImageLoading(true)} onLoad={e => {
                             setImageLoading(false);
                             const imgEl = e.currentTarget;
@@ -1308,7 +1308,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                               {rtl ? `صفحة ${index + 1} من ${total}` : `Page ${index + 1} of ${total}`}
                             </div>
                           </div> : <div className="relative w-full overflow-hidden border rounded-lg mb-4" style={{
-                      maxHeight: '70vh'
+                      maxHeight: '85vh'
                     }}>
                             <ContinuousReader ref={continuousRef} pages={pages} index={index} onIndexChange={setIndex} zoom={zoom} rtl={rtl} onScrollerReady={el => {
                         containerRef.current = el as HTMLDivElement;
