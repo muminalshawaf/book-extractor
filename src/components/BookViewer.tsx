@@ -156,7 +156,15 @@ const [summary, setSummary] = useState("");
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number }>({ width: 800, height: 1100 });
   const [readerMode, setReaderMode] = useState<'page' | 'continuous'>("page");
   const continuousRef = useRef<ContinuousReaderRef | null>(null);
-  
+  const lastNonCustomModeRef = useRef<ZoomMode>('fit-height');
+  const shouldAutoFitRef = useRef(false);
+  useEffect(() => {
+    if (zoomMode !== 'custom') lastNonCustomModeRef.current = zoomMode;
+  }, [zoomMode]);
+  useEffect(() => {
+    // When changing page, if we are in an auto mode, re-apply fit on image load
+    if (zoomMode !== 'custom') shouldAutoFitRef.current = true;
+  }, [index, zoomMode]);
   // Image preloading
   const { getPreloadStatus } = useImagePreloader(pages, index);
   
@@ -1006,8 +1014,16 @@ useEffect(() => {
                             if (containerRef.current) {
                               setContainerDimensions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
                             }
-                            if (zoomMode !== 'custom') {
-                              fitToHeight(imgEl.naturalHeight);
+                            if (shouldAutoFitRef.current) {
+                              const mode = lastNonCustomModeRef.current;
+                              if (mode === 'fit-width') {
+                                fitToWidth(imgEl.naturalWidth);
+                              } else if (mode === 'actual-size') {
+                                actualSize();
+                              } else {
+                                fitToHeight(imgEl.naturalHeight);
+                              }
+                              shouldAutoFitRef.current = false;
                             }
                           }}
                           onError={onImgError}
@@ -1255,8 +1271,16 @@ useEffect(() => {
                                     if (containerRef.current) {
                                       setContainerDimensions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
                                     }
-                                    if (zoomMode !== 'custom') {
-                                      fitToHeight(imgEl.naturalHeight);
+                                    if (shouldAutoFitRef.current) {
+                                      const mode = lastNonCustomModeRef.current;
+                                      if (mode === 'fit-width') {
+                                        fitToWidth(imgEl.naturalWidth);
+                                      } else if (mode === 'actual-size') {
+                                        actualSize();
+                                      } else {
+                                        fitToHeight(imgEl.naturalHeight);
+                                      }
+                                      shouldAutoFitRef.current = false;
                                     }
                                   }}
                                   onError={onImgError}
