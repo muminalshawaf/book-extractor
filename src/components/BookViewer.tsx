@@ -1042,27 +1042,6 @@ useEffect(() => {
                 {/* Page Area with Fullscreen */}
                 <FullscreenMode rtl={rtl}>
                   <Card className="shadow-sm animate-fade-in">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="sr-only" itemProp="name">{title}</CardTitle>
-                        <div className="flex items-center gap-2">
-                          <AccessibilityPanel 
-                            isOpen={accessibilityPanelOpen}
-                            onToggle={() => setAccessibilityPanelOpen(!accessibilityPanelOpen)}
-                            rtl={rtl}
-                          />
-                          <PerformanceMonitor 
-                            isOpen={performanceMonitorOpen}
-                            onToggle={() => setPerformanceMonitorOpen(!performanceMonitorOpen)}
-                            rtl={rtl}
-                          />
-                          <KeyboardShortcuts rtl={rtl} />
-                          <div className="text-sm text-muted-foreground select-none">
-                            {L.progress(index + 1, total, progressPct)}
-                          </div>
-                        </div>
-                      </div>
-                    </CardHeader>
                     <CardContent>
                       <TouchGestureHandler
                         onSwipeLeft={rtl ? goPrev : goNext}
