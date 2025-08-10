@@ -1218,12 +1218,21 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
                             if (el && imgW > 0 && imgH > 0) {
                               const padding = 32;
-                              const availW = Math.max(0, el.clientWidth - padding);
-                              const availH = Math.max(0, el.clientHeight - padding);
-                              const scaleFit = Math.min(Z.max, Math.max(Z.min, Math.min(availW / imgW, availH / imgH)));
-                              // First set the desired scale, then ask library to center
-                              api.setTransform(0, 0, scaleFit, 0);
-                              api.centerView(200, 'easeOut');
+                              const wrapperW = el.clientWidth;
+                              const wrapperH = el.clientHeight;
+                              const imgEl = el.querySelector('img') as HTMLImageElement | null;
+                              const baseW = imgEl?.clientWidth || imgW;
+                              const baseH = imgEl?.clientHeight || imgH;
+
+                              const scaleFit = Math.min(
+                                Z.max,
+                                Math.max(Z.min, Math.min((wrapperW - padding) / baseW, (wrapperH - padding) / baseH))
+                              );
+                              const contentW = baseW * scaleFit;
+                              const contentH = baseH * scaleFit;
+                              const posX = (wrapperW - contentW) / 2;
+                              const posY = (wrapperH - contentH) / 2;
+                              api.setTransform(posX, posY, scaleFit, 220, 'easeOut');
                             } else if (typeof api.centerView === 'function') {
                               api.centerView(200, 'easeOut');
                             } else {
@@ -1422,12 +1431,21 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
                                      if (el && imgW > 0 && imgH > 0) {
                                        const padding = 32;
-                                       const availW = Math.max(0, el.clientWidth - padding);
-                                       const availH = Math.max(0, el.clientHeight - padding);
-                                       const scaleFit = Math.min(Z.max, Math.max(Z.min, Math.min(availW / imgW, availH / imgH)));
-                                       // First set the desired scale, then center using library helper
-                                       api.setTransform(0, 0, scaleFit, 0);
-                                       api.centerView(200, 'easeOut');
+                                       const wrapperW = el.clientWidth;
+                                       const wrapperH = el.clientHeight;
+                                       const imgEl = el.querySelector('img') as HTMLImageElement | null;
+                                       const baseW = imgEl?.clientWidth || imgW;
+                                       const baseH = imgEl?.clientHeight || imgH;
+
+                                       const scaleFit = Math.min(
+                                         Z.max,
+                                         Math.max(Z.min, Math.min((wrapperW - padding) / baseW, (wrapperH - padding) / baseH))
+                                       );
+                                       const contentW = baseW * scaleFit;
+                                       const contentH = baseH * scaleFit;
+                                       const posX = (wrapperW - contentW) / 2;
+                                       const posY = (wrapperH - contentH) / 2;
+                                       api.setTransform(posX, posY, scaleFit, 220, 'easeOut');
                                      } else if (typeof api.centerView === 'function') {
                                        api.centerView(200, 'easeOut');
                                      } else {
