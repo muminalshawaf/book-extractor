@@ -7,7 +7,7 @@ export type PreprocessOptions = {
   denoise?: boolean; // 3x3 median filter
   binarize?: boolean; // Otsu thresholding to black/white
   cropMargins?: boolean; // auto-trim white margins
-  deskew?: boolean; // placeholder hook (no-op for now to keep it lightweight)
+  deskew?: boolean; // enable simple small-angle deskew
 };
 
 const defaultOptions: Required<PreprocessOptions> = {
@@ -147,6 +147,53 @@ function cropWhiteMargins(canvas: HTMLCanvasElement) {
   return c2;
 }
 
+function rotateCanvas(src: HTMLCanvasElement, angleDeg: number) {
+  const angle = (angleDeg * Math.PI) / 180;
+  const w = src.width, h = src.height;
+  const cos = Math.abs(Math.cos(angle)), sin = Math.abs(Math.sin(angle));
+  const nw = Math.round(w * cos + h * sin);
+  const nh = Math.round(w * sin + h * cos);
+  const { canvas, ctx } = createCanvas(nw, nh);
+  ctx.translate(nw / 2, nh / 2);
+  ctx.rotate(angle);
+  ctx.drawImage(src, -w / 2, -h / 2);
+  return canvas;
+}
+
+function horizontalProjectionScore(canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  const { width, height } = canvas;
+  const img = ctx.getImageData(0, 0, width, height);
+  const d = img.data;
+  let score = 0;
+  for (let y = 0; y < height; y++) {
+    let transitions = 0;
+    let prev = d[y * width * 4] > 127 ? 255 : 0;
+    for (let x = 1; x < width; x++) {
+      const v = d[(y * width + x) * 4] > 127 ? 255 : 0;
+      if (v !== prev) transitions++;
+      prev = v;
+    }
+    score += transitions * transitions;
+  }
+  return score / Math.max(1, height);
+}
+
+function deskewSmallAngles(canvas: HTMLCanvasElement) {
+  let best = canvas;
+  let bestScore = horizontalProjectionScore(canvas);
+  for (let a = -3; a <= 3; a += 0.5) {
+    if (a === 0) continue;
+    const rotated = rotateCanvas(canvas, a);
+    const s = horizontalProjectionScore(rotated);
+    if (s > bestScore) {
+      bestScore = s;
+      best = rotated;
+    }
+  }
+  return best;
+}
+
 export async function preprocessImageBlob(blob: Blob, options?: PreprocessOptions): Promise<Blob> {
   const opt = { ...defaultOptions, ...(options || {}) };
   const img = await blobToImage(blob);
@@ -177,10 +224,9 @@ export async function preprocessImageBlob(blob: Blob, options?: PreprocessOption
   let processedCanvas = canvas;
   if (opt.cropMargins) processedCanvas = cropWhiteMargins(canvas);
 
-  // Step 7: deskew (placeholder no-op to keep light)
-  // In a future iteration, we can try small-angle scans to maximize horizontal projection variance.
+  // Step 7: deskew
   if (opt.deskew) {
-    // no-op for now
+    processedCanvas = deskewSmallAngles(processedCanvas);
   }
 
   return await new Promise<Blob>((resolve, reject) => {

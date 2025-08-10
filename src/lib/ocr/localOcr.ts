@@ -15,7 +15,7 @@ export type LocalOcrResult = {
 
 export async function runLocalOcr(input: string | Blob, options?: LocalOcrOptions): Promise<LocalOcrResult> {
   const lang = options?.lang || 'eng';
-  const psm = options?.psm ?? 6; // Assume a single uniform block of text
+  const primaryPsm = options?.psm ?? 6; // default: uniform block of text
   const onProgress = options?.onProgress;
 
   let image: string | Blob = input;
@@ -44,14 +44,35 @@ export async function runLocalOcr(input: string | Blob, options?: LocalOcrOption
     },
   });
 
-  try {
-    // Recognize with inline parameters to avoid strict PSM typing
+  async function recognizeWith(psm: number | string) {
     const { data } = await worker.recognize(image, {
       tessedit_pageseg_mode: String(psm),
       preserve_interword_spaces: '1',
       user_defined_dpi: '300',
       tessjs_create_pdf: '0',
     } as any);
+    return data as any;
+  }
+
+  try {
+    // First pass with provided/default PSM
+    let data: any = await recognizeWith(primaryPsm);
+
+    // If confidence is low or text too short, try a fallback PSM suited for sparse text (11)
+    const conf = Number((data as any).confidence ?? 0);
+    const textLen = (data?.text || '').trim().length;
+    if ((conf && conf < 55) || textLen < 40) {
+      try {
+        const alt = await recognizeWith(11);
+        const altConf = Number((alt as any).confidence ?? 0);
+        if ((altConf > conf) || ((alt?.text || '').trim().length > textLen)) {
+          data = alt;
+        }
+      } catch (e) {
+        // ignore fallback errors
+      }
+    }
+
     onProgress?.(100);
     return { text: data.text || '', confidence: (data as any).confidence };
   } finally {

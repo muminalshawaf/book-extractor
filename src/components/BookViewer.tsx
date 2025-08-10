@@ -418,10 +418,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         psm: 6,
         preprocess: {
           upsample: true,
-          targetMinWidth: 1400,
+          targetMinWidth: 1500,
           denoise: true,
           binarize: true,
-          cropMargins: true
+          cropMargins: true,
+          deskew: true
         },
         onProgress: p => setOcrProgress(Math.max(20, Math.min(95, p)))
       });
