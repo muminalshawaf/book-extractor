@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, StopCircle, RotateCcw, Trash2, Menu } from "lucide-react";
+import { Loader2, StopCircle, RotateCcw, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { callFunction } from "@/lib/functionsClient";
 import MessageList from "./chat/MessageList";
 import Composer from "./chat/Composer";
 import { Input } from "@/components/ui/input";
 import LatexModal from "./chat/LatexModal";
-import TutorDrawer from "./chat/TutorDrawer";
+import TutorSidebar from "./chat/TutorSidebar";
 
 interface QAChatProps {
   summary: string;
@@ -39,8 +39,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
   const [selectionText, setSelectionText] = useState("");
   const [askVal, setAskVal] = useState("");
 
-  // Drawer (sidebar) state + suggestions
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Sidebar suggestions
   const suggestions = useMemo(() => (
     rtl
       ? [ { title: "اشرح مفهوم النظرية النسبية", query: "اشرح مفهوم النظرية النسبية لأينشتاين" } ]
@@ -279,11 +278,8 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
 
   return (
     <Card className="mt-4 bg-transparent border-0 shadow-none">
-      <CardHeader className={cn("flex flex-row items-center justify-between", rtl && "flex-row-reverse")}> 
+      <CardHeader>
         <CardTitle className="text-base">{rtl ? "المدرس الإفتراضي" : "AI Tutor"}</CardTitle>
-        <Button variant="ghost" size="icon" onClick={() => setDrawerOpen(true)} aria-label={rtl ? "القائمة" : "Menu"}>
-          <Menu className="h-5 w-5" />
-        </Button>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
@@ -361,9 +357,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
           )}
         </div>
       </CardContent>
-      <TutorDrawer
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
+      <TutorSidebar
         rtl={rtl}
         onNewChat={() => { setMessages([]); setQ(""); }}
         suggestions={suggestions}
