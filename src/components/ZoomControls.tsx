@@ -1,8 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Minus, Plus, Maximize2, Monitor, Move, Percent } from "lucide-react";
+import { Plus, Minus, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ZoomMode = "fit-width" | "fit-height" | "actual-size" | "custom";
@@ -22,25 +20,58 @@ interface ZoomControlsProps {
   showMiniMap?: boolean;
   onToggleMiniMap?: () => void;
   iconsOnly?: boolean;
+  onCenter?: () => void;
+  side?: "left" | "right";
+  className?: string;
 }
 
 export const ZoomControls: React.FC<ZoomControlsProps> = ({
-  zoom,
-  minZoom,
-  maxZoom,
-  zoomStep,
-  mode,
   onZoomIn,
   onZoomOut,
-  onFitWidth,
-  onFitHeight,
-  onActualSize,
+  onCenter,
   rtl = false,
-  showMiniMap = false,
-  onToggleMiniMap,
-  iconsOnly = false,
+  side = "right",
+  className,
 }) => {
-  
-
-  return null;
+  return (
+    <div
+      className={cn(
+        "pointer-events-none absolute top-1/2 -translate-y-1/2",
+        side === "left" ? "left-2 md:left-3" : "right-2 md:right-3",
+        "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+        className
+      )}
+      aria-label={rtl ? "عناصر تحكم التكبير" : "Zoom controls"}
+    >
+      <div className="flex flex-col gap-2">
+        <Button
+          size="icon"
+          variant="secondary"
+          className="pointer-events-auto shadow-sm"
+          onClick={onZoomIn}
+          aria-label={rtl ? "تكبير" : "Zoom in"}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="secondary"
+          className="pointer-events-auto shadow-sm"
+          onClick={onCenter}
+          aria-label={rtl ? "توسيط" : "Center"}
+        >
+          <Maximize2 className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="secondary"
+          className="pointer-events-auto shadow-sm"
+          onClick={onZoomOut}
+          aria-label={rtl ? "تصغير" : "Zoom out"}
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 };

@@ -1153,7 +1153,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 }}
                   disabled={!isMobile || readerMode === 'continuous'}
                   className="relative">
-                  <div ref={containerRef} className={cn("relative w-full overflow-hidden", !isMobile && "border rounded-lg mb-4", isPanning ? "cursor-grabbing" : "cursor-grab", isMobile && "book-viewer-mobile")} style={{}} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
+                  <div ref={containerRef} className={cn("relative group w-full overflow-hidden", !isMobile && "border rounded-lg mb-4", isPanning ? "cursor-grabbing" : "cursor-grab", isMobile && "book-viewer-mobile")} style={{}} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
                     <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} limitToBounds={false} panning={{
                   disabled: false
                 }} wheel={{
@@ -1194,6 +1194,33 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     }} onError={() => setImageLoading(false)} className="select-none max-w-full max-h-full object-contain will-change-transform" itemProp="image" aria-describedby={`page-${index}-description`} />
                       </TransformComponent>
                     </TransformWrapper>
+
+                    <ZoomControls
+                      zoom={transformState.scale}
+                      minZoom={Z.min}
+                      maxZoom={Z.max}
+                      zoomStep={Z.step}
+                      mode={zoomMode}
+                      onZoomIn={zoomIn}
+                      onZoomOut={zoomOut}
+                      onFitWidth={fitToWidth}
+                      onFitHeight={fitToHeight}
+                      onActualSize={actualSize}
+                      rtl={rtl}
+                      iconsOnly
+                      onCenter={() => {
+                        const api = zoomApiRef.current as any;
+                        if (readerMode === 'page' && api) {
+                          try {
+                            if (typeof api.centerView === 'function') {
+                              api.centerView(200, 'easeOut');
+                            } else {
+                              api.setTransform(0, 0, transformState.scale, 200, 'easeOut');
+                            }
+                          } catch {}
+                        }
+                      }}
+                    />
 
                     <MobileControlsOverlay progressText={L.progress(index + 1, total, progressPct)} rtl={rtl} onToggleThumbnails={() => setThumbnailsOpen(!thumbnailsOpen)} onOpenInsights={() => insightsRef.current?.scrollIntoView({
                   behavior: 'smooth',
@@ -1316,7 +1343,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     setZoom(newZoom);
                     setZoomMode("custom");
                   }} disabled={!isMobile || readerMode === 'continuous'} className="relative">
-                        {readerMode === 'page' ? <div ref={containerRef} className={cn("relative w-full border rounded-lg mb-1 overflow-hidden max-h-[85vh] md:max-h-[78vh] lg:max-h-[85vh]", isPanning ? "cursor-grabbing" : "cursor-grab", isMobile && "book-viewer-mobile")} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
+                        {readerMode === 'page' ? <div ref={containerRef} className={cn("relative group w-full border rounded-lg mb-1 overflow-hidden max-h-[85vh] md:max-h-[78vh] lg:max-h-[85vh]", isPanning ? "cursor-grabbing" : "cursor-grab", isMobile && "book-viewer-mobile")} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
                             <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} limitToBounds={false} panning={{
                         disabled: false
                       }} wheel={{
@@ -1356,9 +1383,36 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                             }
                           }} onError={() => setImageLoading(false)} className="select-none max-w-full max-h-full object-contain will-change-transform" itemProp="image" aria-describedby={`page-${index}-description`} />
                               </TransformComponent>
-                            </TransformWrapper>
+                             </TransformWrapper>
 
-                            {imageLoading && <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+                             <ZoomControls
+                               zoom={transformState.scale}
+                               minZoom={Z.min}
+                               maxZoom={Z.max}
+                               zoomStep={Z.step}
+                               mode={zoomMode}
+                               onZoomIn={zoomIn}
+                               onZoomOut={zoomOut}
+                               onFitWidth={fitToWidth}
+                               onFitHeight={fitToHeight}
+                               onActualSize={actualSize}
+                               rtl={rtl}
+                               iconsOnly
+                               onCenter={() => {
+                                 const api = zoomApiRef.current as any;
+                                 if (readerMode === 'page' && api) {
+                                   try {
+                                     if (typeof api.centerView === 'function') {
+                                       api.centerView(200, 'easeOut');
+                                     } else {
+                                       api.setTransform(0, 0, transformState.scale, 200, 'easeOut');
+                                     }
+                                   } catch {}
+                                 }
+                               }}
+                             />
+
+                             {imageLoading && <div className="absolute inset-0 flex items-center justify-center bg-background/80">
                                 <LoadingProgress type="image" progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} rtl={rtl} />
                               </div>}
 
@@ -1392,13 +1446,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                             <Button type="submit" variant="outline" size="sm">{rtl ? "اذهب" : "Go"}</Button>
                           </form>
                           <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} aria-label={rtl ? "إجراءات" : "Actions"}>
-                            <Button size="icon" variant="outline" onClick={zoomOut} aria-label={rtl ? "تصغير" : "Zoom out"} className="h-9 w-9">
-                              <ZoomOut className="h-4 w-4" />
-                            </Button>
-                            <Button size="icon" variant="outline" onClick={zoomIn} aria-label={rtl ? "تكبير" : "Zoom in"} className="h-9 w-9">
-                              <ZoomIn className="h-4 w-4" />
-                            </Button>
-                             <FullscreenButton rtl={rtl} />
+                            <FullscreenButton rtl={rtl} />
                           </div>
                         </div>
                         <Button onClick={goNext} variant="default" disabled={index === total - 1} aria-label={L.next} className={cn("justify-self-end", isMobile && "min-h-[44px] min-w-[44px]")}>{rtl ? `← ${L.next}` : L.next + " →"}</Button>
