@@ -523,6 +523,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               chunk = j?.text ?? chunk;
             } catch {}
             accumulated += chunk;
+            // Strip accidental leading "ok" tokens from some models
+            accumulated = accumulated.replace(/^\s*ok[\s,:-]*/i, '');
             const now = globalThis.performance?.now?.() ?? Date.now();
             if (now - lastFlush > 300) {
               flush();
@@ -581,6 +583,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   chunk = j?.text ?? chunk;
                 } catch {}
                 accumulated += chunk;
+                // Strip accidental leading "ok" tokens from some models
+                accumulated = accumulated.replace(/^\s*ok[\s,:-]*/i, '');
                 const now = globalThis.performance?.now?.() ?? Date.now();
                 if (now - lastFlush > 300) {
                   flush();
@@ -628,19 +632,20 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         });
         setSummaryProgress(75);
         if (data?.error) throw new Error(data.error);
-        const s = data?.summary || '';
-        setSummary(s);
+        const raw = data?.summary || '';
+        const clean = raw.replace(/^\s*ok[\s,:-]*/i, '');
+        setSummary(clean);
         setSummaryConfidence(data?.confidence || 0.8);
         setSummaryProgress(100);
         try {
-          localStorage.setItem(sumKey, s);
+          localStorage.setItem(sumKey, clean);
         } catch {}
         try {
           await callFunction('save-page-summary', {
             book_id: dbBookId,
             page_number: index + 1,
             ocr_text: text,
-            summary_md: s
+            summary_md: clean
           });
         } catch (saveErr) {
           console.warn('Failed to save summary to DB:', saveErr);
