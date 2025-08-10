@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Send, StopCircle, Wrench, Upload } from "lucide-react";
+import { Send, StopCircle, Wrench, Upload, BookOpen } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 interface ComposerProps {
@@ -26,6 +26,9 @@ const Composer: React.FC<ComposerProps> = ({ value, onChange, onSend, onStop, di
 
   return (
     <div className={cn("flex items-center gap-3 border rounded-full p-2 bg-background", rtl && "flex-row-reverse")}> 
+      <Button onClick={onOpenLatex} variant="ghost" size="icon" className="rounded-full" aria-label={rtl ? "أدوات" : "Tools"}>
+        <BookOpen className="h-4 w-4" />
+      </Button>
       <Textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}

@@ -359,14 +359,6 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
                 rtl={rtl}
                 onOpenLatex={() => setLatexOpen(true)}
               />
-              
-              {/* Settings/Tools Button */}
-              <div className={cn("flex items-center gap-2 mt-2", rtl && "flex-row-reverse")}>
-                <Button variant="ghost" size="sm" onClick={() => setLatexOpen(true)}>
-                  <BookOpen className="w-4 h-4 mr-2" />
-                  {rtl ? "أدوات" : "Tools"}
-                </Button>
-              </div>
             </div>
             
             <div className="text-center text-xs text-muted-foreground mt-3">
