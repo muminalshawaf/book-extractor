@@ -90,6 +90,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [libGrade, setLibGrade] = useState<number | null>(null);
   const [libSemester, setLibSemester] = useState<number | null>(null);
   const [libSubject, setLibSubject] = useState<string | null>(null);
+  const [topTab, setTopTab] = useState<'library' | 'content'>('library');
   const containerRef = useRef<HTMLDivElement | null>(null);
   const zoomApiRef = useRef<ReactZoomPanPinchRef | null>(null);
   const [transformState, setTransformState] = useState<{
