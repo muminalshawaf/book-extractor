@@ -167,7 +167,7 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
                   </div>
                   {confidence !== undefined && (
                     <Badge variant="secondary" className={getConfidenceColor(confidence)}>
-                      {rtl ? "الثقة" : "Confidence"}: {getConfidenceLabel(confidence)} ({Math.round(confidence * 100)}%)
+                      {rtl ? "ثقة OCR" : "OCR confidence"}: {getConfidenceLabel(confidence)} ({Math.round(confidence * 100)}%)
                     </Badge>
                   )}
                 </div>
@@ -220,7 +220,7 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
                         <div className="flex items-center gap-1"><Clock className="h-3 w-3" /><span>{readingTime} {rtl ? "دقيقة" : "min read"}</span></div>
                         {confidence !== undefined && (
                           <Badge variant="secondary" className={getConfidenceColor(confidence)}>
-                            {rtl ? "الثقة" : "Confidence"}: {getConfidenceLabel(confidence)} ({Math.round(confidence * 100)}%)
+                            {rtl ? "ثقة OCR" : "OCR confidence"}: {getConfidenceLabel(confidence)} ({Math.round(confidence * 100)}%)
                           </Badge>
                         )}
                       </div>

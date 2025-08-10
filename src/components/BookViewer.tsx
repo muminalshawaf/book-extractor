@@ -21,7 +21,7 @@ import { ZoomControls, ZoomMode } from "@/components/ZoomControls";
 import { MiniMap } from "@/components/MiniMap";
 import { useImagePreloader } from "@/hooks/useImagePreloader";
 import { EnhancedSummary } from "@/components/EnhancedSummary";
-import { calculateSummaryConfidence } from "@/lib/confidence";
+
 import { ContentSearch } from "@/components/ContentSearch";
 import { ImprovedErrorHandler } from "@/components/ImprovedErrorHandler";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
@@ -658,18 +658,17 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       try {
         localStorage.setItem(sumKey, accumulated);
       } catch {}
-      // Compute and save confidence to DB
+      // Save OCR confidence to DB
       try {
-        const { score, meta } = calculateSummaryConfidence(text, accumulated, ocrQuality, rtl);
-        setSummaryConfidence(score);
+        setSummaryConfidence(ocrQuality);
         await callFunction('save-page-summary', {
           book_id: dbBookId,
           page_number: index + 1,
           ocr_text: text,
           summary_md: accumulated,
-          confidence: score,
+          confidence: ocrQuality ?? null,
           ocr_confidence: ocrQuality ?? null,
-          confidence_meta: meta
+          confidence_meta: null
         });
       } catch (saveErr) {
         console.warn('Failed to save summary to DB:', saveErr);
@@ -699,16 +698,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           localStorage.setItem(sumKey, clean);
         } catch {}
         try {
-          const { score, meta } = calculateSummaryConfidence(text, clean, ocrQuality, rtl);
-          setSummaryConfidence(score);
+          setSummaryConfidence(ocrQuality);
           await callFunction('save-page-summary', {
             book_id: dbBookId,
             page_number: index + 1,
             ocr_text: text,
             summary_md: clean,
-            confidence: score,
+            confidence: ocrQuality ?? null,
             ocr_confidence: ocrQuality ?? null,
-            confidence_meta: meta
+            confidence_meta: null
           });
         } catch (saveErr) {
           console.warn('Failed to save summary to DB:', saveErr);
@@ -996,17 +994,16 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           if (data?.error) throw new Error(data.error);
           const summaryMd = data?.summary || '';
 
-          // Compute confidence and save to DB via Edge Function
+          // Save OCR confidence only
           const ocrQ = typeof (ocrRes as any).confidence === 'number' ? Math.max(0, Math.min(1, ((ocrRes as any).confidence as number) / 100)) : undefined;
-          const { score, meta } = calculateSummaryConfidence(text, summaryMd, ocrQ, rtl);
           await callFunction('save-page-summary', {
             book_id: bookIdentifier,
             page_number: i + 1,
             ocr_text: text,
             summary_md: summaryMd,
-            confidence: score,
+            confidence: ocrQ ?? null,
             ocr_confidence: ocrQ ?? null,
-            confidence_meta: meta
+            confidence_meta: null
           });
         } catch (pageErr: any) {
           console.warn(`Failed processing page ${i + 1}:`, pageErr);
@@ -1213,7 +1210,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     } else {
                       toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
                     }
-                  }} isRegenerating={summLoading} confidence={summaryConfidence} pageNumber={index + 1} rtl={rtl} title={title} />
+                  }} isRegenerating={summLoading} confidence={ocrQuality ?? summaryConfidence} pageNumber={index + 1} rtl={rtl} title={title} />
                       </div>}
                   </TabsContent>
 
@@ -1477,7 +1474,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                           } else {
                             toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
                           }
-                        }} isRegenerating={summLoading} confidence={summaryConfidence} pageNumber={index + 1} rtl={rtl} title={title} />
+                        }} isRegenerating={summLoading} confidence={ocrQuality ?? summaryConfidence} pageNumber={index + 1} rtl={rtl} title={title} />
                             </div>}
                         </TabsContent>
 
