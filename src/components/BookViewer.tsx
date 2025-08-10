@@ -325,14 +325,34 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     };
   }, [index, dbBookId, ocrKey, sumKey]);
 
-  // Reset state when switching books
+  // Restore last page when switching books
   useEffect(() => {
-    setIndex(0);
+    let startIndex = 0;
+    try {
+      const key = `book:lastPage:${cacheId}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const n = parseInt(saved, 10);
+        if (!Number.isNaN(n)) {
+          const clamped = Math.min(Math.max(1, n), total);
+          startIndex = clamped - 1;
+        }
+      }
+    } catch {}
+    setIndex(startIndex);
     setSummary("");
     setExtractedText("");
     setAllExtractedTexts({});
     setLastError(null);
-  }, [bookId, pages]);
+  }, [cacheId, pages, total]);
+
+  // Persist last page on change
+  useEffect(() => {
+    try {
+      const key = `book:lastPage:${cacheId}`;
+      localStorage.setItem(key, String(index + 1));
+    } catch {}
+  }, [index, cacheId]);
 
   // Enhanced OCR function with better error handling
   const extractTextFromPage = async () => {
