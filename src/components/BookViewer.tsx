@@ -150,7 +150,7 @@ const [summary, setSummary] = useState("");
     setImageLoading(false);
     toast.error(rtl ? "تعذّر تحميل صورة الصفحة" : "Failed to load page image");
   };
-  const [zoomMode, setZoomMode] = useState<ZoomMode>("custom");
+  const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-height");
   const [showMiniMap, setShowMiniMap] = useState(false);
   const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 600 });
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number }>({ width: 800, height: 1100 });
@@ -1004,6 +1004,9 @@ useEffect(() => {
                             if (containerRef.current) {
                               setContainerDimensions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
                             }
+                            if (zoomMode !== 'custom') {
+                              fitToHeight();
+                            }
                           }}
                           onError={onImgError}
                           className="select-none max-w-full max-h-full object-contain will-change-transform"
@@ -1249,6 +1252,9 @@ useEffect(() => {
                                     setNaturalSize({ width: imgEl.naturalWidth, height: imgEl.naturalHeight });
                                     if (containerRef.current) {
                                       setContainerDimensions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
+                                    }
+                                    if (zoomMode !== 'custom') {
+                                      fitToHeight();
                                     }
                                   }}
                                   onError={onImgError}
