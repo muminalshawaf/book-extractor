@@ -11,9 +11,9 @@ import { cn } from "@/lib/utils";
 
 interface ContentHit { book_id: string; page_number: number; summary_md: string | null; ocr_text: string | null; }
 
-interface TopSearchTabsProps { rtl?: boolean }
+interface TopSearchTabsProps { rtl?: boolean; currentBookId: string }
 
-export function TopSearchTabs({ rtl = true }: TopSearchTabsProps) {
+export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps) {
   const navigate = useNavigate();
   const [tab, setTab] = useState<"library" | "content">("library");
   const [q, setQ] = useState("");
@@ -49,30 +49,20 @@ export function TopSearchTabs({ rtl = true }: TopSearchTabsProps) {
       if (term.length < 2) { setContentHits([]); return; }
       setLoading(true);
       try {
-        const allowed = books
-          .filter(b => (
-            (!grade || b.grade === grade) &&
-            (!semester || b.semester === semester) &&
-            (!subject || b.subject === subject)
-          ))
-          .map(b => b.id);
-
-        let query = (supabase as any)
+        const { data, error } = await (supabase as any)
           .from('page_summaries')
-          .select('book_id,page_number,summary_md,ocr_text')
-          .or(`summary_md.ilike.%${term}%,ocr_text.ilike.%${term}%`)
-          .limit(30);
-        if (allowed.length > 0) query = query.in('book_id', allowed);
-        const { data, error } = await query;
-        if (!error) setContentHits((data as ContentHit[]) || []);
-        else setContentHits([]);
+          .select('book_id,page_number,ocr_text')
+          .eq('book_id', currentBookId)
+          .ilike('ocr_text', `%${term}%`)
+          .limit(50);
+        if (!error) setContentHits((data as ContentHit[]) || []); else setContentHits([]);
       } finally {
         setLoading(false);
       }
     };
     t = setTimeout(run, 300);
     return () => clearTimeout(t);
-  }, [q, tab, grade, semester, subject]);
+  }, [q, tab, currentBookId]);
 
   const openBook = (id: string) => navigate(`/book/${id}`);
   const openContent = (h: ContentHit) => {
@@ -170,61 +160,29 @@ export function TopSearchTabs({ rtl = true }: TopSearchTabsProps) {
 
         <TabsContent value="content" className="mt-3">
           <div className="bg-muted/40 rounded-lg p-3 border">
-            <div className="grid gap-3 md:grid-cols-4">
-              <div className="md:col-span-2">
-                <Input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder={rtl ? "ابحث في المحتوى..." : "Search within content..."}
-                  aria-label={rtl ? "بحث في المحتوى" : "Content search"}
-                />
-              </div>
-              <div className={cn("flex items-center gap-2 flex-wrap", rtl && "flex-row-reverse justify-end")}>
-                <span className="text-sm text-muted-foreground">{rtl ? "الصف" : "Grade"}</span>
-                {[10,11,12].map((g) => <GradeChip key={g} value={g} />)}
-              </div>
-              <div className={cn("flex items-center gap-2 flex-wrap", rtl && "flex-row-reverse justify-end")}>
-                <span className="text-sm text-muted-foreground">{rtl ? "الفصل" : "Semester"}</span>
-                {[1,2,3].map((s) => <SemesterChip key={s} value={s} />)}
-              </div>
-              <div>
-                <Select value={subject ?? undefined} onValueChange={(v) => setSubject(v)}>
-                  <SelectTrigger aria-label={rtl ? "المادة" : "Subject"}>
-                    <SelectValue placeholder={rtl ? "كل المواد" : "All subjects"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subjects.map((s) => (
-                      <SelectItem key={s} value={s}>{s === 'Physics' ? 'الفيزياء' : s === 'Chemistry' ? 'الكيمياء' : s === 'Sample' ? 'عينة' : s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid gap-3">
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={rtl ? "ابحث في محتوى هذا الكتاب..." : "Search within this book..."}
+                aria-label={rtl ? "بحث في محتوى الكتاب" : "Content search in current book"}
+              />
             </div>
 
             <div className="mt-3 space-y-2">
               <div className="text-sm text-muted-foreground">{loading ? (rtl ? 'جارٍ البحث...' : 'Searching...') : (rtl ? `عدد النتائج: ${contentHits.length}` : `Results: ${contentHits.length}`)}</div>
               {contentHits.map((h, i) => {
-                const bk = books.find(b => b.id === h.book_id);
-                const preview = (h.summary_md || h.ocr_text || '').replace(/\s+/g, ' ').slice(0, 160);
+                const preview = (h.ocr_text || '').replace(/\s+/g, ' ').slice(0, 160);
                 return (
                   <button
                     key={`${h.book_id}-${h.page_number}-${i}`}
                     type="button"
                     className="w-full text-right px-3 py-3 hover:bg-accent/60 border rounded transition"
                     onClick={() => openContent(h)}
-                    aria-label={rtl ? `فتح صفحة ${h.page_number} في ${bk?.title || h.book_id}` : `Open page ${h.page_number} in ${bk?.title || h.book_id}`}
+                    aria-label={rtl ? `فتح صفحة ${h.page_number}` : `Open page ${h.page_number}`}
                   >
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Badge variant="secondary">{bk?.subject === 'Physics' ? 'الفيزياء' : bk?.subject === 'Chemistry' ? 'الكيمياء' : bk?.subject || '—'}</Badge>
-                      <span>{rtl ? `الصف ${bk?.grade ?? '—'}` : `G ${bk?.grade ?? '—'}`}</span>
-                      <span>{rtl ? `الفصل ${bk?.semester ?? '—'}` : `S ${bk?.semester ?? '—'}`}</span>
-                      <span>{rtl ? `صفحة ${h.page_number}` : `Pg ${h.page_number}`}</span>
-                    </div>
-                    <div className="text-sm mt-1">
-                      <span className="font-medium">{bk?.title || h.book_id}</span>
-                      <span className="mx-2 text-muted-foreground">—</span>
-                      <span className="text-muted-foreground">{preview}...</span>
-                    </div>
+                    <div className="text-xs text-muted-foreground">{rtl ? `صفحة ${h.page_number}` : `Page ${h.page_number}`}</div>
+                    <div className="text-sm mt-1 text-muted-foreground">{preview}...</div>
                   </button>
                 );
               })}

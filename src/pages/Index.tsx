@@ -34,7 +34,7 @@ const Index = () => {
     }} />
       <div className="container mx-auto py-4 px-3 md:py-10">
       <header className="mb-6">
-          <TopSearchTabs rtl={rtl} />
+          <TopSearchTabs rtl={rtl} currentBookId={selectedBook.id} />
         </header>
         
         <main>
