@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookPage } from "@/components/reader/SimpleBookViewer";
+import { BookPage } from "@/components/BookViewer";
 
 interface PreloadState {
   [key: string]: "loading" | "loaded" | "error";
