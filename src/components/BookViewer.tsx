@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, Loader2, ChevronDown, Menu } from "lucide-react";
+import { Minus, Plus, Loader2, ChevronDown, Menu, ZoomIn, ZoomOut } from "lucide-react";
 import { runLocalOcr } from '@/lib/ocr/localOcr';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
@@ -1009,9 +1009,12 @@ useEffect(() => {
                           </CollapsibleTrigger>
                         </div>
                         <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} aria-label={rtl ? "إجراءات" : "Actions"}>
-                          <span className="hidden md:inline text-sm font-medium text-foreground/90 truncate max-w-[45vw] text-right" title={title} itemProp="name">
-                            {title}
-                          </span>
+                          <Button size="icon" variant="outline" onClick={zoomOut} aria-label={rtl ? "تصغير" : "Zoom out"} className="h-9 w-9">
+                            <ZoomOut className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="outline" onClick={zoomIn} aria-label={rtl ? "تكبير" : "Zoom in"} className="h-9 w-9">
+                            <ZoomIn className="h-4 w-4" />
+                          </Button>
                           <FullscreenButton rtl={rtl} />
                         </div>
                       </div>
