@@ -18,8 +18,8 @@ const TutorSidebar: React.FC<TutorSidebarProps> = ({ rtl = false, suggestions, o
 
   const isExpanded = pinned || expanded;
 
-  const sideCls = useMemo(() => (rtl ? "right-2" : "left-2"), [rtl]);
-  const posCls = within ? "absolute z-20 top-2 bottom-2" : "fixed z-40 top-20 bottom-6";
+  const sideCls = useMemo(() => (rtl ? (within ? "right-0" : "right-2") : (within ? "left-0" : "left-2")), [rtl, within]);
+  const posCls = within ? "absolute inset-y-0 z-50" : "fixed z-40 top-20 bottom-6";
 
   const asideRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
