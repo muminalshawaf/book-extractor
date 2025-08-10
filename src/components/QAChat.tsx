@@ -40,7 +40,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
   const [selectionText, setSelectionText] = useState("");
   const [askVal, setAskVal] = useState("");
 
-  // Sidebar suggestions
+  // Dynamic suggestions based on summary
   const [suggestions, setSuggestions] = useState<Array<{ title: string; query: string }>>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
@@ -88,9 +88,6 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
 
     generateSuggestions();
   }, [summary, rtl]);
-      
-      : [ { title: "Explain relativity", query: "Explain Einstein’s theory of relativity" } ]
-  
 
   useEffect(() => {
     const onMouseUp = () => {
