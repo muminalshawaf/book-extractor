@@ -33,13 +33,7 @@ const Index = () => {
     }} />
       <div className="container mx-auto py-4 px-3 md:py-10">
       <header className="mb-8 text-center hidden md:block">
-          <div className="mt-4 flex items-center justify-center">
-            <Link to="/library" className="inline-flex">
-              <button className="inline-flex items-center h-10 px-4 rounded-md border bg-background hover:bg-muted transition text-sm">
-                تصفح المكتبة
-              </button>
-            </Link>
-          </div>
+          
         </header>
         
         <main>
