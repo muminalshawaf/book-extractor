@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, Loader2, ChevronDown } from "lucide-react";
+import { Minus, Plus, Loader2, ChevronDown, Menu } from "lucide-react";
 import { runLocalOcr } from '@/lib/ocr/localOcr';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
@@ -1243,7 +1243,7 @@ useEffect(() => {
           <ResizableHandle withHandle />
 
           {/* RIGHT: Insight Panel */}
-          <ResizablePanel defaultSize={30} minSize={22} className="min-w-[280px]">
+          <ResizablePanel defaultSize={30} minSize={22} className="min-w-[280px] hidden lg:block">
             <Card className="h-full shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
@@ -1283,6 +1283,17 @@ useEffect(() => {
               </CardContent>
             </Card>
           </ResizablePanel>
+          {/* Burger trigger for insights on medium screens */}
+          <div className={cn("hidden md:flex lg:hidden")}> 
+            <Button
+              size="icon"
+              className={cn("fixed top-24 right-3 z-30", rtl && "left-3 right-auto")}
+              onClick={() => setMobileInsightsOpen(true)}
+              aria-label={rtl ? "لوحة الرؤى" : "Insights"}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </div>
         </ResizablePanelGroup>
       )}
     </section>
