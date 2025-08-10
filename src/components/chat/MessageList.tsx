@@ -97,24 +97,25 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
             return (
               <div key={i} className={cn("flex", isAssistant ? (rtl ? "justify-start" : "justify-start") : (rtl ? "justify-start" : "justify-end"))}>
                 <div className={cn(
-                  "relative group/message max-w-[85%] rounded-2xl px-4 py-3 text-sm border shadow-sm animate-fade-in",
-                  isAssistant ? "bg-muted/60 border-border" : "bg-primary/15 border-primary/20"
+                  isAssistant
+                    ? "max-w-[85%] w-full animate-fade-in"
+                    : "max-w-md rounded-2xl p-4 text-[13px] border border-border bg-muted/60 shadow-sm animate-fade-in"
                 )}>
                   {isAssistant ? (
                     isStreaming ? (
-                    <div className="relative min-h-[1.25rem]">
-                      <div ref={streamRef} className="whitespace-pre-wrap text-sm" />
-                      {(!m.content || m.content.length === 0) && (
-                        <div className="absolute inset-0 flex items-center">
-                          <TypingDots rtl={rtl} />
-                        </div>
-                      )}
-                    </div>
+                      <div className="relative min-h-[1.25rem]">
+                        <div ref={streamRef} className="whitespace-pre-wrap text-[13px] leading-relaxed" />
+                        {(!m.content || m.content.length === 0) && (
+                          <div className="absolute inset-0 flex items-center">
+                            <TypingDots rtl={rtl} />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <MathRenderer content={m.content} className="text-[13px] leading-relaxed" />
+                    )
                   ) : (
-                    <MathRenderer content={m.content} className="text-sm" />
-                  )
-                  ) : (
-                    <div className="whitespace-pre-wrap">{m.content}</div>
+                    <div className="whitespace-pre-wrap text-foreground">{m.content}</div>
                   )}
 
                 </div>
