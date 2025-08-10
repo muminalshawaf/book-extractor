@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import BookViewer from "@/components/BookViewer";
 import { books, getBookById } from "@/data/books";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { useNavigate, useParams, Link } from "react-router-dom";
+import TopSearchTabs from "@/components/search/TopSearchTabs";
 const Index = () => {
   const params = useParams();
   const navigate = useNavigate();
@@ -32,8 +33,8 @@ const Index = () => {
       __html: JSON.stringify(jsonLd)
     }} />
       <div className="container mx-auto py-4 px-3 md:py-10">
-      <header className="mb-8 text-center hidden md:block">
-          
+      <header className="mb-6">
+          <TopSearchTabs rtl={rtl} />
         </header>
         
         <main>

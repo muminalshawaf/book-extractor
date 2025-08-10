@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, Loader2, ChevronDown, Menu, ZoomIn, ZoomOut, Sparkles, Search, Filter } from "lucide-react";
+import { Minus, Plus, Loader2, ChevronDown, Menu, ZoomIn, ZoomOut, Sparkles } from "lucide-react";
 import { runLocalOcr } from '@/lib/ocr/localOcr';
 import { removeBackgroundFromBlob, captionImageFromBlob } from '@/lib/vision';
 import QAChat from "@/components/QAChat";
@@ -22,7 +22,7 @@ import { MiniMap } from "@/components/MiniMap";
 import { useImagePreloader } from "@/hooks/useImagePreloader";
 import { EnhancedSummary } from "@/components/EnhancedSummary";
 
-import { ContentSearch } from "@/components/ContentSearch";
+
 import { ImprovedErrorHandler } from "@/components/ImprovedErrorHandler";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { TouchGestureHandler } from "@/components/TouchGestureHandler";
@@ -36,8 +36,8 @@ import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "reac
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
 import { MobileControlsOverlay } from "@/components/reader/MobileControlsOverlay";
-import { books } from "@/data/books";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+
 export type BookPage = {
   src: string;
   alt: string;
@@ -86,11 +86,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const total = pages.length;
   const navigate = useNavigate();
   
-  const [libQ, setLibQ] = useState("");
-  const [libGrade, setLibGrade] = useState<number | null>(null);
-  const [libSemester, setLibSemester] = useState<number | null>(null);
-  const [libSubject, setLibSubject] = useState<string | null>(null);
-  const [topTab, setTopTab] = useState<'library' | 'content'>('library');
   const containerRef = useRef<HTMLDivElement | null>(null);
   const zoomApiRef = useRef<ReactZoomPanPinchRef | null>(null);
   const [transformState, setTransformState] = useState<{
@@ -1218,76 +1213,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             </Card>
           </FullscreenMode>
 
-          {/* Library / Content Search (mobile) */}
-          <div className="px-3">
-            <Tabs dir={rtl ? "rtl" : "ltr"} value={topTab} onValueChange={(v) => setTopTab(v as 'library' | 'content')}>
-              <TabsList className="grid grid-cols-2 w-full">
-                <TabsTrigger value="library">{rtl ? "تصفح المكتبة" : "Library"}</TabsTrigger>
-                <TabsTrigger value="content">{rtl ? "البحث في المحتوى" : "Content Search"}</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="library" className="m-0">
-                <section className="bg-muted/40 rounded-lg p-3 border" dir={rtl ? 'rtl' : 'ltr'}>
-                  <div className="grid gap-3 md:grid-cols-4">
-                    <div className="md:col-span-2">
-                      <div className="relative">
-                        <Search className={cn("absolute top-2.5 h-4 w-4 text-muted-foreground", rtl ? "right-3" : "left-3")} />
-                        <Input value={libQ} onChange={(e) => setLibQ(e.target.value)} placeholder={rtl ? "ابحث عن الكتب..." : "Search books..."} className={cn(rtl ? "pr-10" : "pl-10")} />
-                      </div>
-                    </div>
-                    <div className={cn("flex items-center gap-2 flex-wrap", rtl && "flex-row-reverse justify-end")}> 
-                      <span className="text-sm text-muted-foreground flex items-center gap-1"><Filter className="h-4 w-4" /> {rtl ? "الصف" : "Grade"}</span>
-                      {[10,11,12].map((g) => (
-                        <Button key={g} size="sm" variant={libGrade===g?"default":"outline"} className="rounded-full" onClick={() => setLibGrade(libGrade===g?null:g)}>{g}</Button>
-                      ))}
-                    </div>
-                    <div className={cn("flex items-center gap-2 flex-wrap", rtl && "flex-row-reverse justify-end")}> 
-                      <span className="text-sm text-muted-foreground">{rtl ? "الفصل" : "Semester"}</span>
-                      {[1,2,3].map((s) => (
-                        <Button key={s} size="sm" variant={libSemester===s?"default":"outline"} className="rounded-full" onClick={() => setLibSemester(libSemester===s?null:s)}>{s}</Button>
-                      ))}
-                    </div>
-                    <div>
-                      <Select value={libSubject ?? undefined} onValueChange={(v) => setLibSubject(v)}>
-                        <SelectTrigger aria-label={rtl?"المادة":"Subject"}>
-                          <SelectValue placeholder={rtl?"كل المواد":"All subjects"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from(new Set(books.map(b=>b.subject).filter(Boolean) as string[])).sort().map((s) => (
-                            <SelectItem key={s} value={s}>{s === 'Physics' ? 'الفيزياء' : s === 'Chemistry' ? 'الكيمياء' : s === 'Sample' ? 'عينة' : s}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {books.filter(b => {
-                      if (libGrade && b.grade !== libGrade) return false;
-                      if (libSemester && b.semester !== libSemester) return false;
-                      if (libSubject && b.subject !== libSubject) return false;
-                      if (!libQ.trim()) return true;
-                      const hay = [b.title, b.subject, ...(b.keywords??[])].join(" ").toLowerCase();
-                      return hay.includes(libQ.trim().toLowerCase());
-                    }).map(b => (
-                      <button key={b.id} type="button" onClick={() => { navigate(`/book/${b.id}`); setTopTab('content'); }} className="text-right border rounded-md p-2 hover:bg-accent/60 transition">
-                        <div className="w-full h-28 overflow-hidden rounded mb-2 bg-muted">
-                          <img src={(b.buildPages?.()[0]?.src) || b.cover || "/placeholder.svg"} alt={b.title} loading="lazy" className="w-full h-full object-cover" />
-                        </div>
-                        <div className="text-xs line-clamp-2">{b.title}</div>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              </TabsContent>
-
-              <TabsContent value="content" className="m-0">
-                <div className="-mt-2">
-                  <ContentSearch pages={allExtractedTexts} currentPageIndex={index} onPageChange={setIndex} onHighlight={setSearchHighlight} rtl={rtl} embedded />
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
 
           <div ref={insightsRef} className="px-3 pt-4">
             <Card className="shadow-sm">
@@ -1378,59 +1303,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 {/* Library/Search unified: tabs removed */}
 
                 
-                  <section className="-mt-6 bg-muted/40 rounded-lg p-3 border" dir={rtl ? 'rtl' : 'ltr'}>
-                    <div className="grid gap-3 md:grid-cols-4">
-                      <div className="md:col-span-2">
-                        <div className="relative">
-                          <Search className={cn("absolute top-2.5 h-4 w-4 text-muted-foreground", rtl ? "right-3" : "left-3")} />
-                          <Input value={libQ} onChange={(e) => setLibQ(e.target.value)} placeholder={rtl ? "ابحث عن الكتب..." : "Search books..."} className={cn(rtl ? "pr-10" : "pl-10")} />
-                        </div>
-                      </div>
-                      <div className={cn("flex items-center gap-2 flex-wrap", rtl && "flex-row-reverse justify-end")}> 
-                        <span className="text-sm text-muted-foreground flex items-center gap-1"><Filter className="h-4 w-4" /> {rtl ? "الصف" : "Grade"}</span>
-                        {[10,11,12].map((g) => (
-                          <Button key={g} size="sm" variant={libGrade===g?"default":"outline"} className="rounded-full" onClick={() => setLibGrade(libGrade===g?null:g)}>{g}</Button>
-                        ))}
-                      </div>
-                      <div className={cn("flex items-center gap-2 flex-wrap", rtl && "flex-row-reverse justify-end")}>
-                        <span className="text-sm text-muted-foreground">{rtl ? "الفصل" : "Semester"}</span>
-                        {[1,2,3].map((s) => (
-                          <Button key={s} size="sm" variant={libSemester===s?"default":"outline"} className="rounded-full" onClick={() => setLibSemester(libSemester===s?null:s)}>{s}</Button>
-                        ))}
-                      </div>
-                      <div>
-                        <Select value={libSubject ?? undefined} onValueChange={(v) => setLibSubject(v)}>
-                          <SelectTrigger aria-label={rtl?"المادة":"Subject"}>
-                            <SelectValue placeholder={rtl?"كل المواد":"All subjects"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from(new Set(books.map(b=>b.subject).filter(Boolean) as string[])).sort().map((s) => (
-                              <SelectItem key={s} value={s}>{s === 'Physics' ? 'الفيزياء' : s === 'Chemistry' ? 'الكيمياء' : s === 'Sample' ? 'عينة' : s}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                      {books.filter(b => {
-                        if (libGrade && b.grade !== libGrade) return false;
-                        if (libSemester && b.semester !== libSemester) return false;
-                        if (libSubject && b.subject !== libSubject) return false;
-                        if (!libQ.trim()) return true;
-                        const hay = [b.title, b.subject, ...(b.keywords??[])].join(" ").toLowerCase();
-                        return hay.includes(libQ.trim().toLowerCase());
-                      }).map(b => (
-                        <button key={b.id} type="button" onClick={() => { navigate(`/book/${b.id}`); }} className="text-right border rounded-md p-2 hover:bg-accent/60 transition">
-                          <div className="w-full h-28 overflow-hidden rounded mb-2 bg-muted">
-                            <img src={(b.buildPages?.()[0]?.src) || b.cover || "/placeholder.svg"} alt={b.title} loading="lazy" className="w-full h-full object-cover" />
-                          </div>
-                          <div className="text-xs line-clamp-2">{b.title}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                  <div className="-mt-2"><ContentSearch pages={allExtractedTexts} currentPageIndex={index} onPageChange={setIndex} onHighlight={setSearchHighlight} rtl={rtl} /></div>
 
 
 
