@@ -106,6 +106,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 const cacheId = useMemo(() => (bookId || title), [bookId, title]);
 const ocrKey = useMemo(() => `book:ocr:${cacheId}:${index}`, [cacheId, index]);
 const sumKey = useMemo(() => `book:summary:${cacheId}:${index}`, [cacheId, index]);
+const lastPageKey = useMemo(() => `book:last:${cacheId}`, [cacheId]);
 const dbBookId = useMemo(() => (bookId || title || 'book'), [bookId, title]);
 const [summary, setSummary] = useState("");
   const [summLoading, setSummLoading] = useState(false);
@@ -342,15 +343,28 @@ const [summary, setSummary] = useState("");
     return () => { cancelled = true; };
   }, [index, dbBookId, ocrKey, sumKey]);
 
+// Persist last page index per book
+useEffect(() => {
+  try { localStorage.setItem(lastPageKey, String(index + 1)); } catch {}
+}, [index, lastPageKey]);
+
 
 // Reset state when switching books
 useEffect(() => {
-  setIndex(0);
   setSummary("");
   setExtractedText("");
   setAllExtractedTexts({});
   setLastError(null);
-}, [bookId, pages]);
+  // Restore last viewed page for this book
+  try {
+    const saved = localStorage.getItem(lastPageKey);
+    const pageNum = saved ? parseInt(saved, 10) : 1;
+    const clamped = Number.isFinite(pageNum) ? Math.min(Math.max(1, pageNum), total) : 1;
+    setIndex(clamped - 1);
+  } catch {
+    setIndex(0);
+  }
+}, [bookId, pages, lastPageKey, total]);
 
 // Enhanced OCR function with better error handling
   const extractTextFromPage = async () => {
