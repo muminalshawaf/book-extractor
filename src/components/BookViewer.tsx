@@ -796,7 +796,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   };
 
   // Helper: stream pre-saved summary to UI as if AI is responding
-  const simulateStreaming = async (full: string) => {
+  const simulateStreaming = async (full: string, opts?: { cps?: number }) => {
     setSummary("");
     setSummLoading(true);
     setSummaryProgress(0);
@@ -806,7 +806,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
     const totalLen = fullText.length;
     // Target natural typing speed (chars per second)
-    const cps = rtl ? 30 : 38; // Faster streaming: Arabic 30 cps, English 38 cps
+    const baseCps = rtl ? 30 : 38;
+    const cps = typeof opts?.cps === 'number' ? opts.cps : baseCps;
     const tickMs = 50; // update cadence
     const perTick = Math.max(1, Math.round((cps * tickMs) / 1000));
 
@@ -860,7 +861,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             localStorage.setItem(ocrKey, storedOcr);
           } catch {}
         }
-        await simulateStreaming(storedSummary);
+        await simulateStreaming(storedSummary, { cps: rtl ? 60 : 68 });
         toast.message(rtl ? 'تم استرجاع ملخص محفوظ' : 'Loaded saved summary');
         return;
       }
