@@ -47,7 +47,7 @@ export function MobileReaderChrome({
               </Button>
             </div>
             <div className="flex-1 text-center truncate">
-              <div className="text-base font-medium truncate" itemProp="name">{title}</div>
+              <div className="text-sm md:text-base font-medium truncate" itemProp="name">{title}</div>
               <div className="text-xs text-muted-foreground mt-0.5 select-none">{progressText}</div>
             </div>
             <div className="flex items-center gap-2">
@@ -61,22 +61,22 @@ export function MobileReaderChrome({
       <div className="fixed bottom-0 inset-x-0 z-30 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/75 border-t pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto max-w-screen-md px-3 py-2">
           <div className={cn("grid grid-cols-5 items-center gap-2", rtl && "direction-rtl")}> 
-            <Button variant="secondary" className="h-12" onClick={onPrev} disabled={!canPrev} aria-label={rtl ? "السابق" : "Previous"}>
+            <Button variant="secondary" className="h-10 md:h-12" onClick={onPrev} disabled={!canPrev} aria-label={rtl ? "السابق" : "Previous"}>
               <PrevIcon className="h-5 w-5" />
             </Button>
-            <Button variant="secondary" className="h-12" onClick={onZoomOut} aria-label={rtl ? "تصغير" : "Zoom out"}>
+            <Button variant="secondary" className="h-10 md:h-12" onClick={onZoomOut} aria-label={rtl ? "تصغير" : "Zoom out"}>
               <ZoomOut className="h-5 w-5" />
             </Button>
 
-            <Button className="h-12" onClick={onOpenInsights} aria-label={rtl ? "لوحة الرؤى" : "Insights"}>
+            <Button className="h-10 md:h-12" onClick={onOpenInsights} aria-label={rtl ? "لوحة الرؤى" : "Insights"}>
               <Sparkles className="h-5 w-5 mr-2" />
               <span className="text-sm">{rtl ? "الرؤى" : "Insights"}</span>
             </Button>
 
-            <Button variant="secondary" className="h-12" onClick={onZoomIn} aria-label={rtl ? "تكبير" : "Zoom in"}>
+            <Button variant="secondary" className="h-10 md:h-12" onClick={onZoomIn} aria-label={rtl ? "تكبير" : "Zoom in"}>
               <ZoomIn className="h-5 w-5" />
             </Button>
-            <Button variant="secondary" className="h-12" onClick={onNext} disabled={!canNext} aria-label={rtl ? "التالي" : "Next"}>
+            <Button variant="secondary" className="h-10 md:h-12" onClick={onNext} disabled={!canNext} aria-label={rtl ? "التالي" : "Next"}>
               <NextIcon className="h-5 w-5" />
             </Button>
           </div>

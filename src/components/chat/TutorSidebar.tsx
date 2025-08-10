@@ -35,10 +35,10 @@ const TutorSidebar: React.FC<TutorSidebarProps> = ({ rtl = false, suggestions, o
           onClick={() => setIsExpanded(!isExpanded)}
           className="text-muted-foreground hover:text-foreground"
         >
-          <Menu className="h-6 w-6" />
+          <Menu className="h-5 w-5 md:h-6 md:w-6" />
         </Button>
         {shouldShow && (
-          <span className="text-lg font-semibold text-foreground">
+          <span className="text-sm md:text-base lg:text-lg font-semibold text-foreground">
             {rtl ? "القائمة" : "Menu"}
           </span>
         )}
@@ -61,7 +61,7 @@ const TutorSidebar: React.FC<TutorSidebarProps> = ({ rtl = false, suggestions, o
               !shouldShow && "justify-center px-0"
             )}
           >
-            <Plus className="h-6 w-6 flex-shrink-0" />
+            <Plus className="h-5 w-5 md:h-6 md:w-6 flex-shrink-0" />
             {shouldShow && (
               <span className={cn("text-sm", rtl && "mr-2")}>
                 {rtl ? "محادثة جديدة" : "New Chat"}

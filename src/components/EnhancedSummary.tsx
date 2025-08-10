@@ -134,7 +134,7 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
     <Card className="shadow-sm">
       <CardHeader>
         <div className={cn("flex items-center justify-between", rtl && "flex-row-reverse")}>
-          <CardTitle className={cn("text-lg flex items-center gap-2 font-cairo", rtl && "flex-row-reverse")}>
+          <CardTitle className={cn("text-sm md:text-base lg:text-lg flex items-center gap-2 font-cairo", rtl && "flex-row-reverse")}>
             <FileText className="h-5 w-5" />
             {rtl ? `ملخص الصفحة ${pageNumber}` : `Page ${pageNumber} Summary`}
           </CardTitle>

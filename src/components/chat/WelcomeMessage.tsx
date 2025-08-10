@@ -8,9 +8,9 @@ interface WelcomeMessageProps {
 const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ rtl = false }) => {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center">
-      <div className="w-20 h-20 mb-6 bg-muted rounded-full flex items-center justify-center">
+      <div className="w-16 h-16 md:w-20 md:h-20 mb-6 bg-muted rounded-full flex items-center justify-center">
         <svg 
-          className="w-10 h-10 text-muted-foreground" 
+          className="w-9 h-9 md:w-10 md:h-10 text-muted-foreground" 
           fill="none" 
           stroke="currentColor" 
           viewBox="0 0 24 24"
@@ -23,10 +23,10 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ rtl = false }) => {
           />
         </svg>
       </div>
-      <h2 className="text-2xl font-semibold mb-4 text-primary">
+      <h2 className="text-xl md:text-2xl font-semibold mb-4 text-primary">
         {rtl ? "مرحباً!" : "Hello!"}
       </h2>
-      <p className="text-lg text-muted-foreground max-w-md">
+      <p className="text-base md:text-lg text-muted-foreground max-w-md">
         {rtl ? "كيف يمكنني مساعدتك اليوم؟" : "How can I help you today?"}
       </p>
     </div>

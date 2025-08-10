@@ -1132,7 +1132,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             <Card className="shadow-none border-none bg-transparent animate-fade-in">
               <CardHeader className="sr-only">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg" itemProp="name">{title}</CardTitle>
+                  <CardTitle className="text-sm md:text-base lg:text-lg" itemProp="name">{title}</CardTitle>
                   <div className="flex items-center gap-2">
                     <KeyboardShortcuts rtl={rtl} />
                     <div className="text-sm text-muted-foreground select-none">
@@ -1217,7 +1217,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           <div ref={insightsRef} className="px-3 pt-4">
             <Card className="shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
+                <CardTitle className="text-sm md:text-base">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
               </CardHeader>
               <CardContent className="p-3">
                 <Tabs value={insightTab} onValueChange={v => setInsightTab(v as any)} className="w-full">
@@ -1375,7 +1375,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                           </div>}
                       </TouchGestureHandler>
                       <div className={cn("mt-4 flex flex-wrap items-center justify-between gap-2 text-[13px] md:text-[14px] lg:text-base", rtl && "flex-row-reverse")}>
-                        <Button onClick={goPrev} variant="secondary" disabled={index === 0} aria-label={L.previous} className={cn(isMobile && "min-h-[48px] min-w-[48px]")}>{rtl ? `${L.previous} →` : "← " + L.previous}</Button>
+                        <Button onClick={goPrev} variant="secondary" disabled={index === 0} aria-label={L.previous} className={cn(isMobile && "min-h-[44px] min-w-[44px]")}>{rtl ? `${L.previous} →` : "← " + L.previous}</Button>
                         <div className="flex items-center gap-2 md:gap-3">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <span className="tabular-nums">{index + 1}</span>
@@ -1397,7 +1397,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                             <Button size="icon" variant="outline" onClick={zoomIn} aria-label={rtl ? "تكبير" : "Zoom in"} className="h-9 w-9">
                               <ZoomIn className="h-4 w-4" />
                             </Button>
-                            <FullscreenButton rtl={rtl} />
+                             <FullscreenButton rtl={rtl} />
                           </div>
                         </div>
                         <Button onClick={goNext} variant="default" disabled={index === total - 1} aria-label={L.next} className={cn(isMobile && "min-h-[48px] min-w-[48px]")}>{rtl ? `← ${L.next}` : L.next + " →"}</Button>
@@ -1463,7 +1463,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     </CardHeader>
                     <CardContent className="p-3 text-[13px] md:text-[14px] lg:text-base">
                       <Tabs value={insightTab} onValueChange={v => setInsightTab(v as any)} className="w-full">
-                        <TabsList className="grid grid-cols-2 w-full">
+                        <TabsList className="grid grid-cols-2 w-full text-[13px] md:text-sm">
                           <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
                            <TabsTrigger value="qa">
                              {rtl ? <span className="inline-flex items-center gap-2">
