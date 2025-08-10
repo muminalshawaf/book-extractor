@@ -670,10 +670,10 @@ useEffect(() => {
     if (!el) return 1;
     const containerWidth = el.clientWidth - 32;
     const containerHeight = el.clientHeight - 32;
-    const fitWidthScale = containerWidth / 800;
-    const fitHeightScale = containerHeight / 1100;
+    const fitWidthScale = containerWidth / (naturalSize.width || 800);
+    const fitHeightScale = containerHeight / (naturalSize.height || 1100);
     return Math.min(fitWidthScale, fitHeightScale);
-  }, []);
+  }, [naturalSize.width, naturalSize.height]);
 
   // Enhanced zoom functions (prefer engine API in Slides mode)
   const zoomOut = useCallback(() => {
@@ -696,27 +696,29 @@ useEffect(() => {
     }
   }, [readerMode]);
   
-  const fitToWidth = useCallback(() => {
+  const fitToWidth = useCallback((imgNaturalWidth?: number) => {
     const el = containerRef.current;
-    const newZoom = el ? Math.min(Z.max, (el.clientWidth - 32) / 800) : 1;
+    const baseWidth = imgNaturalWidth ?? (naturalSize.width || 800);
+    const newZoom = el ? Math.min(Z.max, (el.clientWidth - 32) / baseWidth) : 1;
     if (readerMode === 'page' && zoomApiRef.current) {
       zoomApiRef.current.setTransform(transformState.positionX, transformState.positionY, newZoom, 200, 'easeOut');
     } else {
       setZoom(newZoom);
     }
     setZoomMode('fit-width');
-  }, [readerMode, transformState.positionX, transformState.positionY]);
+  }, [readerMode, transformState.positionX, transformState.positionY, naturalSize.width]);
   
-  const fitToHeight = useCallback(() => {
+  const fitToHeight = useCallback((imgNaturalHeight?: number) => {
     const el = containerRef.current;
-    const newZoom = el ? Math.min(Z.max, (el.clientHeight - 32) / 1100) : 1;
+    const baseHeight = imgNaturalHeight ?? (naturalSize.height || 1100);
+    const newZoom = el ? Math.min(Z.max, (el.clientHeight - 32) / baseHeight) : 1;
     if (readerMode === 'page' && zoomApiRef.current) {
       zoomApiRef.current.setTransform(transformState.positionX, transformState.positionY, newZoom, 200, 'easeOut');
     } else {
       setZoom(newZoom);
     }
     setZoomMode('fit-height');
-  }, [readerMode, transformState.positionX, transformState.positionY]);
+  }, [readerMode, transformState.positionX, transformState.positionY, naturalSize.height]);
   
   const actualSize = useCallback(() => {
     if (readerMode === 'page' && zoomApiRef.current) {
@@ -1005,7 +1007,7 @@ useEffect(() => {
                               setContainerDimensions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
                             }
                             if (zoomMode !== 'custom') {
-                              fitToHeight();
+                              fitToHeight(imgEl.naturalHeight);
                             }
                           }}
                           onError={onImgError}
@@ -1254,7 +1256,7 @@ useEffect(() => {
                                       setContainerDimensions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
                                     }
                                     if (zoomMode !== 'custom') {
-                                      fitToHeight();
+                                      fitToHeight(imgEl.naturalHeight);
                                     }
                                   }}
                                   onError={onImgError}
