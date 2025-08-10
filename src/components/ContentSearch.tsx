@@ -113,7 +113,7 @@ export const ContentSearch: React.FC<ContentSearchProps> = ({
   };
   const hasAnyExtractedText = Object.keys(pages).length > 0;
   return <Card className="shadow-sm">
-      <CardContent className="p-4">
+      <CardContent className="p-4 bg-muted">
         {!hasAnyExtractedText}
         <form onSubmit={handleSearch} className="space-y-3">
           <div className={cn("flex gap-2", rtl && "flex-row-reverse")}>
