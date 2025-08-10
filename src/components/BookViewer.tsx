@@ -1215,16 +1215,17 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                             const el = containerRef.current;
                             const imgW = naturalSize.width || 0;
                             const imgH = naturalSize.height || 0;
-                            const currentScale = transformState.scale ?? 1;
 
                             if (el && imgW > 0 && imgH > 0) {
-                              const wrapperW = el.clientWidth;
-                              const wrapperH = el.clientHeight;
-                              const contentW = imgW * currentScale;
-                              const contentH = imgH * currentScale;
-                              const posX = (wrapperW - contentW) / 2;
-                              const posY = (wrapperH - contentH) / 2;
-                              api.setTransform(posX, posY, currentScale, 200, 'easeOut');
+                              const padding = 32;
+                              const availW = Math.max(0, el.clientWidth - padding);
+                              const availH = Math.max(0, el.clientHeight - padding);
+                              const scaleFit = Math.min(Z.max, Math.max(Z.min, Math.min(availW / imgW, availH / imgH)));
+                              const contentW = imgW * scaleFit;
+                              const contentH = imgH * scaleFit;
+                              const posX = (el.clientWidth - contentW) / 2;
+                              const posY = (el.clientHeight - contentH) / 2;
+                              api.setTransform(posX, posY, scaleFit, 200, 'easeOut');
                             } else if (typeof api.centerView === 'function') {
                               api.centerView(200, 'easeOut');
                             } else {
@@ -1420,16 +1421,17 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                                      const el = containerRef.current;
                                      const imgW = naturalSize.width || 0;
                                      const imgH = naturalSize.height || 0;
-                                     const currentScale = transformState.scale ?? 1;
 
                                      if (el && imgW > 0 && imgH > 0) {
-                                       const wrapperW = el.clientWidth;
-                                       const wrapperH = el.clientHeight;
-                                       const contentW = imgW * currentScale;
-                                       const contentH = imgH * currentScale;
-                                       const posX = (wrapperW - contentW) / 2;
-                                       const posY = (wrapperH - contentH) / 2;
-                                       api.setTransform(posX, posY, currentScale, 200, 'easeOut');
+                                       const padding = 32;
+                                       const availW = Math.max(0, el.clientWidth - padding);
+                                       const availH = Math.max(0, el.clientHeight - padding);
+                                       const scaleFit = Math.min(Z.max, Math.max(Z.min, Math.min(availW / imgW, availH / imgH)));
+                                       const contentW = imgW * scaleFit;
+                                       const contentH = imgH * scaleFit;
+                                       const posX = (el.clientWidth - contentW) / 2;
+                                       const posY = (el.clientHeight - contentH) / 2;
+                                       api.setTransform(posX, posY, scaleFit, 200, 'easeOut');
                                      } else if (typeof api.centerView === 'function') {
                                        api.centerView(200, 'easeOut');
                                      } else {
