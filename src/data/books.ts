@@ -8,6 +8,11 @@ export interface BookDef {
   id: string;
   title: string;
   rtl?: boolean;
+  grade?: number;
+  semester?: number;
+  subject?: string;
+  cover?: string;
+  keywords?: string[];
   buildPages: () => BookPage[];
 }
 
@@ -16,6 +21,11 @@ export const books: BookDef[] = [
     id: "chem12-1-3",
     title: "كتاب الكيمياء 12 (الفصل 1–3)",
     rtl: true,
+    grade: 12,
+    semester: 1,
+    subject: "Chemistry",
+    cover: "/placeholder.svg",
+    keywords: ["كيمياء", "Chemistry", "Grade 12", "Semester 1-3"],
     buildPages: () => {
       const baseUrl = "https://ksa.idros.ai/books/chem12-1-3/";
       const pageId = "a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8";
@@ -29,6 +39,11 @@ export const books: BookDef[] = [
     id: "physics12-1-3",
     title: "كتاب الفيزياء 12 (الفصل 1–3)",
     rtl: true,
+    grade: 12,
+    semester: 1,
+    subject: "Physics",
+    cover: "/placeholder.svg",
+    keywords: ["فيزياء", "Physics", "Grade 12", "Semester 1-3"],
     buildPages: () => {
       const baseUrl = "https://ksa.idros.ai/books/physics12-1-3/";
       const name = "book-alfizya3-1-page-";
@@ -43,6 +58,11 @@ export const books: BookDef[] = [
     id: "sample-local",
     title: "كتاب عينة مصوّر",
     rtl: true,
+    grade: 12,
+    semester: 1,
+    subject: "Sample",
+    cover: "/placeholder.svg",
+    keywords: ["عينة", "Sample"],
     buildPages: () => [
       { src: page1, alt: "صفحة عينة 1" },
       { src: page2, alt: "صفحة عينة 2" },

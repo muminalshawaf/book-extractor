@@ -32,10 +32,8 @@ const Index = () => {
       __html: JSON.stringify(jsonLd)
     }} />
       <div className="container mx-auto py-4 px-3 md:py-10">
-        <header className="mb-8 text-center hidden md:block">
-          
-          
-          <div className="mt-4 flex items-center justify-center">
+      <header className="mb-8 text-center hidden md:block">
+          <div className="mt-4 flex items-center justify-center gap-3">
             <Select value={selectedId} onValueChange={v => {
             setSelectedId(v);
             navigate(`/book/${v}`);
@@ -47,6 +45,11 @@ const Index = () => {
                 {books.map(b => <SelectItem key={b.id} value={b.id}>{b.title}</SelectItem>)}
               </SelectContent>
             </Select>
+            <a href="/library" className="inline-flex">
+              <button className="inline-flex items-center h-10 px-3 rounded-md border bg-background hover:bg-muted transition text-sm">
+                تصفح المكتبة
+              </button>
+            </a>
           </div>
         </header>
         
