@@ -41,7 +41,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
   const [askVal, setAskVal] = useState("");
 
   // Sidebar suggestions
-  const suggestions = useMemo(() => (
+  const [suggestions, setSuggestions] = useState<Array<{ title: string; query: string }>>([]);
     rtl
       ? [ { title: "اشرح مفهوم النظرية النسبية", query: "اشرح مفهوم النظرية النسبية لأينشتاين" } ]
       : [ { title: "Explain relativity", query: "Explain Einstein’s theory of relativity" } ]
