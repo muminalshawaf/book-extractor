@@ -1125,7 +1125,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     return contentW > wrapperW + 1 || contentH > wrapperH + 1;
   }, [transformState.scale, naturalSize, readerMode, index]);
   return <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
-      {isMobile ? ( <div className="flex flex-col gap-4">
+      {isMobile ? <div className="flex flex-col gap-4">
 
           {/* Viewer */}
           <FullscreenMode rtl={rtl}>
@@ -1152,7 +1152,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 }}
                   disabled={!isMobile || readerMode === 'continuous'}
                   className="relative">
-                  {readerMode === 'page' ? (
                   <div ref={containerRef} className={cn("relative w-full overflow-hidden", !isMobile && "border rounded-lg mb-4", panningEnabled ? isPanning ? "cursor-grabbing" : "cursor-grab" : "cursor-default", isMobile && "book-viewer-mobile")} style={{}} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
                     <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} centerZoomedOut limitToBounds={false} panning={{
                   disabled: !panningEnabled
@@ -1207,7 +1206,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                             <div id={`page-${index}-description`} className="sr-only">
                               {rtl ? `صفحة ${index + 1} من ${total}` : `Page ${index + 1} of ${total}`}
                             </div>
-                          </div>) : <div className="relative w-full overflow-hidden border rounded-lg mb-1 max-h-[85vh] md:max-h-[78vh] lg:max-h-[85vh]">
+                          </div> : <div className="relative w-full overflow-hidden border rounded-lg mb-1 max-h-[85vh] md:max-h-[78vh] lg:max-h-[85vh]">
                             <ContinuousReader ref={continuousRef} pages={pages} index={index} onIndexChange={setIndex} zoom={zoom} rtl={rtl} onScrollerReady={el => {
                         containerRef.current = el as HTMLDivElement;
                         setContainerDimensions({
@@ -1368,8 +1367,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       </Tabs>
                     </CardContent>
                   </Card>
-                </div></div> ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
 
+        </div>}
     </section>;
 };
 export default BookViewer;
