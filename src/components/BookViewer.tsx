@@ -1004,7 +1004,7 @@ useEffect(() => {
                           </CollapsibleTrigger>
                         </div>
                         <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} aria-label={rtl ? "إجراءات" : "Actions"}>
-                          <span className="hidden md:inline text-sm font-medium text-foreground/90 truncate max-w-[45vw]" title={title} itemProp="name">
+                          <span className="hidden md:inline text-sm font-medium text-foreground/90 truncate max-w-[45vw] text-right" title={title} itemProp="name">
                             {title}
                           </span>
                           <FullscreenButton rtl={rtl} />
