@@ -1618,7 +1618,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         </TabsContent>
 
                         <TabsContent value="qa" className="mt-4 m-0">
-                          <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
+                          <div className="rounded-md border bg-muted/30 px-3 py-3 sm:px-4 sm:py-4 md:px-5 md:py-5">
+                            <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
+                          </div>
                         </TabsContent>
                       </Tabs>
                     </CardContent>
