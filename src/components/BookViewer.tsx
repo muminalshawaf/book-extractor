@@ -1245,26 +1245,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 {/* Content Search (above zoom controls) */}
                 <ContentSearch pages={allExtractedTexts} currentPageIndex={index} onPageChange={setIndex} onHighlight={setSearchHighlight} rtl={rtl} />
 
-                {/* Collapsible Desktop Toolbar */}
-                <div className="hidden md:block">
-                  <Collapsible open={controlsOpen} onOpenChange={setControlsOpen}>
-                    <div className="sticky top-0 z-20">
-                      <div className="flex items-center justify-between bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/70 rounded-lg p-2 shadow-sm border">
-                        <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
-                          <CollapsibleTrigger asChild>
-                            
-                          </CollapsibleTrigger>
-                        </div>
-                        {/* Actions moved to bottom navigation */}
-                      </div>
-                      <CollapsibleContent>
-                        <div className="mt-2">
-                          <ZoomControls zoom={zoom} minZoom={Z.min} maxZoom={Z.max} zoomStep={Z.step} mode={zoomMode} onZoomIn={zoomIn} onZoomOut={zoomOut} onFitWidth={fitToWidth} onFitHeight={fitToHeight} onActualSize={actualSize} showMiniMap={showMiniMap && readerMode === 'page'} onToggleMiniMap={() => setShowMiniMap(!showMiniMap)} rtl={rtl} iconsOnly />
-                        </div>
-                      </CollapsibleContent>
-                    </div>
-                  </Collapsible>
-                </div>
 
 
                 {/* Page Area with Fullscreen */}
