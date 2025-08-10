@@ -1275,14 +1275,14 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 <Tabs dir={rtl ? "rtl" : "ltr"} value={topTab} onValueChange={(v) => {
                   setTopTab(v as any);
                 }}>
-                  <TabsList className="grid w-full grid-cols-2 mb-2">
+                  <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="library">تصفح المكتبة</TabsTrigger>
                     <TabsTrigger value="content">البحث في المحتوى</TabsTrigger>
                   </TabsList>
                 </Tabs>
 
                 {topTab === 'library' ? (
-                  <section className="bg-muted/40 rounded-lg p-3 border" dir={rtl ? 'rtl' : 'ltr'}>
+                  <section className="-mt-6 bg-muted/40 rounded-lg p-3 border" dir={rtl ? 'rtl' : 'ltr'}>
                     <div className="grid gap-3 md:grid-cols-4">
                       <div className="md:col-span-2">
                         <div className="relative">
@@ -1335,7 +1335,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     </div>
                   </section>
                 ) : (
-                  <ContentSearch pages={allExtractedTexts} currentPageIndex={index} onPageChange={setIndex} onHighlight={setSearchHighlight} rtl={rtl} />
+                  <div className="-mt-6"><ContentSearch pages={allExtractedTexts} currentPageIndex={index} onPageChange={setIndex} onHighlight={setSearchHighlight} rtl={rtl} /></div>
                 )}
 
 
