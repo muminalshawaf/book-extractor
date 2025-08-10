@@ -22,6 +22,7 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
   const [subject, setSubject] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [contentHits, setContentHits] = useState<ContentHit[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const subjects = useMemo(() => {
     const set = new Set<string>();
@@ -97,6 +98,29 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
   return (
     <section dir={rtl ? "rtl" : "ltr"}>
       <h1 className="sr-only">البحث عن الكتب والمحتوى</h1>
+      
+      {/* Compact header with toggle */}
+      <div className="mb-3">
+        <Button 
+          variant="outline" 
+          onClick={() => setIsExpanded(!isExpanded)}
+          className={cn("w-full justify-between", rtl && "flex-row-reverse")}
+        >
+          <span className="text-sm font-medium">
+            {rtl ? "البحث والمكتبة" : "Search & Library"}
+          </span>
+          <svg 
+            className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </Button>
+      </div>
+
+      {isExpanded && (
       <Tabs dir={rtl ? "rtl" : "ltr"} value={tab} onValueChange={(v) => setTab(v as any)}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="library">{rtl ? "تصفح المكتبة" : "Library"}</TabsTrigger>
@@ -190,6 +214,7 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
           </div>
         </TabsContent>
       </Tabs>
+      )}
     </section>
   );
 }
