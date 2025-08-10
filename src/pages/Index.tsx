@@ -37,7 +37,7 @@ const Index = () => {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="container mx-auto py-10">
+      <div className="container mx-auto py-4 px-3 md:py-10">
         <header className="mb-8 text-center">
           <h1 className="text-4xl font-bold tracking-tight">عارض كتاب تفاعلي</h1>
           <p className="mt-2 text-muted-foreground max-w-2xl mx-auto">

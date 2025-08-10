@@ -304,6 +304,9 @@ All colors MUST be HSL.
 
 /* Mobile touch improvements */
 @media (max-width: 768px) {
+  /* Raise base font size for better readability (approx 18px) */
+  html { font-size: 112.5%; }
+
   /* Larger touch targets */
   button,
   input,
@@ -321,6 +324,9 @@ All colors MUST be HSL.
   .prose li {
     margin-bottom: 0.75rem;
   }
+
+  /* Slightly larger prose text on mobile */
+  .prose.prose-sm { font-size: 0.95rem; line-height: 1.7; }
 
   /* Mobile-specific book viewer adjustments */
   .book-viewer-mobile {
