@@ -165,6 +165,39 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   // Store extracted text for all pages for search
   const [allExtractedTexts, setAllExtractedTexts] = useState<Record<number, string>>({});
 
+  // Prefetch OCR text for all pages to enable global search
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from('page_summaries')
+          .select('page_number, ocr_text')
+          .eq('book_id', dbBookId)
+          .order('page_number', { ascending: true });
+        if (error) {
+          console.warn('Supabase fetch all pages error:', error);
+          return;
+        }
+        if (cancelled) return;
+        const map: Record<number, string> = {};
+        for (const row of (data ?? [])) {
+          const n = (row as any).page_number as number;
+          const txt = ((row as any).ocr_text || '').trim();
+          if (typeof n === 'number' && txt) {
+            map[n - 1] = txt;
+          }
+        }
+        if (Object.keys(map).length) {
+          setAllExtractedTexts(prev => ({ ...map, ...prev }));
+        }
+      } catch (e) {
+        console.warn('Failed to fetch all page OCR:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dbBookId]);
+
   // Phase 4 enhancements
   const [accessibilityPanelOpen, setAccessibilityPanelOpen] = useState(false);
   const [performanceMonitorOpen, setPerformanceMonitorOpen] = useState(false);
