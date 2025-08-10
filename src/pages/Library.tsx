@@ -24,7 +24,7 @@ export default function Library() {
     if (semester) next.set("semester", String(semester));
     if (subject) next.set("subject", subject);
     setParams(next, { replace: true });
-    document.title = "Library – Find Books (Grades 10–12)";
+    document.title = "المكتبة — ابحث عن الكتب (الصفوف 10–12)";
   }, [q, grade, semester, subject, setParams]);
 
   const subjects = useMemo(() => {
@@ -82,9 +82,9 @@ export default function Library() {
           <div className="mt-3 space-y-1">
             <h3 className="text-sm font-medium line-clamp-2">{book.title}</h3>
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              {book.subject && <Badge variant="secondary">{book.subject}</Badge>}
-              {book.grade && <Badge variant="outline">G{book.grade}</Badge>}
-              {book.semester && <Badge variant="outline">S{book.semester}</Badge>}
+              {book.subject && <Badge variant="secondary">{book.subject === 'Physics' ? 'الفيزياء' : book.subject === 'Chemistry' ? 'الكيمياء' : book.subject === 'Sample' ? 'عينة' : book.subject}</Badge>}
+              {book.grade && <Badge variant="outline">الصف {book.grade}</Badge>}
+              {book.semester && <Badge variant="outline">الفصل {book.semester}</Badge>}
             </div>
           </div>
         </CardContent>
@@ -95,7 +95,7 @@ export default function Library() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: "Books Library",
+    name: "مكتبة الكتب",
     itemListElement: filtered.map((b, i) => ({
       "@type": "ListItem",
       position: i + 1,
@@ -105,55 +105,55 @@ export default function Library() {
   } as const;
 
   return (
-    <div className="container mx-auto py-6 px-3">
+    <div className="container mx-auto py-6 px-3" dir="rtl">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold">Find Books by Grade and Semester</h1>
-        <p className="text-muted-foreground mt-1">Filter by grade, semester, subject, or search by title/keywords.</p>
+      <header className="mb-6 text-right">
+        <h1 className="text-2xl font-semibold">ابحث عن الكتب حسب الصف والفصل</h1>
+        <p className="text-muted-foreground mt-1">رشّح حسب الصف، الفصل، المادة، أو ابحث بالعنوان/الكلمات المفتاحية.</p>
       </header>
 
       <section className="bg-muted/40 rounded-lg p-4 border">
         <div className="grid gap-3 md:grid-cols-4">
           <div className="md:col-span-2">
             <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Search books..."
-                className="pl-10"
-                aria-label="Search books"
+                placeholder="ابحث عن الكتب..."
+                className="pr-10"
+                aria-label="بحث عن الكتب"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-muted-foreground flex items-center gap-1"><Filter className="h-4 w-4" /> Grade</span>
+            <span className="text-sm text-muted-foreground flex items-center gap-1"><Filter className="h-4 w-4" /> الصف</span>
             {[10,11,12].map((g) => <GradeChip key={g} value={g} />)}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-muted-foreground">Semester</span>
+            <span className="text-sm text-muted-foreground">الفصل</span>
             {[1,2,3].map((s) => <SemesterChip key={s} value={s} />)}
           </div>
 
           <div>
             <Select value={subject ?? undefined} onValueChange={(v) => setSubject(v)}>
-              <SelectTrigger aria-label="Subject">
-                <SelectValue placeholder="All subjects" />
+              <SelectTrigger aria-label="المادة">
+                <SelectValue placeholder="كل المواد" />
               </SelectTrigger>
               <SelectContent>
                 {subjects.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                  <SelectItem key={s} value={s}>{s === 'Physics' ? 'الفيزياء' : s === 'Chemistry' ? 'الكيمياء' : s === 'Sample' ? 'عينة' : s}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => { setQ(""); setGrade(null); setSemester(null); setSubject(null); }}>Clear</Button>
+            <Button variant="outline" onClick={() => { setQ(""); setGrade(null); setSemester(null); setSubject(null); }}>مسح</Button>
             <Link to={`/book/${books[0].id}`} className="ml-auto">
-              <Button variant="secondary" className="gap-2"><BookOpen className="h-4 w-4" /> Open current</Button>
+              <Button variant="secondary" className="gap-2"><BookOpen className="h-4 w-4" /> فتح الكتاب الحالي</Button>
             </Link>
           </div>
         </div>
@@ -161,7 +161,7 @@ export default function Library() {
 
       <section className="mt-6">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">{filtered.length} results</span>
+          <span className="text-sm text-muted-foreground">عدد النتائج: {filtered.length}</span>
         </div>
 
         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
