@@ -40,7 +40,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
   const [selectionText, setSelectionText] = useState("");
   const [askVal, setAskVal] = useState("");
 
-  // Extract questions from summary as suggestions
+  // Extract meaningful questions from summary as suggestions
   const suggestions = useMemo(() => {
     if (!summary.trim()) {
       return rtl
@@ -48,34 +48,46 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
         : [{ title: "Explain relativity", query: "Explain Einstein's theory of relativity" }];
     }
 
-    // Extract questions from summary text
+    // First try to extract actual questions from summary
     const questionRegex = /([^.!]*\?)/g;
     const arabicQuestionRegex = /([^.!]*؟)/g;
     
     const regex = rtl ? arabicQuestionRegex : questionRegex;
     const matches = summary.match(regex);
     
+    let extractedQuestions: Array<{ title: string; query: string }> = [];
+    
     if (matches && matches.length > 0) {
-      return matches
+      extractedQuestions = matches
         .map(question => question.trim())
-        .filter(question => question.length > 5) // Filter out very short questions
-        .slice(0, 6) // Limit to 6 questions
+        .filter(question => question.length > 10 && question.length < 150) // Filter meaningful questions
+        .slice(0, 3) // Limit extracted questions
         .map(question => ({
           title: question.length > 50 ? question.substring(0, 47) + '...' : question,
           query: question
         }));
     }
     
-    // Fallback if no questions found in summary
-    return rtl
+    // Generate intelligent suggestions based on content
+    const contentBasedSuggestions = rtl
       ? [
-          { title: "اشرح النقاط الرئيسية", query: "اشرح النقاط الرئيسية في هذا النص" },
-          { title: "أعط أمثلة عملية", query: "أعط أمثلة عملية على المفاهيم المذكورة" }
+          { title: "اشرح المفاهيم الأساسية", query: "اشرح المفاهيم الأساسية الواردة في هذا النص" },
+          { title: "أعط أمثلة تطبيقية", query: "أعط أمثلة تطبيقية على المعلومات المذكورة" },
+          { title: "ما هي النقاط المهمة؟", query: "ما هي أهم النقاط التي يجب أن أركز عليها في هذا المحتوى؟" },
+          { title: "كيف يمكنني التطبيق؟", query: "كيف يمكنني تطبيق هذه المعلومات في الواقع؟" }
         ]
       : [
-          { title: "Explain key points", query: "Explain the key points in this text" },
-          { title: "Give practical examples", query: "Give practical examples of the mentioned concepts" }
+          { title: "Explain the main concepts", query: "Explain the main concepts mentioned in this text" },
+          { title: "Give practical examples", query: "Give practical examples of the information mentioned" },
+          { title: "What are the key points?", query: "What are the most important points I should focus on in this content?" },
+          { title: "How can I apply this?", query: "How can I apply this information in real life?" }
         ];
+    
+    // Combine extracted questions with content-based suggestions
+    const combined = [...extractedQuestions, ...contentBasedSuggestions];
+    
+    // Return up to 6 suggestions, prioritizing extracted questions
+    return combined.slice(0, 6);
   }, [summary, rtl]);
 
   useEffect(() => {
