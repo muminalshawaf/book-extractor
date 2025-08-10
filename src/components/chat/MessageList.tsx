@@ -95,7 +95,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
             const isAssistant = m.role === "assistant";
             const isStreaming = loading && i === lastIndex && isAssistant;
             return (
-              <div key={i} className={cn("flex", isAssistant ? (rtl ? "justify-start" : "justify-start") : (rtl ? "justify-start" : "justify-end"))}>
+              <div key={i} className={cn("flex flex-col", isAssistant ? "items-start" : "items-end")}>
                 <div className={cn(
                   isAssistant
                     ? "max-w-[85%] w-full animate-fade-in"
@@ -119,7 +119,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
                   )}
 
                 </div>
-                <div className={cn("mt-1 flex items-center gap-1 text-xs text-muted-foreground transition-opacity", rtl && "flex-row-reverse justify-start")}>
+                <div className={cn("mt-2 flex items-center gap-1 text-xs text-muted-foreground", isAssistant ? "self-start" : "self-end")}>
                   {isAssistant ? (
                     <div className="flex items-center gap-1">
                       {i === lastAssistantIndex && (
