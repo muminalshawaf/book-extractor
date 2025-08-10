@@ -180,25 +180,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
                       </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 w-full">
-                      {editingIndex === i ? (
-                        <>
-                          <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} className="mt-2 w-full" />
-                          <Button size="sm" onClick={() => { onEditUser(i, draft.trim()); setEditingIndex(null); }} disabled={draft.trim().length === 0}>
-                            {rtl ? "تحديث وإعادة التوليد" : "Update & Regenerate"}
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingIndex(null)}>
-                            {rtl ? "إلغاء" : "Cancel"}
-                          </Button>
-                        </>
-                      ) : (
-                        i === lastUserIndex && !loading ? (
-                          <Button variant="ghost" size="sm" onClick={() => { setEditingIndex(i); setDraft(m.content); }} aria-label={rtl ? "تعديل السؤال" : "Edit question"}>
-                            {rtl ? "تعديل السؤال" : "Edit question"}
-                          </Button>
-                        ) : null
-                      )}
-                    </div>
+                      <></>
                   )}
                 </div>
               </div>
