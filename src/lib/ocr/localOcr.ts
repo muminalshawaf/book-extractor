@@ -23,9 +23,15 @@ export async function runLocalOcr(input: string | Blob, options?: LocalOcrOption
     options?.preprocess === false ? false : Boolean(options?.preprocess) || lang.includes('ara');
   try {
     if (shouldPreprocess) {
+      const preOptions =
+        typeof options?.preprocess === 'object'
+          ? options.preprocess
+          : (lang.includes('ara')
+              ? ({ adaptiveBinarization: true, deskew: true } as any)
+              : undefined);
       const preBlob = await preprocessImageBlob(
         typeof input === 'string' ? await (await fetch(input)).blob() : input,
-        typeof options?.preprocess === 'object' ? options.preprocess : undefined
+        preOptions
       );
       image = preBlob;
     }

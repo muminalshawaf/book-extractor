@@ -5,7 +5,8 @@ export type PreprocessOptions = {
   upsample?: boolean; // upscale low-res pages for sharper text
   targetMinWidth?: number; // minimum working width before OCR
   denoise?: boolean; // 3x3 median filter
-  binarize?: boolean; // Otsu thresholding to black/white
+  binarize?: boolean; // thresholding to black/white
+  adaptiveBinarization?: boolean; // enable Sauvola local thresholding (better for uneven lighting / Arabic)
   cropMargins?: boolean; // auto-trim white margins
   deskew?: boolean; // enable simple small-angle deskew
 };
@@ -15,6 +16,7 @@ const defaultOptions: Required<PreprocessOptions> = {
   targetMinWidth: 1200,
   denoise: true,
   binarize: true,
+  adaptiveBinarization: false,
   cropMargins: true,
   deskew: false,
 };
@@ -119,6 +121,71 @@ function applyBinarization(data: Uint8ClampedArray, width: number, height: numbe
   }
 }
 
+// Adaptive Sauvola binarization using integral images for speed
+function applySauvolaBinarization(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  windowSize = 31,
+  k = 0.34,
+  R = 128
+) {
+  const W = width, H = height;
+  const g = new Uint8ClampedArray(W * H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      g[y * W + x] = data[(y * W + x) * 4];
+    }
+  }
+
+  const iw = W + 1;
+  const ih = H + 1;
+  const integral = new Float64Array(iw * ih);
+  const integralSq = new Float64Array(iw * ih);
+
+  for (let y = 1; y <= H; y++) {
+    let rowSum = 0;
+    let rowSumSq = 0;
+    for (let x = 1; x <= W; x++) {
+      const v = g[(y - 1) * W + (x - 1)];
+      rowSum += v;
+      rowSumSq += v * v;
+      const idx = y * iw + x;
+      integral[idx] = integral[idx - iw] + rowSum;
+      integralSq[idx] = integralSq[idx - iw] + rowSumSq;
+    }
+  }
+
+  const r = Math.max(1, Math.floor(windowSize / 2));
+  for (let y = 1; y <= H; y++) {
+    for (let x = 1; x <= W; x++) {
+      const x1 = Math.max(1, x - r);
+      const y1 = Math.max(1, y - r);
+      const x2 = Math.min(W, x + r);
+      const y2 = Math.min(H, y + r);
+      const area = (x2 - x1 + 1) * (y2 - y1 + 1);
+
+      const idxA = y2 * iw + x2;
+      const idxB = (y1 - 1) * iw + x2;
+      const idxC = y2 * iw + (x1 - 1);
+      const idxD = (y1 - 1) * iw + (x1 - 1);
+
+      const sum = integral[idxA] - integral[idxB] - integral[idxC] + integral[idxD];
+      const sumSq = integralSq[idxA] - integralSq[idxB] - integralSq[idxC] + integralSq[idxD];
+
+      const mean = sum / area;
+      const variance = Math.max(0, sumSq / area - mean * mean);
+      const std = Math.sqrt(variance);
+      const T = mean * (1 + k * (std / R - 1));
+
+      const v = g[(y - 1) * W + (x - 1)];
+      const out = v > T ? 255 : 0;
+      const di = ((y - 1) * W + (x - 1)) * 4;
+      data[di] = data[di + 1] = data[di + 2] = out;
+    }
+  }
+}
+
 function cropWhiteMargins(canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
   const { width, height } = canvas;
@@ -182,7 +249,7 @@ function horizontalProjectionScore(canvas: HTMLCanvasElement) {
 function deskewSmallAngles(canvas: HTMLCanvasElement) {
   let best = canvas;
   let bestScore = horizontalProjectionScore(canvas);
-  for (let a = -3; a <= 3; a += 0.5) {
+  for (let a = -10; a <= 10; a += 0.5) {
     if (a === 0) continue;
     const rotated = rotateCanvas(canvas, a);
     const s = horizontalProjectionScore(rotated);
@@ -215,8 +282,14 @@ export async function preprocessImageBlob(blob: Blob, options?: PreprocessOption
   // Step 4: denoise (median filter)
   if (opt.denoise) median3x3(imgData.data, canvas.width, canvas.height);
 
-  // Step 5: binarize
-  if (opt.binarize) applyBinarization(imgData.data, canvas.width, canvas.height);
+// Step 5: binarize
+if (opt.binarize) {
+  if (opt.adaptiveBinarization) {
+    applySauvolaBinarization(imgData.data, canvas.width, canvas.height);
+  } else {
+    applyBinarization(imgData.data, canvas.width, canvas.height);
+  }
+}
 
   ctx.putImageData(imgData, 0, 0);
 
