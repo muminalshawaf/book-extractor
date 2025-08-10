@@ -294,11 +294,15 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
                 "prose-b:font-bold prose-b:text-foreground",
                 "prose-em:italic prose-i:italic",
                 "prose-ul:my-4 prose-ol:my-4 prose-li:mb-2",
-                "prose-blockquote:border-r-4 prose-blockquote:border-primary prose-blockquote:pr-4 prose-blockquote:bg-muted/30",
+                rtl 
+                  ? "prose-blockquote:border-r-4 prose-blockquote:pr-4" 
+                  : "prose-blockquote:border-l-4 prose-blockquote:pl-4",
+                "prose-blockquote:border-primary prose-blockquote:bg-muted/30",
                 "prose-table:border-collapse prose-table:w-full prose-table:my-4",
                 "prose-table:shadow-sm prose-table:border prose-table:border-border prose-table:rounded-lg prose-table:overflow-hidden",
-                "prose-th:p-3 prose-th:border-b prose-th:border-border prose-th:bg-muted prose-th:font-semibold prose-th:text-right",
-                "prose-td:p-3 prose-td:border-b prose-td:border-border prose-td:text-right",
+                "prose-th:p-3 prose-th:border-b prose-th:border-border prose-th:bg-muted prose-th:font-semibold",
+                rtl ? "prose-th:text-right prose-td:text-right" : "prose-th:text-left prose-td:text-left",
+                "prose-td:p-3 prose-td:border-b prose-td:border-border",
                 "prose-tr:last-child:prose-td:border-b-0",
                 "prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:text-left prose-pre:dir-ltr",
                 "prose-code:bg-muted prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm",
