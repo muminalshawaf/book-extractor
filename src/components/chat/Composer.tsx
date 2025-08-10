@@ -2,7 +2,8 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Send, StopCircle } from "lucide-react";
+import { Send, StopCircle, Wrench } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 interface ComposerProps {
   value: string;
@@ -12,9 +13,10 @@ interface ComposerProps {
   disabled: boolean;
   loading: boolean;
   rtl?: boolean;
+  onOpenLatex?: () => void;
 }
 
-const Composer: React.FC<ComposerProps> = ({ value, onChange, onSend, onStop, disabled, loading, rtl = false }) => {
+const Composer: React.FC<ComposerProps> = ({ value, onChange, onSend, onStop, disabled, loading, rtl = false, onOpenLatex }) => {
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -34,6 +36,17 @@ const Composer: React.FC<ComposerProps> = ({ value, onChange, onSend, onStop, di
         disabled={loading}
         className="max-h-40 rounded-xl border bg-background/60 backdrop-blur shadow-sm"
       />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" aria-label={rtl ? "أدوات" : "Tools"}>
+            <Wrench className="h-4 w-4" />
+            <span className="sr-only">{rtl ? "أدوات" : "Tools"}</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align={rtl ? "end" : "start"} className="z-50 bg-background">
+          <DropdownMenuItem onClick={() => onOpenLatex?.()}>{rtl ? "أداة LaTeX" : "LaTeX Tool"}</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       {loading ? (
         <Button onClick={onStop} variant="outline" aria-label={rtl ? "إيقاف" : "Stop"}>
           <StopCircle className="h-4 w-4" />

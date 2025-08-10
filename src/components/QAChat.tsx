@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Send, StopCircle, RotateCcw, Trash2 } from "lucide-react";
+import { Loader2, StopCircle, RotateCcw, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { callFunction } from "@/lib/functionsClient";
 import MessageList from "./chat/MessageList";
 import Composer from "./chat/Composer";
+import { Input } from "@/components/ui/input";
+import LatexModal from "./chat/LatexModal";
 
 interface QAChatProps {
   summary: string;
@@ -25,6 +27,34 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
   const streamRef = useRef<HTMLDivElement | null>(null);
   const esRef = useRef<EventSource | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // UI extensions: LaTeX modal + selection Ask popup
+  const [latexOpen, setLatexOpen] = useState(false);
+  const handleInsertLatex = (latex: string) => setQ((prev) => `${prev}${prev ? " " : ""}$$${latex}$$ `);
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [askOpen, setAskOpen] = useState(false);
+  const [askPos, setAskPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [selectionText, setSelectionText] = useState("");
+  const [askVal, setAskVal] = useState("");
+
+  useEffect(() => {
+    const onMouseUp = () => {
+      const sel = window.getSelection();
+      const text = sel?.toString().trim() || "";
+      if (!containerRef.current) { setAskOpen(false); return; }
+      if (!text || !(sel?.rangeCount)) { setAskOpen(false); return; }
+      const range = sel.getRangeAt(0);
+      const inside = containerRef.current.contains(range.commonAncestorContainer as Node);
+      if (!inside) { setAskOpen(false); return; }
+      const rect = range.getBoundingClientRect();
+      setSelectionText(text);
+      setAskOpen(true);
+      setAskPos({ top: rect.bottom + window.scrollY + 8, left: rect.left + window.scrollX + rect.width / 2 });
+    };
+    document.addEventListener("mouseup", onMouseUp);
+    return () => document.removeEventListener("mouseup", onMouseUp);
+  }, []);
 
   const disabled = useMemo(() => loading || q.trim().length === 0, [loading, q]);
 
@@ -225,6 +255,17 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
     await askInternal(newText, false);
   };
 
+  const submitAskFromSelection: React.FormEventHandler<HTMLFormElement> = async (e) => {
+    e.preventDefault();
+    if (!selectionText.trim() || loading) { setAskOpen(false); return; }
+    const prompt = rtl
+      ? `بالإشارة إلى النص التالي:\n"${selectionText}"\n\n${askVal.trim() || ""}`
+      : `Regarding the following text:\n"${selectionText}"\n\n${askVal.trim() || ""}`;
+    setAskOpen(false);
+    setAskVal("");
+    await askInternal(prompt, true);
+  };
+
   const clearChat = () => setMessages([]);
 
   return (
@@ -234,7 +275,22 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          <MessageList messages={messages} loading={loading} rtl={rtl} streamRef={streamRef} onRegenerate={regenerateLast} onEditUser={editUserAndRegenerate} />
+          <div ref={containerRef}>
+            <MessageList messages={messages} loading={loading} rtl={rtl} streamRef={streamRef} onRegenerate={regenerateLast} onEditUser={editUserAndRegenerate} />
+          </div>
+
+          {askOpen && (
+            <form onSubmit={submitAskFromSelection}
+              className={cn("fixed z-50 bg-background border rounded-lg shadow p-2 flex items-center gap-2", rtl && "flex-row-reverse")}
+              style={{ top: askPos.top, left: askPos.left, transform: "translateX(-50%)" }}
+            >
+              <Input value={askVal} onChange={(e) => setAskVal(e.target.value)}
+                placeholder={rtl ? "اسأل عن التحديد" : "Ask about selection"}
+                className="w-56"
+              />
+              <Button type="submit" size="sm">{rtl ? "إرسال" : "Ask"}</Button>
+            </form>
+          )}
 
           <div className={cn("flex items-center justify-between gap-2", rtl && "flex-row-reverse")}> 
             <div className={cn("flex items-center gap-1", rtl && "flex-row-reverse")}> 
@@ -269,6 +325,14 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
             onStop={stopStreaming}
             disabled={disabled}
             loading={loading}
+            rtl={rtl}
+            onOpenLatex={() => setLatexOpen(true)}
+          />
+
+          <LatexModal
+            open={latexOpen}
+            onOpenChange={setLatexOpen}
+            onInsert={handleInsertLatex}
             rtl={rtl}
           />
 
