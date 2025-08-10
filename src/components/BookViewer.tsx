@@ -471,18 +471,52 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       // Prefer EventSource for smaller payloads
       const canUseES = text.length <= 3000; // safe size when base64 encoded
       if (canUseES) {
-        await new Promise<void>((resolve, reject) => {
+        await new Promise<void>((resolve) => {
           const params = new URLSearchParams();
           const b64 = btoa(unescape(encodeURIComponent(text)));
           params.set('text_b64', b64);
           params.set('lang', lang);
           params.set('page', String(index + 1));
           params.set('title', title);
+
           const es = new EventSource(`${streamUrl}?${params.toString()}`);
+          let ended = false;
+          let lastMsgAt = Date.now();
+
+          const finalize = () => {
+            if (ended) return;
+            ended = true;
+            try { flush(); } catch {}
+            try { es.close(); } catch {}
+            resolve();
+          };
+
+          // Force-finish after 90s max
+          const hardTimeout = setTimeout(finalize, 90_000);
+          // Finish if idle for 5s (no new chunks)
+          let idleTimeout: number | undefined = undefined as any;
+          const resetIdle = () => {
+            if (idleTimeout) clearTimeout(idleTimeout);
+            idleTimeout = setTimeout(finalize, 5_000) as unknown as number;
+          };
+
+          es.onopen = () => {
+            lastMsgAt = Date.now();
+            resetIdle();
+          };
+
           es.onmessage = ev => {
             let chunk = ev.data;
+            if (chunk === '[DONE]' || chunk === '"[DONE]"') {
+              finalize();
+              return;
+            }
             try {
               const j = JSON.parse(chunk);
+              if (j?.done) {
+                finalize();
+                return;
+              }
               chunk = j?.text ?? chunk;
             } catch {}
             accumulated += chunk;
@@ -491,15 +525,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               flush();
               lastFlush = now;
             }
+            lastMsgAt = Date.now();
+            resetIdle();
           };
-          es.addEventListener('done', () => {
-            flush();
-            es.close();
-            resolve();
-          });
-          es.onerror = err => {
-            es.close();
-            reject(err);
+
+          es.addEventListener('done', finalize);
+
+          es.onerror = () => {
+            // Treat errors as end of stream; use accumulated content
+            finalize();
           };
         });
       } else {
