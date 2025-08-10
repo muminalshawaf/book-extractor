@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, Loader2, Grid3X3 } from "lucide-react";
+import { Minus, Plus, Loader2 } from "lucide-react";
 import { runLocalOcr } from '@/lib/ocr/localOcr';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
@@ -1007,10 +1007,6 @@ useEffect(() => {
                     rtl={rtl}
                   />
                   <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} aria-label={rtl ? "إجراءات" : "Actions"}>
-                    <Button size="sm" variant="outline" onClick={() => setThumbnailsOpen(!thumbnailsOpen)}>
-                      <Grid3X3 className="h-4 w-4 mr-2" />
-                      {rtl ? "المصغرات" : "Thumbnails"}
-                    </Button>
                     <FullscreenButton rtl={rtl} />
                   </div>
                 </div>
