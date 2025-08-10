@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Minus, Maximize2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Minus, Maximize2, Maximize, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ZoomMode = "fit-width" | "fit-height" | "actual-size" | "custom";
@@ -21,6 +21,7 @@ interface ZoomControlsProps {
   onToggleMiniMap?: () => void;
   iconsOnly?: boolean;
   onCenter?: () => void;
+  onToggleFullscreen?: () => void;
   onPrev?: () => void;
   onNext?: () => void;
   side?: "left" | "right";
@@ -31,6 +32,7 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
   onZoomIn,
   onZoomOut,
   onCenter,
+  onToggleFullscreen,
   onPrev,
   onNext,
   rtl = false,
@@ -70,6 +72,17 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
         >
           <Plus className="h-4 w-4" />
         </Button>
+        {onToggleFullscreen && (
+          <Button
+            size="icon"
+            variant="secondary"
+            className="pointer-events-auto shadow-sm"
+            onClick={onToggleFullscreen}
+            aria-label={rtl ? "ملء الشاشة" : "Full screen"}
+          >
+            <Maximize className="h-4 w-4" />
+          </Button>
+        )}
         <Button
           size="icon"
           variant="secondary"

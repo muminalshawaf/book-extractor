@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { LoadingProgress } from "@/components/LoadingProgress";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { ThumbnailSidebar } from "@/components/ThumbnailSidebar";
-import { FullscreenMode, FullscreenButton } from "./FullscreenMode";
+import { FullscreenMode, FullscreenButton, useFullscreen } from "./FullscreenMode";
 import { ZoomControls, ZoomMode } from "@/components/ZoomControls";
 import { MiniMap } from "@/components/MiniMap";
 import { useImagePreloader } from "@/hooks/useImagePreloader";
@@ -85,6 +85,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   }), [zoom]);
   const total = pages.length;
   const navigate = useNavigate();
+  const { toggleFullscreen } = useFullscreen(rtl);
   
   const containerRef = useRef<HTMLDivElement | null>(null);
   const zoomApiRef = useRef<ReactZoomPanPinchRef | null>(null);
@@ -1208,6 +1209,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       onActualSize={actualSize}
                       rtl={rtl}
                       iconsOnly
+                      onToggleFullscreen={toggleFullscreen}
                       onCenter={() => {
                         const api = zoomApiRef.current as any;
                         if (readerMode === 'page' && api) {
@@ -1421,6 +1423,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                                onActualSize={actualSize}
                                rtl={rtl}
                                iconsOnly
+                               onToggleFullscreen={toggleFullscreen}
                                onCenter={() => {
                                  const api = zoomApiRef.current as any;
                                  if (readerMode === 'page' && api) {
