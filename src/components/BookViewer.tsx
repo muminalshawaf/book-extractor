@@ -1285,6 +1285,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         <Button variant="default" size="sm" onClick={processFirstTenPages} disabled={batchRunning}>
                           {batchRunning ? rtl ? `جارٍ المعالجة ${batchProgress.current}/${batchProgress.total}` : `Processing ${batchProgress.current}/${batchProgress.total}` : rtl ? `معالجة من ${rangeStart} إلى ${rangeEnd}` : `Process ${rangeStart}-${rangeEnd}`}
                         </Button>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <Textarea readOnly dir={rtl ? "rtl" : "ltr"} value={extractedText} placeholder={rtl ? "لا يوجد نص مستخرج بعد. اضغط تشغيل OCR." : "No extracted text yet. Click Run OCR."} className="min-h-40" />
@@ -1366,9 +1368,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       </Tabs>
                     </CardContent>
                   </Card>
-        </div> ) : null}
+                </div></div> ) : null}
 
-        </div>}
     </section>;
 };
 export default BookViewer;
