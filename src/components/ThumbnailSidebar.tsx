@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronLeft, ChevronRight, Grid3X3 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BookPage } from "@/components/reader/SimpleBookViewer";
+import type { BookPage } from "./BookViewer";
 
 interface ThumbnailSidebarProps {
   pages: BookPage[];

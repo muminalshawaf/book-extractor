@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { SimpleBookViewer } from "@/components/reader/SimpleBookViewer";
+import BookViewer from "@/components/BookViewer";
 import { books, getBookById } from "@/data/books";
 
 import { useNavigate, useParams, Link } from "react-router-dom";
@@ -38,18 +38,18 @@ const Index = () => {
         </header>
         
         <main>
-          <SimpleBookViewer 
-            key={selectedBook.id} 
-            bookId={selectedBook.id} 
-            pages={pages} 
-            title={selectedBook.title} 
-            rtl={rtl} 
-            labels={{
-              previous: "السابق",
-              next: "التالي",
-              progress: (c, t, p) => `الصفحة ${c} من ${t} • ${p}%`
-            }} 
-          />
+          <BookViewer key={selectedBook.id} bookId={selectedBook.id} pages={pages} title={selectedBook.title} rtl={rtl} labels={{
+          previous: "السابق",
+          next: "التالي",
+          notesTitle: n => `ملاحظات للصفحة ${n}`,
+          autosaves: "حفظ تلقائي محلي",
+          clear: "مسح",
+          copy: "نسخ",
+          toastCopied: "تم نسخ الملاحظة إلى الحافظة",
+          toastCopyFailed: "تعذّر نسخ الملاحظة",
+          toastCleared: "تم مسح الملاحظات لهذه الصفحة",
+          progress: (c, t, p) => `الصفحة ${c} من ${t} • ${p}%`
+        }} />
         </main>
       </div>
     </>;

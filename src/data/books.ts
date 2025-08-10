@@ -1,4 +1,4 @@
-import { BookPage } from "@/components/reader/SimpleBookViewer";
+import { BookPage } from "@/components/BookViewer";
 import page1 from "@/assets/book/page-1.jpg";
 import page2 from "@/assets/book/page-2.jpg";
 import page3 from "@/assets/book/page-3.jpg";
