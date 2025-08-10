@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Minus, Plus, Maximize2, Monitor, Move } from "lucide-react";
+import { Minus, Plus, Maximize2, Monitor, Move, Percent } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ZoomMode = "fit-width" | "fit-height" | "actual-size" | "custom";
@@ -21,6 +21,7 @@ interface ZoomControlsProps {
   rtl?: boolean;
   showMiniMap?: boolean;
   onToggleMiniMap?: () => void;
+  iconsOnly?: boolean;
 }
 
 export const ZoomControls: React.FC<ZoomControlsProps> = ({
@@ -37,13 +38,14 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
   rtl = false,
   showMiniMap = false,
   onToggleMiniMap,
+  iconsOnly = false,
 }) => {
-  const zoomPercentage = Math.round(zoom * 100);
+  
 
   return (
     <Card className="shadow-sm">
-      <CardContent className="p-3">
-        <div className={cn("flex items-center gap-2 text-sm", rtl && "flex-row-reverse")}>
+      <CardContent className={cn("p-2", iconsOnly ? "px-2" : "p-3")}> 
+        <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}> 
           {/* Zoom out */}
           <Button
             size="icon"
@@ -56,10 +58,12 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
             <Minus className="h-3 w-3" />
           </Button>
 
-          {/* Current zoom display */}
-          <div className="min-w-[60px] text-center font-mono text-muted-foreground">
-            {zoomPercentage}%
-          </div>
+          {/* Current zoom display (hidden in iconsOnly) */}
+          {!iconsOnly && (
+            <div className="min-w-[60px] text-center font-mono text-muted-foreground">
+              {Math.round(zoom * 100)}%
+            </div>
+          )}
 
           {/* Zoom in */}
           <Button
@@ -73,54 +77,58 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
             <Plus className="h-3 w-3" />
           </Button>
 
-          <Separator orientation="vertical" className="h-6" />
+          {!iconsOnly && <Separator orientation="vertical" className="h-6" />}
 
-          {/* Fit controls */}
+          {/* Fit controls (icons only when iconsOnly) */}
           <Button
-            size="sm"
+            size={iconsOnly ? "icon" : "sm"}
             variant={mode === "fit-width" ? "default" : "outline"}
             onClick={onFitWidth}
             title={rtl ? "ملائمة العرض" : "Fit width"}
-            className="h-8 px-3"
+            className={iconsOnly ? "h-8 w-8" : "h-8 px-3"}
+            aria-label={rtl ? "ملائمة العرض" : "Fit width"}
           >
-            <Monitor className="h-3 w-3 mr-1" />
-            {rtl ? "عرض" : "Width"}
+            <Monitor className="h-3 w-3" />
+            {!iconsOnly && (rtl ? "عرض" : "Width")}
           </Button>
 
           <Button
-            size="sm"
+            size={iconsOnly ? "icon" : "sm"}
             variant={mode === "fit-height" ? "default" : "outline"}
             onClick={onFitHeight}
             title={rtl ? "ملائمة الارتفاع" : "Fit height"}
-            className="h-8 px-3"
+            className={iconsOnly ? "h-8 w-8" : "h-8 px-3"}
+            aria-label={rtl ? "ملائمة الارتفاع" : "Fit height"}
           >
-            <Maximize2 className="h-3 w-3 mr-1" />
-            {rtl ? "ارتفاع" : "Height"}
+            <Maximize2 className="h-3 w-3" />
+            {!iconsOnly && (rtl ? "ارتفاع" : "Height")}
           </Button>
 
           <Button
-            size="sm"
+            size={iconsOnly ? "icon" : "sm"}
             variant={mode === "actual-size" ? "default" : "outline"}
             onClick={onActualSize}
             title={rtl ? "الحجم الفعلي" : "Actual size"}
-            className="h-8 px-3"
+            className={iconsOnly ? "h-8 w-8" : "h-8 px-3"}
+            aria-label={rtl ? "الحجم الفعلي" : "Actual size"}
           >
-            100%
+            {iconsOnly ? <Percent className="h-3 w-3" /> : "100%"}
           </Button>
 
           {/* Mini-map toggle */}
           {onToggleMiniMap && zoom > 1 && (
             <>
-              <Separator orientation="vertical" className="h-6" />
+              {!iconsOnly && <Separator orientation="vertical" className="h-6" />}
               <Button
-                size="sm"
+                size={iconsOnly ? "icon" : "sm"}
                 variant={showMiniMap ? "default" : "outline"}
                 onClick={onToggleMiniMap}
                 title={rtl ? "خريطة مصغرة" : "Mini-map"}
-                className="h-8 px-3"
+                className={iconsOnly ? "h-8 w-8" : "h-8 px-3"}
+                aria-label={rtl ? "خريطة مصغرة" : "Mini-map"}
               >
-                <Move className="h-3 w-3 mr-1" />
-                {rtl ? "خريطة" : "Map"}
+                <Move className="h-3 w-3" />
+                {!iconsOnly && (rtl ? "خريطة" : "Map")}
               </Button>
             </>
           )}

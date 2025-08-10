@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, Loader2 } from "lucide-react";
+import { Minus, Plus, Loader2, ChevronDown } from "lucide-react";
 import { runLocalOcr } from '@/lib/ocr/localOcr';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
@@ -25,6 +25,7 @@ import { ImprovedErrorHandler } from "@/components/ImprovedErrorHandler";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { TouchGestureHandler } from "@/components/TouchGestureHandler";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { PerformanceMonitor } from "@/components/PerformanceMonitor";
@@ -143,6 +144,7 @@ const [summary, setSummary] = useState("");
   const isMobile = useIsMobile();
   const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
   const [gotoInput, setGotoInput] = useState<string>("");
+  const [controlsOpen, setControlsOpen] = useState(true);
 
 // Batch processing state
   const [batchRunning, setBatchRunning] = useState(false);
@@ -989,26 +991,44 @@ useEffect(() => {
 
               {/* Main Content */}
               <div className="flex-1 flex flex-col gap-6">
-                {/* Top Bar */}
-                <div className="sticky top-0 z-20 flex items-center justify-between bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/70 rounded-lg p-4 shadow-sm border">
-                  <ZoomControls
-                    zoom={zoom}
-                    minZoom={Z.min}
-                    maxZoom={Z.max}
-                    zoomStep={Z.step}
-                    mode={zoomMode}
-                    onZoomIn={zoomIn}
-                    onZoomOut={zoomOut}
-                    onFitWidth={fitToWidth}
-                    onFitHeight={fitToHeight}
-                    onActualSize={actualSize}
-                    showMiniMap={showMiniMap && readerMode === 'page'}
-                    onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
-                    rtl={rtl}
-                  />
-                  <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} aria-label={rtl ? "إجراءات" : "Actions"}>
-                    <FullscreenButton rtl={rtl} />
-                  </div>
+                {/* Collapsible Desktop Toolbar */}
+                <div className="hidden md:block">
+                  <Collapsible open={controlsOpen} onOpenChange={setControlsOpen}>
+                    <div className="sticky top-0 z-20">
+                      <div className="flex items-center justify-between bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/70 rounded-lg p-2 shadow-sm border">
+                        <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
+                          <CollapsibleTrigger asChild>
+                            <Button size="icon" variant="outline" aria-label={rtl ? "إظهار/إخفاء الأدوات" : "Toggle controls"}>
+                              <ChevronDown className={cn("h-4 w-4 transition-transform", controlsOpen ? "rotate-180" : "rotate-0")} />
+                            </Button>
+                          </CollapsibleTrigger>
+                        </div>
+                        <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} aria-label={rtl ? "إجراءات" : "Actions"}>
+                          <FullscreenButton rtl={rtl} />
+                        </div>
+                      </div>
+                      <CollapsibleContent>
+                        <div className="mt-2">
+                          <ZoomControls
+                            zoom={zoom}
+                            minZoom={Z.min}
+                            maxZoom={Z.max}
+                            zoomStep={Z.step}
+                            mode={zoomMode}
+                            onZoomIn={zoomIn}
+                            onZoomOut={zoomOut}
+                            onFitWidth={fitToWidth}
+                            onFitHeight={fitToHeight}
+                            onActualSize={actualSize}
+                            showMiniMap={showMiniMap && readerMode === 'page'}
+                            onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
+                            rtl={rtl}
+                            iconsOnly
+                          />
+                        </div>
+                      </CollapsibleContent>
+                    </div>
+                  </Collapsible>
                 </div>
 
                 {/* Page Area with Fullscreen */}
