@@ -996,6 +996,9 @@ useEffect(() => {
 
               {/* Main Content */}
               <div className="flex-1 flex flex-col gap-6">
+                {/* Content Search (above zoom controls) */}
+                <ContentSearch pages={allExtractedTexts} currentPageIndex={index} onPageChange={setIndex} onHighlight={setSearchHighlight} rtl={rtl} />
+
                 {/* Collapsible Desktop Toolbar */}
                 <div className="hidden md:block">
                   <Collapsible open={controlsOpen} onOpenChange={setControlsOpen}>
@@ -1042,8 +1045,6 @@ useEffect(() => {
                   </Collapsible>
                 </div>
 
-                {/* Content Search (moved above reader) */}
-                <ContentSearch pages={allExtractedTexts} currentPageIndex={index} onPageChange={setIndex} onHighlight={setSearchHighlight} rtl={rtl} />
 
                 {/* Page Area with Fullscreen */}
                 <FullscreenMode rtl={rtl}>
