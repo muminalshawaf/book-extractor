@@ -106,7 +106,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 const cacheId = useMemo(() => (bookId || title), [bookId, title]);
 const ocrKey = useMemo(() => `book:ocr:${cacheId}:${index}`, [cacheId, index]);
 const sumKey = useMemo(() => `book:summary:${cacheId}:${index}`, [cacheId, index]);
-const lastPageKey = useMemo(() => `book:last:${cacheId}`, [cacheId]);
 const dbBookId = useMemo(() => (bookId || title || 'book'), [bookId, title]);
 const [summary, setSummary] = useState("");
   const [summLoading, setSummLoading] = useState(false);
@@ -118,54 +117,15 @@ const [summary, setSummary] = useState("");
   const [summaryProgress, setSummaryProgress] = useState(0);
   const [thumbnailsOpen, setThumbnailsOpen] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
-  // Image display fallback handling
-  const [displaySrc, setDisplaySrc] = useState<string>(pages[0]?.src || "");
-  const [triedWeserv, setTriedWeserv] = useState(false);
-  const [triedNoCache, setTriedNoCache] = useState(false);
   
-  
-  useEffect(() => {
-    setDisplaySrc(pages[index]?.src || "");
-    setTriedWeserv(false);
-    setTriedNoCache(false);
-    setImageLoading(true);
-  }, [index, pages]);
-
-  const onImgError = () => {
-    const original = pages[index]?.src || "";
-    if (!triedWeserv && original) {
-      const hostless = original.replace(/^https?:\/\//, '');
-      const wes = `https://images.weserv.nl/?url=${encodeURIComponent(hostless)}&output=jpg`;
-      setTriedWeserv(true);
-      setDisplaySrc(wes);
-      setImageLoading(true);
-      return;
-    }
-    if (!triedNoCache && original) {
-      const sep = original.includes('?') ? '&' : '?';
-      setTriedNoCache(true);
-      setDisplaySrc(`${original}${sep}nocache=${Date.now()}`);
-      setImageLoading(true);
-      return;
-    }
-    setImageLoading(false);
-    toast.error(rtl ? "تعذّر تحميل صورة الصفحة" : "Failed to load page image");
-  };
-  const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-height");
+  // Phase 2 enhancements
+  const [zoomMode, setZoomMode] = useState<ZoomMode>("custom");
   const [showMiniMap, setShowMiniMap] = useState(false);
   const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 600 });
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number }>({ width: 800, height: 1100 });
   const [readerMode, setReaderMode] = useState<'page' | 'continuous'>("page");
   const continuousRef = useRef<ContinuousReaderRef | null>(null);
-  const lastNonCustomModeRef = useRef<ZoomMode>('fit-height');
-  const shouldAutoFitRef = useRef(false);
-  useEffect(() => {
-    if (zoomMode !== 'custom') lastNonCustomModeRef.current = zoomMode;
-  }, [zoomMode]);
-  useEffect(() => {
-    // When changing page, if we are in an auto mode, re-apply fit on image load
-    if (zoomMode !== 'custom') shouldAutoFitRef.current = true;
-  }, [index, zoomMode]);
+  
   // Image preloading
   const { getPreloadStatus } = useImagePreloader(pages, index);
   
@@ -343,28 +303,15 @@ const [summary, setSummary] = useState("");
     return () => { cancelled = true; };
   }, [index, dbBookId, ocrKey, sumKey]);
 
-// Persist last page index per book
-useEffect(() => {
-  try { localStorage.setItem(lastPageKey, String(index + 1)); } catch {}
-}, [index, lastPageKey]);
-
 
 // Reset state when switching books
 useEffect(() => {
+  setIndex(0);
   setSummary("");
   setExtractedText("");
   setAllExtractedTexts({});
   setLastError(null);
-  // Restore last viewed page for this book
-  try {
-    const saved = localStorage.getItem(lastPageKey);
-    const pageNum = saved ? parseInt(saved, 10) : 1;
-    const clamped = Number.isFinite(pageNum) ? Math.min(Math.max(1, pageNum), total) : 1;
-    setIndex(clamped - 1);
-  } catch {
-    setIndex(0);
-  }
-}, [bookId, pages, lastPageKey, total]);
+}, [bookId, pages]);
 
 // Enhanced OCR function with better error handling
   const extractTextFromPage = async () => {
@@ -692,10 +639,10 @@ useEffect(() => {
     if (!el) return 1;
     const containerWidth = el.clientWidth - 32;
     const containerHeight = el.clientHeight - 32;
-    const fitWidthScale = containerWidth / (naturalSize.width || 800);
-    const fitHeightScale = containerHeight / (naturalSize.height || 1100);
+    const fitWidthScale = containerWidth / 800;
+    const fitHeightScale = containerHeight / 1100;
     return Math.min(fitWidthScale, fitHeightScale);
-  }, [naturalSize.width, naturalSize.height]);
+  }, []);
 
   // Enhanced zoom functions (prefer engine API in Slides mode)
   const zoomOut = useCallback(() => {
@@ -718,29 +665,27 @@ useEffect(() => {
     }
   }, [readerMode]);
   
-  const fitToWidth = useCallback((imgNaturalWidth?: number) => {
+  const fitToWidth = useCallback(() => {
     const el = containerRef.current;
-    const baseWidth = imgNaturalWidth ?? (naturalSize.width || 800);
-    const newZoom = el ? Math.min(Z.max, (el.clientWidth - 32) / baseWidth) : 1;
+    const newZoom = el ? Math.min(Z.max, (el.clientWidth - 32) / 800) : 1;
     if (readerMode === 'page' && zoomApiRef.current) {
       zoomApiRef.current.setTransform(transformState.positionX, transformState.positionY, newZoom, 200, 'easeOut');
     } else {
       setZoom(newZoom);
     }
     setZoomMode('fit-width');
-  }, [readerMode, transformState.positionX, transformState.positionY, naturalSize.width]);
+  }, [readerMode, transformState.positionX, transformState.positionY]);
   
-  const fitToHeight = useCallback((imgNaturalHeight?: number) => {
+  const fitToHeight = useCallback(() => {
     const el = containerRef.current;
-    const baseHeight = imgNaturalHeight ?? (naturalSize.height || 1100);
-    const newZoom = el ? Math.min(Z.max, (el.clientHeight - 32) / baseHeight) : 1;
+    const newZoom = el ? Math.min(Z.max, (el.clientHeight - 32) / 1100) : 1;
     if (readerMode === 'page' && zoomApiRef.current) {
       zoomApiRef.current.setTransform(transformState.positionX, transformState.positionY, newZoom, 200, 'easeOut');
     } else {
       setZoom(newZoom);
     }
     setZoomMode('fit-height');
-  }, [readerMode, transformState.positionX, transformState.positionY, naturalSize.height]);
+  }, [readerMode, transformState.positionX, transformState.positionY]);
   
   const actualSize = useCallback(() => {
     if (readerMode === 'page' && zoomApiRef.current) {
@@ -1015,7 +960,7 @@ useEffect(() => {
                         contentClass="flex items-start justify-center py-2"
                       >
                         <img
-                          src={displaySrc}
+                          src={pages[index]?.src}
                           alt={pages[index]?.alt}
                           loading="eager"
                           decoding="async"
@@ -1028,19 +973,8 @@ useEffect(() => {
                             if (containerRef.current) {
                               setContainerDimensions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
                             }
-                            if (shouldAutoFitRef.current) {
-                              const mode = lastNonCustomModeRef.current;
-                              if (mode === 'fit-width') {
-                                fitToWidth(imgEl.naturalWidth);
-                              } else if (mode === 'actual-size') {
-                                actualSize();
-                              } else {
-                                fitToHeight(imgEl.naturalHeight);
-                              }
-                              shouldAutoFitRef.current = false;
-                            }
                           }}
-                          onError={onImgError}
+                          onError={() => setImageLoading(false)}
                           className="select-none max-w-full max-h-full object-contain will-change-transform"
                           itemProp="image"
                           aria-describedby={`page-${index}-description`}
@@ -1272,7 +1206,7 @@ useEffect(() => {
                                 contentClass="flex items-start justify-center py-2"
                               >
                                 <img
-                                  src={displaySrc}
+                                  src={pages[index]?.src}
                                   alt={pages[index]?.alt}
                                   loading="eager"
                                   decoding="async"
@@ -1285,19 +1219,8 @@ useEffect(() => {
                                     if (containerRef.current) {
                                       setContainerDimensions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
                                     }
-                                    if (shouldAutoFitRef.current) {
-                                      const mode = lastNonCustomModeRef.current;
-                                      if (mode === 'fit-width') {
-                                        fitToWidth(imgEl.naturalWidth);
-                                      } else if (mode === 'actual-size') {
-                                        actualSize();
-                                      } else {
-                                        fitToHeight(imgEl.naturalHeight);
-                                      }
-                                      shouldAutoFitRef.current = false;
-                                    }
                                   }}
-                                  onError={onImgError}
+                                  onError={() => setImageLoading(false)}
                                   className="select-none max-w-full max-h-full object-contain will-change-transform"
                                   itemProp="image"
                                   aria-describedby={`page-${index}-description`}
