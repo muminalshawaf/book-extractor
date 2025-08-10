@@ -1217,11 +1217,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           <div ref={insightsRef} className="px-3 pt-4">
             <Card className="shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm md:text-base">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
+                <CardTitle className="text-xs md:text-sm">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
               </CardHeader>
               <CardContent className="p-3">
                 <Tabs value={insightTab} onValueChange={v => setInsightTab(v as any)} className="w-full">
-                  <TabsList className="grid grid-cols-2 w-full">
+                  <TabsList className="grid grid-cols-2 w-full text-xs md:text-sm">
                     <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
                     <TabsTrigger value="qa">
                       {rtl ? <span className="inline-flex items-center gap-2">
@@ -1374,7 +1374,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       }} />
                           </div>}
                       </TouchGestureHandler>
-                      <div className={cn("mt-4 grid grid-cols-1 md:grid-cols-3 items-center gap-2 text-[13px] md:text-[14px] lg:text-base", rtl && "[direction:rtl]")}>
+                      <div className={cn("mt-4 grid grid-cols-1 md:grid-cols-3 items-center gap-2 text-xs md:text-sm lg:text-base", rtl && "[direction:rtl]")}>
                         <Button onClick={goPrev} variant="secondary" disabled={index === 0} aria-label={L.previous} className={cn("justify-self-start", isMobile && "min-h-[44px] min-w-[44px]")}>{rtl ? `${L.previous} →` : "← " + L.previous}</Button>
                         <div className="flex flex-wrap items-center justify-center md:justify-center gap-2 md:gap-3 justify-self-center">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1452,9 +1452,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
                 {/* Insight Panel under reader (desktop) */}
                 <div ref={insightsRef}>
-                  <Card className="shadow-sm text-[13px] md:text-[14px] lg:text-base">
+                  <Card className="shadow-sm text-xs md:text-sm lg:text-base">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm md:text-sm lg:text-base">
+                      <CardTitle className="text-xs md:text-sm lg:text-base">
                         <span className="inline-flex items-center gap-2">
                           <Sparkles className="h-4 w-4" />
                           <span>{rtl ? "مساعد القراءة الذكي" : "AI Reading Assistant"}</span>
@@ -1463,7 +1463,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     </CardHeader>
                     <CardContent className="p-3 md:p-4 lg:p-5 text-[13px] md:text-[14px] lg:text-base">
                       <Tabs value={insightTab} onValueChange={v => setInsightTab(v as any)} className="w-full">
-                        <TabsList className="grid grid-cols-2 w-full text-[15px] md:text-base">
+                        <TabsList className="grid grid-cols-2 w-full text-xs md:text-sm">
                           <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
                            <TabsTrigger value="qa">
                              {rtl ? <span className="inline-flex items-center gap-2">
