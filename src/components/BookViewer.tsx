@@ -1255,15 +1255,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                             
                           </CollapsibleTrigger>
                         </div>
-                        <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} aria-label={rtl ? "إجراءات" : "Actions"}>
-                          <Button size="icon" variant="outline" onClick={zoomOut} aria-label={rtl ? "تصغير" : "Zoom out"} className="h-9 w-9">
-                            <ZoomOut className="h-4 w-4" />
-                          </Button>
-                          <Button size="icon" variant="outline" onClick={zoomIn} aria-label={rtl ? "تكبير" : "Zoom in"} className="h-9 w-9">
-                            <ZoomIn className="h-4 w-4" />
-                          </Button>
-                          <FullscreenButton rtl={rtl} />
-                        </div>
+                        {/* Actions moved to bottom navigation */}
                       </div>
                       <CollapsibleContent>
                         <div className="mt-2">
@@ -1363,6 +1355,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                             <Input type="number" inputMode="numeric" min={1} max={total} placeholder={rtl ? "اذهب إلى صفحة" : "Go to page"} value={gotoInput} onChange={e => setGotoInput(e.target.value)} className="w-24" aria-label={rtl ? "أدخل رقم الصفحة" : "Enter page number"} />
                             <Button type="submit" variant="outline" size="sm">{rtl ? "اذهب" : "Go"}</Button>
                           </form>
+                          <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} aria-label={rtl ? "إجراءات" : "Actions"}>
+                            <Button size="icon" variant="outline" onClick={zoomOut} aria-label={rtl ? "تصغير" : "Zoom out"} className="h-9 w-9">
+                              <ZoomOut className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="outline" onClick={zoomIn} aria-label={rtl ? "تكبير" : "Zoom in"} className="h-9 w-9">
+                              <ZoomIn className="h-4 w-4" />
+                            </Button>
+                            <FullscreenButton rtl={rtl} />
+                          </div>
                         </div>
                         <Button onClick={goNext} variant="default" disabled={index === total - 1} aria-label={L.next} className={cn(isMobile && "min-h-[48px] min-w-[48px]")}>{rtl ? `← ${L.next}` : L.next + " →"}</Button>
                       </div>
