@@ -9,79 +9,43 @@ interface TutorSidebarProps {
   suggestions: { title: string; query: string }[];
   onNewChat: () => void;
   onPick: (query: string) => void;
-  within?: boolean; // render inside a container div
 }
 
-const TutorSidebar: React.FC<TutorSidebarProps> = ({ rtl = false, suggestions, onNewChat, onPick, within = false }) => {
-  const [pinned, setPinned] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-
-  const isExpanded = pinned || expanded;
-
-  const sideCls = useMemo(() => (rtl ? (within ? "right-0" : "right-2") : (within ? "left-0" : "left-2")), [rtl, within]);
-  const posCls = within ? "absolute inset-y-0 z-50" : "fixed z-40 top-20 bottom-6";
-
-  const asideRef = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    if (!within) return;
-    const el = asideRef.current;
-    const container = el?.parentElement as HTMLElement | null;
-    if (!container) return;
-    let lastTop = container.scrollTop;
-    const onScroll = () => {
-      if (pinned) return;
-      const cur = container.scrollTop;
-      const down = cur > lastTop + 2;
-      const up = cur < lastTop - 2;
-      if (down) setExpanded(true);
-      else if (up && cur <= 8) setExpanded(false);
-      lastTop = cur;
-    };
-    container.addEventListener("scroll", onScroll);
-    return () => container.removeEventListener("scroll", onScroll);
-  }, [pinned, within]);
-
-  const onEnter = useCallback(() => { if (!pinned) setExpanded(true); }, [pinned]);
-  const onLeave = useCallback(() => { if (!pinned) setExpanded(false); }, [pinned]);
-
+const TutorSidebar: React.FC<TutorSidebarProps> = ({ rtl = false, suggestions, onNewChat, onPick }) => {
   return (
     <aside
-      ref={asideRef as any}
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
       className={cn(
-        posCls,
-        sideCls,
-        "transition-[width] duration-300 overflow-hidden",
-        isExpanded ? "w-64" : "w-16",
-        "bg-background/80 backdrop-blur border rounded-2xl shadow-sm flex flex-col"
+        "w-80 border-r bg-background/50 backdrop-blur-sm flex flex-col",
+        rtl && "border-l border-r-0"
       )}
       aria-label={rtl ? "القائمة" : "Menu"}
     >
-      <div className={cn("flex items-center gap-2 p-3", rtl && "flex-row-reverse")}> 
-        <Button variant="ghost" size="icon" onClick={() => setPinned((v) => !v)} aria-pressed={pinned} aria-label={rtl ? "تثبيت/إلغاء التثبيت" : "Pin/unpin"}>
-          <Menu className="h-5 w-5" />
+      {/* Header */}
+      <div className={cn("flex items-center gap-3 p-4 border-b", rtl && "flex-row-reverse")}>
+        <Button variant="ghost" size="sm" onClick={onNewChat} className="text-sm">
+          {rtl ? "محادثة جديدة" : "New Chat"}
         </Button>
-        <div className={cn("text-sm font-semibold", !isExpanded && "opacity-0 pointer-events-none")}>{rtl ? "القائمة" : "Menu"}</div>
       </div>
 
-      <Separator className={cn(!isExpanded && "opacity-0")} />
-
-      <div className={cn("p-2 space-y-2", !isExpanded && "opacity-0 pointer-events-none")}>
-        <Button variant="secondary" className={cn("w-full justify-start", rtl && "flex-row-reverse justify-between")} onClick={onNewChat}>
-          {rtl ? "محادثة جديدة" : "New chat"}
-        </Button>
+      {/* Content */}
+      <div className="flex-1 p-4 space-y-4">
         <div>
-          <div className="text-xs font-semibold text-muted-foreground mb-2">{rtl ? "مقترحات" : "Suggestions"}</div>
-          <ul className="space-y-1">
+          <h3 className={cn("text-sm font-medium mb-3", rtl && "text-right")}>{rtl ? "مقترحات" : "Suggestions"}</h3>
+          <div className="space-y-2">
             {suggestions.map((s, idx) => (
-              <li key={idx}>
-                <Button variant="ghost" className={cn("w-full justify-start", rtl && "flex-row-reverse justify-between")} onClick={() => onPick(s.query)}>
-                  {s.title}
-                </Button>
-              </li>
+              <Button 
+                key={idx}
+                variant="ghost" 
+                className={cn(
+                  "w-full justify-start p-3 h-auto text-wrap text-left",
+                  rtl && "text-right justify-end"
+                )} 
+                onClick={() => onPick(s.query)}
+              >
+                {s.title}
+              </Button>
             ))}
-          </ul>
+          </div>
         </div>
       </div>
     </aside>

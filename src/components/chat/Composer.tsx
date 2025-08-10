@@ -25,38 +25,24 @@ const Composer: React.FC<ComposerProps> = ({ value, onChange, onSend, onStop, di
   };
 
   return (
-    <div className={cn("flex items-end gap-3 border rounded-3xl p-3 bg-background/80 backdrop-blur shadow-sm", rtl && "flex-row-reverse")}> 
-      <Button type="button" variant="secondary" size="icon" className="h-9 w-9 rounded-full" aria-label={rtl ? "رفع" : "Upload"}>
-        <Upload className="h-4 w-4" />
-      </Button>
+    <div className={cn("flex items-center gap-3 border rounded-full p-2 bg-background", rtl && "flex-row-reverse")}> 
       <Textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
-        rows={2}
-        placeholder={rtl ? "أدخل طلبًا هنا" : "Enter your prompt here"}
+        rows={1}
+        placeholder={rtl ? "أدخل طلبك هنا" : "Enter your request here"}
         aria-label={rtl ? "سؤال" : "Question"}
         disabled={loading}
-        className="max-h-36 rounded-2xl border bg-background/60 backdrop-blur shadow-sm"
+        className="flex-1 border-0 bg-transparent resize-none min-h-[40px] p-2 focus-visible:ring-0"
       />
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" aria-label={rtl ? "أدوات" : "Tools"}>
-            <Wrench className="h-4 w-4" />
-            <span className="sr-only">{rtl ? "أدوات" : "Tools"}</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align={rtl ? "end" : "start"} className="z-50 bg-background shadow-lg">
-          <DropdownMenuItem onClick={() => onOpenLatex?.()}>{rtl ? "أداة LaTeX" : "LaTeX Tool"}</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
       {loading ? (
-        <Button onClick={onStop} variant="outline" aria-label={rtl ? "إيقاف" : "Stop"}>
+        <Button onClick={onStop} variant="ghost" size="icon" className="rounded-full" aria-label={rtl ? "إيقاف" : "Stop"}>
           <StopCircle className="h-4 w-4" />
         </Button>
       ) : (
-        <Button onClick={onSend} disabled={disabled} aria-label={rtl ? "إرسال" : "Send"}>
-          <span className="inline-flex items-center gap-2"><Send className="h-4 w-4" />{rtl ? "إرسال" : "Send"}</span>
+        <Button onClick={onSend} disabled={disabled} size="icon" className="rounded-full" aria-label={rtl ? "إرسال" : "Send"}>
+          <Send className="h-4 w-4" />
         </Button>
       )}
     </div>
