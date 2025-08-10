@@ -29,6 +29,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { PerformanceMonitor } from "@/components/PerformanceMonitor";
 import { ContinuousReader, ContinuousReaderRef } from "@/components/reader/ContinuousReader";
+import { MobileReaderChrome } from "@/components/reader/MobileReaderChrome";
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 export type BookPage = {
   src: string;
@@ -816,37 +817,25 @@ useEffect(() => {
       {isMobile ? (
         <div className="flex flex-col gap-4">
           {/* Top Bar */}
-          <div className="sticky top-0 z-20 flex items-center justify-between bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/70 rounded-lg p-3 shadow-sm border">
-            <ZoomControls
-              zoom={zoom}
-              minZoom={Z.min}
-              maxZoom={Z.max}
-              zoomStep={Z.step}
-              mode={zoomMode}
-              onZoomIn={zoomIn}
-              onZoomOut={zoomOut}
-              onFitWidth={fitToWidth}
-              onFitHeight={fitToHeight}
-              onActualSize={actualSize}
-              showMiniMap={false}
-              rtl={rtl}
-            />
-            <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}> 
-              <Button size="sm" variant="outline" onClick={() => setThumbnailsOpen(!thumbnailsOpen)}>
-                <Grid3X3 className="h-4 w-4 mr-2" />
-                {rtl ? "المصغرات" : "Thumbnails"}
-              </Button>
-              <Button size="sm" onClick={() => setMobileInsightsOpen(true)}>
-                {rtl ? "لوحة الرؤى" : "Insights"}
-              </Button>
-              <FullscreenButton rtl={rtl} />
-            </div>
-          </div>
+          <MobileReaderChrome
+            title={title}
+            progressText={L.progress(index + 1, total, progressPct)}
+            rtl={rtl}
+            onToggleThumbnails={() => setThumbnailsOpen(!thumbnailsOpen)}
+            onOpenInsights={() => setMobileInsightsOpen(true)}
+            onPrev={goPrev}
+            onNext={goNext}
+            canPrev={index > 0}
+            canNext={index < total - 1}
+            onZoomIn={zoomIn}
+            onZoomOut={zoomOut}
+            fullscreenButton={<FullscreenButton rtl={rtl} />}
+          />
 
           {/* Viewer */}
           <FullscreenMode rtl={rtl}>
             <Card className="shadow-sm animate-fade-in">
-              <CardHeader>
+              <CardHeader className="sr-only">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg" itemProp="name">{title}</CardTitle>
                   <div className="flex items-center gap-2">
@@ -940,16 +929,6 @@ useEffect(() => {
                   </div>
                 </TouchGestureHandler>
 
-                {/* Pager */}
-                <div className={cn("mt-2 flex items-center justify-between gap-2", rtl && "flex-row-reverse")}> 
-                  <Button onClick={goPrev} variant="secondary" disabled={index === 0} aria-label={L.previous}>{rtl ? `${L.previous} →` : "← " + L.previous}</Button>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="tabular-nums">{index + 1}</span>
-                    <Separator orientation="vertical" className="h-5" />
-                    <span className="tabular-nums">{total}</span>
-                  </div>
-                  <Button onClick={goNext} variant="default" disabled={index === total - 1} aria-label={L.next}>{rtl ? `← ${L.next}` : L.next + " →"}</Button>
-                </div>
               </CardContent>
             </Card>
           </FullscreenMode>
