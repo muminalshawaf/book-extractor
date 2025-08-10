@@ -936,7 +936,7 @@ useEffect(() => {
                 <Tabs defaultValue="summary" className="w-full">
                   <TabsList className="grid grid-cols-2 w-full">
                     <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
-                    <TabsTrigger value="qa">{rtl ? "اسأل المستند" : "Ask the doc"}</TabsTrigger>
+                    <TabsTrigger value="qa">{rtl ? "المدرس الإفتراضي" : "Ask the doc"}</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="summary" className="mt-4 m-0">
@@ -1237,7 +1237,7 @@ useEffect(() => {
                       <Tabs defaultValue="summary" className="w-full">
                         <TabsList className="grid grid-cols-2 w-full">
                           <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
-                          <TabsTrigger value="qa">{rtl ? "اسأل المستند" : "Ask the doc"}</TabsTrigger>
+                          <TabsTrigger value="qa">{rtl ? "المدرس الإفتراضي" : "Ask the doc"}</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="summary" className="mt-4 m-0">
