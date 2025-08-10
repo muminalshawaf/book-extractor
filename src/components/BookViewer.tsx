@@ -85,7 +85,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   }), [zoom]);
   const total = pages.length;
   const navigate = useNavigate();
-  const [topTab, setTopTab] = useState<"library" | "content">("content");
+  
   const [libQ, setLibQ] = useState("");
   const [libGrade, setLibGrade] = useState<number | null>(null);
   const [libSemester, setLibSemester] = useState<number | null>(null);

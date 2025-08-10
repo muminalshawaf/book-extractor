@@ -18,13 +18,15 @@ interface ContentSearchProps {
   onPageChange: (index: number) => void;
   onHighlight: (searchTerm: string) => void;
   rtl?: boolean;
+  embedded?: boolean;
 }
 export const ContentSearch: React.FC<ContentSearchProps> = ({
   pages,
   currentPageIndex,
   onPageChange,
   onHighlight,
-  rtl = false
+  rtl = false,
+  embedded = false
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -112,70 +114,70 @@ export const ContentSearch: React.FC<ContentSearchProps> = ({
         </mark> : part);
   };
   const hasAnyExtractedText = Object.keys(pages).length > 0;
-  return <Card className="shadow-sm -mt-2">
-      <CardContent className="p-4 bg-muted">
-        {!hasAnyExtractedText}
-        <form onSubmit={handleSearch} className="space-y-3">
-          <div className={cn("flex gap-2", rtl && "flex-row-reverse")}>
-            <div className="relative flex-1">
-              <Search className={cn("absolute top-2.5 h-4 w-4 text-muted-foreground", rtl ? "right-3" : "left-3")} />
-              <Input type="text" placeholder={rtl ? "البحث في المحتوى..." : "Search content..."} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={cn("h-9", rtl ? "pr-10" : "pl-10")} dir={rtl ? "rtl" : "ltr"} />
-              {searchTerm && <Button type="button" variant="ghost" size="icon" onClick={clearSearch} className={cn("absolute top-0 h-9 w-9", rtl ? "left-0" : "right-0")}>
-                  <X className="h-3 w-3" />
-                </Button>}
-            </div>
-            
-            {searchResults.length > 0 && <div className={cn("flex items-center gap-1", rtl && "flex-row-reverse")}>
-                <Button type="button" variant="outline" size="icon" onClick={previousResult} disabled={searchResults.length <= 1} className="h-9 w-9">
-                  <ChevronUp className="h-3 w-3" />
-                </Button>
-                <Button type="button" variant="outline" size="icon" onClick={nextResult} disabled={searchResults.length <= 1} className="h-9 w-9">
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </div>}
+  const formBlock = (<>
+      {!hasAnyExtractedText}
+      <form onSubmit={handleSearch} className="space-y-3">
+        <div className={cn("flex gap-2", rtl && "flex-row-reverse")}>
+          <div className="relative flex-1">
+            <Search className={cn("absolute top-2.5 h-4 w-4 text-muted-foreground", rtl ? "right-3" : "left-3")} />
+            <Input type="text" placeholder={rtl ? "البحث في المحتوى..." : "Search content..."} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={cn("h-9", rtl ? "pr-10" : "pl-10")} dir={rtl ? "rtl" : "ltr"} />
+            {searchTerm && <Button type="button" variant="ghost" size="icon" onClick={clearSearch} className={cn("absolute top-0 h-9 w-9", rtl ? "left-0" : "right-0")}>
+                <X className="h-3 w-3" />
+              </Button>}
           </div>
-
-          {/* Search results summary */}
-          {searchTerm && <div className={cn("flex items-center justify-between text-sm text-muted-foreground", rtl && "flex-row-reverse")}>
-              <div className="flex items-center gap-2">
-                <FileText className="h-3 w-3" />
-                <span>
-                  {searchResults.length === 0 ? rtl ? "لا توجد نتائج" : "No results" : rtl ? `${currentResultIndex + 1} من ${searchResults.length} نتيجة` : `${currentResultIndex + 1} of ${searchResults.length} results`}
-                </span>
-              </div>
-              
-              {searchResults.length > 0 && <Badge variant="secondary" className="text-xs">
-                  {rtl ? `الصفحة ${searchResults[currentResultIndex].pageIndex + 1}` : `Page ${searchResults[currentResultIndex].pageIndex + 1}`}
-                </Badge>}
+          {searchResults.length > 0 && <div className={cn("flex items-center gap-1", rtl && "flex-row-reverse")}>
+              <Button type="button" variant="outline" size="icon" onClick={previousResult} disabled={searchResults.length <= 1} className="h-9 w-9">
+                <ChevronUp className="h-3 w-3" />
+              </Button>
+              <Button type="button" variant="outline" size="icon" onClick={nextResult} disabled={searchResults.length <= 1} className="h-9 w-9">
+                <ChevronDown className="h-3 w-3" />
+              </Button>
             </div>}
-
-          {/* Current result context and clickable results */}
-          {searchResults.length > 0 && searchResults[currentResultIndex] && <>
-              <div className="mt-3 p-3 bg-muted rounded-lg">
-                <div className="text-sm leading-relaxed" dir={rtl ? "rtl" : "ltr"}>
-                  {highlightSearchTerm(searchResults[currentResultIndex].context, searchTerm)}
-                </div>
+        </div>
+        {searchTerm && <div className={cn("flex items-center justify-between text-sm text-muted-foreground", rtl && "flex-row-reverse")}>
+            <div className="flex items-center gap-2">
+              <FileText className="h-3 w-3" />
+              <span>
+                {searchResults.length === 0 ? rtl ? "لا توجد نتائج" : "No results" : rtl ? `${currentResultIndex + 1} من ${searchResults.length} نتيجة` : `${currentResultIndex + 1} of ${searchResults.length} results`}
+              </span>
+            </div>
+            {searchResults.length > 0 && <Badge variant="secondary" className="text-xs">
+                {rtl ? `الصفحة ${searchResults[currentResultIndex].pageIndex + 1}` : `Page ${searchResults[currentResultIndex].pageIndex + 1}`}
+              </Badge>}
+          </div>}
+        {searchResults.length > 0 && searchResults[currentResultIndex] && <>
+            <div className="mt-3 p-3 bg-muted rounded-lg">
+              <div className="text-sm leading-relaxed" dir={rtl ? "rtl" : "ltr"}>
+                {highlightSearchTerm(searchResults[currentResultIndex].context, searchTerm)}
               </div>
-
-              {/* All results list - click to jump to page */}
-              <div className="mt-3">
-                <div className={cn("text-xs text-muted-foreground mb-2", rtl && "text-right")}>
-                  {rtl ? "النتائج" : "Results"}
-                </div>
-                <div className="max-h-60 overflow-auto rounded border">
-                  {searchResults.map((r, i) => <button key={`${r.pageIndex}-${r.startIndex}-${i}`} type="button" onClick={() => navigateToResult(i)} className={cn("w-full text-left px-3 py-2 hover:bg-accent/60 focus:bg-accent/60 transition", i === currentResultIndex && "bg-accent/50", rtl && "text-right")} dir={rtl ? "rtl" : "ltr"} aria-label={rtl ? `الانتقال إلى الصفحة ${r.pageIndex + 1}` : `Go to page ${r.pageIndex + 1}`}>
-                      <div className={cn("flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
-                        <span className="text-xs text-muted-foreground">{rtl ? `الصفحة ${r.pageIndex + 1}` : `Page ${r.pageIndex + 1}`}</span>
-                        {i === currentResultIndex && <Badge variant="secondary">{rtl ? "الحالية" : "Current"}</Badge>}
-                      </div>
-                      <div className="text-sm">
-                        {highlightSearchTerm(r.context, searchTerm)}
-                      </div>
-                    </button>)}
-                </div>
+            </div>
+            <div className="mt-3">
+              <div className={cn("text-xs text-muted-foreground mb-2", rtl && "text-right")}>
+                {rtl ? "النتائج" : "Results"}
               </div>
-            </>}
-        </form>
-      </CardContent>
-    </Card>;
+              <div className="max-h-60 overflow-auto rounded border">
+                {searchResults.map((r, i) => <button key={`${r.pageIndex}-${r.startIndex}-${i}`} type="button" onClick={() => navigateToResult(i)} className={cn("w-full text-left px-3 py-2 hover:bg-accent/60 focus:bg-accent/60 transition", i === currentResultIndex && "bg-accent/50", rtl && "text-right")} dir={rtl ? "rtl" : "ltr"} aria-label={rtl ? `الانتقال إلى الصفحة ${r.pageIndex + 1}` : `Go to page ${r.pageIndex + 1}`}>
+                    <div className={cn("flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
+                      <span className="text-xs text-muted-foreground">{rtl ? `الصفحة ${r.pageIndex + 1}` : `Page ${r.pageIndex + 1}`}</span>
+                      {i === currentResultIndex && <Badge variant="secondary">{rtl ? "الحالية" : "Current"}</Badge>}
+                    </div>
+                    <div className="text-sm">
+                      {highlightSearchTerm(r.context, searchTerm)}
+                    </div>
+                  </button>)}
+              </div>
+            </div>
+          </>}
+      </form>
+    </>);
+
+  return embedded ? (
+    <div className="-mt-2">
+      <div className="p-4 bg-muted">{formBlock}</div>
+    </div>
+  ) : (
+    <Card className="shadow-sm -mt-2">
+      <CardContent className="p-4 bg-muted">{formBlock}</CardContent>
+    </Card>
+  );
 };
