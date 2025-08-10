@@ -1004,6 +1004,9 @@ useEffect(() => {
                           </CollapsibleTrigger>
                         </div>
                         <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} aria-label={rtl ? "إجراءات" : "Actions"}>
+                          <span className="hidden md:inline text-sm font-medium text-foreground/90 truncate max-w-[45vw]" title={title} itemProp="name">
+                            {title}
+                          </span>
                           <FullscreenButton rtl={rtl} />
                         </div>
                       </div>
@@ -1036,7 +1039,7 @@ useEffect(() => {
                   <Card className="shadow-sm animate-fade-in">
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg" itemProp="name">{title}</CardTitle>
+                        <CardTitle className="sr-only" itemProp="name">{title}</CardTitle>
                         <div className="flex items-center gap-2">
                           <AccessibilityPanel 
                             isOpen={accessibilityPanelOpen}
