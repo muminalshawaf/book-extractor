@@ -7,8 +7,15 @@ interface MathBlock {
   displayMode: boolean;
 }
 
+// Unwrap top-level fenced code blocks that declare markdown (```markdown)
+function unwrapMarkdownFence(input: string): string {
+  const m = input.match(/^\s*```(?:markdown|md|gfm)?\s*\n([\s\S]*?)\n```[\s]*$/i);
+  if (m) return m[1];
+  return input;
+}
+
 export function normalizeAndExtractMath(text: string): { text: string; mathBlocks: MathBlock[] } {
-  let processedText = text || '';
+  let processedText = unwrapMarkdownFence(text || '');
   const mathBlocks: MathBlock[] = [];
   let blockIndex = 0;
 
@@ -35,9 +42,9 @@ export function renderContent(content: string, targetElement: HTMLElement): void
   const { text: markdownContent, mathBlocks } = normalizeAndExtractMath(content);
   
   // Parse markdown with proper configuration  
-  const parsedMarkdown = marked.parse(markdownContent, { 
-    gfm: true, 
-    breaks: true
+  const parsedMarkdown = marked.parse(markdownContent, {
+    gfm: true,
+    breaks: true,
   });
   
   targetElement.innerHTML = typeof parsedMarkdown === 'string' ? parsedMarkdown : '';
