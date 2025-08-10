@@ -44,32 +44,70 @@ async function rotateImageBlob(input: string | Blob, angleDeg: number): Promise<
   );
 }
 
+const psmCache = new Map<string, number | string>();
+function keyFromInput(inp: string | Blob) {
+  if (typeof inp === 'string') return `url:${inp}`;
+  const b = inp as Blob;
+  return `blob:${b.type}:${b.size}`;
+}
+
 export async function runLocalOcr(input: string | Blob, options?: LocalOcrOptions): Promise<LocalOcrResult> {
-  const lang = options?.lang || 'ara+eng';
+  const lang = options?.lang || 'ara';
   const primaryPsm = options?.psm ?? 6; // default: uniform block of text
   const onProgress = options?.onProgress;
+  const cacheKey = keyFromInput(input);
+  const cachedPsm = psmCache.get(cacheKey);
 
   let image: string | Blob = input;
+  const variantImages: (string | Blob)[] = [];
   const shouldPreprocess =
     options?.preprocess === false ? false : Boolean(options?.preprocess) || lang.includes('ara');
   try {
+    const origBlob = typeof input === 'string' ? await (await fetch(input)).blob() : input;
     if (shouldPreprocess) {
-      const preOptions =
+      const baseOptions: PreprocessOptions =
         typeof options?.preprocess === 'object'
           ? options.preprocess
           : (lang.includes('ara')
-              ? ({ adaptiveBinarization: true, deskew: true, contrastNormalize: true } as any)
-              : undefined);
-      const preBlob = await preprocessImageBlob(
-        typeof input === 'string' ? await (await fetch(input)).blob() : input,
-        preOptions
-      );
-      image = preBlob;
+              ? ({
+                  adaptiveBinarization: true,
+                  deskew: true,
+                  contrastNormalize: true,
+                  targetMinWidth: 2200,
+                  upsample: true,
+                  denoise: true,
+                  binarize: true,
+                  cropMargins: true,
+                } as PreprocessOptions)
+              : ({} as PreprocessOptions));
+      if (lang.includes('ara') && typeof options?.preprocess !== 'object') {
+        const preAdaptive = await preprocessImageBlob(origBlob, {
+          ...baseOptions,
+          adaptiveBinarization: true,
+          binarize: true,
+          targetMinWidth: 2200,
+        });
+        const preOtsu = await preprocessImageBlob(origBlob, {
+          ...baseOptions,
+          adaptiveBinarization: false,
+          binarize: true,
+          targetMinWidth: 2200,
+        });
+        variantImages.push(preAdaptive, preOtsu);
+      } else {
+        const preBlob = await preprocessImageBlob(origBlob, baseOptions);
+        variantImages.push(preBlob);
+      }
+    } else {
+      variantImages.push(input);
     }
+    image = variantImages[0];
   } catch (e) {
     // If preprocessing fails, fallback to raw input
     console.warn('Preprocessing failed, falling back to original image:', e);
     image = input;
+    variantImages.length = 0;
+    variantImages.push(input);
   }
   const worker = await createWorker(lang, 1, {
     // logger provides progress: { progress, status }
@@ -93,53 +131,74 @@ export async function runLocalOcr(input: string | Blob, options?: LocalOcrOption
   }
 
   try {
-    // Auto-rotate using Tesseract OSD if enabled
-    if (options?.autoRotate ?? lang.includes('ara')) {
-      try {
-        const det: any = await (worker as any).detect(image as any);
-        const angle = Math.round(det?.data?.orientation?.degrees ?? det?.data?.orientation?.angle ?? 0);
-        const norm = ((angle % 360) + 360) % 360;
-        if (norm === 90 || norm === 180 || norm === 270) {
-          const rotateBy = (360 - norm) % 360;
-          image = await rotateImageBlob(image, rotateBy);
-        }
-      } catch {
-        // ignore OSD errors
+    // Build PSM candidates with cached best first and extended set
+    const baseCandidates: (number | string)[] = lang.includes('ara') ? [4, 3, 6, 7, 11, 12, 13] : [11, 12, 13];
+    const psmCandidates: (number | string)[] = [];
+    const seen = new Set<string>();
+    const add = (v?: number | string) => {
+      if (v === undefined) return;
+      const k = String(v);
+      if (!seen.has(k)) {
+        seen.add(k);
+        psmCandidates.push(v);
       }
-    }
-
-    // Try multiple PSM strategies (optimized for Arabic)
-    const tried = new Set<string>();
-    const psmCandidates: (number | string)[] = [
-      primaryPsm,
-      ...(lang.includes('ara') ? [4, 3, 6, 7, 11] : [11]),
-    ];
+    };
+    add(cachedPsm as any);
+    add(primaryPsm as any);
+    for (const c of baseCandidates) add(c);
 
     let best: any | null = null;
-    for (const psm of psmCandidates) {
-      const key = String(psm);
-      if (tried.has(key)) continue;
-      tried.add(key);
-      try {
-        const result = await recognizeWith(psm);
-        if (!best) {
-          best = result;
-          continue;
+    let bestPsmUsed: number | string | undefined;
+
+    for (const variant of variantImages) {
+      image = variant;
+
+      // Auto-rotate using Tesseract OSD if enabled
+      if (options?.autoRotate ?? lang.includes('ara')) {
+        try {
+          const det: any = await (worker as any).detect(image as any);
+          const angle = Math.round(det?.data?.orientation?.degrees ?? det?.data?.orientation?.angle ?? 0);
+          const norm = ((angle % 360) + 360) % 360;
+          if (norm === 90 || norm === 180 || norm === 270) {
+            const rotateBy = (360 - norm) % 360;
+            image = await rotateImageBlob(image, rotateBy);
+          }
+        } catch {
+          // ignore OSD errors
         }
-        const bConf = Number((best as any).confidence ?? 0);
-        const rConf = Number((result as any).confidence ?? 0);
-        const bLen = (best?.text || '').trim().length;
-        const rLen = (result?.text || '').trim().length;
-        if (rConf > bConf || (rConf === bConf && rLen > bLen)) {
-          best = result;
+      }
+
+      const tried = new Set<string>();
+      for (const psm of psmCandidates) {
+        const key = String(psm);
+        if (tried.has(key)) continue;
+        tried.add(key);
+        try {
+          const result = await recognizeWith(psm);
+          if (!best) {
+            best = result;
+            bestPsmUsed = psm;
+            continue;
+          }
+          const bConf = Number((best as any).confidence ?? 0);
+          const rConf = Number((result as any).confidence ?? 0);
+          const bLen = (best?.text || '').trim().length;
+          const rLen = (result?.text || '').trim().length;
+          if (rConf > bConf || (rConf === bConf && rLen > bLen)) {
+            best = result;
+            bestPsmUsed = psm;
+          }
+        } catch {
+          // ignore errors per PSM
         }
-      } catch {
-        // ignore errors per PSM
       }
     }
 
     const data = best ?? { text: '', confidence: 0 };
     onProgress?.(100);
+    if (bestPsmUsed !== undefined) {
+      psmCache.set(cacheKey, bestPsmUsed);
+    }
     return { text: data.text || '', confidence: (data as any).confidence };
   } finally {
     await worker.terminate();
