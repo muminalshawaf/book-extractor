@@ -115,7 +115,7 @@ export const TouchGestureHandler: React.FC<TouchGestureHandlerProps> = ({
     <div
       ref={containerRef}
       className={cn("touch-manipulation", className)}
-      style={{ touchAction: disabled ? 'auto' : 'none' }}
+      style={{ touchAction: disabled ? 'auto' : 'pan-y' }}
     >
       {children}
     </div>
