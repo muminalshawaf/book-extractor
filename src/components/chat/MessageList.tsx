@@ -129,7 +129,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
                             <Share2 className="h-3.5 w-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align={rtl ? "end" : "start"}>
+                        <DropdownMenuContent align={rtl ? "end" : "start"} className="z-50 bg-background">
                           <DropdownMenuItem onClick={() => {
                             const text = isStreaming ? (streamRef.current?.textContent ?? "") : m.content;
                             const t = encodeURIComponent(text);
