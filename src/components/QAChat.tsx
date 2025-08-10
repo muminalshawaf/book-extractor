@@ -282,7 +282,8 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
         <CardTitle className="text-base">{rtl ? "المدرس الإفتراضي" : "AI Tutor"}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
+        <div className="relative space-y-3">
+          <TutorSidebar within rtl={rtl} onNewChat={() => { setMessages([]); setQ(""); }} suggestions={suggestions} onPick={(query) => { setQ(""); askInternal(query, true); }} />
           <div ref={containerRef}>
             <MessageList
               messages={messages}
@@ -291,7 +292,6 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
               streamRef={streamRef}
               onRegenerate={regenerateLast}
               onEditUser={editUserAndRegenerate}
-              sidebarSlot={<TutorSidebar within rtl={rtl} onNewChat={() => { setMessages([]); setQ(""); }} suggestions={suggestions} onPick={(query) => { setQ(""); askInternal(query, true); }} />}
             />
           </div>
 

@@ -46,6 +46,7 @@ const TutorSidebar: React.FC<TutorSidebarProps> = ({ rtl = false, suggestions, o
 
   return (
     <aside
+      ref={asideRef as any}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
       className={cn(
