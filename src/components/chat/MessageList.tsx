@@ -46,6 +46,12 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
     }
     return -1;
   }, [messages]);
+  const lastUserIndex = useMemo(() => {
+    for (let idx = messages.length - 1; idx >= 0; idx--) {
+      if (messages[idx].role === 'user') return idx;
+    }
+    return -1;
+  }, [messages]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -186,9 +192,11 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
                           </Button>
                         </>
                       ) : (
-                        <Button variant="ghost" size="sm" onClick={() => { setEditingIndex(i); setDraft(m.content); }} aria-label={rtl ? "تعديل السؤال" : "Edit question"}>
-                          {rtl ? "تعديل السؤال" : "Edit question"}
-                        </Button>
+                        i === lastUserIndex && !loading ? (
+                          <Button variant="ghost" size="sm" onClick={() => { setEditingIndex(i); setDraft(m.content); }} aria-label={rtl ? "تعديل السؤال" : "Edit question"}>
+                            {rtl ? "تعديل السؤال" : "Edit question"}
+                          </Button>
+                        ) : null
                       )}
                     </div>
                   )}
