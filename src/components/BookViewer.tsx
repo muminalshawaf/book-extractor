@@ -1221,11 +1221,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                               const availW = Math.max(0, el.clientWidth - padding);
                               const availH = Math.max(0, el.clientHeight - padding);
                               const scaleFit = Math.min(Z.max, Math.max(Z.min, Math.min(availW / imgW, availH / imgH)));
-                              const contentW = imgW * scaleFit;
-                              const contentH = imgH * scaleFit;
-                              const posX = (el.clientWidth - contentW) / 2;
-                              const posY = (el.clientHeight - contentH) / 2;
-                              api.setTransform(posX, posY, scaleFit, 200, 'easeOut');
+                              // First set the desired scale, then ask library to center
+                              api.setTransform(0, 0, scaleFit, 0);
+                              api.centerView(200, 'easeOut');
                             } else if (typeof api.centerView === 'function') {
                               api.centerView(200, 'easeOut');
                             } else {
@@ -1427,11 +1425,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                                        const availW = Math.max(0, el.clientWidth - padding);
                                        const availH = Math.max(0, el.clientHeight - padding);
                                        const scaleFit = Math.min(Z.max, Math.max(Z.min, Math.min(availW / imgW, availH / imgH)));
-                                       const contentW = imgW * scaleFit;
-                                       const contentH = imgH * scaleFit;
-                                       const posX = (el.clientWidth - contentW) / 2;
-                                       const posY = (el.clientHeight - contentH) / 2;
-                                       api.setTransform(posX, posY, scaleFit, 200, 'easeOut');
+                                       // First set the desired scale, then center using library helper
+                                       api.setTransform(0, 0, scaleFit, 0);
+                                       api.centerView(200, 'easeOut');
                                      } else if (typeof api.centerView === 'function') {
                                        api.centerView(200, 'easeOut');
                                      } else {
