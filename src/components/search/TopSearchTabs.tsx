@@ -125,9 +125,19 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
 
       {isExpanded && (
       <Tabs dir={rtl ? "rtl" : "ltr"} value={tab} onValueChange={(v) => setTab(v as any)}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="library">{rtl ? "تصفح المكتبة" : "Library"}</TabsTrigger>
-          <TabsTrigger value="content">{rtl ? "البحث في المحتوى" : "Content"}</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 p-0.5 h-9 md:h-10 gap-1">
+          <TabsTrigger
+            value="library"
+            className="h-8 md:h-9 w-full leading-none data-[state=active]:shadow-none"
+          >
+            {rtl ? "تصفح المكتبة" : "Library"}
+          </TabsTrigger>
+          <TabsTrigger
+            value="content"
+            className="h-8 md:h-9 w-full leading-none data-[state=active]:shadow-none"
+          >
+            {rtl ? "البحث في المحتوى" : "Content"}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="library" className="mt-3">
