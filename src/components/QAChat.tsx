@@ -40,53 +40,42 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
   const [selectionText, setSelectionText] = useState("");
   const [askVal, setAskVal] = useState("");
 
-  // Dynamic suggestions based on summary
-  const [suggestions, setSuggestions] = useState<Array<{ title: string; query: string }>>([]);
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  // Extract questions from summary as suggestions
+  const suggestions = useMemo(() => {
+    if (!summary.trim()) {
+      return rtl
+        ? [{ title: "اشرح مفهوم النظرية النسبية", query: "اشرح مفهوم النظرية النسبية لأينشتاين" }]
+        : [{ title: "Explain relativity", query: "Explain Einstein's theory of relativity" }];
+    }
 
-  // Generate suggestions from summary
-  useEffect(() => {
-    const generateSuggestions = async () => {
-      if (!summary.trim()) {
-        const defaultSuggestions = rtl
-          ? [{ title: "اشرح مفهوم النظرية النسبية", query: "اشرح مفهوم النظرية النسبية لأينشتاين" }]
-          : [{ title: "Explain relativity", query: "Explain Einstein's theory of relativity" }];
-        setSuggestions(defaultSuggestions);
-        return;
-      }
-
-      setSuggestionsLoading(true);
-      try {
-        const response = await fetch('https://ukznsekygmipnucpouoy.supabase.co/functions/v1/generate-suggestions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ summary, lang: rtl ? 'ar' : 'en' }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setSuggestions(data.suggestions || []);
-        } else {
-          throw new Error('Failed to generate suggestions');
-        }
-      } catch (error) {
-        console.error('Error generating suggestions:', error);
-        const fallbackSuggestions = rtl
-          ? [
-              { title: "اشرح النقاط الرئيسية", query: "اشرح النقاط الرئيسية في هذا النص" },
-              { title: "أعط أمثلة عملية", query: "أعط أمثلة عملية على المفاهيم المذكورة" }
-            ]
-          : [
-              { title: "Explain key points", query: "Explain the key points in this text" },
-              { title: "Give practical examples", query: "Give practical examples of the mentioned concepts" }
-            ];
-        setSuggestions(fallbackSuggestions);
-      } finally {
-        setSuggestionsLoading(false);
-      }
-    };
-
-    generateSuggestions();
+    // Extract questions from summary text
+    const questionRegex = /([^.!]*\?)/g;
+    const arabicQuestionRegex = /([^.!]*؟)/g;
+    
+    const regex = rtl ? arabicQuestionRegex : questionRegex;
+    const matches = summary.match(regex);
+    
+    if (matches && matches.length > 0) {
+      return matches
+        .map(question => question.trim())
+        .filter(question => question.length > 5) // Filter out very short questions
+        .slice(0, 6) // Limit to 6 questions
+        .map(question => ({
+          title: question.length > 50 ? question.substring(0, 47) + '...' : question,
+          query: question
+        }));
+    }
+    
+    // Fallback if no questions found in summary
+    return rtl
+      ? [
+          { title: "اشرح النقاط الرئيسية", query: "اشرح النقاط الرئيسية في هذا النص" },
+          { title: "أعط أمثلة عملية", query: "أعط أمثلة عملية على المفاهيم المذكورة" }
+        ]
+      : [
+          { title: "Explain key points", query: "Explain the key points in this text" },
+          { title: "Give practical examples", query: "Give practical examples of the mentioned concepts" }
+        ];
   }, [summary, rtl]);
 
   useEffect(() => {
