@@ -1251,7 +1251,7 @@ useEffect(() => {
                               ) : (
                                 <>
                                   <Sparkles className={cn("h-4 w-4", rtl ? "ml-2" : "mr-2")} />
-                                  <span>{rtl ? "المدرس الإفتراضي" : "AI Tutor"}</span>
+                                  <span>المدرس الإفتراضي</span>
                                 </>
                               )}
                             </>
