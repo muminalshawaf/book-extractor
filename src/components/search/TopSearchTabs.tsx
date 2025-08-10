@@ -104,19 +104,22 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
         <Button 
           variant="outline" 
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full justify-start flex-row-reverse"
+          className="w-full"
+          dir="rtl"
         >
-          <span className="text-sm font-medium ml-2">
-            {rtl ? "البحث والمكتبة" : "Search & Library"}
-          </span>
-          <svg 
-            className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <div className="flex items-center justify-between w-full">
+            <svg 
+              className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+            <span className="text-sm font-medium">
+              {rtl ? "البحث والمكتبة" : "Search & Library"}
+            </span>
+          </div>
         </Button>
       </div>
 
