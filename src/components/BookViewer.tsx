@@ -767,27 +767,33 @@ useEffect(() => {
   const handleWheelNav = useCallback((e: React.WheelEvent) => {
     if (readerMode !== 'page') return;
     if (e.ctrlKey || e.metaKey) return; // let ctrl/cmd+wheel zoom
+    if (isPanning) return;
     const el = containerRef.current;
     if (!el) return;
     const now = (globalThis.performance?.now?.() ?? Date.now());
 
-    // Compute "fit" scale to decide if wheel should navigate
+    // Compute "fit" scale and whether content is pannable (larger than viewport)
     const containerWidth = el.clientWidth;
     const containerHeight = el.clientHeight;
     const imgW = naturalSize.width || 800;
     const imgH = naturalSize.height || 1100;
+    const contentW = imgW * transformState.scale;
+    const contentH = imgH * transformState.scale;
+    const pannable = contentW > containerWidth + 1 || contentH > containerHeight + 1;
+    if (pannable) return; // don't navigate via wheel when zoomed in
+
     const fitWidthScale = containerWidth / imgW;
     const fitHeightScale = containerHeight / imgH;
     const fitScale = Math.min(fitWidthScale, fitHeightScale);
-    const atOrBelowFit = transformState.scale <= fitScale + 0.001;
 
-    if (atOrBelowFit) {
+    // Only navigate when at or below fit scale
+    if (transformState.scale <= fitScale + 0.0001) {
       e.preventDefault();
-      if (now - lastWheelNavRef.current < 350) return; // throttle navigation
+      if (now - lastWheelNavRef.current < 300) return; // throttle navigation
       lastWheelNavRef.current = now;
       if (e.deltaY > 0) goNext(); else goPrev();
     }
-  }, [readerMode, transformState.scale, naturalSize]);
+  }, [readerMode, isPanning, transformState.scale, naturalSize]);
 
   const panningEnabled = useMemo(() => {
     const el = containerRef.current;
@@ -918,7 +924,7 @@ useEffect(() => {
                       onPanningStop={() => setIsPanning(false)}
                     >
                       <TransformComponent
-                        wrapperClass="w-full h-[70vh]"
+                        wrapperClass="w-full h-[78vh]"
                         contentClass="flex items-start justify-center py-2"
                       >
                         <img
