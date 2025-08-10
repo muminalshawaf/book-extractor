@@ -1374,9 +1374,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       }} />
                           </div>}
                       </TouchGestureHandler>
-                      <div className={cn("mt-4 flex flex-wrap items-center justify-between gap-2", rtl && "flex-row-reverse")}>
+                      <div className={cn("mt-4 flex flex-wrap items-center justify-between gap-2 text-[13px] md:text-[14px] lg:text-base", rtl && "flex-row-reverse")}>
                         <Button onClick={goPrev} variant="secondary" disabled={index === 0} aria-label={L.previous} className={cn(isMobile && "min-h-[48px] min-w-[48px]")}>{rtl ? `${L.previous} →` : "← " + L.previous}</Button>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 md:gap-3">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <span className="tabular-nums">{index + 1}</span>
                             <Separator orientation="vertical" className="h-5" />
@@ -1387,7 +1387,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         const n = parseInt(gotoInput, 10);
                         if (!Number.isNaN(n)) jumpToPage(n);
                       }} aria-label={rtl ? "اذهب إلى صفحة معينة" : "Jump to page"}>
-                            <Input type="number" inputMode="numeric" min={1} max={total} placeholder={rtl ? "اذهب إلى صفحة" : "Go to page"} value={gotoInput} onChange={e => setGotoInput(e.target.value)} className="w-24" aria-label={rtl ? "أدخل رقم الصفحة" : "Enter page number"} />
+                            <Input type="number" inputMode="numeric" min={1} max={total} placeholder={rtl ? "اذهب إلى صفحة" : "Go to page"} value={gotoInput} onChange={e => setGotoInput(e.target.value)} className="w-20 md:w-24" aria-label={rtl ? "أدخل رقم الصفحة" : "Enter page number"} />
                             <Button type="submit" variant="outline" size="sm">{rtl ? "اذهب" : "Go"}</Button>
                           </form>
                           <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} aria-label={rtl ? "إجراءات" : "Actions"}>
@@ -1454,14 +1454,14 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 <div ref={insightsRef}>
                   <Card className="shadow-sm">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-base">
+                      <CardTitle className="text-sm md:text-sm lg:text-base">
                         <span className="inline-flex items-center gap-2">
                           <Sparkles className="h-4 w-4" />
                           <span>{rtl ? "مساعد القراءة الذكي" : "AI Reading Assistant"}</span>
                         </span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-3">
+                    <CardContent className="p-3 text-[13px] md:text-[14px] lg:text-base">
                       <Tabs value={insightTab} onValueChange={v => setInsightTab(v as any)} className="w-full">
                         <TabsList className="grid grid-cols-2 w-full">
                           <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>

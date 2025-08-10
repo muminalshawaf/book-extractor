@@ -48,7 +48,7 @@ export const ContinuousReader = forwardRef<ContinuousReaderRef, ContinuousReader
           itemContent={(i) => {
             const page = pages[i];
             return (
-              <div className={cn("flex items-start justify-center py-4", rtl && "direction-rtl")}
+              <div className={cn("flex items-start justify-center py-2 md:py-3 lg:py-4", rtl && "direction-rtl")}
                    aria-label={`${page?.alt} - Page ${i + 1} of ${pages.length}`}>
                 <img
                   src={page?.src}
