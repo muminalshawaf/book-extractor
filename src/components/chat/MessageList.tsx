@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import MathRenderer from "@/components/MathRenderer";
-import { Copy, Check, RotateCcw, Share2, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Copy, Check, RotateCcw, Share2, ThumbsUp, ThumbsDown, MessageSquareText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 export type ChatMsg = { role: "user" | "assistant"; content: string };
@@ -76,13 +76,17 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
       ref={scrollRef}
       onScroll={onScroll}
       className={cn(
-        "border rounded-2xl p-4 h-80 md:h-96 overflow-y-auto bg-background/60 backdrop-blur shadow-sm",
+        "rounded-2xl p-4 h-80 md:h-96 overflow-y-auto bg-background/60 backdrop-blur shadow-sm",
         messages.length === 0 && "flex items-center justify-center text-sm text-muted-foreground",
         rtl && "text-right"
       )}
     >
       {messages.length === 0 ? (
-        <div>{rtl ? "اكتب سؤالك وسيتم الإجابة اعتماداً على ملخص هذه الصفحة" : "Ask a question. The AI will answer using this page's summary."}</div>
+        <div className="flex flex-col items-center text-center gap-2 py-8">
+          <MessageSquareText className="h-10 w-10 text-muted-foreground" />
+          <div className="text-xl font-semibold text-primary">{rtl ? "مرحباً!" : "Welcome!"}</div>
+          <div className="text-muted-foreground">{rtl ? "كيف يمكنني مساعدتك اليوم؟" : "How can I help you today?"}</div>
+        </div>
       ) : (
         <div className="space-y-3">
           {messages.map((m, i) => {

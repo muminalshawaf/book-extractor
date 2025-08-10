@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Send, StopCircle, Wrench } from "lucide-react";
+import { Send, StopCircle, Wrench, Upload } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 interface ComposerProps {
@@ -25,16 +25,19 @@ const Composer: React.FC<ComposerProps> = ({ value, onChange, onSend, onStop, di
   };
 
   return (
-    <div className={cn("flex items-end gap-2 border rounded-xl p-2 bg-background/60 backdrop-blur shadow-sm", rtl && "flex-row-reverse")}> 
+    <div className={cn("flex items-end gap-3 border rounded-3xl p-3 bg-background/80 backdrop-blur shadow-sm", rtl && "flex-row-reverse")}> 
+      <Button type="button" variant="secondary" size="icon" className="h-9 w-9 rounded-full" aria-label={rtl ? "رفع" : "Upload"}>
+        <Upload className="h-4 w-4" />
+      </Button>
       <Textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
-        rows={3}
-        placeholder={rtl ? "اكتب سؤالك هنا... (Shift+Enter لسطر جديد)" : "Type your question... (Shift+Enter for newline)"}
+        rows={2}
+        placeholder={rtl ? "أدخل طلبًا هنا" : "Enter your prompt here"}
         aria-label={rtl ? "سؤال" : "Question"}
         disabled={loading}
-        className="max-h-40 rounded-xl border bg-background/60 backdrop-blur shadow-sm"
+        className="max-h-36 rounded-2xl border bg-background/60 backdrop-blur shadow-sm"
       />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -43,7 +46,7 @@ const Composer: React.FC<ComposerProps> = ({ value, onChange, onSend, onStop, di
             <span className="sr-only">{rtl ? "أدوات" : "Tools"}</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align={rtl ? "end" : "start"} className="z-50 bg-background">
+        <DropdownMenuContent align={rtl ? "end" : "start"} className="z-50 bg-background shadow-lg">
           <DropdownMenuItem onClick={() => onOpenLatex?.()}>{rtl ? "أداة LaTeX" : "LaTeX Tool"}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

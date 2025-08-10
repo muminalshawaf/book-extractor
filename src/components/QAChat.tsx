@@ -269,7 +269,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
   const clearChat = () => setMessages([]);
 
   return (
-    <Card className="mt-4">
+    <Card className="mt-4 bg-transparent border-0 shadow-none">
       <CardHeader>
         <CardTitle className="text-base">{rtl ? "المدرس الإفتراضي" : "AI Tutor"}</CardTitle>
       </CardHeader>
@@ -329,12 +329,20 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
             onOpenLatex={() => setLatexOpen(true)}
           />
 
+          <div className={cn("flex", rtl ? "justify-end" : "justify-start")}> 
+            <Button variant="ghost" size="sm" onClick={() => setLatexOpen(true)}>
+              {rtl ? "أدوات" : "Tools"}
+            </Button>
+          </div>
+
           <LatexModal
             open={latexOpen}
             onOpenChange={setLatexOpen}
             onInsert={handleInsertLatex}
             rtl={rtl}
           />
+
+          <div className="text-center text-xs text-muted-foreground">{rtl ? "قد يخطئ إدرس، لذا يرجى التحقق من المعلومات." : "AI may make mistakes—please verify."}</div>
 
           {!summary.trim() && (
             <div className="text-xs text-muted-foreground">{rtl ? "يمكنك طرح أي سؤال، أو إنشاء ملخص للصفحة أولاً للحصول على إجابات أكثر دقة" : "You can ask any question, or generate a page summary first for more accurate answers."}</div>
