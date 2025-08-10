@@ -106,7 +106,7 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
           onClick={() => setIsExpanded(!isExpanded)}
           className={cn("w-full justify-between", rtl && "flex-row-reverse")}
         >
-          <span className="text-sm font-medium">
+          <span className="text-sm font-medium text-right">
             {rtl ? "البحث والمكتبة" : "Search & Library"}
           </span>
           <svg 
