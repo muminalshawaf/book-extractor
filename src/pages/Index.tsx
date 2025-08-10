@@ -34,9 +34,7 @@ const Index = () => {
       <div className="container mx-auto py-4 px-3 md:py-10">
         <header className="mb-8 text-center hidden md:block">
           
-          <p className="mt-2 text-muted-foreground max-w-2xl mx-auto">
-            اختر كتابًا من القائمة، وسيتم حفظ OCR والملخصات بشكل منفصل لكل كتاب.
-          </p>
+          
           <div className="mt-4 flex items-center justify-center">
             <Select value={selectedId} onValueChange={v => {
             setSelectedId(v);
