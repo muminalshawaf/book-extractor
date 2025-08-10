@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, Loader2, ChevronDown, Menu, ZoomIn, ZoomOut } from "lucide-react";
+import { Minus, Plus, Loader2, ChevronDown, Menu, ZoomIn, ZoomOut, Sparkles } from "lucide-react";
 import { runLocalOcr } from '@/lib/ocr/localOcr';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
@@ -941,7 +941,19 @@ useEffect(() => {
 
                   <TabsContent value="summary" className="mt-4 m-0">
                     <Button className="w-full" variant="default" onClick={() => (extractedText ? summarizeExtractedText(extractedText) : extractTextFromPage())} disabled={ocrLoading || summLoading}>
-                      {ocrLoading || summLoading ? (rtl ? "جارٍ التلخيص..." : "Summarizing...") : (rtl ? "لخص هذه الصفحة" : "Summarize this page")}
+                      <>
+                        {(ocrLoading || summLoading) ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>{rtl ? "جارٍ التلخيص..." : "Summarizing..."}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className={cn("h-4 w-4", rtl ? "ml-2" : "mr-2")} />
+                            <span>{rtl ? "لخص هذه الصفحة" : "Summarize this page"}</span>
+                          </>
+                        )}
+                      </>
                     </Button>
                     {!summary && (
                       <div className="mt-3 text-sm text-muted-foreground border rounded-md p-3">
@@ -1230,7 +1242,19 @@ useEffect(() => {
 
                         <TabsContent value="summary" className="mt-4 m-0">
                           <Button className="w-full" variant="default" onClick={() => (extractedText ? summarizeExtractedText(extractedText) : extractTextFromPage())} disabled={ocrLoading || summLoading}>
-                            {ocrLoading || summLoading ? (rtl ? "جارٍ التلخيص..." : "Summarizing...") : (rtl ? "لخص هذه الصفحة" : "Summarize this page")}
+                            <>
+                              {(ocrLoading || summLoading) ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <span>{rtl ? "جارٍ التلخيص..." : "Summarizing..."}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className={cn("h-4 w-4", rtl ? "ml-2" : "mr-2")} />
+                                  <span>{rtl ? "لخص هذه الصفحة" : "Summarize this page"}</span>
+                                </>
+                              )}
+                            </>
                           </Button>
                           {!summary && (
                             <div className="mt-3 text-sm text-muted-foreground border rounded-md p-3">
