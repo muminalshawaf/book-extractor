@@ -1125,7 +1125,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     return contentW > wrapperW + 1 || contentH > wrapperH + 1;
   }, [transformState.scale, naturalSize, readerMode, index]);
   return <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
-      {isMobile ? <div className="flex flex-col gap-4">
+      {isMobile ? ( <div className="flex flex-col gap-4">
 
           {/* Viewer */}
           <FullscreenMode rtl={rtl}>
@@ -1285,8 +1285,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         <Button variant="default" size="sm" onClick={processFirstTenPages} disabled={batchRunning}>
                           {batchRunning ? rtl ? `جارٍ المعالجة ${batchProgress.current}/${batchProgress.total}` : `Processing ${batchProgress.current}/${batchProgress.total}` : rtl ? `معالجة من ${rangeStart} إلى ${rangeEnd}` : `Process ${rangeStart}-${rangeEnd}`}
                         </Button>
-                      </div>
-                    </div>
                   </CardHeader>
                   <CardContent>
                     <Textarea readOnly dir={rtl ? "rtl" : "ltr"} value={extractedText} placeholder={rtl ? "لا يوجد نص مستخرج بعد. اضغط تشغيل OCR." : "No extracted text yet. Click Run OCR."} className="min-h-40" />
@@ -1368,10 +1366,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       </Tabs>
                     </CardContent>
                   </Card>
-                </div>
-              </div>
-            </div>
-          </div>
+        </div> ) : null}
 
         </div>}
     </section>;
