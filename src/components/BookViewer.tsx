@@ -1377,7 +1377,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 {lastError && <ImprovedErrorHandler error={lastError} onRetry={extractTextFromPage} isRetrying={ocrLoading || summLoading} retryCount={retryCount} context={ocrLoading ? rtl ? "استخراج النص" : "OCR" : rtl ? "التلخيص" : "Summarization"} rtl={rtl} />}
 
                 {/* OCR (Extracted Text) */}
-                <Card className="shadow-sm">
+                <Card className="shadow-sm hidden">
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-base">{rtl ? "النص المستخرج (OCR)" : "OCR Text"}</CardTitle>
