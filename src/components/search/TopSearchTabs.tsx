@@ -108,6 +108,9 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
           dir="rtl"
         >
           <div className="flex items-center justify-between w-full">
+            <span className="text-sm font-medium">
+              {rtl ? "البحث والمكتبة" : "Search & Library"}
+            </span>
             <svg 
               className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} 
               fill="none" 
@@ -116,9 +119,6 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
-            <span className="text-sm font-medium">
-              {rtl ? "البحث والمكتبة" : "Search & Library"}
-            </span>
           </div>
         </Button>
       </div>
