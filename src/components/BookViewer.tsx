@@ -950,7 +950,7 @@ useEffect(() => {
                         ) : (
                           <>
                             <Sparkles className={cn("h-4 w-4", rtl ? "ml-2" : "mr-2")} />
-                            <span>{rtl ? "لخص هذه الصفحة" : "Summarize this page"}</span>
+                            <span>{rtl ? "المدرس الإفتراضي" : "AI Tutor"}</span>
                           </>
                         )}
                       </>
@@ -1251,7 +1251,7 @@ useEffect(() => {
                               ) : (
                                 <>
                                   <Sparkles className={cn("h-4 w-4", rtl ? "ml-2" : "mr-2")} />
-                                  <span>{rtl ? "لخص هذه الصفحة" : "Summarize this page"}</span>
+                                  <span>{rtl ? "المدرس الإفتراضي" : "AI Tutor"}</span>
                                 </>
                               )}
                             </>
