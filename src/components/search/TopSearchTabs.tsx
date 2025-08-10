@@ -104,7 +104,7 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
         </TabsList>
 
         <TabsContent value="library" className="mt-3">
-          <div className="bg-muted/40 rounded-lg p-3 border">
+          <div className="bg-muted/40 rounded-lg p-3 border text-sm">
             <div className="grid gap-3 md:grid-cols-4">
               <div className="md:col-span-2">
                 <Input
