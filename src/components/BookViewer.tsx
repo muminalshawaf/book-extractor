@@ -1374,9 +1374,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       }} />
                           </div>}
                       </TouchGestureHandler>
-                      <div className={cn("mt-4 flex flex-wrap items-center justify-between gap-2 text-[13px] md:text-[14px] lg:text-base", rtl && "flex-row-reverse")}>
-                        <Button onClick={goPrev} variant="secondary" disabled={index === 0} aria-label={L.previous} className={cn(isMobile && "min-h-[44px] min-w-[44px]")}>{rtl ? `${L.previous} →` : "← " + L.previous}</Button>
-                        <div className="flex items-center gap-2 md:gap-3">
+                      <div className={cn("mt-4 grid grid-cols-1 md:grid-cols-3 items-center gap-2 text-[13px] md:text-[14px] lg:text-base", rtl && "[direction:rtl]")}>
+                        <Button onClick={goPrev} variant="secondary" disabled={index === 0} aria-label={L.previous} className={cn("justify-self-start", isMobile && "min-h-[44px] min-w-[44px]")}>{rtl ? `${L.previous} →` : "← " + L.previous}</Button>
+                        <div className="flex flex-wrap items-center justify-center md:justify-center gap-2 md:gap-3 justify-self-center">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <span className="tabular-nums">{index + 1}</span>
                             <Separator orientation="vertical" className="h-5" />
@@ -1400,7 +1400,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                              <FullscreenButton rtl={rtl} />
                           </div>
                         </div>
-                        <Button onClick={goNext} variant="default" disabled={index === total - 1} aria-label={L.next} className={cn(isMobile && "min-h-[48px] min-w-[48px]")}>{rtl ? `← ${L.next}` : L.next + " →"}</Button>
+                        <Button onClick={goNext} variant="default" disabled={index === total - 1} aria-label={L.next} className={cn("justify-self-end", isMobile && "min-h-[44px] min-w-[44px]")}>{rtl ? `← ${L.next}` : L.next + " →"}</Button>
                       </div>
                     </CardContent>
                   </Card>
