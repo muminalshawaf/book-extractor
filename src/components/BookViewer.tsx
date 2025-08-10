@@ -692,7 +692,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
     const totalLen = fullText.length;
     // Target natural typing speed (chars per second)
-    const cps = rtl ? 20 : 28; // Arabic is a bit slower to read
+    const cps = rtl ? 30 : 38; // Faster streaming: Arabic 30 cps, English 38 cps
     const tickMs = 50; // update cadence
     const perTick = Math.max(1, Math.round((cps * tickMs) / 1000));
 
