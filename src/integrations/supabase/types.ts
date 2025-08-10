@@ -14,7 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      page_summaries: {
+        Row: {
+          book_id: string
+          confidence: number | null
+          confidence_meta: Json | null
+          created_at: string
+          id: string
+          ocr_confidence: number | null
+          ocr_text: string | null
+          page_number: number
+          summary_md: string | null
+          updated_at: string
+        }
+        Insert: {
+          book_id: string
+          confidence?: number | null
+          confidence_meta?: Json | null
+          created_at?: string
+          id?: string
+          ocr_confidence?: number | null
+          ocr_text?: string | null
+          page_number: number
+          summary_md?: string | null
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string
+          confidence?: number | null
+          confidence_meta?: Json | null
+          created_at?: string
+          id?: string
+          ocr_confidence?: number | null
+          ocr_text?: string | null
+          page_number?: number
+          summary_md?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
