@@ -145,6 +145,7 @@ const [summary, setSummary] = useState("");
   const insightsRef = useRef<HTMLDivElement | null>(null);
   const [gotoInput, setGotoInput] = useState<string>("");
   const [controlsOpen, setControlsOpen] = useState(true);
+  const [insightTab, setInsightTab] = useState<'summary' | 'qa'>('summary');
 
 // Batch processing state
   const [batchRunning, setBatchRunning] = useState(false);
@@ -511,6 +512,7 @@ useEffect(() => {
         flush();
       }
 
+      if (!accumulated.trim()) { throw new Error('Empty streamed summary'); }
       setSummaryProgress(100);
       try { localStorage.setItem(sumKey, accumulated); } catch {}
       // Save to DB
@@ -592,6 +594,8 @@ useEffect(() => {
   const handleSmartSummarizeClick = async () => {
     if (ocrLoading || summLoading) return;
     setLastError(null);
+    setInsightTab('summary');
+    insightsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     try {
       const { data, error } = await (supabase as any)
         .from('page_summaries')
@@ -1015,7 +1019,7 @@ useEffect(() => {
                 <CardTitle className="text-base">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
               </CardHeader>
               <CardContent className="p-3">
-                <Tabs defaultValue="summary" className="w-full">
+                <Tabs value={insightTab} onValueChange={(v) => setInsightTab(v as any)} className="w-full">
                   <TabsList className="grid grid-cols-2 w-full">
                     <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
                     <TabsTrigger value="qa">
@@ -1330,7 +1334,7 @@ useEffect(() => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-3">
-                      <Tabs defaultValue="summary" className="w-full">
+                      <Tabs value={insightTab} onValueChange={(v) => setInsightTab(v as any)} className="w-full">
                         <TabsList className="grid grid-cols-2 w-full">
                           <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
                            <TabsTrigger value="qa">
