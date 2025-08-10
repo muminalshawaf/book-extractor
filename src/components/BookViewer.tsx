@@ -1257,7 +1257,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     setZoomMode("custom");
                   }} disabled={!isMobile || readerMode === 'continuous'} className="relative">
                         {readerMode === 'page' ? <div ref={containerRef} className={cn("relative w-full border rounded-lg mb-1 overflow-hidden", panningEnabled ? isPanning ? "cursor-grabbing" : "cursor-grab" : "cursor-default", isMobile && "book-viewer-mobile")} style={{
-                      maxHeight: '92vh'
+                      maxHeight: '96vh'
                     }} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
                             <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} centerZoomedOut limitToBounds panning={{
                         disabled: !panningEnabled
@@ -1282,7 +1282,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         setZoomMode("custom");
                         setZoom(scale);
                       }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => setIsPanning(false)}>
-                              <TransformComponent wrapperClass="w-full h-[92vh]" contentClass="flex items-start justify-center py-2">
+                              <TransformComponent wrapperClass="w-full h-[96vh]" contentClass="flex items-start justify-center py-0">
                                 <img src={pages[index]?.src} alt={pages[index]?.alt} loading="eager" decoding="async" draggable={false} onLoadStart={() => setImageLoading(true)} onLoad={e => {
                             setImageLoading(false);
                             const imgEl = e.currentTarget;
