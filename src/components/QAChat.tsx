@@ -213,6 +213,18 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
     }
   };
 
+  const editUserAndRegenerate = async (index: number, newText: string) => {
+    if (loading) return;
+    setMessages((m) => {
+      const copy = [...m];
+      if (index >= 0 && index < copy.length && copy[index].role === "user") {
+        copy[index] = { role: "user", content: newText } as Msg;
+      }
+      return copy;
+    });
+    await askInternal(newText, false);
+  };
+
   const clearChat = () => setMessages([]);
 
   return (
@@ -222,7 +234,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          <MessageList messages={messages} loading={loading} rtl={rtl} streamRef={streamRef} />
+          <MessageList messages={messages} loading={loading} rtl={rtl} streamRef={streamRef} onRegenerate={regenerateLast} onEditUser={editUserAndRegenerate} />
 
           <div className={cn("flex items-center justify-between gap-2", rtl && "flex-row-reverse")}> 
             <div className={cn("flex items-center gap-1", rtl && "flex-row-reverse")}> 

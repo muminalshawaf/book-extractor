@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import MathRenderer from "@/components/MathRenderer";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, RotateCcw, Share2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 export type ChatMsg = { role: "user" | "assistant"; content: string };
@@ -12,6 +13,8 @@ interface MessageListProps {
   loading: boolean;
   rtl?: boolean;
   streamRef: React.MutableRefObject<HTMLDivElement | null>;
+  onRegenerate: () => void;
+  onEditUser: (index: number, newText: string) => void;
 }
 
 function TypingDots({ rtl = false }: { rtl?: boolean }) {
@@ -26,12 +29,21 @@ function TypingDots({ rtl = false }: { rtl?: boolean }) {
   );
 }
 
-const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = false, streamRef }) => {
+const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = false, streamRef, onRegenerate, onEditUser }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [atBottom, setAtBottom] = useState(true);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [draft, setDraft] = useState("");
+  const [reactions, setReactions] = useState<Record<number, 'up' | 'down' | null>>({});
 
   const lastIndex = useMemo(() => messages.length - 1, [messages.length]);
+  const lastAssistantIndex = useMemo(() => {
+    for (let idx = messages.length - 1; idx >= 0; idx--) {
+      if (messages[idx].role === 'assistant') return idx;
+    }
+    return -1;
+  }, [messages]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -98,21 +110,56 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
                     <div className="whitespace-pre-wrap">{m.content}</div>
                   )}
 
-                  {/* Copy button */}
-                  {m.content && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        "absolute h-7 w-7 transition-opacity duration-200 opacity-0 group-hover/message:opacity-100",
-                        rtl ? "-top-2 -left-2" : "-top-2 -right-2"
+                </div>
+                <div className={cn("mt-1 flex items-center gap-1 text-xs text-muted-foreground transition-opacity", rtl && "flex-row-reverse justify-start")}>
+                  {isAssistant ? (
+                    <div className="flex items-center gap-1">
+                      {i === lastAssistantIndex && (
+                        <Button variant="ghost" size="sm" disabled={loading} onClick={() => onRegenerate()} aria-label={rtl ? "إعادة توليد" : "Regenerate"}>
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </Button>
                       )}
-                      onClick={() => handleCopy(isStreaming ? (streamRef.current?.textContent ?? "") : m.content, i)}
-                      aria-label={rtl ? "نسخ" : "Copy"}
-                    >
-                      {copiedIndex === i ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleCopy(isStreaming ? (streamRef.current?.textContent ?? "") : m.content, i)} aria-label={rtl ? "نسخ" : "Copy"}>
+                        {copiedIndex === i ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={async () => {
+                        const text = isStreaming ? (streamRef.current?.textContent ?? "") : m.content;
+                        try {
+                          if (navigator.share) {
+                            await navigator.share({ title: document.title, text });
+                          } else {
+                            await navigator.clipboard.writeText(text);
+                            toast({ description: rtl ? "تم النسخ للمشاركة" : "Copied to share" });
+                          }
+                        } catch {}
+                      }} aria-label={rtl ? "مشاركة" : "Share"}>
+                        <Share2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setReactions((r) => ({ ...r, [i]: r[i] === 'up' ? null : 'up' }))} aria-pressed={reactions[i] === 'up'} aria-label={rtl ? "إعجاب" : "Like"}>
+                        <ThumbsUp className={cn("h-3.5 w-3.5", reactions[i] === 'up' && "text-primary")} />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setReactions((r) => ({ ...r, [i]: r[i] === 'down' ? null : 'down' }))} aria-pressed={reactions[i] === 'down'} aria-label={rtl ? "عدم الإعجاب" : "Dislike"}>
+                        <ThumbsDown className={cn("h-3.5 w-3.5", reactions[i] === 'down' && "text-primary")} />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 w-full">
+                      {editingIndex === i ? (
+                        <>
+                          <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} className="mt-2 w-full" />
+                          <Button size="sm" onClick={() => { onEditUser(i, draft.trim()); setEditingIndex(null); }} disabled={draft.trim().length === 0}>
+                            {rtl ? "تحديث وإعادة التوليد" : "Update & Regenerate"}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingIndex(null)}>
+                            {rtl ? "إلغاء" : "Cancel"}
+                          </Button>
+                        </>
+                      ) : (
+                        <Button variant="ghost" size="sm" onClick={() => { setEditingIndex(i); setDraft(m.content); }} aria-label={rtl ? "تعديل السؤال" : "Edit question"}>
+                          {rtl ? "تعديل السؤال" : "Edit question"}
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
