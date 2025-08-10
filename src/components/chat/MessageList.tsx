@@ -121,7 +121,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
                 </div>
                 <div className={cn("mt-2 flex items-center gap-1 text-xs text-muted-foreground", isAssistant ? "self-start" : "self-end")}>
                   {isAssistant ? (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 justify-end w-full">
                       {i === lastAssistantIndex && (
                         <Button variant="ghost" size="sm" disabled={loading} onClick={() => onRegenerate()} aria-label={rtl ? "إعادة توليد" : "Regenerate"}>
                           <RotateCcw className="h-3.5 w-3.5" />
