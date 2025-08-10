@@ -513,6 +513,17 @@ useEffect(() => {
 
       setSummaryProgress(100);
       try { localStorage.setItem(sumKey, accumulated); } catch {}
+      // Save to DB
+      try {
+        await callFunction('save-page-summary', {
+          book_id: dbBookId,
+          page_number: index + 1,
+          ocr_text: text,
+          summary_md: accumulated,
+        });
+      } catch (saveErr) {
+        console.warn('Failed to save summary to DB:', saveErr);
+      }
       toast.success(rtl ? "تم إنشاء الملخص" : "Summary ready");
       setRetryCount(0);
     } catch (e: any) {
@@ -532,6 +543,16 @@ useEffect(() => {
         setSummaryConfidence(data?.confidence || 0.8);
         setSummaryProgress(100);
         try { localStorage.setItem(sumKey, s); } catch {}
+        try {
+          await callFunction('save-page-summary', {
+            book_id: dbBookId,
+            page_number: index + 1,
+            ocr_text: text,
+            summary_md: s,
+          });
+        } catch (saveErr) {
+          console.warn('Failed to save summary to DB:', saveErr);
+        }
         toast.success(rtl ? 'تم إنشاء الملخص' : 'Summary ready');
         setRetryCount(0);
       } catch (err: any) {
@@ -544,6 +565,67 @@ useEffect(() => {
     } finally {
       setSummLoading(false);
       setSummaryProgress(0);
+    }
+  };
+
+  // Helper: stream pre-saved summary to UI as if AI is responding
+  const simulateStreaming = async (full: string) => {
+    setSummary("");
+    setSummLoading(true);
+    setSummaryProgress(0);
+    const totalLen = full.length;
+    const steps = Math.min(80, Math.max(10, Math.ceil(totalLen / 40)));
+    const chunkSize = Math.max(10, Math.ceil(totalLen / steps));
+    let pos = 0;
+    while (pos < totalLen) {
+      const chunk = full.slice(pos, pos + chunkSize);
+      pos += chunkSize;
+      setSummary((prev) => prev + chunk);
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    setSummaryProgress(100);
+    setSummLoading(false);
+    try { localStorage.setItem(sumKey, full); } catch {}
+  };
+
+  // Smart summarize button: prefer DB if available, otherwise process page
+  const handleSmartSummarizeClick = async () => {
+    if (ocrLoading || summLoading) return;
+    setLastError(null);
+    try {
+      const { data, error } = await (supabase as any)
+        .from('page_summaries')
+        .select('ocr_text, summary_md')
+        .eq('book_id', dbBookId)
+        .eq('page_number', index + 1)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('Supabase read error:', error);
+      }
+
+      const storedSummary = (data?.summary_md || '').trim();
+      const storedOcr = (data?.ocr_text || '').trim();
+
+      if (storedSummary) {
+        if (storedOcr) {
+          setExtractedText(storedOcr);
+          setAllExtractedTexts(prev => ({ ...prev, [index]: storedOcr }));
+          try { localStorage.setItem(ocrKey, storedOcr); } catch {}
+        }
+        await simulateStreaming(storedSummary);
+        toast.message(rtl ? 'تم استرجاع ملخص محفوظ' : 'Loaded saved summary');
+        return;
+      }
+    } catch (e) {
+      console.warn('DB check failed, proceeding to generate:', e);
+    }
+
+    // If nothing in DB, follow processing flow for this page
+    if (extractedText) {
+      await summarizeExtractedText(extractedText);
+    } else {
+      await extractTextFromPage();
     }
   };
 
@@ -949,7 +1031,7 @@ useEffect(() => {
                   </TabsList>
 
                   <TabsContent value="summary" className="mt-4 m-0">
-                    <Button className="w-full" variant="default" onClick={() => (extractedText ? summarizeExtractedText(extractedText) : extractTextFromPage())} disabled={ocrLoading || summLoading}>
+                    <Button className="w-full" variant="default" onClick={handleSmartSummarizeClick} disabled={ocrLoading || summLoading}>
                       <>
                         {(ocrLoading || summLoading) ? (
                           <>
@@ -1264,7 +1346,7 @@ useEffect(() => {
                         </TabsList>
 
                         <TabsContent value="summary" className="mt-4 m-0">
-                          <Button className="w-full" variant="default" onClick={() => (extractedText ? summarizeExtractedText(extractedText) : extractTextFromPage())} disabled={ocrLoading || summLoading}>
+                          <Button className="w-full" variant="default" onClick={handleSmartSummarizeClick} disabled={ocrLoading || summLoading}>
                             <>
                               {(ocrLoading || summLoading) ? (
                                 <>
