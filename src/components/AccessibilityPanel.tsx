@@ -99,18 +99,7 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({
   }, [speechEnabled, speechRate, rtl]);
 
   if (!isOpen) {
-    return (
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onToggle}
-        className="hover:bg-accent"
-        title={rtl ? "إعدادات إمكانية الوصول" : "Accessibility Settings"}
-        aria-label={rtl ? "فتح لوحة إعدادات إمكانية الوصول" : "Open accessibility settings panel"}
-      >
-        <Accessibility className="h-4 w-4" />
-      </Button>
-    );
+    return null;
   }
 
   return (
