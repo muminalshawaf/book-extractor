@@ -14,6 +14,18 @@ interface MessageListProps {
   streamRef: React.MutableRefObject<HTMLDivElement | null>;
 }
 
+function TypingDots({ rtl = false }: { rtl?: boolean }) {
+  return (
+    <div className={cn("flex items-center gap-1 text-muted-foreground", rtl && "flex-row-reverse")}
+      aria-label={rtl ? "يكتب..." : "typing..."}
+    >
+      <span className="w-2 h-2 rounded-full bg-muted-foreground/70 pulse" style={{ animationDelay: "0ms" }} />
+      <span className="w-2 h-2 rounded-full bg-muted-foreground/70 pulse" style={{ animationDelay: "150ms" }} />
+      <span className="w-2 h-2 rounded-full bg-muted-foreground/70 pulse" style={{ animationDelay: "300ms" }} />
+    </div>
+  );
+}
+
 const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = false, streamRef }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [atBottom, setAtBottom] = useState(true);
@@ -51,7 +63,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
       ref={scrollRef}
       onScroll={onScroll}
       className={cn(
-        "border rounded-md p-3 h-64 md:h-72 overflow-y-auto bg-muted/30",
+        "border rounded-2xl p-4 h-80 md:h-96 overflow-y-auto bg-background/60 backdrop-blur shadow-sm",
         messages.length === 0 && "flex items-center justify-center text-sm text-muted-foreground",
         rtl && "text-right"
       )}
@@ -66,15 +78,22 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
             return (
               <div key={i} className={cn("flex", isAssistant ? (rtl ? "justify-start" : "justify-start") : (rtl ? "justify-start" : "justify-end"))}>
                 <div className={cn(
-                  "relative max-w-[85%] rounded-lg px-3 py-2 text-sm shadow-sm",
-                  isAssistant ? "bg-muted/50" : "bg-primary/10"
+                  "relative group/message max-w-[85%] rounded-2xl px-4 py-3 text-sm border shadow-sm animate-fade-in",
+                  isAssistant ? "bg-muted/60 border-border" : "bg-primary/15 border-primary/20"
                 )}>
                   {isAssistant ? (
                     isStreaming ? (
+                    <div className="relative min-h-[1.25rem]">
                       <div ref={streamRef} className="whitespace-pre-wrap text-sm" />
-                    ) : (
-                      <MathRenderer content={m.content} className="text-sm" />
-                    )
+                      {(!m.content || m.content.length === 0) && (
+                        <div className="absolute inset-0 flex items-center">
+                          <TypingDots rtl={rtl} />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <MathRenderer content={m.content} className="text-sm" />
+                  )
                   ) : (
                     <div className="whitespace-pre-wrap">{m.content}</div>
                   )}
@@ -85,7 +104,10 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute -top-2 -right-2 h-7 w-7"
+                      className={cn(
+                        "absolute h-7 w-7 transition-opacity duration-200 opacity-0 group-hover/message:opacity-100",
+                        rtl ? "-top-2 -left-2" : "-top-2 -right-2"
+                      )}
                       onClick={() => handleCopy(isStreaming ? (streamRef.current?.textContent ?? "") : m.content, i)}
                       aria-label={rtl ? "نسخ" : "Copy"}
                     >
@@ -102,6 +124,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
               <Button
                 variant="secondary"
                 size="sm"
+                className="rounded-full shadow-sm hover-scale"
                 onClick={() => {
                   setAtBottom(true);
                   scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });

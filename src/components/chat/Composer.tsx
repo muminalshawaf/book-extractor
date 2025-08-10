@@ -23,7 +23,7 @@ const Composer: React.FC<ComposerProps> = ({ value, onChange, onSend, onStop, di
   };
 
   return (
-    <div className={cn("flex items-end gap-2", rtl && "flex-row-reverse")}> 
+    <div className={cn("flex items-end gap-2 border rounded-xl p-2 bg-background/60 backdrop-blur shadow-sm", rtl && "flex-row-reverse")}> 
       <Textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -32,7 +32,7 @@ const Composer: React.FC<ComposerProps> = ({ value, onChange, onSend, onStop, di
         placeholder={rtl ? "اكتب سؤالك هنا... (Shift+Enter لسطر جديد)" : "Type your question... (Shift+Enter for newline)"}
         aria-label={rtl ? "سؤال" : "Question"}
         disabled={loading}
-        className="max-h-40"
+        className="max-h-40 rounded-xl border bg-background/60 backdrop-blur shadow-sm"
       />
       {loading ? (
         <Button onClick={onStop} variant="outline" aria-label={rtl ? "إيقاف" : "Stop"}>
