@@ -143,10 +143,10 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
               </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-2">
               {filteredBooks.slice(0, 12).map((b) => (
                 <button key={b.id} type="button" onClick={() => openBook(b.id)} className="text-right border rounded-md p-2 hover:bg-accent/60 transition">
-                  <div className="text-xs text-muted-foreground flex items-center gap-2">
+                  <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2 gap-y-1">
                     {b.subject && <Badge variant="secondary">{b.subject === 'Physics' ? 'الفيزياء' : b.subject === 'Chemistry' ? 'الكيمياء' : b.subject === 'Sample' ? 'عينة' : b.subject}</Badge>}
                     {b.grade && <Badge variant="outline">{rtl ? `الصف ${b.grade}` : `Grade ${b.grade}`}</Badge>}
                     {b.semester && <Badge variant="outline">{rtl ? `الفصل ${b.semester}` : `Sem ${b.semester}`}</Badge>}

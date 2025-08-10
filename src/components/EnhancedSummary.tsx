@@ -144,7 +144,7 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
             {/* Desktop inline tools */}
             <div className="hidden md:flex items-center gap-2">
               {summary && (
-                <div className={cn("flex items-center gap-3 text-sm text-muted-foreground font-cairo", rtl && "flex-row-reverse")}>
+                <div className={cn("flex flex-wrap items-center gap-3 gap-y-1 text-sm text-muted-foreground font-cairo", rtl && "flex-row-reverse")}>
                   <div className={cn("flex items-center gap-1", rtl && "flex-row-reverse")}> 
                     <FileText className="h-3 w-3" />
                     <span>{wordCount} {rtl ? "كلمة" : "words"}</span>
