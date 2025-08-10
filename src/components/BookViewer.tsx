@@ -436,6 +436,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       try {
         localStorage.setItem(ocrKey, text);
       } catch {}
+      // Switch UI from OCR to summarization state before starting
+      setOcrLoading(false);
+      setOcrProgress(0);
       console.log('Starting summarization...');
       await summarizeExtractedText(text);
       toast.success(rtl ? "تم استخراج النص من الصفحة بنجاح" : "Text extracted successfully");
@@ -1095,13 +1098,25 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   <TabsContent value="summary" className="mt-4 m-0">
                     <Button className="w-full" variant="default" onClick={handleSmartSummarizeClick} disabled={ocrLoading || summLoading}>
                       <>
-                        {ocrLoading || summLoading ? <>
+                        {ocrLoading || summLoading ? (
+                          <>
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>{rtl ? "جارٍ التلخيص..." : "Summarizing..."}</span>
-                          </> : <>
+                            <span>
+                              {rtl
+                                ? (ocrLoading
+                                  ? `جارٍ استخراج النص... ${Math.max(0, Math.min(100, Math.round(ocrProgress)))}%`
+                                  : "جارٍ التلخيص...")
+                                : (ocrLoading
+                                  ? `Extracting text... ${Math.max(0, Math.min(100, Math.round(ocrProgress)))}%`
+                                  : "Summarizing...")}
+                            </span>
+                          </>
+                        ) : (
+                          <>
                             <Sparkles className={cn("h-4 w-4", rtl ? "ml-2" : "mr-2")} />
                             <span>{rtl ? "المدرس الإفتراضي" : "AI Tutor"}</span>
-                          </>}
+                          </>
+                        )}
                       </>
                     </Button>
                     {!summary && <div className="mt-3 text-sm text-muted-foreground border rounded-md p-3">
@@ -1347,13 +1362,25 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         <TabsContent value="summary" className="mt-4 m-0">
                           <Button className="w-full" variant="default" onClick={handleSmartSummarizeClick} disabled={ocrLoading || summLoading}>
                             <>
-                              {ocrLoading || summLoading ? <>
+                              {ocrLoading || summLoading ? (
+                                <>
                                   <Loader2 className="h-4 w-4 animate-spin" />
-                                  <span>{rtl ? "جارٍ التلخيص..." : "Summarizing..."}</span>
-                                </> : <>
+                                  <span>
+                                    {rtl
+                                      ? (ocrLoading
+                                        ? `جارٍ استخراج النص... ${Math.max(0, Math.min(100, Math.round(ocrProgress)))}%`
+                                        : "جارٍ التلخيص...")
+                                      : (ocrLoading
+                                        ? `Extracting text... ${Math.max(0, Math.min(100, Math.round(ocrProgress)))}%`
+                                        : "Summarizing...")}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
                                   <Sparkles className={cn("h-4 w-4", rtl ? "ml-2" : "mr-2")} />
                                   <span>قم بتلخيص هذه الصفحة</span>
-                                </>}
+                                </>
+                              )}
                             </>
                           </Button>
                           {!summary && <div className="mt-3 text-sm text-muted-foreground border rounded-md p-3">
