@@ -1215,11 +1215,20 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                             if (typeof api.centerView === 'function') {
                               api.centerView(200, 'easeOut');
                             } else {
-                              api.setTransform(0, 0, transformState.scale, 200, 'easeOut');
+                              // Hard reset to center, then restore scale
+                              const currentScale = transformState.scale;
+                              api.resetTransform(200, 'easeOut');
+                              requestAnimationFrame(() => {
+                                try {
+                                  api.setTransform(0, 0, currentScale, 200, 'easeOut');
+                                } catch {}
+                              });
                             }
                           } catch {}
                         }
                       }}
+                      onPrev={goPrev}
+                      onNext={goNext}
                     />
 
                     <MobileControlsOverlay progressText={L.progress(index + 1, total, progressPct)} rtl={rtl} onToggleThumbnails={() => setThumbnailsOpen(!thumbnailsOpen)} onOpenInsights={() => insightsRef.current?.scrollIntoView({
@@ -1405,11 +1414,19 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                                      if (typeof api.centerView === 'function') {
                                        api.centerView(200, 'easeOut');
                                      } else {
-                                       api.setTransform(0, 0, transformState.scale, 200, 'easeOut');
+                                       const currentScale = transformState.scale;
+                                       api.resetTransform(200, 'easeOut');
+                                       requestAnimationFrame(() => {
+                                         try {
+                                           api.setTransform(0, 0, currentScale, 200, 'easeOut');
+                                         } catch {}
+                                       });
                                      }
                                    } catch {}
                                  }
                                }}
+                               onPrev={goPrev}
+                               onNext={goNext}
                              />
 
                              {imageLoading && <div className="absolute inset-0 flex items-center justify-center bg-background/80">
