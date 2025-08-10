@@ -95,7 +95,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
             const isAssistant = m.role === "assistant";
             const isStreaming = loading && i === lastIndex && isAssistant;
             return (
-              <div key={i} className={cn("flex flex-col", isAssistant ? "items-start" : "items-end")}>
+              <div key={i} className={cn("flex flex-col", "items-start")}>
                 <div className={cn(
                   isAssistant
                     ? "max-w-[85%] w-full animate-fade-in"
