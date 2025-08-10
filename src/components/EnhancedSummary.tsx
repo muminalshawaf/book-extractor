@@ -13,7 +13,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 interface EnhancedSummaryProps {
   summary: string;
-  onSummaryChange: (summary: string) => void;
+  onSummaryChange?: (summary: string) => void;
   onRegenerate: () => void;
   isRegenerating: boolean;
   confidence?: number;
