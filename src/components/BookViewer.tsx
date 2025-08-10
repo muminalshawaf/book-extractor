@@ -1153,7 +1153,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   disabled={!isMobile || readerMode === 'continuous'}
                   className="relative">
                   <div ref={containerRef} className={cn("relative w-full overflow-hidden", !isMobile && "border rounded-lg mb-4", panningEnabled ? isPanning ? "cursor-grabbing" : "cursor-grab" : "cursor-default", isMobile && "book-viewer-mobile")} style={{}} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
-                    <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} centerZoomedOut limitToBounds panning={{
+                    <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} centerZoomedOut limitToBounds={false} panning={{
                   disabled: !panningEnabled
                 }} wheel={{
                   activationKeys: ["Control", "Meta"],
@@ -1163,182 +1163,24 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   step: 0.5,
                   mode: "zoomIn"
                 }} onTransformed={refState => {
-                  const {
-                    scale,
-                    positionX,
-                    positionY
-                  } = refState.state;
-                  setTransformState({
-                    scale,
-                    positionX,
-                    positionY
-                  });
+                  const { scale, positionX, positionY } = refState.state;
+                  setTransformState({ scale, positionX, positionY });
                   setZoomMode("custom");
                   setZoom(scale);
-                }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => setIsPanning(false)}>
-                      <TransformComponent wrapperClass="w-full h-svh" contentClass="flex items-center justify-center">
-                        <img src={pages[index]?.src} alt={pages[index]?.alt} loading="eager" decoding="async" draggable={false} onLoadStart={() => setImageLoading(true)} onLoad={e => {
-                      setImageLoading(false);
-                      const imgEl = e.currentTarget;
-                      setNaturalSize({
-                        width: imgEl.naturalWidth,
-                        height: imgEl.naturalHeight
-                      });
-                      if (containerRef.current) {
-                        setContainerDimensions({
-                          width: containerRef.current.clientWidth,
-                          height: containerRef.current.clientHeight
-                        });
-                      }
-                    }} onError={() => setImageLoading(false)} className="select-none max-w-full max-h-full object-contain will-change-transform" itemProp="image" aria-describedby={`page-${index}-description`} />
-                      </TransformComponent>
-                    </TransformWrapper>
-
-                    <MobileControlsOverlay progressText={L.progress(index + 1, total, progressPct)} rtl={rtl} onToggleThumbnails={() => setThumbnailsOpen(!thumbnailsOpen)} onOpenInsights={() => insightsRef.current?.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'start'
-                })} onPrev={goPrev} onNext={goNext} canPrev={index > 0} canNext={index < total - 1} onZoomIn={zoomIn} onZoomOut={zoomOut} fullscreenButton={<FullscreenButton rtl={rtl} />} />
-
-                    {imageLoading && <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                        <LoadingProgress type="image" progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} rtl={rtl} />
-                      </div>}
-
-                    <div id={`page-${index}-description`} className="sr-only">
-                      {rtl ? `صفحة ${index + 1} من ${total}` : `Page ${index + 1} of ${total}`}
-                    </div>
-                  </div>
-                </TouchGestureHandler>
-
-              </CardContent>
-            </Card>
-          </FullscreenMode>
-
-
-          <div ref={insightsRef} className="px-3 pt-4">
-            <Card className="shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs md:text-sm">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-3">
-                <Tabs value={insightTab} onValueChange={v => setInsightTab(v as any)} className="w-full">
-                  <TabsList className="grid grid-cols-2 w-full text-xs md:text-sm">
-                    <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
-                    <TabsTrigger value="qa">
-                      {rtl ? <span className="inline-flex items-center gap-2">
-                          <Sparkles className="h-4 w-4" />
-                          <span>المدرس الإفتراضي</span>
-                        </span> : "Ask the doc"}
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="summary" className="mt-4 m-0">
-                    <Button className="w-full" variant="default" onClick={handleSmartSummarizeClick} disabled={ocrLoading || summLoading}>
-                      <>
-                        {ocrLoading || summLoading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>
-                              {rtl
-                                ? (ocrLoading
-                                  ? `جارٍ استخراج النص... ${Math.max(0, Math.min(100, Math.round(ocrProgress)))}%`
-                                  : "جارٍ التلخيص...")
-                                : (ocrLoading
-                                  ? `Extracting text... ${Math.max(0, Math.min(100, Math.round(ocrProgress)))}%`
-                                  : "Summarizing...")}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className={cn("h-4 w-4", rtl ? "ml-2" : "mr-2")} />
-                            <span>{rtl ? "المدرس الإفتراضي" : "AI Tutor"}</span>
-                          </>
-                        )}
-                      </>
-                    </Button>
-                    {!summary && <div className="mt-3 text-sm text-muted-foreground border rounded-md p-3">
-                        {rtl ? "لا يوجد ملخص بعد. اضغط \"لخص هذه الصفحة\" لإنشائه." : "No summary yet. Click Summarize this page to generate one."}
-                      </div>}
-                    {lastError && <div className="mt-3">
-                        <ImprovedErrorHandler error={lastError} onRetry={extractTextFromPage} isRetrying={ocrLoading || summLoading} retryCount={retryCount} context={ocrLoading ? rtl ? "استخراج النص" : "OCR" : rtl ? "التلخيص" : "Summarization"} rtl={rtl} />
-                      </div>}
-                    {summary && <div className="mt-3">
-                        <EnhancedSummary summary={summary} onSummaryChange={newSummary => {
-                    setSummary(newSummary);
-                    try {
-                      localStorage.setItem(sumKey, newSummary);
-                    } catch {}
-                  }} onRegenerate={() => {
-                    if (extractedText) {
-                      summarizeExtractedText(extractedText);
-                    } else {
-                      toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
-                    }
-                  }} isRegenerating={summLoading} confidence={ocrQuality ?? summaryConfidence} pageNumber={index + 1} rtl={rtl} title={title} />
-                      </div>}
-                  </TabsContent>
-
-                  <TabsContent value="qa" className="mt-4 m-0">
-                    <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          </div>
-        </div> : <div className="gap-4">
-          {/* LEFT: Viewer */}
-          <div>
-            <div className="flex gap-4">
-              {/* Thumbnail Sidebar */}
-              <div className={cn("flex-shrink-0 animate-fade-in transition-all duration-300", !thumbnailsOpen && "w-0 overflow-hidden")}>
-                <ThumbnailSidebar pages={pages} currentIndex={index} onPageSelect={i => {
-              setIndex(i);
-              if (readerMode === 'continuous') {
-                continuousRef.current?.scrollToIndex(i);
-              }
-            }} isOpen={thumbnailsOpen} onToggle={() => setThumbnailsOpen(!thumbnailsOpen)} rtl={rtl} />
-              </div>
-
-              {/* Main Content */}
-              <div className="flex-1 flex flex-col gap-6">
-                {/* Library/Search unified: tabs removed */}
-
-                
-
-
-
-                {/* Page Area with Fullscreen */}
-                <FullscreenMode rtl={rtl}>
-                  <Card className="shadow-sm animate-fade-in">
-                    <CardContent>
-                      <TouchGestureHandler onSwipeLeft={rtl ? goPrev : goNext} onSwipeRight={rtl ? goNext : goPrev} onPinch={scale => {
-                    const newZoom = Math.min(Z.max, Math.max(Z.min, zoom * scale));
-                    setZoom(newZoom);
-                    setZoomMode("custom");
-                  }} disabled={!isMobile || readerMode === 'continuous'} className="relative">
-                        {readerMode === 'page' ? <div ref={containerRef} className={cn("relative w-full border rounded-lg mb-1 overflow-hidden max-h-[85vh] md:max-h-[78vh] lg:max-h-[85vh]", panningEnabled ? isPanning ? "cursor-grabbing" : "cursor-grab" : "cursor-default", isMobile && "book-viewer-mobile")} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
-                            <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} centerZoomedOut limitToBounds panning={{
-                        disabled: !panningEnabled
-                      }} wheel={{
-                        activationKeys: ["Control", "Meta"],
-                        step: Z.step
-                      }} doubleClick={{
-                        disabled: false,
-                        step: 0.5,
-                        mode: "zoomIn"
-                      }} onTransformed={refState => {
-                        const {
-                          scale,
-                          positionX,
-                          positionY
-                        } = refState.state;
-                        setTransformState({
-                          scale,
-                          positionX,
-                          positionY
-                        });
-                        setZoomMode("custom");
-                        setZoom(scale);
-                      }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => setIsPanning(false)}>
+                }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => {
+                   setIsPanning(false);
+                   const el = containerRef.current;
+                   if (!el || !zoomApiRef.current) return;
+                   const imgW = naturalSize.width || 800;
+                   const imgH = naturalSize.height || 1100;
+                   const contentW = imgW * transformState.scale;
+                   const contentH = imgH * transformState.scale;
+                   const halfDiffX = Math.max(0, (contentW - el.clientWidth) / 2);
+                   const halfDiffY = Math.max(0, (contentH - el.clientHeight) / 2);
+                   const clampedX = Math.min(halfDiffX, Math.max(-halfDiffX, transformState.positionX));
+                   const clampedY = Math.min(halfDiffY, Math.max(-halfDiffY, transformState.positionY));
+                   zoomApiRef.current.setTransform(clampedX, clampedY, transformState.scale, 120, 'easeOut');
+                 }}>
                               <TransformComponent wrapperClass="w-full h-[70vh] md:h-[78vh] lg:h-[85vh]" contentClass="flex items-center justify-center">
                                 <img src={pages[index]?.src} alt={pages[index]?.alt} loading="eager" decoding="async" draggable={false} onLoadStart={() => setImageLoading(true)} onLoad={e => {
                             setImageLoading(false);
