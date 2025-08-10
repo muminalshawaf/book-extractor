@@ -184,13 +184,7 @@ export async function runLocalOcr(input: string | Blob, options?: LocalOcrOption
           const rConf = Number((result as any).confidence ?? 0);
           const bLen = (best?.text || '').trim().length;
           const rLen = (result?.text || '').trim().length;
-
-          const confDelta = rConf - bConf;
-          const preferByLength = (rLen > bLen && (bLen < 10 || rLen >= bLen + 20));
-          const preferNonEmpty = (bLen === 0 && rLen > 0);
-          const prefer = confDelta > 3 || preferByLength || preferNonEmpty;
-
-          if (prefer) {
+          if (rConf > bConf || (rConf === bConf && rLen > bLen)) {
             best = result;
             bestPsmUsed = psm;
           }
@@ -200,42 +194,12 @@ export async function runLocalOcr(input: string | Blob, options?: LocalOcrOption
       }
     }
 
-    // Fallback: if best text is too short, try brute rotation (0/90/180/270) on first variant
-    const minUsefulLen = 12;
-    const currentLen = (best?.text || '').trim().length;
-    if (currentLen < minUsefulLen && variantImages.length > 0) {
-      const base = variantImages[0];
-      const rotations = [0, 90, 180, 270];
-      for (const angle of rotations) {
-        try {
-          const rotated = await rotateImageBlob(base, angle);
-          image = rotated;
-          const quickPsms: (number | string)[] = [6, 4, 11, 12];
-          for (const psm of quickPsms) {
-            try {
-              const res = await recognizeWith(psm);
-              if (!best) { best = res; bestPsmUsed = psm; continue; }
-              const bConf = Number((best as any).confidence ?? 0);
-              const rConf = Number((res as any).confidence ?? 0);
-              const bLen = (best?.text || '').trim().length;
-              const rLen = (res?.text || '').trim().length;
-              if (rLen > bLen + 10 || (rLen >= minUsefulLen && rConf >= bConf - 5)) {
-                best = res; bestPsmUsed = psm;
-              }
-            } catch { /* ignore */ }
-          }
-        } catch { /* ignore rotation issues */ }
-      }
-    }
-
     const data = best ?? { text: '', confidence: 0 };
-    const finalText = (data.text || '').trim();
-    const finalConf = finalText.length === 0 ? 0 : Number((data as any).confidence ?? 0);
     onProgress?.(100);
-    if (bestPsmUsed !== undefined && finalText.length >= minUsefulLen) {
+    if (bestPsmUsed !== undefined) {
       psmCache.set(cacheKey, bestPsmUsed);
     }
-    return { text: finalText, confidence: finalConf };
+    return { text: data.text || '', confidence: (data as any).confidence };
   } finally {
     await worker.terminate();
   }
