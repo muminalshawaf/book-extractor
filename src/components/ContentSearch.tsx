@@ -227,13 +227,48 @@ export const ContentSearch: React.FC<ContentSearchProps> = ({
             </div>
           )}
 
-          {/* Current result context */}
+          {/* Current result context and clickable results */}
           {searchResults.length > 0 && searchResults[currentResultIndex] && (
-            <div className="mt-3 p-3 bg-muted rounded-lg">
-              <div className="text-sm leading-relaxed" dir={rtl ? "rtl" : "ltr"}>
-                {highlightSearchTerm(searchResults[currentResultIndex].context, searchTerm)}
+            <>
+              <div className="mt-3 p-3 bg-muted rounded-lg">
+                <div className="text-sm leading-relaxed" dir={rtl ? "rtl" : "ltr"}>
+                  {highlightSearchTerm(searchResults[currentResultIndex].context, searchTerm)}
+                </div>
               </div>
-            </div>
+
+              {/* All results list - click to jump to page */}
+              <div className="mt-3">
+                <div className={cn("text-xs text-muted-foreground mb-2", rtl && "text-right")}>
+                  {rtl ? "النتائج" : "Results"}
+                </div>
+                <div className="max-h-60 overflow-auto rounded border">
+                  {searchResults.map((r, i) => (
+                    <button
+                      key={`${r.pageIndex}-${r.startIndex}-${i}`}
+                      type="button"
+                      onClick={() => navigateToResult(i)}
+                      className={cn(
+                        "w-full text-left px-3 py-2 hover:bg-accent/60 focus:bg-accent/60 transition",
+                        i === currentResultIndex && "bg-accent/50",
+                        rtl && "text-right"
+                      )}
+                      dir={rtl ? "rtl" : "ltr"}
+                      aria-label={rtl ? `الانتقال إلى الصفحة ${r.pageIndex + 1}` : `Go to page ${r.pageIndex + 1}`}
+                    >
+                      <div className={cn("flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
+                        <span className="text-xs text-muted-foreground">{rtl ? `الصفحة ${r.pageIndex + 1}` : `Page ${r.pageIndex + 1}`}</span>
+                        {i === currentResultIndex && (
+                          <Badge variant="secondary">{rtl ? "الحالية" : "Current"}</Badge>
+                        )}
+                      </div>
+                      <div className="text-sm">
+                        {highlightSearchTerm(r.context, searchTerm)}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
         </form>
       </CardContent>
