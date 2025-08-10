@@ -99,17 +99,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   const loadTimeStatus = getPerformanceStatus(metrics.loadTime, { good: 1000, warning: 3000 });
 
   if (!isOpen) {
-    return (
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onToggle}
-        className="hover:bg-accent"
-        title={rtl ? "مراقب الأداء" : "Performance Monitor"}
-      >
-        <Activity className="h-4 w-4" />
-      </Button>
-    );
+    return null;
   }
 
   return (
