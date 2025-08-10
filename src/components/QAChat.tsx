@@ -328,7 +328,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
         </header>
 
         {/* Chat Content */}
-        <div className="flex-1 p-6 overflow-y-auto" ref={containerRef}>
+        <div className="flex-1 p-6 pb-0 overflow-y-auto" ref={containerRef}>
           <div className="w-full max-w-4xl mx-auto">
             {messages.length === 0 ? (
               <WelcomeMessage rtl={rtl} />
