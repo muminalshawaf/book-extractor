@@ -112,7 +112,7 @@ export const ContentSearch: React.FC<ContentSearchProps> = ({
         </mark> : part);
   };
   const hasAnyExtractedText = Object.keys(pages).length > 0;
-  return <Card className="shadow-sm">
+  return <Card className="shadow-sm -mt-2">
       <CardContent className="p-4 bg-muted">
         {!hasAnyExtractedText}
         <form onSubmit={handleSearch} className="space-y-3">
