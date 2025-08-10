@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Loader2, StopCircle, RotateCcw, Trash2, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { callFunction } from "@/lib/functionsClient";
 import MessageList from "./chat/MessageList";
 import Composer from "./chat/Composer";
-import { Input } from "@/components/ui/input";
 import LatexModal from "./chat/LatexModal";
 import TutorSidebar from "./chat/TutorSidebar";
+import WelcomeMessage from "./chat/WelcomeMessage";
+import SelectionPopup from "./chat/SelectionPopup";
 
 interface QAChatProps {
   summary: string;
@@ -291,28 +292,16 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
         {/* Header */}
         <header className="flex items-center justify-between p-4 border-b bg-background">
           <div className={cn("flex items-center gap-4", rtl && "flex-row-reverse")}>
-            <h1 className="text-lg font-semibold">{rtl ? "إدرس" : "Study"}</h1>
-            <span className="text-sm text-muted-foreground">{rtl ? "القائمة" : "Menu"}</span>
+            <h1 className="text-xl font-semibold">{rtl ? "إدرس" : "Study"}</h1>
           </div>
-          <Button variant="ghost" size="icon">
-            <Menu className="h-5 w-5" />
-          </Button>
         </header>
 
         {/* Chat Content */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8" ref={containerRef}>
-          {messages.length === 0 ? (
-            <div className="text-center space-y-4 max-w-md">
-              <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-medium">{rtl ? "مرحباً" : "Hello"}</h2>
-              <p className="text-muted-foreground">{rtl ? "كيف يمكنني مساعدتك اليوم؟" : "How can I help you today?"}</p>
-            </div>
-          ) : (
-            <div className="w-full max-w-4xl">
+        <div className="flex-1 p-6 overflow-y-auto" ref={containerRef}>
+          <div className="w-full max-w-4xl mx-auto">
+            {messages.length === 0 ? (
+              <WelcomeMessage rtl={rtl} />
+            ) : (
               <MessageList
                 messages={messages}
                 loading={loading}
@@ -321,8 +310,8 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
                 onRegenerate={regenerateLast}
                 onEditUser={editUserAndRegenerate}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Input Area */}
@@ -355,29 +344,24 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
             <div className="text-center text-xs text-muted-foreground mt-3">
               {rtl ? "قد يخطئ إدرس، لذا يرجى التحقق من المعلومات." : "AI may make mistakes—please verify."}
             </div>
+            
+            {!summary.trim() && (
+              <div className="text-center text-xs text-muted-foreground mt-2">
+                {rtl ? "يمكنك طرح أي سؤال، أو إنشاء ملخص للصفحة أولاً للحصول على إجابات أكثر دقة" : "You can ask any question, or generate a page summary first for more accurate answers."}
+              </div>
+            )}
           </div>
         </div>
         
         {/* Selection Ask Popup */}
-        {askOpen && (
-          <form onSubmit={submitAskFromSelection}
-            className={cn("fixed z-50 bg-background border rounded-lg shadow p-2 flex items-center gap-2", rtl && "flex-row-reverse")}
-            style={{ top: askPos.top, left: askPos.left, transform: "translateX(-50%)" }}
-          >
-            <Input value={askVal} onChange={(e) => setAskVal(e.target.value)}
-              placeholder={rtl ? "اسأل عن التحديد" : "Ask about selection"}
-              className="w-56"
-            />
-            <Button type="submit" size="sm">{rtl ? "إرسال" : "Ask"}</Button>
-          </form>
-        )}
-
-        {/* Hidden control buttons for functionality */}
-        <div className="hidden">
-          <Button onClick={clearChat} disabled={messages.length === 0 || loading} />
-          <Button onClick={regenerateLast} disabled={messages.filter(m=>m.role==="user").length===0 || loading} />
-          {loading && <Button onClick={stopStreaming} />}
-        </div>
+        <SelectionPopup
+          isOpen={askOpen}
+          position={askPos}
+          selectedText={selectionText}
+          onSubmit={(prompt) => askInternal(prompt, true)}
+          onClose={() => setAskOpen(false)}
+          rtl={rtl}
+        />
 
         <LatexModal
           open={latexOpen}
