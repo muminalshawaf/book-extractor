@@ -34,6 +34,7 @@ import { PerformanceMonitor } from "@/components/PerformanceMonitor";
 import { ContinuousReader, ContinuousReaderRef } from "@/components/reader/ContinuousReader";
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useNavigate } from "react-router-dom";
 import { MobileControlsOverlay } from "@/components/reader/MobileControlsOverlay";
 export type BookPage = {
   src: string;
@@ -81,6 +82,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     maxHeight: Math.round(1400 * zoom)
   }), [zoom]);
   const total = pages.length;
+  const navigate = useNavigate();
+  const [topTab, setTopTab] = useState<"library" | "content">("content");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const zoomApiRef = useRef<ReactZoomPanPinchRef | null>(null);
   const [transformState, setTransformState] = useState<{
@@ -1262,6 +1265,17 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
               {/* Main Content */}
               <div className="flex-1 flex flex-col gap-6">
+                {/* Unified top tabs for Library/Content */}
+                <Tabs dir={rtl ? "rtl" : "ltr"} value={topTab} onValueChange={(v) => {
+                  setTopTab(v as any);
+                  if (v === "library") navigate("/library");
+                }}>
+                  <TabsList className="grid w-full grid-cols-2 mb-2">
+                    <TabsTrigger value="library">تصفح المكتبة</TabsTrigger>
+                    <TabsTrigger value="content">البحث في المحتوى</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
                 {/* Content Search (above zoom controls) */}
                 <ContentSearch pages={allExtractedTexts} currentPageIndex={index} onPageChange={setIndex} onHighlight={setSearchHighlight} rtl={rtl} />
 
