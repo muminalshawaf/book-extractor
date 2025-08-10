@@ -298,6 +298,16 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             }
           }
           break;
+        case "f":
+        case "F":
+          if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+            e.preventDefault();
+            if (!ocrLoading && !summLoading) {
+              toast.message(rtl ? "بدء OCR + تلخيص إجباري" : "Forcing OCR + Summarization");
+              extractTextFromPage();
+            }
+          }
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
