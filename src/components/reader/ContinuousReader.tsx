@@ -1,6 +1,6 @@
 import React, { forwardRef, useImperativeHandle, useRef } from "react";
 import { Virtuoso } from "react-virtuoso";
-import { BookPage } from "@/components/BookViewer";
+import { BookPage } from "@/components/reader/SimpleBookViewer";
 import { cn } from "@/lib/utils";
 
 export type ContinuousReaderRef = {
