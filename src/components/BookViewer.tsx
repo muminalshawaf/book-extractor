@@ -1153,7 +1153,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   disabled={!isMobile || readerMode === 'continuous'}
                   className="relative">
                   <div ref={containerRef} className={cn("relative w-full overflow-hidden", !isMobile && "border rounded-lg mb-4", panningEnabled ? isPanning ? "cursor-grabbing" : "cursor-grab" : "cursor-default", isMobile && "book-viewer-mobile")} style={{}} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
-                    <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} centerZoomedOut={false} limitToBounds panning={{
+                    <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} centerZoomedOut limitToBounds panning={{
                   disabled: !panningEnabled
                 }} wheel={{
                   activationKeys: ["Control", "Meta"],
@@ -1316,7 +1316,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     setZoomMode("custom");
                   }} disabled={!isMobile || readerMode === 'continuous'} className="relative">
                         {readerMode === 'page' ? <div ref={containerRef} className={cn("relative w-full border rounded-lg mb-1 overflow-hidden max-h-[85vh] md:max-h-[78vh] lg:max-h-[85vh]", panningEnabled ? isPanning ? "cursor-grabbing" : "cursor-grab" : "cursor-default", isMobile && "book-viewer-mobile")} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
-                            <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} centerZoomedOut={false} limitToBounds panning={{
+                            <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} centerZoomedOut limitToBounds panning={{
                         disabled: !panningEnabled
                       }} wheel={{
                         activationKeys: ["Control", "Meta"],
