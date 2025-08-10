@@ -32,7 +32,7 @@ const categories = [
 
 const renderKatex = (src: string) => {
   try {
-    return { __html: katex.renderToString(src, { throwOnError: false, displayMode: true }) };
+    return { __html: katex.renderToString(src, { throwOnError: false, displayMode: true, strict: "ignore" }) };
   } catch (e) {
     return { __html: `<span class='text-destructive text-xs'>${(e as Error)?.message ?? "KaTeX error"}</span>` };
   }
@@ -40,7 +40,7 @@ const renderKatex = (src: string) => {
 
 const LatexModal: React.FC<LatexModalProps> = ({ open, onOpenChange, onInsert, rtl = false }) => {
   const [value, setValue] = useState("");
-  const preview = useMemo(() => renderKatex(value.trim() || String.raw`\text{معاينة Preview}`), [value]);
+  const preview = useMemo(() => renderKatex(value.trim() || String.raw`\text{Preview}`), [value]);
 
   useEffect(() => {
     if (!open) setValue("");
