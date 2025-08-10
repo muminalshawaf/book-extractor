@@ -1240,7 +1240,12 @@ useEffect(() => {
                 <div ref={insightsRef}>
                   <Card className="shadow-sm">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-base">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
+                      <CardTitle className="text-base">
+                        <span className="inline-flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          <span>{rtl ? "مساعد القراءة الذكي" : "AI Reading Assistant"}</span>
+                        </span>
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="p-3">
                       <Tabs defaultValue="summary" className="w-full">
