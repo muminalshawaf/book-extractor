@@ -1124,6 +1124,32 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     const contentH = imgH * transformState.scale;
     return contentW > wrapperW + 1 || contentH > wrapperH + 1;
   }, [transformState.scale, naturalSize, readerMode, index]);
+
+  // Auto-center when content fits the viewport (prevents "snapping" and drifting)
+  useEffect(() => {
+    if (readerMode !== 'page') return;
+    const el = containerRef.current;
+    const api = zoomApiRef.current;
+    if (!el || !api) return;
+    const wrapperW = el.clientWidth;
+    const wrapperH = el.clientHeight;
+    const imgW = naturalSize.width || 800;
+    const imgH = naturalSize.height || 1100;
+    const fitScale = Math.min(wrapperW / imgW, wrapperH / imgH);
+    if (transformState.scale <= fitScale + 0.0001) {
+      try {
+        // Prefer native center method when available
+        // @ts-ignore
+        if (typeof (api as any).centerView === 'function') {
+          // @ts-ignore
+          (api as any).centerView(200, 'easeOut');
+        } else {
+          api.setTransform(0, 0, Math.min(transformState.scale, fitScale), 200, 'easeOut');
+        }
+      } catch { /* noop */ }
+    }
+  }, [transformState.scale, naturalSize, readerMode, index]);
+
   return <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
       {isMobile ? <div className="flex flex-col gap-4">
 
@@ -1176,7 +1202,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   setZoomMode("custom");
                   setZoom(scale);
                 }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => setIsPanning(false)}>
-                      <TransformComponent wrapperClass="w-full h-svh" contentClass="flex items-start justify-center py-2">
+                      <TransformComponent wrapperClass="w-full h-svh" contentClass="flex items-center justify-center py-2">
                         <img src={pages[index]?.src} alt={pages[index]?.alt} loading="eager" decoding="async" draggable={false} onLoadStart={() => setImageLoading(true)} onLoad={e => {
                       setImageLoading(false);
                       const imgEl = e.currentTarget;
@@ -1339,7 +1365,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         setZoomMode("custom");
                         setZoom(scale);
                       }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => setIsPanning(false)}>
-                              <TransformComponent wrapperClass="w-full h-[70vh] md:h-[78vh] lg:h-[85vh]" contentClass="flex items-start justify-center py-0">
+                              <TransformComponent wrapperClass="w-full h-[70vh] md:h-[78vh] lg:h-[85vh]" contentClass="flex items-center justify-center py-0">
                                 <img src={pages[index]?.src} alt={pages[index]?.alt} loading="eager" decoding="async" draggable={false} onLoadStart={() => setImageLoading(true)} onLoad={e => {
                             setImageLoading(false);
                             const imgEl = e.currentTarget;
