@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -20,6 +20,26 @@ const TutorSidebar: React.FC<TutorSidebarProps> = ({ rtl = false, suggestions, o
 
   const sideCls = useMemo(() => (rtl ? "right-2" : "left-2"), [rtl]);
   const posCls = within ? "absolute z-20 top-2 bottom-2" : "fixed z-40 top-20 bottom-6";
+
+  const asideRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!within) return;
+    const el = asideRef.current;
+    const container = el?.parentElement as HTMLElement | null;
+    if (!container) return;
+    let lastTop = container.scrollTop;
+    const onScroll = () => {
+      if (pinned) return;
+      const cur = container.scrollTop;
+      const down = cur > lastTop + 2;
+      const up = cur < lastTop - 2;
+      if (down) setExpanded(true);
+      else if (up && cur <= 8) setExpanded(false);
+      lastTop = cur;
+    };
+    container.addEventListener("scroll", onScroll);
+    return () => container.removeEventListener("scroll", onScroll);
+  }, [pinned, within]);
 
   const onEnter = useCallback(() => { if (!pinned) setExpanded(true); }, [pinned]);
   const onLeave = useCallback(() => { if (!pinned) setExpanded(false); }, [pinned]);
