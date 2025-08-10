@@ -1271,17 +1271,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
               {/* Main Content */}
               <div className="flex-1 flex flex-col gap-6">
-                {/* Unified top tabs for Library/Content */}
-                <Tabs dir={rtl ? "rtl" : "ltr"} value={topTab} onValueChange={(v) => {
-                  setTopTab(v as any);
-                }}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="library">تصفح المكتبة</TabsTrigger>
-                    <TabsTrigger value="content">البحث في المحتوى</TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                {/* Library/Search unified: tabs removed */}
 
-                {topTab === 'library' ? (
+                
                   <section className="-mt-6 bg-muted/40 rounded-lg p-3 border" dir={rtl ? 'rtl' : 'ltr'}>
                     <div className="grid gap-3 md:grid-cols-4">
                       <div className="md:col-span-2">
@@ -1325,7 +1317,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         const hay = [b.title, b.subject, ...(b.keywords??[])].join(" ").toLowerCase();
                         return hay.includes(libQ.trim().toLowerCase());
                       }).map(b => (
-                        <button key={b.id} type="button" onClick={() => { navigate(`/book/${b.id}`); setTopTab('content'); }} className="text-right border rounded-md p-2 hover:bg-accent/60 transition">
+                        <button key={b.id} type="button" onClick={() => { navigate(`/book/${b.id}`); }} className="text-right border rounded-md p-2 hover:bg-accent/60 transition">
                           <div className="w-full h-28 overflow-hidden rounded mb-2 bg-muted">
                             <img src={(b.buildPages?.()[0]?.src) || b.cover || "/placeholder.svg"} alt={b.title} loading="lazy" className="w-full h-full object-cover" />
                           </div>
@@ -1334,9 +1326,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       ))}
                     </div>
                   </section>
-                ) : (
-                  <div className="-mt-6"><ContentSearch pages={allExtractedTexts} currentPageIndex={index} onPageChange={setIndex} onHighlight={setSearchHighlight} rtl={rtl} /></div>
-                )}
+                  <div className="-mt-2"><ContentSearch pages={allExtractedTexts} currentPageIndex={index} onPageChange={setIndex} onHighlight={setSearchHighlight} rtl={rtl} /></div>
 
 
 
