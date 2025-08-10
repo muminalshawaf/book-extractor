@@ -230,7 +230,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
   return (
     <Card className="mt-4">
       <CardHeader>
-        <CardTitle className="text-base">{rtl ? "اسأل الذكاء الاصطناعي" : "Ask AI about this page"}</CardTitle>
+        <CardTitle className="text-base">{rtl ? "المدرس الإفتراضي" : "AI Tutor"}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">

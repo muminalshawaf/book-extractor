@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import MathRenderer from "@/components/MathRenderer";
 import { Copy, Check, RotateCcw, Share2, ThumbsUp, ThumbsDown } from "lucide-react";
@@ -122,19 +123,42 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
                       <Button variant="ghost" size="sm" onClick={() => handleCopy(isStreaming ? (streamRef.current?.textContent ?? "") : m.content, i)} aria-label={rtl ? "نسخ" : "Copy"}>
                         {copiedIndex === i ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={async () => {
-                        const text = isStreaming ? (streamRef.current?.textContent ?? "") : m.content;
-                        try {
-                          if (navigator.share) {
-                            await navigator.share({ title: document.title, text });
-                          } else {
-                            await navigator.clipboard.writeText(text);
-                            toast({ description: rtl ? "تم النسخ للمشاركة" : "Copied to share" });
-                          }
-                        } catch {}
-                      }} aria-label={rtl ? "مشاركة" : "Share"}>
-                        <Share2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" aria-label={rtl ? "مشاركة" : "Share"}>
+                            <Share2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align={rtl ? "end" : "start"}>
+                          <DropdownMenuItem onClick={() => {
+                            const text = isStreaming ? (streamRef.current?.textContent ?? "") : m.content;
+                            const t = encodeURIComponent(text);
+                            window.open(`https://wa.me/?text=${t}`, "_blank", "noopener,noreferrer");
+                          }}>{rtl ? "واتساب" : "WhatsApp"}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            const text = isStreaming ? (streamRef.current?.textContent ?? "") : m.content;
+                            const t = encodeURIComponent(text);
+                            const url = encodeURIComponent(window.location.href);
+                            window.open(`https://t.me/share/url?url=${url}&text=${t}`, "_blank", "noopener,noreferrer");
+                          }}>{rtl ? "تليجرام" : "Telegram"}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            const text = isStreaming ? (streamRef.current?.textContent ?? "") : m.content;
+                            const t = encodeURIComponent(text);
+                            window.open(`https://twitter.com/intent/tweet?text=${t}`, "_blank", "noopener,noreferrer");
+                          }}>{rtl ? "إكس" : "X"}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            const text = isStreaming ? (streamRef.current?.textContent ?? "") : m.content;
+                            const t = encodeURIComponent(text);
+                            const url = encodeURIComponent(window.location.href);
+                            window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${t}`, "_blank", "noopener,noreferrer");
+                          }}>{rtl ? "فيسبوك" : "Facebook"}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            const text = isStreaming ? (streamRef.current?.textContent ?? "") : m.content;
+                            const t = encodeURIComponent(text);
+                            window.open(`sms:?&body=${t}`, "_blank", "noopener,noreferrer");
+                          }}>{rtl ? "رسالة نصية" : "SMS"}</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <Button variant="ghost" size="sm" onClick={() => setReactions((r) => ({ ...r, [i]: r[i] === 'up' ? null : 'up' }))} aria-pressed={reactions[i] === 'up'} aria-label={rtl ? "إعجاب" : "Like"}>
                         <ThumbsUp className={cn("h-3.5 w-3.5", reactions[i] === 'up' && "text-primary")} />
                       </Button>
