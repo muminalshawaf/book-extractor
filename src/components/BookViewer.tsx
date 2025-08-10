@@ -521,7 +521,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             } catch {}
             accumulated += chunk;
             const now = globalThis.performance?.now?.() ?? Date.now();
-            if (now - lastFlush > 150) {
+            if (now - lastFlush > 300) {
               flush();
               lastFlush = now;
             }
@@ -579,7 +579,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 } catch {}
                 accumulated += chunk;
                 const now = globalThis.performance?.now?.() ?? Date.now();
-                if (now - lastFlush > 150) {
+                if (now - lastFlush > 300) {
                   flush();
                   lastFlush = now;
                 }
@@ -662,21 +662,31 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummary("");
     setSummLoading(true);
     setSummaryProgress(0);
+
     const totalLen = full.length;
-    const steps = Math.min(80, Math.max(10, Math.ceil(totalLen / 40)));
-    const chunkSize = Math.max(10, Math.ceil(totalLen / steps));
+    // Target natural typing speed (chars per second)
+    const cps = rtl ? 20 : 28; // Arabic is a bit slower to read
+    const tickMs = 50; // update cadence
+    const perTick = Math.max(1, Math.round((cps * tickMs) / 1000));
+
     let pos = 0;
+    const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
+
     while (pos < totalLen) {
-      const chunk = full.slice(pos, pos + chunkSize);
-      pos += chunkSize;
+      const next = Math.min(perTick, totalLen - pos);
+      const chunk = full.slice(pos, pos + next);
+      pos += next;
       setSummary(prev => prev + chunk);
-      await new Promise(r => setTimeout(r, 20));
+
+      // Punctuation-aware pause for more natural feel
+      const lastChar = chunk[chunk.length - 1];
+      const isSentenceEnd = /[\.\!\?\n\r،؛]/.test(lastChar);
+      await wait(isSentenceEnd ? tickMs + 200 : tickMs);
     }
+
     setSummaryProgress(100);
     setSummLoading(false);
-    try {
-      localStorage.setItem(sumKey, full);
-    } catch {}
+    try { localStorage.setItem(sumKey, full); } catch {}
   };
 
   // Smart summarize button: prefer DB if available, otherwise process page
