@@ -31,6 +31,7 @@ import { PerformanceMonitor } from "@/components/PerformanceMonitor";
 import { ContinuousReader, ContinuousReaderRef } from "@/components/reader/ContinuousReader";
 import { MobileReaderChrome } from "@/components/reader/MobileReaderChrome";
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
+import { useIsMobile } from "@/hooks/use-mobile";
 export type BookPage = {
   src: string;
   alt: string;
@@ -139,7 +140,7 @@ const [summary, setSummary] = useState("");
   // Phase 4 enhancements
   const [accessibilityPanelOpen, setAccessibilityPanelOpen] = useState(false);
   const [performanceMonitorOpen, setPerformanceMonitorOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
   const [gotoInput, setGotoInput] = useState<string>("");
 
@@ -299,16 +300,6 @@ const [summary, setSummary] = useState("");
     return () => { cancelled = true; };
   }, [index, dbBookId, ocrKey, sumKey]);
 
-  // Mobile detection
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
 // Reset state when switching books
 useEffect(() => {
@@ -834,7 +825,7 @@ useEffect(() => {
 
           {/* Viewer */}
           <FullscreenMode rtl={rtl}>
-            <Card className="shadow-sm animate-fade-in">
+            <Card className="shadow-none border-none bg-transparent animate-fade-in">
               <CardHeader className="sr-only">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg" itemProp="name">{title}</CardTitle>
@@ -861,11 +852,12 @@ useEffect(() => {
                   <div 
                     ref={containerRef}
                     className={cn(
-                      "relative w-full border rounded-lg mb-4 overflow-hidden",
+                      "relative w-full overflow-hidden",
+                      !isMobile && "border rounded-lg mb-4",
                       panningEnabled ? (isPanning ? "cursor-grabbing" : "cursor-grab") : "cursor-default",
                       isMobile && "book-viewer-mobile"
                     )}
-                    style={{ maxHeight: '70vh' }}
+                    style={{}}
                     onWheel={handleWheelNav}
                     role="img"
                     aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`}
@@ -891,7 +883,7 @@ useEffect(() => {
                       onPanningStop={() => setIsPanning(false)}
                     >
                       <TransformComponent
-                        wrapperClass="w-full h-[70vh]"
+                        wrapperClass="w-full h-[calc(100svh-128px)]"
                         contentClass="flex items-start justify-center py-2"
                       >
                         <img
@@ -935,7 +927,7 @@ useEffect(() => {
 
           {/* Mobile Insights Drawer */}
           <Drawer open={mobileInsightsOpen} onOpenChange={setMobileInsightsOpen}>
-            <DrawerContent className="max-h-[80vh]">
+            <DrawerContent className="h-[90svh]">
               <DrawerHeader>
                 <DrawerTitle>{rtl ? "لوحة الرؤى" : "Insight Panel"}</DrawerTitle>
               </DrawerHeader>
@@ -956,7 +948,7 @@ useEffect(() => {
                       </div>
                     )}
                     {summary && (
-                      <div className="mt-3">
+                      <div className="mt-3 prose text-[15px] leading-7 md:text-[14px]">
                         <EnhancedSummary
                           summary={summary}
                           onSummaryChange={(newSummary) => { setSummary(newSummary); try { localStorage.setItem(sumKey, newSummary); } catch {} }}
