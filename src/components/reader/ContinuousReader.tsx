@@ -30,7 +30,7 @@ export const ContinuousReader = forwardRef<ContinuousReaderRef, ContinuousReader
     }));
 
     return (
-      <div className="w-full h-[70vh]" role="region" aria-label="Continuous reader" aria-live="polite">
+      <div className="w-full h-[70vh] md:h-[78vh] lg:h-[85vh]" role="region" aria-label="Continuous reader" aria-live="polite">
         <Virtuoso
           ref={virtuosoRef}
           totalCount={pages.length}
@@ -60,7 +60,7 @@ export const ContinuousReader = forwardRef<ContinuousReaderRef, ContinuousReader
                     transform: i === index ? `scale(${zoom})` : undefined,
                     transformOrigin: "center top",
                     transition: "transform 0.2s ease-out",
-                    maxHeight: "80vh",
+                    maxHeight: "78vh",
                   }}
                 />
               </div>

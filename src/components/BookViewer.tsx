@@ -1374,7 +1374,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       }} />
                           </div>}
                       </TouchGestureHandler>
-                      <div className={cn("mt-4 flex items-center justify-between gap-2", rtl && "flex-row-reverse")}>
+                      <div className={cn("mt-4 flex flex-wrap items-center justify-between gap-2", rtl && "flex-row-reverse")}>
                         <Button onClick={goPrev} variant="secondary" disabled={index === 0} aria-label={L.previous} className={cn(isMobile && "min-h-[48px] min-w-[48px]")}>{rtl ? `${L.previous} →` : "← " + L.previous}</Button>
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">

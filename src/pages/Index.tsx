@@ -32,7 +32,7 @@ const Index = () => {
       <script type="application/ld+json" dangerouslySetInnerHTML={{
       __html: JSON.stringify(jsonLd)
     }} />
-      <div className="container mx-auto py-4 px-3 md:py-10">
+      <div className="container mx-auto py-4 px-3 md:py-6">
       <header className="mb-6">
           <TopSearchTabs rtl={rtl} currentBookId={selectedBook.id} />
         </header>
