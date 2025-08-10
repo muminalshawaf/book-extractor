@@ -14,16 +14,18 @@ export type LocalOcrResult = {
 };
 
 export async function runLocalOcr(input: string | Blob, options?: LocalOcrOptions): Promise<LocalOcrResult> {
-  const lang = options?.lang || 'eng';
+  const lang = options?.lang || 'ara+eng';
   const primaryPsm = options?.psm ?? 6; // default: uniform block of text
   const onProgress = options?.onProgress;
 
   let image: string | Blob = input;
+  const shouldPreprocess =
+    options?.preprocess === false ? false : Boolean(options?.preprocess) || lang.includes('ara');
   try {
-    if (options?.preprocess) {
+    if (shouldPreprocess) {
       const preBlob = await preprocessImageBlob(
         typeof input === 'string' ? await (await fetch(input)).blob() : input,
-        typeof options.preprocess === 'boolean' ? undefined : options.preprocess
+        typeof options?.preprocess === 'object' ? options.preprocess : undefined
       );
       image = preBlob;
     }
@@ -32,7 +34,6 @@ export async function runLocalOcr(input: string | Blob, options?: LocalOcrOption
     console.warn('Preprocessing failed, falling back to original image:', e);
     image = input;
   }
-
   const worker = await createWorker(lang, 1, {
     // logger provides progress: { progress, status }
     logger: (m) => {
@@ -55,24 +56,37 @@ export async function runLocalOcr(input: string | Blob, options?: LocalOcrOption
   }
 
   try {
-    // First pass with provided/default PSM
-    let data: any = await recognizeWith(primaryPsm);
+    // Try multiple PSM strategies (optimized for Arabic)
+    const tried = new Set<string>();
+    const psmCandidates: (number | string)[] = [
+      primaryPsm,
+      ...(lang.includes('ara') ? [4, 3, 6, 7, 11] : [11]),
+    ];
 
-    // If confidence is low or text too short, try a fallback PSM suited for sparse text (11)
-    const conf = Number((data as any).confidence ?? 0);
-    const textLen = (data?.text || '').trim().length;
-    if ((conf && conf < 55) || textLen < 40) {
+    let best: any | null = null;
+    for (const psm of psmCandidates) {
+      const key = String(psm);
+      if (tried.has(key)) continue;
+      tried.add(key);
       try {
-        const alt = await recognizeWith(11);
-        const altConf = Number((alt as any).confidence ?? 0);
-        if ((altConf > conf) || ((alt?.text || '').trim().length > textLen)) {
-          data = alt;
+        const result = await recognizeWith(psm);
+        if (!best) {
+          best = result;
+          continue;
         }
-      } catch (e) {
-        // ignore fallback errors
+        const bConf = Number((best as any).confidence ?? 0);
+        const rConf = Number((result as any).confidence ?? 0);
+        const bLen = (best?.text || '').trim().length;
+        const rLen = (result?.text || '').trim().length;
+        if (rConf > bConf || (rConf === bConf && rLen > bLen)) {
+          best = result;
+        }
+      } catch {
+        // ignore errors per PSM
       }
     }
 
+    const data = best ?? { text: '', confidence: 0 };
     onProgress?.(100);
     return { text: data.text || '', confidence: (data as any).confidence };
   } finally {
