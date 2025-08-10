@@ -9,15 +9,17 @@ interface TutorSidebarProps {
   suggestions: { title: string; query: string }[];
   onNewChat: () => void;
   onPick: (query: string) => void;
+  within?: boolean; // render inside a container div
 }
 
-const TutorSidebar: React.FC<TutorSidebarProps> = ({ rtl = false, suggestions, onNewChat, onPick }) => {
+const TutorSidebar: React.FC<TutorSidebarProps> = ({ rtl = false, suggestions, onNewChat, onPick, within = false }) => {
   const [pinned, setPinned] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
   const isExpanded = pinned || expanded;
 
   const sideCls = useMemo(() => (rtl ? "right-2" : "left-2"), [rtl]);
+  const posCls = within ? "absolute z-20 top-2 bottom-2" : "fixed z-40 top-20 bottom-6";
 
   const onEnter = useCallback(() => { if (!pinned) setExpanded(true); }, [pinned]);
   const onLeave = useCallback(() => { if (!pinned) setExpanded(false); }, [pinned]);
@@ -27,7 +29,7 @@ const TutorSidebar: React.FC<TutorSidebarProps> = ({ rtl = false, suggestions, o
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
       className={cn(
-        "fixed z-40 top-20 bottom-6",
+        posCls,
         sideCls,
         "transition-[width] duration-300 overflow-hidden",
         isExpanded ? "w-64" : "w-16",

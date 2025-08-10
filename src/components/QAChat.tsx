@@ -284,7 +284,15 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
       <CardContent>
         <div className="space-y-3">
           <div ref={containerRef}>
-            <MessageList messages={messages} loading={loading} rtl={rtl} streamRef={streamRef} onRegenerate={regenerateLast} onEditUser={editUserAndRegenerate} />
+            <MessageList
+              messages={messages}
+              loading={loading}
+              rtl={rtl}
+              streamRef={streamRef}
+              onRegenerate={regenerateLast}
+              onEditUser={editUserAndRegenerate}
+              sidebarSlot={<TutorSidebar within rtl={rtl} onNewChat={() => { setMessages([]); setQ(""); }} suggestions={suggestions} onPick={(query) => { setQ(""); askInternal(query, true); }} />}
+            />
           </div>
 
           {askOpen && (
@@ -357,12 +365,6 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
           )}
         </div>
       </CardContent>
-      <TutorSidebar
-        rtl={rtl}
-        onNewChat={() => { setMessages([]); setQ(""); }}
-        suggestions={suggestions}
-        onPick={(query) => { setQ(""); askInternal(query, true); }}
-      />
     </Card>
   );
 };

@@ -16,6 +16,7 @@ interface MessageListProps {
   streamRef: React.MutableRefObject<HTMLDivElement | null>;
   onRegenerate: () => void;
   onEditUser: (index: number, newText: string) => void;
+  sidebarSlot?: React.ReactNode;
 }
 
 function TypingDots({ rtl = false }: { rtl?: boolean }) {
@@ -30,7 +31,7 @@ function TypingDots({ rtl = false }: { rtl?: boolean }) {
   );
 }
 
-const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = false, streamRef, onRegenerate, onEditUser }) => {
+const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = false, streamRef, onRegenerate, onEditUser, sidebarSlot }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [atBottom, setAtBottom] = useState(true);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -76,12 +77,13 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
       ref={scrollRef}
       onScroll={onScroll}
       className={cn(
-        "rounded-2xl p-4 h-80 md:h-96 overflow-y-auto bg-background/60 backdrop-blur shadow-sm",
+        "relative rounded-2xl p-4 h-80 md:h-96 overflow-y-auto bg-background/60 backdrop-blur shadow-sm",
         messages.length === 0 && "flex items-center justify-center text-sm text-muted-foreground",
         rtl && "text-right"
       )}
-    >
-      {messages.length === 0 ? (
+      >
+        {sidebarSlot}
+        {messages.length === 0 ? (
         <div className="flex flex-col items-center text-center gap-2 py-8">
           <MessageSquareText className="h-10 w-10 text-muted-foreground" />
           <div className="text-xl font-semibold text-primary">{rtl ? "مرحباً!" : "Welcome!"}</div>
