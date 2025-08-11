@@ -7,9 +7,12 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
 
     return (
       <div className="bg-card h-full w-full" ref={ref} aria-busy={!loaded}>
-        <div className="flex items-center justify-center h-full w-full p-3 relative">
+        <div className="flex items-center justify-center w-full p-3 relative min-h-[60vh] md:min-h-[70vh] lg:min-h-[78vh]">
           {!loaded && (
-            <Skeleton className="absolute inset-3 md:inset-4 rounded-md bg-muted/60 animate-pulse" />
+            <>
+              <Skeleton className="absolute inset-3 md:inset-4 rounded-md bg-muted/60 animate-pulse" />
+              <span className="sr-only">Loading page image...</span>
+            </>
           )}
           <img
             src={page.src}
