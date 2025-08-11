@@ -19,9 +19,7 @@ export const MobileControlsOverlay: React.FC<MobileControlsOverlayProps> = ({
   progressText,
   rtl = false,
   onPrev,
-  onNext,
   canPrev,
-  canNext,
 }) => {
   const PrevIcon = rtl ? ChevronRight : ChevronLeft;
   const NextIcon = rtl ? ChevronLeft : ChevronRight;
@@ -48,9 +46,6 @@ export const MobileControlsOverlay: React.FC<MobileControlsOverlayProps> = ({
           </Button>
 
 
-          <Button variant="default" onClick={onNext} disabled={!canNext} aria-label={rtl ? "التالي" : "Next"} className="pointer-events-auto h-12 w-12 rounded-full">
-            <NextIcon className="h-5 w-5" />
-          </Button>
         </div>
       </div>
     </div>
