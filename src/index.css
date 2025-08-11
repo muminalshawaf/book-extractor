@@ -426,3 +426,6 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Utility to force 60% font size for all nested text in a container */
+.text-scale-60, .text-scale-60 * { font-size: 60% !important; }
