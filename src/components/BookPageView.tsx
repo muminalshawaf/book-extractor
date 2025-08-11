@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 
@@ -11,10 +11,30 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
       setLoaded(false);
     }, [page.src]);
 
+    // Track src changes synchronously to hide old image immediately
+    const prevSrcRef = useRef<string | null>(null);
+    const isNewSrc = prevSrcRef.current !== page.src;
+    if (isNewSrc) {
+      prevSrcRef.current = page.src;
+    }
+
+    // Detect if the new image is already cached in memory
+    const isCached = useMemo(() => {
+      try {
+        const img = new Image();
+        img.src = page.src;
+        return img.complete && img.naturalWidth > 0;
+      } catch {
+        return false;
+      }
+    }, [page.src]);
+
+    const isLoading = !loaded || (isNewSrc && !isCached);
+
     // Simulated indeterminate-like progress while loading (caps at 90% until image decodes)
     useEffect(() => {
       setProgress(0);
-      if (!loaded) {
+      if (isLoading) {
         const id = window.setInterval(() => {
           setProgress((prev) => {
             const next = prev + (prev < 60 ? 5 : prev < 80 ? 2 : 1);
@@ -23,12 +43,12 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
         }, 120);
         return () => window.clearInterval(id);
       }
-    }, [page.src, loaded]);
+    }, [page.src, isLoading]);
 
     return (
-      <div className="bg-card h-full w-full" ref={ref} aria-busy={!loaded}>
+      <div className="bg-card h-full w-full" ref={ref} aria-busy={isLoading}>
         <div className="flex items-center justify-center w-full p-3 relative min-h-[60vh] md:min-h-[70vh] lg:min-h-[78vh]">
-          {!loaded && (
+          {isLoading && (
             <>
               <Skeleton className="absolute inset-3 md:inset-4 rounded-md bg-muted/60 animate-pulse" />
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-3/4 max-w-md">
@@ -42,11 +62,11 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
             alt={page.alt}
             loading="lazy"
             decoding="async"
-            fetchPriority={fetchPriority}
+            {...(fetchPriority ? { fetchpriority: fetchPriority } : {})}
             onLoad={() => { setLoaded(true); setProgress(100); }}
             className="max-w-full object-contain select-none transition-opacity duration-300"
             style={{
-              opacity: loaded ? 1 : 0,
+              opacity: !isLoading ? 1 : 0,
               transform: zoom !== 1 ? `scale(${zoom})` : undefined,
               transformOrigin: "center top",
               transition: "opacity 0.3s ease, transform 0.2s ease-out",
