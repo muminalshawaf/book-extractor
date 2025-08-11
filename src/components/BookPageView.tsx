@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: string; alt: string } }>(
-  ({ page }, ref) => {
+export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: string; alt: string }; zoom?: number; fetchPriority?: "high" | "low" }>(
+  ({ page, zoom = 1, fetchPriority }, ref) => {
     const [loaded, setLoaded] = useState(false);
 
     return (
-      <div className="bg-card h-full w-full" ref={ref}>
+      <div className="bg-card h-full w-full" ref={ref} aria-busy={!loaded}>
         <div className="flex items-center justify-center h-full w-full p-3 relative">
           {!loaded && (
             <Skeleton className="absolute inset-3 md:inset-4 rounded-md bg-muted/60 animate-pulse" />
@@ -16,9 +16,16 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
             alt={page.alt}
             loading="lazy"
             decoding="async"
+            fetchPriority={fetchPriority}
             onLoad={() => setLoaded(true)}
-            className="max-w-full max-h-full object-contain select-none transition-opacity duration-300"
-            style={{ opacity: loaded ? 1 : 0 }}
+            className="max-w-full object-contain select-none transition-opacity duration-300"
+            style={{
+              opacity: loaded ? 1 : 0,
+              transform: zoom !== 1 ? `scale(${zoom})` : undefined,
+              transformOrigin: "center top",
+              transition: "opacity 0.3s ease, transform 0.2s ease-out",
+              maxHeight: "78vh",
+            }}
           />
         </div>
       </div>

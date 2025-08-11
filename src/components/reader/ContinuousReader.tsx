@@ -1,6 +1,7 @@
 import React, { forwardRef, useImperativeHandle, useRef } from "react";
 import { Virtuoso } from "react-virtuoso";
 import { BookPage } from "@/components/BookViewer";
+import { BookPageView } from "@/components/BookPageView";
 import { cn } from "@/lib/utils";
 
 export type ContinuousReaderRef = {
@@ -50,19 +51,10 @@ export const ContinuousReader = forwardRef<ContinuousReaderRef, ContinuousReader
             return (
               <div className={cn("flex items-start justify-center py-2 md:py-3 lg:py-4", rtl && "direction-rtl")}
                    aria-label={`${page?.alt} - Page ${i + 1} of ${pages.length}`}>
-                <img
-                  src={page?.src}
-                  alt={page?.alt}
-                  loading="lazy"
-                  decoding="async"
-                  fetchPriority="low"
-                  className="select-none max-w-full object-contain"
-                  style={{
-                    transform: i === index ? `scale(${zoom})` : undefined,
-                    transformOrigin: "center top",
-                    transition: "transform 0.2s ease-out",
-                    maxHeight: "78vh",
-                  }}
+                <BookPageView
+                  page={{ src: page?.src, alt: page?.alt }}
+                  zoom={i === index ? zoom : 1}
+                  fetchPriority={i === index ? "high" : "low"}
                 />
               </div>
             );
