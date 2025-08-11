@@ -303,7 +303,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
             e.preventDefault();
             if (!ocrLoading && !summLoading) {
-              toast.message(rtl ? "بدء OCR + تلخيص إجباري" : "Forcing OCR + Summarization");
+              const pageNum = index + 1;
+              console.log('[Shortcut] Cmd/Ctrl+Shift+F on page', pageNum, 'src:', pages[index]?.src);
+              toast.message(
+                rtl
+                  ? `تشغيل OCR + تلخيص إجباري للصفحة ${pageNum}`
+                  : `Forcing OCR + Summarization for page ${pageNum}`
+              );
               extractTextFromPage();
             }
           }
