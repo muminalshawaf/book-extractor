@@ -1293,13 +1293,19 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               </CardHeader>
               <CardContent className="p-3">
                 <Tabs value={insightTab} onValueChange={v => setInsightTab(v as any)} className="w-full">
-                  <TabsList className="grid grid-cols-2 w-full text-xs md:text-sm">
-                    <TabsTrigger value="summary">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
-                    <TabsTrigger value="qa">
-                      {rtl ? <span className="inline-flex items-center gap-2">
+                  <TabsList className="grid grid-cols-2 w-full text-xs md:text-sm bg-muted rounded-md p-1 gap-1">
+                    <TabsTrigger value="summary" className="h-8 md:h-9 rounded-md data-[state=active]:bg-background">
+                      {rtl ? "ملخص الصفحة" : "Page Summary"}
+                    </TabsTrigger>
+                    <TabsTrigger value="qa" className="h-8 md:h-9 rounded-md data-[state=active]:bg-background">
+                      {rtl ? (
+                        <span className="inline-flex items-center gap-2">
                           <Sparkles className="h-4 w-4" />
                           <span>المدرس الإفتراضي</span>
-                        </span> : "Ask the doc"}
+                        </span>
+                      ) : (
+                        "Ask the doc"
+                      )}
                     </TabsTrigger>
                   </TabsList>
 
