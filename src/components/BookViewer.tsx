@@ -1265,7 +1265,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       onNext={goNext}
                       canPrev={index > 0}
                       canNext={index < total - 1}
-                      onZoomIn={zoomIn}
                       onZoomOut={zoomOut}
                     />
 
