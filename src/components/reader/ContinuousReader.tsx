@@ -59,6 +59,7 @@ export const ContinuousReader = forwardRef<ContinuousReaderRef, ContinuousReader
                   page={{ src: page?.src, alt: page?.alt }}
                   zoom={isCurrentPage ? zoom : 1}
                   fetchPriority={isCurrentPage ? "high" : "low"}
+                  pageNumber={i + 1}
                 />
               </div>
             );

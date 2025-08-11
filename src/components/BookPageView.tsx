@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: string; alt: string }; zoom?: number; fetchPriority?: "high" | "low" }>(
-  ({ page, zoom = 1, fetchPriority }, ref) => {
+export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: string; alt: string }; zoom?: number; fetchPriority?: "high" | "low"; pageNumber?: number }>(
+  ({ page, zoom = 1, fetchPriority, pageNumber }, ref) => {
     const [loaded, setLoaded] = useState(false);
     const [imageError, setImageError] = useState(false);
 
@@ -21,7 +21,9 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="bg-background/80 rounded-lg px-3 py-2 flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm text-muted-foreground">Loading page...</span>
+                  <span className="text-sm text-muted-foreground">
+                    {pageNumber ? `Loading page ${pageNumber}...` : "Loading page..."}
+                  </span>
                 </div>
               </div>
             </div>
@@ -29,7 +31,7 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
           {imageError && (
             <div className="absolute inset-3 md:inset-4 flex items-center justify-center">
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 text-center">
-                <span className="text-sm text-destructive">Failed to load page</span>
+                <span className="text-sm text-destructive">Failed to load page {pageNumber || ""}</span>
               </div>
             </div>
           )}

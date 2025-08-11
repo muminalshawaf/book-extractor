@@ -1486,9 +1486,14 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                                onNext={goNext}
                              />
 
-                             {imageLoading && <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                                <LoadingProgress type="image" progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} rtl={rtl} />
-                              </div>}
+                              {imageLoading && <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+                                <div className="bg-background/90 rounded-lg px-4 py-3 flex items-center gap-3 shadow-lg">
+                                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                  <span className="text-sm text-muted-foreground">
+                                    {rtl ? `تحميل الصفحة ${index + 1}...` : `Loading page ${index + 1}...`}
+                                  </span>
+                                </div>
+                               </div>}
 
                             <div id={`page-${index}-description`} className="sr-only">
                               {rtl ? `صفحة ${index + 1} من ${total}` : `Page ${index + 1} of ${total}`}
