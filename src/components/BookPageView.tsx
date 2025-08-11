@@ -7,29 +7,32 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
     const [loaded, setLoaded] = useState(false);
     const [progress, setProgress] = useState(0);
 
+    const [displaySrc, setDisplaySrc] = useState<string | null>(null);
+
     useEffect(() => {
+      let isActive = true;
       setLoaded(false);
+      setProgress(0);
+      setDisplaySrc(null);
+
+      const img = new Image();
+      img.decoding = "async";
+      img.src = page.src;
+      img.onload = () => {
+        if (!isActive) return;
+        setDisplaySrc(page.src);
+        setLoaded(true);
+        setProgress(100);
+      };
+      img.onerror = () => {
+        if (!isActive) return;
+        setDisplaySrc(null);
+      };
+
+      return () => { isActive = false; };
     }, [page.src]);
 
-    // Track src changes synchronously to hide old image immediately
-    const prevSrcRef = useRef<string | null>(null);
-    const isNewSrc = prevSrcRef.current !== page.src;
-    if (isNewSrc) {
-      prevSrcRef.current = page.src;
-    }
-
-    // Detect if the new image is already cached in memory
-    const isCached = useMemo(() => {
-      try {
-        const img = new Image();
-        img.src = page.src;
-        return img.complete && img.naturalWidth > 0;
-      } catch {
-        return false;
-      }
-    }, [page.src]);
-
-    const isLoading = !loaded || (isNewSrc && !isCached);
+    const isLoading = !displaySrc || !loaded;
 
     // Simulated indeterminate-like progress while loading (caps at 90% until image decodes)
     useEffect(() => {
@@ -57,22 +60,19 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
               <span className="sr-only">Loading page image...</span>
             </>
           )}
-          <img
-            src={page.src}
-            alt={page.alt}
-            loading="lazy"
-            decoding="async"
-            {...(fetchPriority ? { fetchpriority: fetchPriority } : {})}
-            onLoad={() => { setLoaded(true); setProgress(100); }}
-            className="max-w-full object-contain select-none transition-opacity duration-300"
-            style={{
-              opacity: !isLoading ? 1 : 0,
-              transform: zoom !== 1 ? `scale(${zoom})` : undefined,
-              transformOrigin: "center top",
-              transition: "opacity 0.3s ease, transform 0.2s ease-out",
-              maxHeight: "78vh",
-            }}
-          />
+          {displaySrc && (
+            <img
+              src={displaySrc}
+              alt={page.alt}
+              decoding="async"
+              className="max-w-full object-contain select-none"
+              style={{
+                transform: zoom !== 1 ? `scale(${zoom})` : undefined,
+                transformOrigin: "center top",
+                maxHeight: "78vh",
+              }}
+            />
+          )}
         </div>
       </div>
     );
