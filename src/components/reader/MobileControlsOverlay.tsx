@@ -41,9 +41,6 @@ export const MobileControlsOverlay: React.FC<MobileControlsOverlayProps> = ({
       {/* Bottom bar */}
       <div className="absolute inset-x-0 bottom-0 pb-[max(env(safe-area-inset-bottom),12px)] px-3">
         <div className={cn("flex items-center justify-between gap-2", rtl && "flex-row-reverse")}> 
-          <Button variant="secondary" onClick={onPrev} disabled={!canPrev} aria-label={rtl ? "السابق" : "Previous"} className="pointer-events-auto h-12 w-12 rounded-full">
-            <PrevIcon className="h-5 w-5" />
-          </Button>
 
 
         </div>
