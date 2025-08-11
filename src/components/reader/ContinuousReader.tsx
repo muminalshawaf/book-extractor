@@ -52,6 +52,7 @@ export const ContinuousReader = forwardRef<ContinuousReaderRef, ContinuousReader
               <div className={cn("flex items-start justify-center py-2 md:py-3 lg:py-4", rtl && "direction-rtl")}
                    aria-label={`${page?.alt} - Page ${i + 1} of ${pages.length}`}>
                 <BookPageView
+                  key={page?.src || `page-${i}`}
                   page={{ src: page?.src, alt: page?.alt }}
                   zoom={i === index ? zoom : 1}
                   fetchPriority={i === index ? "high" : "low"}

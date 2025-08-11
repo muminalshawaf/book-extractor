@@ -1,9 +1,13 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: string; alt: string }; zoom?: number; fetchPriority?: "high" | "low" }>(
   ({ page, zoom = 1, fetchPriority }, ref) => {
     const [loaded, setLoaded] = useState(false);
+
+    useEffect(() => {
+      setLoaded(false);
+    }, [page.src]);
 
     return (
       <div className="bg-card h-full w-full" ref={ref} aria-busy={!loaded}>
