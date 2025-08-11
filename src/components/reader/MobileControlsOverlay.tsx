@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Grid3X3, Sparkles, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Grid3X3, ZoomIn, ZoomOut } from "lucide-react";
 
 interface MobileControlsOverlayProps {
   progressText: string;
@@ -67,10 +67,6 @@ export const MobileControlsOverlay: React.FC<MobileControlsOverlayProps> = ({
             <PrevIcon className="h-5 w-5" />
           </Button>
 
-          <Button onClick={onOpenInsights} aria-label={rtl ? "لوحة الرؤى" : "Insights"} className="pointer-events-auto h-12 px-5 rounded-full">
-            <Sparkles className="h-5 w-5 mr-2" />
-            <span className="text-sm">{rtl ? "الرؤى" : "Insights"}</span>
-          </Button>
 
           <Button variant="default" onClick={onNext} disabled={!canNext} aria-label={rtl ? "التالي" : "Next"} className="pointer-events-auto h-12 w-12 rounded-full">
             <NextIcon className="h-5 w-5" />
