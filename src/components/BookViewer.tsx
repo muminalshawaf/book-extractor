@@ -1154,7 +1154,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 <TouchGestureHandler
                   onSwipeLeft={!panningEnabled ? (rtl ? goPrev : goNext) : undefined}
                   onSwipeRight={!panningEnabled ? (rtl ? goNext : goPrev) : undefined}
