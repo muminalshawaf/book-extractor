@@ -55,6 +55,7 @@ export const ContinuousReader = forwardRef<ContinuousReaderRef, ContinuousReader
                   alt={page?.alt}
                   loading="lazy"
                   decoding="async"
+                  fetchPriority="low"
                   className="select-none max-w-full object-contain"
                   style={{
                     transform: i === index ? `scale(${zoom})` : undefined,

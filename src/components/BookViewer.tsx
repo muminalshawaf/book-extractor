@@ -1190,7 +1190,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   setZoom(scale);
                 }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => setIsPanning(false)}>
                       <TransformComponent wrapperClass="w-full h-svh" contentClass="flex items-center justify-center py-2">
-                        <img src={pages[index]?.src} alt={pages[index]?.alt} loading="eager" decoding="async" draggable={false} onLoadStart={() => setImageLoading(true)} onLoad={e => {
+                        <img src={pages[index]?.src} alt={pages[index]?.alt} loading="eager" decoding="async" fetchPriority="high" draggable={false} onLoadStart={() => setImageLoading(true)} onLoad={e => {
                       setImageLoading(false);
                       const imgEl = e.currentTarget;
                       setNaturalSize({
@@ -1418,7 +1418,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         setZoom(scale);
                       }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => setIsPanning(false)}>
                               <TransformComponent wrapperClass="w-full h-[70vh] md:h-[78vh] lg:h-[85vh]" contentClass="flex items-center justify-center py-0">
-                                <img src={pages[index]?.src} alt={pages[index]?.alt} loading="eager" decoding="async" draggable={false} onLoadStart={() => setImageLoading(true)} onLoad={e => {
+                                <img src={pages[index]?.src} alt={pages[index]?.alt} loading="eager" decoding="async" fetchPriority="high" draggable={false} onLoadStart={() => setImageLoading(true)} onLoad={e => {
                             setImageLoading(false);
                             const imgEl = e.currentTarget;
                             setNaturalSize({

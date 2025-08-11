@@ -33,6 +33,7 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({
   const [reduceMotion, setReduceMotion] = useState(false);
   const [speechEnabled, setSpeechEnabled] = useState(false);
   const [speechRate, setSpeechRate] = useState([1]);
+  const [dataSaver, setDataSaver] = useState(false);
 
   // Apply accessibility settings
   useEffect(() => {
@@ -58,6 +59,26 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({
       root.classList.remove('reduce-motion');
     }
   }, [highContrast, fontSize, focusVisible, reduceMotion]);
+
+  // Data Saver (Low Data Mode)
+  useEffect(() => {
+    const saved = localStorage.getItem('data-saver') === 'true';
+    setDataSaver(saved);
+    const root = document.documentElement;
+    if (saved) root.classList.add('data-saver');
+    else root.classList.remove('data-saver');
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (dataSaver) {
+      root.classList.add('data-saver');
+      localStorage.setItem('data-saver', 'true');
+    } else {
+      root.classList.remove('data-saver');
+      localStorage.removeItem('data-saver');
+    }
+  }, [dataSaver]);
 
   // Text-to-speech functionality
   const speakText = (text: string) => {
@@ -191,6 +212,15 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({
               checked={reduceMotion}
               onCheckedChange={setReduceMotion}
               aria-label={rtl ? "تشغيل/إيقاف تقليل الحركة" : "Toggle reduced motion"}
+            />
+          </div>
+
+          <div className={cn("mt-3 flex items-center justify-between", rtl && "flex-row-reverse")}>
+            <span className="text-sm">{rtl ? "توفير البيانات" : "Data Saver"}</span>
+            <Switch
+              checked={dataSaver}
+              onCheckedChange={setDataSaver}
+              aria-label={rtl ? "تشغيل/إيقاف وضع توفير البيانات" : "Toggle data saver mode"}
             />
           </div>
         </div>

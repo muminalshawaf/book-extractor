@@ -19,12 +19,13 @@ export const useImagePreloader = (pages: BookPage[], currentIndex: number) => {
 
   useEffect(() => {
     const preloadAdjacentPages = async () => {
-      // Preload current, next, and previous page
-      const indicesToPreload = [
-        currentIndex - 1,
-        currentIndex,
-        currentIndex + 1
-      ].filter(i => i >= 0 && i < pages.length);
+      const isDataSaver = typeof window !== 'undefined' && (
+        document.documentElement.classList.contains('data-saver') ||
+        localStorage.getItem('data-saver') === 'true'
+      );
+      const radius = isDataSaver ? 1 : 3;
+      const indicesToPreload = Array.from({ length: radius * 2 + 1 }, (_, k) => currentIndex - radius + k)
+        .filter(i => i >= 0 && i < pages.length);
 
       for (const index of indicesToPreload) {
         const page = pages[index];
