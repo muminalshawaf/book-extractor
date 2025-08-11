@@ -312,7 +312,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [total, rtl, thumbnailsOpen, ocrLoading, summLoading]);
+  }, [total, rtl, thumbnailsOpen, ocrLoading, summLoading, index]);
 
   // Load cached data on page change
   useEffect(() => {
