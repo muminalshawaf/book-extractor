@@ -219,11 +219,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const goPrev = () => {
     setIndex(i => {
       const ni = Math.max(0, i - 1);
-      // Check if the target page is not loaded and show loading immediately
-      const targetPage = pages[ni];
-      if (targetPage && getPreloadStatus(targetPage.src) === "not-loaded") {
-        setImageLoading(true);
-      }
       if (readerMode === 'continuous') {
         continuousRef.current?.scrollToIndex(ni);
       }
@@ -233,11 +228,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const goNext = () => {
     setIndex(i => {
       const ni = Math.min(total - 1, i + 1);
-      // Check if the target page is not loaded and show loading immediately
-      const targetPage = pages[ni];
-      if (targetPage && getPreloadStatus(targetPage.src) === "not-loaded") {
-        setImageLoading(true);
-      }
       if (readerMode === 'continuous') {
         continuousRef.current?.scrollToIndex(ni);
       }
@@ -248,27 +238,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     if (!Number.isFinite(n)) return;
     const clamped = Math.min(Math.max(1, Math.floor(n)), total);
     const target = clamped - 1;
-    // Check if the target page is not loaded and show loading immediately
-    const targetPage = pages[target];
-    if (targetPage && getPreloadStatus(targetPage.src) === "not-loaded") {
-      setImageLoading(true);
-    }
     setIndex(target);
     if (readerMode === 'continuous') {
       continuousRef.current?.scrollToIndex(target);
     }
-  }, [total, readerMode, pages, getPreloadStatus]);
-
-  // Monitor preload status and clear loading state when current page is loaded
-  useEffect(() => {
-    const currentPage = pages[index];
-    if (currentPage) {
-      const status = getPreloadStatus(currentPage.src);
-      if (status === "loaded") {
-        setImageLoading(false);
-      }
-    }
-  }, [index, pages, getPreloadStatus]);
+  }, [total, readerMode]);
 
   // Enhanced keyboard navigation
   useEffect(() => {
@@ -1512,14 +1486,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                                onNext={goNext}
                              />
 
-                              {imageLoading && <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                                <div className="bg-background/90 rounded-lg px-4 py-3 flex items-center gap-3 shadow-lg">
-                                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                  <span className="text-sm text-muted-foreground">
-                                    {rtl ? `تحميل الصفحة ${index + 1}...` : `Loading page ${index + 1}...`}
-                                  </span>
-                                </div>
-                               </div>}
+                             {imageLoading && <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+                                <LoadingProgress type="image" progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} rtl={rtl} />
+                              </div>}
 
                             <div id={`page-${index}-description`} className="sr-only">
                               {rtl ? `صفحة ${index + 1} من ${total}` : `Page ${index + 1} of ${total}`}
