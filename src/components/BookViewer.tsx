@@ -1283,7 +1283,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           </FullscreenMode>
 
 
-          <div ref={insightsRef} className="px-3 pt-4 text-[60%]">
+          <div ref={insightsRef} className="px-3 pt-4 origin-top-left scale-[0.6]">
             <Card className="shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs md:text-sm">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
