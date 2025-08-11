@@ -417,15 +417,9 @@ All colors MUST be HSL.
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
+/* KaTeX RTL fix: keep math LTR for correct parentheses and operators */
+.katex-container, [dir="rtl"] .katex { direction: ltr; unicode-bidi: isolate; }
 
-  body {
-    @apply bg-background text-foreground;
-  }
-}
 
 /* Utility to force 60% font size for all nested text in a container */
 .text-scale-60, .text-scale-60 * { font-size: 60% !important; }

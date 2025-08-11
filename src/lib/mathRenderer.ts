@@ -59,6 +59,9 @@ export function renderContent(content: string, targetElement: HTMLElement): void
     const placeholderEl = targetElement.querySelector(`#${block.id}`) as HTMLElement;
     if (placeholderEl) {
       try {
+        // Force math LTR direction for correct rendering in RTL UIs
+        placeholderEl.setAttribute('dir', 'ltr');
+        placeholderEl.classList.add('katex-container');
         katex.render(block.math.trim(), placeholderEl, {
             throwOnError: false,
             displayMode: block.displayMode,
