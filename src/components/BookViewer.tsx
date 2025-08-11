@@ -1286,7 +1286,10 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           <div ref={insightsRef} className="px-3 pt-4 text-scale-60">
             <Card className="shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs md:text-sm">{rtl ? "لوحة الرؤى" : "Insight Panel"}</CardTitle>
+                <CardTitle className="text-xs md:text-sm flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  <span>{rtl ? "مساعد القراءة الذكي" : "AI Reading Assistant"}</span>
+                </CardTitle>
               </CardHeader>
               <CardContent className="p-3">
                 <Tabs value={insightTab} onValueChange={v => setInsightTab(v as any)} className="w-full">
