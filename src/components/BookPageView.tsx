@@ -55,8 +55,8 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
           {isLoading && (
             <>
               <Skeleton className="absolute inset-3 md:inset-4 rounded-md bg-muted/60 animate-pulse" />
-              <div className="absolute inset-0 flex items-center justify-center z-10">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+              <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                <Loader2 className="h-8 w-8 animate-spin text-foreground" aria-hidden="true" />
               </div>
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-3/4 max-w-md">
                 <Progress value={progress} aria-label="Page load progress" />
