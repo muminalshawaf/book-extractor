@@ -148,10 +148,52 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const continuousRef = useRef<ContinuousReaderRef | null>(null);
 
   // Image preloading
-  const {
-    getPreloadStatus
-  } = useImagePreloader(pages, index);
+  const { getPreloadStatus } = useImagePreloader(pages, index);
 
+  // Controlled page image loading (hide previous, show progress)
+  const [displaySrc, setDisplaySrc] = useState<string | null>(null);
+  const [pageProgress, setPageProgress] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const nextSrc = pages[index]?.src;
+    setDisplaySrc(null);
+    setImageLoading(true);
+    setPageProgress(0);
+
+    if (!nextSrc) {
+      setImageLoading(false);
+      return;
+    }
+
+    const img = new Image();
+    img.decoding = "async";
+    img.src = nextSrc;
+    img.onload = () => {
+      if (!active) return;
+      setDisplaySrc(nextSrc);
+      setImageLoading(false);
+      setPageProgress(100);
+    };
+    img.onerror = () => {
+      if (!active) return;
+      setImageLoading(false);
+    };
+
+    return () => { active = false; };
+  }, [index, pages]);
+
+  useEffect(() => {
+    if (!imageLoading) return;
+    setPageProgress(0);
+    const id = window.setInterval(() => {
+      setPageProgress((prev) => {
+        const next = prev + (prev < 60 ? 5 : prev < 80 ? 2 : 1);
+        return Math.min(next, 90);
+      });
+    }, 120);
+    return () => window.clearInterval(id);
+  }, [imageLoading]);
   // Phase 3 enhancements
   const [searchHighlight, setSearchHighlight] = useState("");
   const [lastError, setLastError] = useState<Error | string | null>(null);
@@ -1196,20 +1238,22 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   setZoom(scale);
                 }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => setIsPanning(false)}>
                       <TransformComponent wrapperClass="w-full h-svh" contentClass="flex items-center justify-center py-2">
-                        <img src={pages[index]?.src} alt={pages[index]?.alt} loading="eager" decoding="async" fetchPriority="high" draggable={false} onLoadStart={() => setImageLoading(true)} onLoad={e => {
-                      setImageLoading(false);
-                      const imgEl = e.currentTarget;
-                      setNaturalSize({
-                        width: imgEl.naturalWidth,
-                        height: imgEl.naturalHeight
-                      });
-                      if (containerRef.current) {
-                        setContainerDimensions({
-                          width: containerRef.current.clientWidth,
-                          height: containerRef.current.clientHeight
-                        });
-                      }
-                    }} onError={() => setImageLoading(false)} className="select-none max-w-full max-h-full object-contain will-change-transform" itemProp="image" aria-describedby={`page-${index}-description`} />
+                        {displaySrc && (
+                          <img src={displaySrc} alt={pages[index]?.alt} loading="eager" decoding="async" fetchPriority="high" draggable={false} onLoad={e => {
+                          setImageLoading(false);
+                          const imgEl = e.currentTarget;
+                          setNaturalSize({
+                            width: imgEl.naturalWidth,
+                            height: imgEl.naturalHeight
+                          });
+                          if (containerRef.current) {
+                            setContainerDimensions({
+                              width: containerRef.current.clientWidth,
+                              height: containerRef.current.clientHeight
+                            });
+                          }
+                        }} onError={() => setImageLoading(false)} className="select-none max-w-full max-h-full object-contain will-change-transform" itemProp="image" aria-describedby={`page-${index}-description`} />
+                        )}
                       </TransformComponent>
                     </TransformWrapper>
 
@@ -1274,8 +1318,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       onZoomOut={zoomOut}
                     />
 
-                    {imageLoading && <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                        <LoadingProgress type="image" progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} rtl={rtl} />
+                    {displaySrc === null && <div className="absolute inset-0 flex items-center justify-center bg-background">
+                        <LoadingProgress type="image" progress={pageProgress} rtl={rtl} />
                       </div>}
 
                     <div id={`page-${index}-description`} className="sr-only">
@@ -1424,20 +1468,22 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         setZoom(scale);
                       }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => setIsPanning(false)}>
                               <TransformComponent wrapperClass="w-full h-[70vh] md:h-[78vh] lg:h-[85vh]" contentClass="flex items-center justify-center py-0">
-                                <img src={pages[index]?.src} alt={pages[index]?.alt} loading="eager" decoding="async" fetchPriority="high" draggable={false} onLoadStart={() => setImageLoading(true)} onLoad={e => {
-                            setImageLoading(false);
-                            const imgEl = e.currentTarget;
-                            setNaturalSize({
-                              width: imgEl.naturalWidth,
-                              height: imgEl.naturalHeight
-                            });
-                            if (containerRef.current) {
-                              setContainerDimensions({
-                                width: containerRef.current.clientWidth,
-                                height: containerRef.current.clientHeight
-                              });
-                            }
-                          }} onError={() => setImageLoading(false)} className="select-none max-w-full max-h-full object-contain will-change-transform" itemProp="image" aria-describedby={`page-${index}-description`} />
+                                {displaySrc && (
+                                  <img src={displaySrc} alt={pages[index]?.alt} loading="eager" decoding="async" fetchPriority="high" draggable={false} onLoad={e => {
+                                setImageLoading(false);
+                                const imgEl = e.currentTarget;
+                                setNaturalSize({
+                                  width: imgEl.naturalWidth,
+                                  height: imgEl.naturalHeight
+                                });
+                                if (containerRef.current) {
+                                  setContainerDimensions({
+                                    width: containerRef.current.clientWidth,
+                                    height: containerRef.current.clientHeight
+                                  });
+                                }
+                              }} onError={() => setImageLoading(false)} className="select-none max-w-full max-h-full object-contain will-change-transform" itemProp="image" aria-describedby={`page-${index}-description`} />
+                                )}
                               </TransformComponent>
                              </TransformWrapper>
 
@@ -1492,8 +1538,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                                onNext={goNext}
                              />
 
-                             {imageLoading && <div className="absolute inset-0 flex items-center justify-center bg-background/80">
-                                <LoadingProgress type="image" progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} rtl={rtl} />
+                              {displaySrc === null && <div className="absolute inset-0 flex items-center justify-center bg-background">
+                                <LoadingProgress type="image" progress={pageProgress} rtl={rtl} />
                               </div>}
 
                             <div id={`page-${index}-description`} className="sr-only">
