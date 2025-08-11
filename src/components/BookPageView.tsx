@@ -40,7 +40,7 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
             alt={page.alt}
             loading="lazy"
             decoding="async"
-            fetchPriority={fetchPriority}
+            {...(fetchPriority && { fetchpriority: fetchPriority })}
             onLoad={() => {
               setLoaded(true);
               setImageError(false);

@@ -219,6 +219,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const goPrev = () => {
     setIndex(i => {
       const ni = Math.max(0, i - 1);
+      // Check if the target page is not loaded and show loading immediately
+      const targetPage = pages[ni];
+      if (targetPage && getPreloadStatus(targetPage.src) === "not-loaded") {
+        setImageLoading(true);
+      }
       if (readerMode === 'continuous') {
         continuousRef.current?.scrollToIndex(ni);
       }
@@ -228,6 +233,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const goNext = () => {
     setIndex(i => {
       const ni = Math.min(total - 1, i + 1);
+      // Check if the target page is not loaded and show loading immediately
+      const targetPage = pages[ni];
+      if (targetPage && getPreloadStatus(targetPage.src) === "not-loaded") {
+        setImageLoading(true);
+      }
       if (readerMode === 'continuous') {
         continuousRef.current?.scrollToIndex(ni);
       }
@@ -238,11 +248,27 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     if (!Number.isFinite(n)) return;
     const clamped = Math.min(Math.max(1, Math.floor(n)), total);
     const target = clamped - 1;
+    // Check if the target page is not loaded and show loading immediately
+    const targetPage = pages[target];
+    if (targetPage && getPreloadStatus(targetPage.src) === "not-loaded") {
+      setImageLoading(true);
+    }
     setIndex(target);
     if (readerMode === 'continuous') {
       continuousRef.current?.scrollToIndex(target);
     }
-  }, [total, readerMode]);
+  }, [total, readerMode, pages, getPreloadStatus]);
+
+  // Monitor preload status and clear loading state when current page is loaded
+  useEffect(() => {
+    const currentPage = pages[index];
+    if (currentPage) {
+      const status = getPreloadStatus(currentPage.src);
+      if (status === "loaded") {
+        setImageLoading(false);
+      }
+    }
+  }, [index, pages, getPreloadStatus]);
 
   // Enhanced keyboard navigation
   useEffect(() => {
