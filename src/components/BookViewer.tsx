@@ -1258,10 +1258,16 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       onNext={goNext}
                     />
 
-                    <MobileControlsOverlay progressText={L.progress(index + 1, total, progressPct)} rtl={rtl} onToggleThumbnails={() => setThumbnailsOpen(!thumbnailsOpen)} onOpenInsights={() => insightsRef.current?.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'start'
-                })} onPrev={goPrev} onNext={goNext} canPrev={index > 0} canNext={index < total - 1} onZoomIn={zoomIn} onZoomOut={zoomOut} fullscreenButton={<FullscreenButton rtl={rtl} />} />
+                    <MobileControlsOverlay 
+                      progressText={L.progress(index + 1, total, progressPct)}
+                      rtl={rtl}
+                      onPrev={goPrev}
+                      onNext={goNext}
+                      canPrev={index > 0}
+                      canNext={index < total - 1}
+                      onZoomIn={zoomIn}
+                      onZoomOut={zoomOut}
+                    />
 
                     {imageLoading && <div className="absolute inset-0 flex items-center justify-center bg-background/80">
                         <LoadingProgress type="image" progress={getPreloadStatus(pages[index]?.src) === "loaded" ? 100 : 50} rtl={rtl} />

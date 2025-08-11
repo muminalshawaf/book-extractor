@@ -6,16 +6,14 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 interface MobileControlsOverlayProps {
   progressText: string;
   rtl?: boolean;
-  onToggleThumbnails: () => void;
-  onOpenInsights: () => void;
   onPrev: () => void;
   onNext: () => void;
   canPrev: boolean;
   canNext: boolean;
   onZoomIn: () => void;
   onZoomOut: () => void;
-  fullscreenButton?: React.ReactNode;
 }
+
 
 export const MobileControlsOverlay: React.FC<MobileControlsOverlayProps> = ({
   progressText,
@@ -26,7 +24,6 @@ export const MobileControlsOverlay: React.FC<MobileControlsOverlayProps> = ({
   canNext,
   onZoomIn,
   onZoomOut,
-  fullscreenButton,
 }) => {
   const PrevIcon = rtl ? ChevronRight : ChevronLeft;
   const NextIcon = rtl ? ChevronLeft : ChevronRight;
@@ -41,7 +38,7 @@ export const MobileControlsOverlay: React.FC<MobileControlsOverlayProps> = ({
             {progressText}
           </div>
         </div>
-        <div className="pointer-events-auto">{fullscreenButton}</div>
+        
       </div>
 
       {/* Right zoom rail */}
