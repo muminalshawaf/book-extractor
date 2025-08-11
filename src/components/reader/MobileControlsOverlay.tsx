@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MobileControlsOverlayProps {
   progressText: string;
@@ -22,7 +22,6 @@ export const MobileControlsOverlay: React.FC<MobileControlsOverlayProps> = ({
   onNext,
   canPrev,
   canNext,
-  onZoomOut,
 }) => {
   const PrevIcon = rtl ? ChevronRight : ChevronLeft;
   const NextIcon = rtl ? ChevronLeft : ChevronRight;
@@ -40,12 +39,6 @@ export const MobileControlsOverlay: React.FC<MobileControlsOverlayProps> = ({
         
       </div>
 
-      {/* Right zoom rail */}
-      <div className={cn("absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-2", rtl && "left-3 right-auto")}> 
-        <Button size="icon" variant="outline" onClick={onZoomOut} aria-label={rtl ? "تصغير" : "Zoom out"} className="pointer-events-auto h-10 w-10">
-          <ZoomOut className="h-5 w-5" />
-        </Button>
-      </div>
 
       {/* Bottom bar */}
       <div className="absolute inset-x-0 bottom-0 pb-[max(env(safe-area-inset-bottom),12px)] px-3">
