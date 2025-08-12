@@ -69,7 +69,19 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
           setProgress(100);
         } catch (err) {
           if (!isActive) return;
-          setDisplaySrc(null);
+          // Fallback to direct image decode without streaming
+          try {
+            const fallbackImg = new Image();
+            fallbackImg.decoding = "async";
+            fallbackImg.src = page.src;
+            try { await fallbackImg.decode(); } catch { /* ignore decode errors */ }
+            if (!isActive) return;
+            setDisplaySrc(page.src);
+            setLoaded(true);
+            setProgress(100);
+          } catch {
+            setDisplaySrc(null);
+          }
         }
       })();
 
@@ -117,7 +129,7 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
               src={displaySrc}
               alt={page.alt}
               decoding="async"
-              fetchPriority={fetchPriority}
+              
               className="max-w-full object-contain select-none"
               style={{
                 transform: zoom !== 1 ? `scale(${zoom})` : undefined,
