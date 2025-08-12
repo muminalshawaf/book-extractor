@@ -1333,7 +1333,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           </FullscreenMode>
 
 
-          <div ref={insightsRef} className="px-3 pt-4 text-scale-60">
+          <div ref={insightsRef} className="px-3 pt-4 md:text-scale-60">
             <Card className="shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs md:text-sm flex items-center gap-2">
