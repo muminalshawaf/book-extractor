@@ -1562,6 +1562,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                             <span className="tabular-nums">{index + 1}</span>
                             <Separator orientation="vertical" className="h-5" />
                             <span className="tabular-nums">{total}</span>
+                            {readerMode === 'page' && (displaySrc === null || imageLoading) && (
+                              <span className="flex items-center gap-1 pl-2">
+                                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                                <span className="text-xs">{rtl ? "جارٍ تحميل الصفحة" : "Page loading"}</span>
+                              </span>
+                            )}
                           </div>
                           <form className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} onSubmit={e => {
                         e.preventDefault();
