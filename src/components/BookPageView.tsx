@@ -12,33 +12,81 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
 
     useEffect(() => {
       let isActive = true;
+      let objectUrl: string | null = null;
       setLoaded(false);
       setProgress(0);
       setDisplaySrc(null);
 
-      const img = new Image();
-      img.decoding = "async";
-      img.src = page.src;
-      img.onload = () => {
-        if (!isActive) return;
-        setDisplaySrc(page.src);
-        setLoaded(true);
-        setProgress(100);
-      };
-      img.onerror = () => {
-        if (!isActive) return;
-        setDisplaySrc(null);
-      };
+      const controller = new AbortController();
 
-      return () => { isActive = false; };
+      (async () => {
+        try {
+          const res = await fetch(page.src, { signal: controller.signal, cache: "force-cache" });
+          if (!res.ok) throw new Error(`Failed to load image: ${res.status}`);
+
+          const contentLength = res.headers.get("content-length");
+          let total = contentLength ? parseInt(contentLength, 10) : 0;
+
+          if (res.body) {
+            const reader = res.body.getReader();
+            const chunks: Uint8Array[] = [];
+            let received = 0;
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              if (value) {
+                chunks.push(value);
+                received += value.length;
+                if (isActive) {
+                  if (total > 0) {
+                    const pct = Math.min(99, Math.round((received / total) * 100));
+                    setProgress(pct);
+                  } else {
+                    setProgress((p) => Math.min(95, p + 2));
+                  }
+                }
+              }
+            }
+
+            const blob = new Blob(chunks);
+            objectUrl = URL.createObjectURL(blob);
+          } else {
+            // Fallback if streaming unsupported
+            objectUrl = page.src;
+          }
+
+          if (!isActive) return;
+
+          const img = new Image();
+          img.decoding = "async";
+          img.src = objectUrl!;
+          try { await img.decode(); } catch { /* noop */ }
+
+          if (!isActive) return;
+          setDisplaySrc(objectUrl!);
+          setLoaded(true);
+          setProgress(100);
+        } catch (err) {
+          if (!isActive) return;
+          setDisplaySrc(null);
+        }
+      })();
+
+      return () => {
+        isActive = false;
+        controller.abort();
+        if (objectUrl && objectUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(objectUrl);
+        }
+      };
     }, [page.src]);
 
     const isLoading = !displaySrc || !loaded;
 
     // Simulated indeterminate-like progress while loading (caps at 90% until image decodes)
     useEffect(() => {
-      setProgress(0);
-      if (isLoading) {
+      if (isLoading && progress === 0) {
         const id = window.setInterval(() => {
           setProgress((prev) => {
             const next = prev + (prev < 60 ? 5 : prev < 80 ? 2 : 1);
@@ -47,7 +95,7 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
         }, 120);
         return () => window.clearInterval(id);
       }
-    }, [page.src, isLoading]);
+    }, [page.src, isLoading, progress]);
 
     return (
       <div className="bg-card h-full w-full" ref={ref} aria-busy={isLoading}>
@@ -69,6 +117,7 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
               src={displaySrc}
               alt={page.alt}
               decoding="async"
+              fetchPriority={fetchPriority}
               className="max-w-full object-contain select-none"
               style={{
                 transform: zoom !== 1 ? `scale(${zoom})` : undefined,
