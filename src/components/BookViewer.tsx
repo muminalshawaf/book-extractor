@@ -1239,7 +1239,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => setIsPanning(false)}>
                       <TransformComponent wrapperClass="w-full h-svh" contentClass="flex items-center justify-center py-2">
                         {displaySrc && (
-                          <img src={displaySrc} alt={pages[index]?.alt} loading="eager" decoding="async" fetchPriority="high" draggable={false} onLoad={e => {
+                          <img src={displaySrc} alt={pages[index]?.alt} loading="eager" decoding="async" draggable={false} onLoad={e => {
                           setImageLoading(false);
                           const imgEl = e.currentTarget;
                           setNaturalSize({
