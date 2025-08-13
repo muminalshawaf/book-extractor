@@ -60,53 +60,7 @@ serve(async (req: Request) => {
 
     const notStated = lang === "ar" ? "غير واضح في النص" : "Not stated in text";
 
-    // Detect if the page is primarily a list of practice questions/problems
-    const isPracticeQuestions = (t: string): boolean => {
-      const lower = t.toLowerCase();
-      const keywords = [
-        "practice", "exercises", "problems", "questions", "review questions",
-        "multiple choice", "short answer", "true/false", "mcq", "exercise", "problem"
-      ];
-      const hasKeyword = keywords.some(k => lower.includes(k));
-      const qm = (t.match(/\?/g) || []).length;
-      const enumeratedLines = (t.match(/^\s*(?:\d+\.|\(?[a-z]\)|[•\-*]|q\s*\d+|question\s*\d+|problem\s*\d+|exercise\s*\d+)/gim) || []).length;
-      const qLines = (t.match(/^\s*(?:\d+\.|q\s*\d+|question\s*\d+|problem\s*\d+|exercise\s*\d+).*?\?/gim) || []).length;
-      return (hasKeyword && qm >= 2) || qLines >= 3 || (enumeratedLines >= 5 && qm >= 2);
-    };
-
-    const solveMode = isPracticeQuestions(text);
-
-    const systemPrompt = solveMode
-      ? (lang === "ar"
-          ? "أنت مُدرِّس خبير يحل مسائل وتمارين خطوة بخطوة من النص المقدم فقط. حافظ على الصيغ باستخدام LaTeX ولا تستخدم أي معرفة خارجية."
-          : "You are an expert tutor who solves practice questions step by step using only the provided text. Preserve math with LaTeX and do not use external knowledge.")
-      : (lang === "ar"
-          ? "أنت خبير في تلخيص صفحة من كتاب دراسي بدقة وبنية واضحة وبشكل شامل، اعتمادًا فقط على النص المقدم."
-          : "You are an expert textbook summarizer for a single page. Be accurate, comprehensive, and structured. Only use the provided text.");
-
-    const prompt = solveMode
-      ? `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
-Detected content: A set of practice questions/problems.
-Text to solve from (single page only):
-"""
-${text}
-"""
-
-Task: Provide worked solutions in ${lang}, strictly from the text. Output clean Markdown:
-
-### ${lang === "ar" ? "الحلول" : "Solutions"}
-- ${lang === "ar" ? "لكل سؤال:" : "For each question:"}
-  - ${lang === "ar" ? "أعد صياغة السؤال بإيجاز (بدون نسخ طويل)." : "Briefly restate the question (no long copy-paste)."}
-  - ${lang === "ar" ? "قدّم خطوات الحل مع الحسابات والتبرير. استخدم LaTeX (\$\$...\$\$ للكتل، \$...\$ داخل السطر)." : "Show step-by-step reasoning and calculations; use LaTeX ($$...$$ for blocks, $...$ inline)."}
-  - ${lang === "ar" ? "اجعل الإجابة النهائية بالخط العريض." : "Bold the final answer."}
-  - ${lang === "ar" ? "إذا كان السؤال اختيارًا من متعدد، اذكر الخيار المختار مع التفسير." : "If multiple-choice, state the selected option (e.g., 'Answer: B') with justification."}
-  - ${lang === "ar" ? "إذا لم تكفِ المعلومات في النص، اكتب \"${notStated}\" ووضح ما ينقص." : `If the text is insufficient, write "${notStated}" and explain what is missing.`}
-
-Constraints:
-- ${lang === "ar" ? "استخدم" : "Use"} ${lang} ${lang === "ar" ? "في كل مكان." : "throughout."}
-- ${lang === "ar" ? "لا تعتمد على مصادر خارجية إطلاقًا." : "No external knowledge at all."}
-- ${lang === "ar" ? "حافظ على الوضوح والاختصار دون فقدان الخطوات." : "Keep solutions clear and concise without skipping steps."}`
-      : `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+    const prompt = `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 Text to summarize (single page, do not infer beyond it):
 """
 ${text}
@@ -156,10 +110,10 @@ Constraints:
       },
       body: JSON.stringify({
         model: "deepseek-chat",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: prompt },
-          ],
+        messages: [
+          { role: "system", content: "You are an expert textbook summarizer for a single page. Be accurate, comprehensive, and structured. Prioritize complete coverage of Definitions & Terms and Key Concepts. Only use the provided text. Preserve math in LaTeX. The 'Quick Q&A' section MUST be a Markdown table that includes both clear questions and their direct answers from the text." },
+          { role: "user", content: prompt },
+        ],
         temperature: 0.2,
         top_p: 0.9,
         max_tokens: 1100,
