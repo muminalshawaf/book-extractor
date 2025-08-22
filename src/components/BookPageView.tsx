@@ -1,5 +1,5 @@
 import React from "react";
-import { PDFPageViewer } from "./PDFPageViewer";
+import { DirectPDFViewer } from "./DirectPDFViewer";
 
 export const BookPageView = React.forwardRef<HTMLDivElement, { 
   page: { pageNumber: number; alt: string };
@@ -29,15 +29,12 @@ export const BookPageView = React.forwardRef<HTMLDivElement, {
       actualPdfUrl = `https://ksa.idros.ai/books/math12-1-3/${pdfNumber}.pdf`;
     }
     
-    // Use proxy to avoid CORS issues
-    const proxiedUrl = `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/pdf-proxy?url=${encodeURIComponent(actualPdfUrl)}`;
-    
-    console.log('Loading PDF URL via proxy:', proxiedUrl, 'for page:', page.pageNumber);
+    console.log('Loading PDF URL directly:', actualPdfUrl, 'for page:', page.pageNumber);
     
     return (
-      <PDFPageViewer 
+      <DirectPDFViewer 
         page={page}
-        pdfUrl={proxiedUrl}
+        pdfUrl={actualPdfUrl}
         zoom={zoom}
       />
     );
