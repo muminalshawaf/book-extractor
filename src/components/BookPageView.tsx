@@ -24,12 +24,15 @@ export const BookPageView = React.forwardRef<HTMLDivElement, {
       actualPdfUrl = `https://ksa.idros.ai/books/math12-1-3/${pdfNumber}.pdf`;
     }
     
-    console.log('Loading PDF URL:', actualPdfUrl, 'for page:', page.pageNumber);
+    // Use proxy to avoid CORS issues
+    const proxiedUrl = `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/pdf-proxy?url=${encodeURIComponent(actualPdfUrl)}`;
+    
+    console.log('Loading PDF URL via proxy:', proxiedUrl, 'for page:', page.pageNumber);
     
     return (
       <PDFPageViewer 
         page={page}
-        pdfUrl={actualPdfUrl}
+        pdfUrl={proxiedUrl}
         zoom={zoom}
       />
     );
