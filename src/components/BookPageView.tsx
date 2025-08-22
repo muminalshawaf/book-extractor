@@ -8,7 +8,12 @@ export const BookPageView = React.forwardRef<HTMLDivElement, {
   fetchPriority?: "high" | "low" 
 }>(
   ({ page, pdfUrl, zoom = 1, fetchPriority }, ref) => {
-    console.log('BookPageView rendering with:', { pageNumber: page.pageNumber, pdfUrl, zoom });
+    console.log('BookPageView rendering with:', { 
+      pageNumber: page.pageNumber, 
+      pdfUrl, 
+      zoom, 
+      bookType: pdfUrl.includes('math12-1-3') ? 'math' : 'other'
+    });
     
     // For math12-1-3 book, map page numbers correctly
     // Page 1 should load 002.pdf, Page 2 should load 003.pdf, etc.

@@ -49,6 +49,7 @@ serve(async (req) => {
     }
 
     console.log('Proxying PDF request to:', targetUrl);
+    console.log('Parsed URL:', targetUrlObj.hostname, targetUrlObj.pathname);
 
     // Fetch the PDF from the target server
     const response = await fetch(targetUrl, {
