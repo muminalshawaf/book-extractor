@@ -56,19 +56,19 @@ export const books: BookDef[] = [
   },
   {
     id: "math12-1-3",
-    title: "كتاب الرياضيات 12 (الفصل 1–3)",
+    title: "الرياضيات - الصف الثاني عشر - الفصل الدراسي الأول",
     rtl: true,
     grade: 12,
     semester: 1,
     subject: "Mathematics",
     cover: "/placeholder.svg",
     keywords: ["رياضيات", "Mathematics", "Grade 12", "Semester 1-3"],
-    pdfUrl: "/book/page-{page}.jpg", // Template for image-based pages
-    totalPages: 4, // Updated to match available images
+    pdfUrl: "https://ksa.idros.ai/books/math12-1-3/{page:003d}.pdf", // Template for PDF pages
+    totalPages: 200, // Assuming reasonable number of pages
     buildPages: () => {
-      return Array.from({ length: 4 }, (_, i) => ({
+      return Array.from({ length: 200 }, (_, i) => ({
         pageNumber: i + 1,
-        alt: `صفحة كتاب الرياضيات ${i + 1}`,
+        alt: `صفحة ${i + 1} من كتاب الرياضيات`,
       }));
     },
   },
