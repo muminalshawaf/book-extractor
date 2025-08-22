@@ -5,8 +5,14 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-// Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Set up PDF.js worker with better error handling
+try {
+  pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+} catch (error) {
+  console.error('Failed to set PDF worker:', error);
+  // Fallback worker URL
+  pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
 
 interface PDFPageViewerProps {
   pdfUrl: string;
@@ -101,6 +107,13 @@ export const PDFPageViewer: React.FC<PDFPageViewerProps> = ({
           onLoadError={onDocumentLoadError}
           loading=""
           error=""
+          options={{
+            cMapUrl: 'https://unpkg.com/pdfjs-dist@3.11.174/cmaps/',
+            cMapPacked: true,
+            standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@3.11.174/standard_fonts/',
+            disableAutoFetch: false,
+            disableStream: false,
+          }}
           className={cn(
             "flex items-center justify-center",
             (loading || error) && "opacity-0"
