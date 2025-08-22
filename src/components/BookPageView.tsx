@@ -14,6 +14,8 @@ export const BookPageView = React.forwardRef<HTMLDivElement, {
   fetchPriority?: "high" | "low" 
 }>(
   ({ page, pdfUrl, zoom = 1, fetchPriority }, ref) => {
+    console.log('BookPageView rendering with:', { pageNumber: page.pageNumber, pdfUrl, zoom });
+    
     const [loaded, setLoaded] = useState(false);
     const [progress, setProgress] = useState(0);
     const [error, setError] = useState<string | null>(null);
@@ -35,21 +37,25 @@ export const BookPageView = React.forwardRef<HTMLDivElement, {
     }, [isLoading, progress]);
 
     const onDocumentLoadSuccess = () => {
+      console.log('PDF Document loaded successfully:', pdfUrl);
       setPdfLoaded(true);
       setProgress(100);
     };
 
     const onDocumentLoadError = (error: Error) => {
+      console.error('PDF Document load error:', error.message, 'URL:', pdfUrl);
       setError(error.message);
       setProgress(0);
     };
 
     const onPageLoadSuccess = () => {
+      console.log('PDF Page loaded successfully:', page.pageNumber);
       setLoaded(true);
       setProgress(100);
     };
 
     const onPageLoadError = (error: Error) => {
+      console.error('PDF Page load error:', error.message, 'Page:', page.pageNumber);
       setError(error.message);
     };
 
