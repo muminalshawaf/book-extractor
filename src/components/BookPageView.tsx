@@ -1,5 +1,5 @@
 import React from "react";
-import { SimplePDFViewer } from "./SimplePDFViewer";
+import { PDFPageViewer } from "./PDFPageViewer";
 
 export const BookPageView = React.forwardRef<HTMLDivElement, { 
   page: { pageNumber: number; alt: string };
@@ -27,7 +27,7 @@ export const BookPageView = React.forwardRef<HTMLDivElement, {
     console.log('Loading PDF URL:', actualPdfUrl, 'for page:', page.pageNumber);
     
     return (
-      <SimplePDFViewer 
+      <PDFPageViewer 
         page={page}
         pdfUrl={actualPdfUrl}
         zoom={zoom}
