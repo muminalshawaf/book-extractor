@@ -50,6 +50,24 @@ export const books: BookDef[] = [
       }));
     },
   },
+  {
+    id: "math12-1-3",
+    title: "كتاب الرياضيات 12 (الفصل 1–3)",
+    rtl: true,
+    grade: 12,
+    semester: 1,
+    subject: "Mathematics",
+    cover: "/placeholder.svg",
+    keywords: ["رياضيات", "Mathematics", "Grade 12", "Semester 1-3"],
+    buildPages: () => {
+      const baseUrl = "https://ksa.idros.ai/books/math12-1-3/";
+      const pad = (n: number) => n.toString().padStart(3, "0");
+      return Array.from({ length: 133 }, (_, i) => ({
+        src: `${baseUrl}masar-aam-1-3-${pad(i + 2)}.jpg`,
+        alt: `صفحة كتاب الرياضيات ${i + 2}`,
+      }));
+    },
+  },
 ];
 
 export function getBookById(id: string): BookDef {
