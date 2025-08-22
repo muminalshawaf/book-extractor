@@ -63,10 +63,10 @@ export const books: BookDef[] = [
     subject: "Mathematics",
     cover: "/placeholder.svg",
     keywords: ["رياضيات", "Mathematics", "Grade 12", "Semester 1-3"],
-    pdfUrl: "https://ksa.idros.ai/books/math12-1-3/002.pdf",
-    totalPages: 213,
+    pdfUrl: "/src/assets/book/page-{page}.jpg", // Template for image-based pages
+    totalPages: 4, // Updated to match available images
     buildPages: () => {
-      return Array.from({ length: 213 }, (_, i) => ({
+      return Array.from({ length: 4 }, (_, i) => ({
         pageNumber: i + 1,
         alt: `صفحة كتاب الرياضيات ${i + 1}`,
       }));

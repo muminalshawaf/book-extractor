@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { SimplePDFViewer } from "./SimplePDFViewer";
+import React from "react";
+import { ImagePageView } from "./ImagePageView";
 
 export const BookPageView = React.forwardRef<HTMLDivElement, { 
   page: { pageNumber: number; alt: string };
@@ -10,14 +10,18 @@ export const BookPageView = React.forwardRef<HTMLDivElement, {
   ({ page, pdfUrl, zoom = 1, fetchPriority }, ref) => {
     console.log('BookPageView rendering with:', { pageNumber: page.pageNumber, pdfUrl, zoom });
     
+    // Convert PDF URL to image URL - assuming images follow a pattern
+    const imageUrl = pdfUrl.includes('002.pdf') 
+      ? `/src/assets/book/page-${page.pageNumber}.jpg`
+      : pdfUrl; // fallback to original URL
+    
     return (
-      <div ref={ref}>
-        <SimplePDFViewer 
-          pdfUrl={pdfUrl} 
-          page={page} 
-          zoom={zoom} 
-        />
-      </div>
+      <ImagePageView 
+        ref={ref}
+        page={page}
+        imageUrl={imageUrl}
+        zoom={zoom}
+      />
     );
   }
 );
