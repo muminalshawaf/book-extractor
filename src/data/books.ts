@@ -63,7 +63,7 @@ export const books: BookDef[] = [
     subject: "Mathematics",
     cover: "/placeholder.svg",
     keywords: ["رياضيات", "Mathematics", "Grade 12", "Semester 1-3"],
-    pdfUrl: "/src/assets/book/page-{page}.jpg", // Template for image-based pages
+    pdfUrl: "/book/page-{page}.jpg", // Template for image-based pages
     totalPages: 4, // Updated to match available images
     buildPages: () => {
       return Array.from({ length: 4 }, (_, i) => ({

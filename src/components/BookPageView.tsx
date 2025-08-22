@@ -10,10 +10,10 @@ export const BookPageView = React.forwardRef<HTMLDivElement, {
   ({ page, pdfUrl, zoom = 1, fetchPriority }, ref) => {
     console.log('BookPageView rendering with:', { pageNumber: page.pageNumber, pdfUrl, zoom });
     
-    // Convert PDF URL to image URL - assuming images follow a pattern
-    const imageUrl = pdfUrl.includes('002.pdf') 
-      ? `/src/assets/book/page-${page.pageNumber}.jpg`
-      : pdfUrl; // fallback to original URL
+    // Convert template URL to actual image URL
+    const imageUrl = pdfUrl.includes('page-{page}.jpg') 
+      ? `/book/page-${page.pageNumber}.jpg`
+      : pdfUrl;
     
     return (
       <ImagePageView 
