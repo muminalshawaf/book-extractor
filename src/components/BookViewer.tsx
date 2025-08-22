@@ -146,7 +146,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     width: 800,
     height: 1100
   });
-  const [readerMode, setReaderMode] = useState<'page' | 'continuous'>("page");
+  const [readerMode, setReaderMode] = useState<'page' | 'continuous'>("continuous");
   const continuousRef = useRef<ContinuousReaderRef | null>(null);
 
   // Image preloading

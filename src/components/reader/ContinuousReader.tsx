@@ -25,6 +25,13 @@ interface ContinuousReaderProps {
 
 export const ContinuousReader = forwardRef<ContinuousReaderRef, ContinuousReaderProps>(
   ({ pages, pdfUrl, index, onIndexChange, zoom, rtl = false, onScrollerReady }, ref) => {
+    console.log('ContinuousReader rendering with:', { 
+      pagesCount: pages.length, 
+      pdfUrl, 
+      currentIndex: index, 
+      zoom 
+    });
+    
     const virtuosoRef = useRef<any>(null);
     const scrollerRef = useRef<HTMLElement | null>(null);
 
