@@ -1,8 +1,4 @@
 import { BookPage } from "@/components/BookViewer";
-import page1 from "@/assets/book/page-1.jpg";
-import page2 from "@/assets/book/page-2.jpg";
-import page3 from "@/assets/book/page-3.jpg";
-import page4 from "@/assets/book/page-4.jpg";
 
 export interface BookDef {
   id: string;
@@ -53,22 +49,6 @@ export const books: BookDef[] = [
         alt: `صفحة كتاب الفيزياء ${i + 2}`,
       }));
     },
-  },
-  {
-    id: "sample-local",
-    title: "كتاب عينة مصوّر",
-    rtl: true,
-    grade: 12,
-    semester: 1,
-    subject: "Sample",
-    cover: "/placeholder.svg",
-    keywords: ["عينة", "Sample"],
-    buildPages: () => [
-      { src: page1, alt: "صفحة عينة 1" },
-      { src: page2, alt: "صفحة عينة 2" },
-      { src: page3, alt: "صفحة عينة 3" },
-      { src: page4, alt: "صفحة عينة 4" },
-    ],
   },
 ];
 
