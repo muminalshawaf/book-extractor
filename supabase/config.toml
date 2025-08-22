@@ -14,6 +14,3 @@ verify_jwt = false
 
 [functions.save-page-summary]
 verify_jwt = false
-
-[functions.pdf-proxy]
-verify_jwt = false

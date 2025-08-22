@@ -7,14 +7,14 @@ import TopSearchTabs from "@/components/search/TopSearchTabs";
 const Index = () => {
   const params = useParams();
   const navigate = useNavigate();
-  const initialId = useMemo(() => params.bookId ?? "math12-1-3", [params.bookId]);
+  const initialId = useMemo(() => params.bookId ?? books[0].id, [params.bookId]);
   const [selectedId, setSelectedId] = useState<string>(initialId);
   useEffect(() => {
     if (selectedId !== initialId) setSelectedId(initialId);
   }, [initialId]);
   useEffect(() => {
     if (params.bookId && !books.some(b => b.id === params.bookId)) {
-      navigate(`/book/math12-1-3`, {
+      navigate(`/book/${books[0].id}`, {
         replace: true
       });
     }

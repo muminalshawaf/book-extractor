@@ -1,5 +1,5 @@
 import React from "react";
-import { DirectPDFViewer } from "./DirectPDFViewer";
+import { PDFPageViewer } from "./PDFPageViewer";
 
 export const BookPageView = React.forwardRef<HTMLDivElement, { 
   page: { pageNumber: number; alt: string };
@@ -8,12 +8,7 @@ export const BookPageView = React.forwardRef<HTMLDivElement, {
   fetchPriority?: "high" | "low" 
 }>(
   ({ page, pdfUrl, zoom = 1, fetchPriority }, ref) => {
-    console.log('BookPageView rendering with:', { 
-      pageNumber: page.pageNumber, 
-      pdfUrl, 
-      zoom, 
-      bookType: pdfUrl.includes('math12-1-3') ? 'math' : 'other'
-    });
+    console.log('BookPageView rendering with:', { pageNumber: page.pageNumber, pdfUrl, zoom });
     
     // For math12-1-3 book, map page numbers correctly
     // Page 1 should load 002.pdf, Page 2 should load 003.pdf, etc.
@@ -29,10 +24,10 @@ export const BookPageView = React.forwardRef<HTMLDivElement, {
       actualPdfUrl = `https://ksa.idros.ai/books/math12-1-3/${pdfNumber}.pdf`;
     }
     
-    console.log('Loading PDF URL directly:', actualPdfUrl, 'for page:', page.pageNumber);
+    console.log('Loading PDF URL:', actualPdfUrl, 'for page:', page.pageNumber);
     
     return (
-      <DirectPDFViewer 
+      <PDFPageViewer 
         page={page}
         pdfUrl={actualPdfUrl}
         zoom={zoom}
