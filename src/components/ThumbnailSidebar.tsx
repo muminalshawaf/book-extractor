@@ -64,8 +64,8 @@ export const ThumbnailSidebar: React.FC<ThumbnailSidebarProps> = ({
                   >
                     <div className="aspect-[3/4] w-full">
                       <img
-                        src={page.src}
-                        alt={page.alt}
+                        src="/placeholder.svg"
+                        alt={`Page ${index + 1}`}
                         loading="lazy"
                         className="w-full h-full object-cover"
                       />

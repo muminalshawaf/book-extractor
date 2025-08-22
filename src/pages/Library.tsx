@@ -115,7 +115,7 @@ export default function Library() {
         <CardContent className="p-3">
           <AspectRatio ratio={3/4}>
             <img
-              src={(book.buildPages?.()[0]?.src) || book.cover || "/placeholder.svg"}
+              src={book.cover || "/placeholder.svg"}
               alt={`${book.title} cover`}
               loading="lazy"
               className="h-full w-full object-cover rounded-md"

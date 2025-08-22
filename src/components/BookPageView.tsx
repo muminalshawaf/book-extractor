@@ -2,101 +2,28 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Loader2 } from "lucide-react";
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+import 'react-pdf/dist/esm/Page/TextLayer.css';
 
-export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: string; alt: string }; zoom?: number; fetchPriority?: "high" | "low" }>(
-  ({ page, zoom = 1, fetchPriority }, ref) => {
+// Set worker source for PDF.js
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+
+export const BookPageView = React.forwardRef<HTMLDivElement, { 
+  page: { pageNumber: number; alt: string };
+  pdfUrl: string;
+  zoom?: number; 
+  fetchPriority?: "high" | "low" 
+}>(
+  ({ page, pdfUrl, zoom = 1, fetchPriority }, ref) => {
     const [loaded, setLoaded] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [error, setError] = useState<string | null>(null);
+    const [pdfLoaded, setPdfLoaded] = useState(false);
 
-    const [displaySrc, setDisplaySrc] = useState<string | null>(null);
+    const isLoading = !loaded || !pdfLoaded;
 
-    useEffect(() => {
-      let isActive = true;
-      let objectUrl: string | null = null;
-      setLoaded(false);
-      setProgress(0);
-      setDisplaySrc(null);
-
-      const controller = new AbortController();
-
-      (async () => {
-        try {
-          const res = await fetch(page.src, { signal: controller.signal, cache: "force-cache" });
-          if (!res.ok) throw new Error(`Failed to load image: ${res.status}`);
-
-          const contentLength = res.headers.get("content-length");
-          let total = contentLength ? parseInt(contentLength, 10) : 0;
-
-          if (res.body) {
-            const reader = res.body.getReader();
-            const chunks: Uint8Array[] = [];
-            let received = 0;
-
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              if (value) {
-                chunks.push(value);
-                received += value.length;
-                if (isActive) {
-                  if (total > 0) {
-                    const pct = Math.min(99, Math.round((received / total) * 100));
-                    setProgress(pct);
-                  } else {
-                    setProgress((p) => Math.min(95, p + 2));
-                  }
-                }
-              }
-            }
-
-            const blob = new Blob(chunks);
-            objectUrl = URL.createObjectURL(blob);
-          } else {
-            // Fallback if streaming unsupported
-            objectUrl = page.src;
-          }
-
-          if (!isActive) return;
-
-          const img = new Image();
-          img.decoding = "async";
-          img.src = objectUrl!;
-          try { await img.decode(); } catch { /* noop */ }
-
-          if (!isActive) return;
-          setDisplaySrc(objectUrl!);
-          setLoaded(true);
-          setProgress(100);
-        } catch (err) {
-          if (!isActive) return;
-          // Fallback to direct image decode without streaming
-          try {
-            const fallbackImg = new Image();
-            fallbackImg.decoding = "async";
-            fallbackImg.src = page.src;
-            try { await fallbackImg.decode(); } catch { /* ignore decode errors */ }
-            if (!isActive) return;
-            setDisplaySrc(page.src);
-            setLoaded(true);
-            setProgress(100);
-          } catch {
-            setDisplaySrc(null);
-          }
-        }
-      })();
-
-      return () => {
-        isActive = false;
-        controller.abort();
-        if (objectUrl && objectUrl.startsWith("blob:")) {
-          URL.revokeObjectURL(objectUrl);
-        }
-      };
-    }, [page.src]);
-
-    const isLoading = !displaySrc || !loaded;
-
-    // Simulated indeterminate-like progress while loading (caps at 90% until image decodes)
+    // Simulated indeterminate-like progress while loading
     useEffect(() => {
       if (isLoading && progress === 0) {
         const id = window.setInterval(() => {
@@ -107,7 +34,26 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
         }, 120);
         return () => window.clearInterval(id);
       }
-    }, [page.src, isLoading, progress]);
+    }, [isLoading, progress]);
+
+    const onDocumentLoadSuccess = () => {
+      setPdfLoaded(true);
+      setProgress(100);
+    };
+
+    const onDocumentLoadError = (error: Error) => {
+      setError(error.message);
+      setProgress(0);
+    };
+
+    const onPageLoadSuccess = () => {
+      setLoaded(true);
+      setProgress(100);
+    };
+
+    const onPageLoadError = (error: Error) => {
+      setError(error.message);
+    };
 
     return (
       <div className="bg-card h-full w-full" ref={ref} aria-busy={isLoading}>
@@ -121,22 +67,34 @@ export const BookPageView = React.forwardRef<HTMLDivElement, { page: { src: stri
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-3/4 max-w-md">
                 <Progress value={progress} aria-label="Page load progress" />
               </div>
-              <span className="sr-only">Loading page image...</span>
+              <span className="sr-only">Loading PDF page...</span>
             </>
           )}
-          {displaySrc && (
-            <img
-              src={displaySrc}
-              alt={page.alt}
-              decoding="async"
-              
-              className="max-w-full object-contain select-none"
-              style={{
-                transform: zoom !== 1 ? `scale(${zoom})` : undefined,
-                transformOrigin: "center top",
-                maxHeight: "78vh",
-              }}
-            />
+          
+          {error && (
+            <div className="text-destructive text-center p-4">
+              <p>Error loading PDF: {error}</p>
+            </div>
+          )}
+          
+          {!error && (
+            <Document
+              file={pdfUrl}
+              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={onDocumentLoadError}
+              loading=""
+            >
+              <Page
+                pageNumber={page.pageNumber}
+                onLoadSuccess={onPageLoadSuccess}
+                onLoadError={onPageLoadError}
+                loading=""
+                scale={zoom}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+                className="max-w-full object-contain select-none"
+              />
+            </Document>
           )}
         </div>
       </div>

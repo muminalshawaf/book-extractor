@@ -39,7 +39,7 @@ import { MobileControlsOverlay } from "@/components/reader/MobileControlsOverlay
 
 
 export type BookPage = {
-  src: string;
+  pageNumber: number;
   alt: string;
 };
 type Labels = {
@@ -56,6 +56,7 @@ type Labels = {
 };
 interface BookViewerProps {
   pages: BookPage[];
+  pdfUrl: string;
   title?: string;
   rtl?: boolean;
   labels?: Labels;
@@ -63,6 +64,7 @@ interface BookViewerProps {
 }
 export const BookViewer: React.FC<BookViewerProps> = ({
   pages,
+  pdfUrl,
   title = "Book",
   rtl = false,
   labels = {},
@@ -154,33 +156,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [displaySrc, setDisplaySrc] = useState<string | null>(null);
   const [pageProgress, setPageProgress] = useState(0);
 
+  // Remove image loading logic for PDF mode
+  // PDFs are handled by react-pdf component
   useEffect(() => {
-    let active = true;
-    const nextSrc = pages[index]?.src;
-    setDisplaySrc(null);
-    setImageLoading(true);
-    setPageProgress(0);
-
-    if (!nextSrc) {
-      setImageLoading(false);
-      return;
-    }
-
-    const img = new Image();
-    img.decoding = "async";
-    img.src = nextSrc;
-    img.onload = () => {
-      if (!active) return;
-      setDisplaySrc(nextSrc);
-      setImageLoading(false);
-      setPageProgress(100);
-    };
-    img.onerror = () => {
-      if (!active) return;
-      setImageLoading(false);
-    };
-
-    return () => { active = false; };
+    setImageLoading(false);
+    setPageProgress(100);
   }, [index, pages]);
 
   useEffect(() => {
@@ -346,7 +326,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             e.preventDefault();
             if (!ocrLoading && !summLoading) {
               const pageNum = index + 1;
-              console.log('[Shortcut] Cmd/Ctrl+Shift+F on page', pageNum, 'src:', pages[index]?.src);
+              console.log('[Shortcut] Cmd/Ctrl+Shift+F on page', pageNum, 'pageNumber:', pages[index]?.pageNumber);
               toast.message(
                 rtl
                   ? `تشغيل OCR + تلخيص إجباري للصفحة ${pageNum}`
@@ -459,13 +439,18 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummary("");
     setLastError(null);
     try {
-      console.log('Starting OCR process...');
-      const imageSrc = pages[index]?.src;
-      console.log('Image source:', imageSrc);
+      console.log('OCR not available for PDF mode yet');
+      toast.error('OCR functionality will be available soon for PDF mode');
+      return;
+      
+      // TODO: Implement PDF-to-image conversion for OCR
+      const pageNumber = pages[index]?.pageNumber;
+      console.log('PDF page number:', pageNumber);
       let imageBlob: Blob | null = null;
 
-      // If external image, try proxy and public image CDN fallbacks
-      const isExternal = imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin);
+      // PDF OCR not implemented yet - PDFs would need to be converted to images first
+      console.log('PDF OCR not available yet');
+      const isExternal = pdfUrl.startsWith('http') && !pdfUrl.includes(window.location.origin);
       if (isExternal) {
         // 1) Try Supabase Edge Function proxy
         try {
@@ -1082,47 +1067,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         });
         const page = pages[i];
         if (!page) continue;
+        
         try {
-          // OCR
-          const blob = await getImageBlob(page.src);
-          const ocrRes = await runLocalOcr(blob, {
-            lang: rtl ? 'ara+eng' : 'eng',
-            psm: 6,
-            preprocess: {
-              upsample: true,
-              targetMinWidth: 1200,
-              // slightly lower for speed in batch
-              denoise: true,
-              binarize: true,
-              cropMargins: true
-            }
-          });
-          const text = ocrRes.text || '';
-
-          // Summarize (non-stream for batch reliability)
-          const data = await callFunction<{
-            summary?: string;
-            error?: string;
-          }>('summarize', {
-            text,
-            lang: rtl ? 'ar' : 'en',
-            page: i + 1,
-            title
-          });
-          if (data?.error) throw new Error(data.error);
-          const summaryMd = data?.summary || '';
-
-          // Save OCR confidence only
-          const ocrQ = typeof (ocrRes as any).confidence === 'number' ? Math.max(0, Math.min(1, ((ocrRes as any).confidence as number) / 100)) : undefined;
-          await callFunction('save-page-summary', {
-            book_id: bookIdentifier,
-            page_number: i + 1,
-            ocr_text: text,
-            summary_md: summaryMd,
-            confidence: ocrQ ?? null,
-            ocr_confidence: ocrQ ?? null,
-            confidence_meta: null
-          });
+          // TODO: Implement PDF batch processing
+          console.log('Batch processing not available for PDF mode yet');
+          toast.error('Batch processing will be available soon for PDF mode');
+          return;
         } catch (pageErr: any) {
           console.warn(`Failed processing page ${i + 1}:`, pageErr);
           // Continue with next page
@@ -1586,13 +1536,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     </CardContent>
                   </Card>
 
-                  {/* Mini-map overlay */}
-                  {readerMode === 'page' && showMiniMap && zoom > 1 && containerRef.current && <MiniMap imageSrc={pages[index]?.src} imageAlt={pages[index]?.alt} containerWidth={containerDimensions.width} containerHeight={containerDimensions.height} imageWidth={800} imageHeight={1100} scrollLeft={containerRef.current.scrollLeft} scrollTop={containerRef.current.scrollTop} zoom={zoom} onNavigate={(x, y) => {
-                if (containerRef.current) {
-                  containerRef.current.scrollLeft = x;
-                  containerRef.current.scrollTop = y;
-                }
-              }} rtl={rtl} />}
+                  {/* Mini-map disabled for PDF mode */}
+                  {false && readerMode === 'page' && showMiniMap && zoom > 1 && containerRef.current && <div />}
                 </FullscreenMode>
 
                 {/* Error Handler */}

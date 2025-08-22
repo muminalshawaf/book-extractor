@@ -1,4 +1,7 @@
-import { BookPage } from "@/components/BookViewer";
+export interface BookPage {
+  pageNumber: number;
+  alt: string;
+}
 
 export interface BookDef {
   id: string;
@@ -9,6 +12,8 @@ export interface BookDef {
   subject?: string;
   cover?: string;
   keywords?: string[];
+  pdfUrl: string;
+  totalPages: number;
   buildPages: () => BookPage[];
 }
 
@@ -22,11 +27,11 @@ export const books: BookDef[] = [
     subject: "Chemistry",
     cover: "/placeholder.svg",
     keywords: ["كيمياء", "Chemistry", "Grade 12", "Semester 1-3"],
+    pdfUrl: "https://ksa.idros.ai/books/chem12-1-3/chemistry-12-1-3.pdf",
+    totalPages: 177,
     buildPages: () => {
-      const baseUrl = "https://ksa.idros.ai/books/chem12-1-3/";
-      const pageId = "a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8";
       return Array.from({ length: 177 }, (_, i) => ({
-        src: `${baseUrl}${pageId}-${i + 1}.jpg`,
+        pageNumber: i + 1,
         alt: `صفحة كتاب الكيمياء ${i + 1}`,
       }));
     },
@@ -40,13 +45,12 @@ export const books: BookDef[] = [
     subject: "Physics",
     cover: "/placeholder.svg",
     keywords: ["فيزياء", "Physics", "Grade 12", "Semester 1-3"],
+    pdfUrl: "https://ksa.idros.ai/books/physics12-1-3/physics-12-1-3.pdf",
+    totalPages: 217,
     buildPages: () => {
-      const baseUrl = "https://ksa.idros.ai/books/physics12-1-3/";
-      const name = "book-alfizya3-1-page-";
-      const pad = (n: number) => n.toString().padStart(3, "0");
       return Array.from({ length: 217 }, (_, i) => ({
-        src: `${baseUrl}${name}${pad(i + 2)}.jpg`,
-        alt: `صفحة كتاب الفيزياء ${i + 2}`,
+        pageNumber: i + 1,
+        alt: `صفحة كتاب الفيزياء ${i + 1}`,
       }));
     },
   },
@@ -59,12 +63,12 @@ export const books: BookDef[] = [
     subject: "Mathematics",
     cover: "/placeholder.svg",
     keywords: ["رياضيات", "Mathematics", "Grade 12", "Semester 1-3"],
+    pdfUrl: "https://ksa.idros.ai/books/math12-1-3/math-12-1-3.pdf",
+    totalPages: 213,
     buildPages: () => {
-      const baseUrl = "https://ksa.idros.ai/books/math12-1-3/";
-      const pad = (n: number) => n.toString().padStart(4, "0");
       return Array.from({ length: 213 }, (_, i) => ({
-        src: `${baseUrl}${pad(i + 2)}.png`,
-        alt: `صفحة كتاب الرياضيات ${i + 2}`,
+        pageNumber: i + 1,
+        alt: `صفحة كتاب الرياضيات ${i + 1}`,
       }));
     },
   },

@@ -1,8 +1,12 @@
 import React, { forwardRef, useImperativeHandle, useRef } from "react";
 import { Virtuoso } from "react-virtuoso";
-import { BookPage } from "@/components/BookViewer";
 import { BookPageView } from "@/components/BookPageView";
 import { cn } from "@/lib/utils";
+
+export type BookPage = {
+  pageNumber: number;
+  alt: string;
+};
 
 export type ContinuousReaderRef = {
   scrollToIndex: (index: number) => void;
@@ -11,6 +15,7 @@ export type ContinuousReaderRef = {
 
 interface ContinuousReaderProps {
   pages: BookPage[];
+  pdfUrl: string;
   index: number;
   onIndexChange: (index: number) => void;
   zoom: number;
@@ -19,7 +24,7 @@ interface ContinuousReaderProps {
 }
 
 export const ContinuousReader = forwardRef<ContinuousReaderRef, ContinuousReaderProps>(
-  ({ pages, index, onIndexChange, zoom, rtl = false, onScrollerReady }, ref) => {
+  ({ pages, pdfUrl, index, onIndexChange, zoom, rtl = false, onScrollerReady }, ref) => {
     const virtuosoRef = useRef<any>(null);
     const scrollerRef = useRef<HTMLElement | null>(null);
 
@@ -52,8 +57,9 @@ export const ContinuousReader = forwardRef<ContinuousReaderRef, ContinuousReader
               <div className={cn("flex items-start justify-center py-2 md:py-3 lg:py-4", rtl && "direction-rtl")}
                    aria-label={`${page?.alt} - Page ${i + 1} of ${pages.length}`}>
                 <BookPageView
-                  key={page?.src || `page-${i}`}
-                  page={{ src: page?.src, alt: page?.alt }}
+                  key={`page-${page?.pageNumber || i}`}
+                  page={{ pageNumber: page?.pageNumber || i + 1, alt: page?.alt || `Page ${i + 1}` }}
+                  pdfUrl={pdfUrl}
                   zoom={i === index ? zoom : 1}
                   fetchPriority={i === index ? "high" : "low"}
                 />

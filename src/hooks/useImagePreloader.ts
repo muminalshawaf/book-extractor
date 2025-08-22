@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { BookPage } from "@/components/BookViewer";
+
+export type BookPage = {
+  pageNumber: number;
+  alt: string;
+};
 
 interface PreloadState {
   [key: string]: "loading" | "loaded" | "error";
@@ -8,44 +12,19 @@ interface PreloadState {
 export const useImagePreloader = (pages: BookPage[], currentIndex: number) => {
   const [preloadState, setPreloadState] = useState<PreloadState>({});
 
-  const preloadImage = (src: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve();
-      img.onerror = () => reject();
-      img.src = src;
-    });
-  };
-
+  // PDF pages don't need preloading like images do
+  // react-pdf handles PDF page loading internally
   useEffect(() => {
-    const preloadAdjacentPages = async () => {
-      const isDataSaver = typeof window !== 'undefined' && (
-        document.documentElement.classList.contains('data-saver') ||
-        localStorage.getItem('data-saver') === 'true'
-      );
-      const radius = isDataSaver ? 1 : 3;
-      const indicesToPreload = Array.from({ length: radius * 2 + 1 }, (_, k) => currentIndex - radius + k)
-        .filter(i => i >= 0 && i < pages.length);
+    // For PDFs, we can mark all pages as "loaded" since they're part of the same document
+    const newState: PreloadState = {};
+    pages.forEach((page) => {
+      const key = `page-${page.pageNumber}`;
+      newState[key] = "loaded";
+    });
+    setPreloadState(newState);
+  }, [pages]);
 
-      for (const index of indicesToPreload) {
-        const page = pages[index];
-        if (!page || preloadState[page.src] === "loaded") continue;
-
-        setPreloadState(prev => ({ ...prev, [page.src]: "loading" }));
-
-        try {
-          await preloadImage(page.src);
-          setPreloadState(prev => ({ ...prev, [page.src]: "loaded" }));
-        } catch {
-          setPreloadState(prev => ({ ...prev, [page.src]: "error" }));
-        }
-      }
-    };
-
-    preloadAdjacentPages();
-  }, [currentIndex, pages]);
-
-  const getPreloadStatus = (src: string) => preloadState[src] || "not-loaded";
+  const getPreloadStatus = (pageNumber: number) => preloadState[`page-${pageNumber}`] || "loaded";
 
   return { preloadState, getPreloadStatus };
 };
