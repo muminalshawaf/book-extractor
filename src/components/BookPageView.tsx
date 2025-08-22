@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { Document, Page, pdfjs } from 'react-pdf';
 
 // Set worker source for PDF.js
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 export const BookPageView = React.forwardRef<HTMLDivElement, { 
   page: { pageNumber: number; alt: string };
