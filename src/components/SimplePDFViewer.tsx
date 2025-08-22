@@ -65,22 +65,33 @@ export const SimplePDFViewer: React.FC<SimplePDFViewerProps> = ({
           <div className="absolute inset-0 flex items-center justify-center z-20 bg-background/90">
             <div className="text-center p-6 max-w-md">
               <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Failed to load PDF</h3>
+              <h3 className="text-lg font-semibold mb-2">PDF Blocked by Browser</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Unable to load page {page.pageNumber} from:<br />
-                <code className="text-xs bg-muted p-1 rounded break-all">{pdfUrl}</code>
+                Chrome has blocked loading this PDF in an iframe for security reasons.<br />
+                Page {page.pageNumber} from: {pdfUrl}
               </p>
-              <Button onClick={handleRetry} variant="outline" size="sm" className="mr-2">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Retry
-              </Button>
-              <Button 
-                onClick={() => window.open(pdfUrl, '_blank')} 
-                variant="default" 
-                size="sm"
-              >
-                Open in New Tab
-              </Button>
+              <div className="space-y-2">
+                <Button onClick={handleRetry} variant="outline" size="sm" className="w-full">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Try Again
+                </Button>
+                <Button 
+                  onClick={() => window.open(`${pdfUrl}#page=${page.pageNumber}`, '_blank')} 
+                  variant="default" 
+                  size="sm"
+                  className="w-full"
+                >
+                  View PDF in New Tab
+                </Button>
+                <Button 
+                  onClick={() => window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`, '_blank')} 
+                  variant="secondary" 
+                  size="sm"
+                  className="w-full"
+                >
+                  View with Google Docs Viewer
+                </Button>
+              </div>
             </div>
           </div>
         )}
