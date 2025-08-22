@@ -61,9 +61,9 @@ export const books: BookDef[] = [
     keywords: ["رياضيات", "Mathematics", "Grade 12", "Semester 1-3"],
     buildPages: () => {
       const baseUrl = "https://ksa.idros.ai/books/math12-1-3/";
-      const pad = (n: number) => n.toString().padStart(3, "0");
-      return Array.from({ length: 133 }, (_, i) => ({
-        src: `${baseUrl}masar-aam-1-3-${pad(i + 2)}.jpg`,
+      const pad = (n: number) => n.toString().padStart(4, "0");
+      return Array.from({ length: 213 }, (_, i) => ({
+        src: `${baseUrl}${pad(i + 2)}.png`,
         alt: `صفحة كتاب الرياضيات ${i + 2}`,
       }));
     },
