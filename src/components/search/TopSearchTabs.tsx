@@ -187,8 +187,8 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
                   <button key={b.id} type="button" onClick={() => openBook(b.id)} className="text-right border rounded-md p-2 hover:bg-accent/60 transition">
                     <div className="mb-2">
                       <img 
-                        src={book.cover || "/placeholder.svg"} 
-                        alt={`${book.title} thumbnail`} 
+                        src={b.cover || "/placeholder.svg"} 
+                        alt={`${b.title} thumbnail`} 
                         className="w-full h-20 object-cover rounded border"
                         loading="lazy"
                       />
