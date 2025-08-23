@@ -1,7 +1,8 @@
-export interface BookPage {
-  pageNumber: number;
-  alt: string;
-}
+import { BookPage } from "@/components/BookViewer";
+import page1 from "@/assets/book/page-1.jpg";
+import page2 from "@/assets/book/page-2.jpg";
+import page3 from "@/assets/book/page-3.jpg";
+import page4 from "@/assets/book/page-4.jpg";
 
 export interface BookDef {
   id: string;
@@ -12,8 +13,6 @@ export interface BookDef {
   subject?: string;
   cover?: string;
   keywords?: string[];
-  pdfUrl: string;
-  totalPages: number;
   buildPages: () => BookPage[];
 }
 
@@ -27,11 +26,11 @@ export const books: BookDef[] = [
     subject: "Chemistry",
     cover: "/placeholder.svg",
     keywords: ["كيمياء", "Chemistry", "Grade 12", "Semester 1-3"],
-    pdfUrl: "https://ksa.idros.ai/books/chem12-1-3/chemistry-12-1-3.pdf",
-    totalPages: 177,
     buildPages: () => {
+      const baseUrl = "https://ksa.idros.ai/books/chem12-1-3/";
+      const pageId = "a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8";
       return Array.from({ length: 177 }, (_, i) => ({
-        pageNumber: i + 1,
+        src: `${baseUrl}${pageId}-${i + 1}.jpg`,
         alt: `صفحة كتاب الكيمياء ${i + 1}`,
       }));
     },
@@ -45,32 +44,31 @@ export const books: BookDef[] = [
     subject: "Physics",
     cover: "/placeholder.svg",
     keywords: ["فيزياء", "Physics", "Grade 12", "Semester 1-3"],
-    pdfUrl: "https://ksa.idros.ai/books/physics12-1-3/physics-12-1-3.pdf",
-    totalPages: 217,
     buildPages: () => {
+      const baseUrl = "https://ksa.idros.ai/books/physics12-1-3/";
+      const name = "book-alfizya3-1-page-";
+      const pad = (n: number) => n.toString().padStart(3, "0");
       return Array.from({ length: 217 }, (_, i) => ({
-        pageNumber: i + 1,
-        alt: `صفحة كتاب الفيزياء ${i + 1}`,
+        src: `${baseUrl}${name}${pad(i + 2)}.jpg`,
+        alt: `صفحة كتاب الفيزياء ${i + 2}`,
       }));
     },
   },
   {
-    id: "math12-1-3",
-    title: "الرياضيات - الصف الثاني عشر - الفصل الدراسي الأول",
+    id: "sample-local",
+    title: "كتاب عينة مصوّر",
     rtl: true,
     grade: 12,
     semester: 1,
-    subject: "Mathematics",
+    subject: "Sample",
     cover: "/placeholder.svg",
-    keywords: ["رياضيات", "Mathematics", "Grade 12", "Semester 1-3"],
-    pdfUrl: "https://ksa.idros.ai/books/math12-1-3/{page:003d}.pdf", // Template for PDF pages
-    totalPages: 200, // Assuming reasonable number of pages
-    buildPages: () => {
-      return Array.from({ length: 200 }, (_, i) => ({
-        pageNumber: i + 1,
-        alt: `صفحة ${i + 1} من كتاب الرياضيات`,
-      }));
-    },
+    keywords: ["عينة", "Sample"],
+    buildPages: () => [
+      { src: page1, alt: "صفحة عينة 1" },
+      { src: page2, alt: "صفحة عينة 2" },
+      { src: page3, alt: "صفحة عينة 3" },
+      { src: page4, alt: "صفحة عينة 4" },
+    ],
   },
 ];
 

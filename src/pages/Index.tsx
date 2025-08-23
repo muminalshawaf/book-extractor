@@ -38,7 +38,7 @@ const Index = () => {
         </header>
         
         <main>
-          <BookViewer key={selectedBook.id} bookId={selectedBook.id} pages={pages} pdfUrl={selectedBook.pdfUrl} title={selectedBook.title} rtl={rtl} labels={{
+          <BookViewer key={selectedBook.id} bookId={selectedBook.id} pages={pages} title={selectedBook.title} rtl={rtl} labels={{
           previous: "السابق",
           next: "التالي",
           notesTitle: n => `ملاحظات للصفحة ${n}`,

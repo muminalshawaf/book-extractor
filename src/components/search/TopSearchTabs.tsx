@@ -104,7 +104,7 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
         <Button 
           variant="outline" 
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full bg-[#4285F4] text-white border-[#4285F4] hover:bg-[#3367D6] hover:border-[#3367D6]"
+          className="w-full"
           dir="rtl"
         >
           <div className="flex items-center justify-between w-full">
@@ -181,27 +181,16 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
             </div>
 
             <div className="mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-2">
-              {filteredBooks.slice(0, 12).map((b) => {
-                const firstPage = b.buildPages()[0];
-                return (
-                  <button key={b.id} type="button" onClick={() => openBook(b.id)} className="text-right border rounded-md p-2 hover:bg-accent/60 transition">
-                    <div className="mb-2">
-                      <img 
-                        src={b.cover || "/placeholder.svg"} 
-                        alt={`${b.title} thumbnail`} 
-                        className="w-full h-20 object-cover rounded border"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2 gap-y-1">
-                      {b.subject && <Badge variant="secondary">{b.subject === 'Physics' ? 'الفيزياء' : b.subject === 'Chemistry' ? 'الكيمياء' : b.subject === 'Sample' ? 'عينة' : b.subject}</Badge>}
-                      {b.grade && <Badge variant="outline">{rtl ? `الصف ${b.grade}` : `Grade ${b.grade}`}</Badge>}
-                      {b.semester && <Badge variant="outline">{rtl ? `الفصل ${b.semester}` : `Sem ${b.semester}`}</Badge>}
-                    </div>
-                    <div className="text-sm mt-1 line-clamp-2">{b.title}</div>
-                  </button>
-                );
-              })}
+              {filteredBooks.slice(0, 12).map((b) => (
+                <button key={b.id} type="button" onClick={() => openBook(b.id)} className="text-right border rounded-md p-2 hover:bg-accent/60 transition">
+                  <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2 gap-y-1">
+                    {b.subject && <Badge variant="secondary">{b.subject === 'Physics' ? 'الفيزياء' : b.subject === 'Chemistry' ? 'الكيمياء' : b.subject === 'Sample' ? 'عينة' : b.subject}</Badge>}
+                    {b.grade && <Badge variant="outline">{rtl ? `الصف ${b.grade}` : `Grade ${b.grade}`}</Badge>}
+                    {b.semester && <Badge variant="outline">{rtl ? `الفصل ${b.semester}` : `Sem ${b.semester}`}</Badge>}
+                  </div>
+                  <div className="text-sm mt-1 line-clamp-2">{b.title}</div>
+                </button>
+              ))}
             </div>
           </div>
         </TabsContent>

@@ -333,7 +333,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="sticky top-0 z-40 flex items-center justify-between p-4 border-b bg-background">
+        <header className="flex items-center justify-between p-4 border-b bg-background">
           <div className={cn("flex items-center gap-4", rtl && "flex-row-reverse")}>
             <h1 className="text-xl font-semibold">{rtl ? "إدرس" : "Study"}</h1>
           </div>
