@@ -473,7 +473,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           const proxyUrl = `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
           const response = await fetch(proxyUrl, {
             headers: {
-              'Accept': 'image/*'
+              'Accept': 'image/*',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
             }
           });
           if (!response.ok) throw new Error(`Proxy failed: ${response.status} ${response.statusText}`);
