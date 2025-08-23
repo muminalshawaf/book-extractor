@@ -470,15 +470,20 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         // 1) Try Supabase Edge Function proxy
         try {
           console.log('Trying Supabase image-proxy...');
-          const proxyUrl = `/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
-          const response = await fetch(proxyUrl);
-          if (!response.ok) throw new Error(`Proxy failed: ${response.status}`);
+          const proxyUrl = `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
+          const response = await fetch(proxyUrl, {
+            headers: {
+              'Accept': 'image/*'
+            }
+          });
+          if (!response.ok) throw new Error(`Proxy failed: ${response.status} ${response.statusText}`);
           const ct = response.headers.get('content-type') || '';
           if (!ct.includes('image')) throw new Error(`Proxy returned non-image (content-type: ${ct})`);
           imageBlob = await response.blob();
-          console.log('Image fetched via proxy successfully');
+          console.log('Image fetched via proxy successfully, blob size:', imageBlob.size);
         } catch (e) {
-          console.log('Proxy fetch failed, will try weserv fallback:', e);
+          console.log('Proxy fetch failed, will try weserv fallback. Error:', e);
+          toast.error(`Failed to fetch image via proxy: ${e instanceof Error ? e.message : String(e)}`);
         }
 
         // 2) Fallback to images.weserv.nl (public image proxy with CORS)
@@ -498,7 +503,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             imageBlob = await wesRes.blob();
             console.log('Image fetched via weserv successfully');
           } catch (wesErr) {
-            console.log('weserv proxy failed:', wesErr);
+            console.log('weserv proxy failed, Error:', wesErr);
+            toast.warning(`Failed to fetch image via weserv fallback: ${wesErr instanceof Error ? wesErr.message : String(wesErr)}`);
           }
         }
       }
@@ -617,7 +623,19 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       const errorMsg = error?.message || (typeof error === 'string' ? error : 'Unknown error');
       setLastError(error);
       setRetryCount(prev => prev + 1);
-      toast.error(rtl ? `فشل في استخراج النص: ${errorMsg}` : `Failed to extract text: ${errorMsg}`);
+      // Provide more helpful error messages for common issues
+      let userMessage = errorMsg;
+      if (errorMsg.includes('CORS') || errorMsg.includes('network restrictions') || errorMsg.includes('Proxy failed')) {
+        userMessage = rtl 
+          ? 'فشل في تحميل الصورة بسبب قيود CORS. جرب صفحة أخرى أو تأكد من اتصال الإنترنت.'
+          : 'Failed to load image due to CORS restrictions. Try another page or check internet connection.';
+      } else if (errorMsg.includes('WebP') || errorMsg.includes('image format')) {
+        userMessage = rtl
+          ? 'مشكلة في تنسيق الصورة WebP. جرب صفحة بتنسيق مختلف.'
+          : 'WebP image format issue. Try a page with different format.';
+      }
+      
+      toast.error(rtl ? `فشل في استخراج النص: ${userMessage}` : `Failed to extract text: ${userMessage}`);
     } finally {
       setOcrLoading(false);
       setOcrProgress(0);
