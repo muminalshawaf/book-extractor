@@ -166,7 +166,7 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
                   </SelectTrigger>
                   <SelectContent>
                     {subjects.map((s) => (
-                      <SelectItem key={s} value={s}>{s === 'Physics' ? 'الفيزياء' : s === 'Chemistry' ? 'الكيمياء' : s === 'Sample' ? 'عينة' : s}</SelectItem>
+                      <SelectItem key={s} value={s}>{s === 'Physics' ? 'الفيزياء' : s === 'Chemistry' ? 'الكيمياء' : s === 'Mathematics' ? 'الرياضيات' : s === 'Sample' ? 'عينة' : s}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -184,7 +184,7 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
               {filteredBooks.slice(0, 12).map((b) => (
                 <button key={b.id} type="button" onClick={() => openBook(b.id)} className="text-right border rounded-md p-2 hover:bg-accent/60 transition">
                   <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2 gap-y-1">
-                    {b.subject && <Badge variant="secondary">{b.subject === 'Physics' ? 'الفيزياء' : b.subject === 'Chemistry' ? 'الكيمياء' : b.subject === 'Sample' ? 'عينة' : b.subject}</Badge>}
+                    {b.subject && <Badge variant="secondary">{b.subject === 'Physics' ? 'الفيزياء' : b.subject === 'Chemistry' ? 'الكيمياء' : b.subject === 'Mathematics' ? 'الرياضيات' : b.subject === 'Sample' ? 'عينة' : b.subject}</Badge>}
                     {b.grade && <Badge variant="outline">{rtl ? `الصف ${b.grade}` : `Grade ${b.grade}`}</Badge>}
                     {b.semester && <Badge variant="outline">{rtl ? `الفصل ${b.semester}` : `Sem ${b.semester}`}</Badge>}
                   </div>
