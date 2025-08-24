@@ -1674,7 +1674,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                          </TabsList>
 
                         <TabsContent value="summary" className="mt-4 m-0">
-                          <Button className="w-full" variant="default" onClick={handleSmartSummarizeClick} disabled={ocrLoading || summLoading}>
+                          <Button className="w-full bg-[#4285f4] text-white border-[#4285f4] hover:bg-[#3367d6] hover:border-[#3367d6] hover:text-white" variant="default" onClick={handleSmartSummarizeClick} disabled={ocrLoading || summLoading}>
                             <>
                               {ocrLoading || summLoading ? (
                                 <>
