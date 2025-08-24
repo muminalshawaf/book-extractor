@@ -1210,9 +1210,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           {/* Viewer */}
           <FullscreenMode rtl={rtl}>
             <Card className="shadow-none border-none bg-transparent animate-fade-in">
-              <CardHeader className="sr-only">
+              <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm md:text-base lg:text-lg" itemProp="name">{title}</CardTitle>
+                  <CardTitle className="text-lg font-semibold text-foreground" itemProp="name">{title}</CardTitle>
                   <div className="flex items-center gap-2">
                     <KeyboardShortcuts rtl={rtl} />
                     <div className="text-sm text-muted-foreground select-none">
@@ -1447,6 +1447,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
               {/* Main Content */}
               <div className="flex-1 flex flex-col gap-6">
+                {/* Book Title Header */}
+                <div className="px-4">
+                  <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+                </div>
+                
                 {/* Library/Search unified: tabs removed */}
 
                 
