@@ -24,9 +24,8 @@ export const books: BookDef[] = [
     keywords: ["كيمياء", "Chemistry", "Grade 12", "Semester 1-3"],
     buildPages: () => {
       const baseUrl = "https://ksa.idros.ai/books/chem12-1-3/";
-      const pageId = "a4dbe8ea-af1b-4a97-a5f9-2880bc655ae8";
-      return Array.from({ length: 177 }, (_, i) => ({
-        src: `${baseUrl}${pageId}-${i + 1}.jpg`,
+      return Array.from({ length: 178 }, (_, i) => ({
+        src: `${baseUrl}kitab-alkimya-3-${i + 2}.webp`,
         alt: `صفحة كتاب الكيمياء ${i + 1}`,
       }));
     },
