@@ -104,7 +104,7 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
         <Button 
           variant="outline" 
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full"
+          className="w-full bg-[#4285f4] text-white border-[#4285f4] hover:bg-[#3367d6] hover:border-[#3367d6] hover:text-white"
           dir="rtl"
         >
           <div className="flex items-center justify-between w-full">
