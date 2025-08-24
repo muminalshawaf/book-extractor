@@ -1355,18 +1355,18 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           <div ref={insightsRef} className="px-3 pt-4">
             <Card className="shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs md:text-sm flex items-center gap-2">
+                <CardTitle className="text-sm md:text-sm flex items-center gap-2">
                   <Sparkles className="h-4 w-4" />
                   <span>{rtl ? "مساعد القراءة الذكي" : "AI Reading Assistant"}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3">
                 <Tabs value={insightTab} onValueChange={v => setInsightTab(v as any)} className="w-full">
-                  <TabsList className="flex w-full text-xs md:text-sm bg-muted rounded-md p-1 gap-1">
-                    <TabsTrigger value="summary" className="h-8 rounded-md flex-1 leading-none px-2 py-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                  <TabsList className="flex w-full text-sm md:text-sm bg-muted rounded-md p-1 gap-1">
+                    <TabsTrigger value="summary" className="h-9 rounded-md flex-1 leading-none px-2 py-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm text-sm">
                       {rtl ? "ملخص الصفحة" : "Page Summary"}
                     </TabsTrigger>
-                    <TabsTrigger value="qa" className="h-8 rounded-md flex-1 leading-none px-2 py-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                    <TabsTrigger value="qa" className="h-9 rounded-md flex-1 leading-none px-2 py-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm text-sm">
                       {rtl ? (
                         <span className="inline-flex items-center gap-2">
                           <Sparkles className="h-4 w-4" />
