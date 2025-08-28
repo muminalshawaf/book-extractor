@@ -651,7 +651,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       console.log('Starting summarization with text length:', text.length);
       setSummary('');
       setSummaryConfidence(undefined);
-      const streamUrl = "https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream";
       const lang = rtl ? 'ar' : 'en';
       let accumulated = '';
       let lastFlush = 0;
@@ -659,7 +658,81 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         setSummary(accumulated);
       };
 
-      // Prefer EventSource for smaller payloads
+      // Use authenticated streaming
+      console.info('Using authenticated summarize-stream');
+      const stream = await streamAuthenticatedFunction("summarize-stream", {
+        text,
+        lang,
+        page: index + 1,
+        title
+      });
+
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const events = buffer.split(/\r?\n\r?\n/);
+        buffer = events.pop() || "";
+
+        for (const evt of events) {
+          const lines = evt.split(/\r?\n/);
+          for (const ln of lines) {
+            if (ln.startsWith("data:")) {
+              const raw = ln.slice(5);
+              const trimmedLine = raw.trim();
+              if (trimmedLine === "[DONE]" || trimmedLine === '"[DONE]"') continue;
+
+              let chunk = raw;
+              try {
+                const j = JSON.parse(raw);
+                if (j?.done) continue;
+                chunk = j?.text ?? j?.delta ?? j?.content ?? raw;
+              } catch {}
+
+              accumulated += chunk;
+              // Strip accidental leading "ok" tokens from some models
+              accumulated = accumulated.replace(/^\s*ok[\s,:-]*/i, '');
+              
+              const now = globalThis.performance?.now?.() ?? Date.now();
+              if (now - lastFlush > 300) {
+                flush();
+                lastFlush = now;
+              }
+            }
+          }
+        }
+      }
+
+      // Final flush
+      flush();
+      
+      if (!accumulated || accumulated.trim().length === 0) {
+        throw new Error('Empty streamed summary');
+      }
+      try {
+        localStorage.setItem(sumKey, accumulated);
+      } catch {}
+      // Save OCR confidence to DB
+      try {
+        setSummaryConfidence(ocrQuality);
+        await callAuthenticatedFunction('save-page-summary', {
+          book_id: dbBookId,
+          page_number: index + 1,
+          ocr_text: text,
+          summary_md: accumulated,
+          confidence: ocrQuality ?? null,
+          ocr_confidence: ocrQuality ?? null,
+          confidence_meta: null
+        });
+      } catch (saveErr) {
+        console.warn('Failed to save summary to DB:', saveErr);
+      }
+      setRetryCount(0);
       const canUseES = text.length <= 8000; // allow larger payloads via GET EventSource for better streaming
       if (canUseES) {
         console.info('Using summarize-stream via EventSource (GET)');
@@ -797,7 +870,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       // Save OCR confidence to DB
       try {
         setSummaryConfidence(ocrQuality);
-        await callFunction('save-page-summary', {
+        await callAuthenticatedFunction('save-page-summary', {
           book_id: dbBookId,
           page_number: index + 1,
           ocr_text: text,
@@ -814,7 +887,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       console.error('Summarize stream error, falling back:', e);
       try {
         setSummaryProgress(25);
-        const data = await callFunction<{
+        const data = await callAuthenticatedFunction<{
           summary?: string;
           error?: string;
           confidence?: number;
@@ -835,7 +908,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         } catch {}
         try {
           setSummaryConfidence(ocrQuality);
-          await callFunction('save-page-summary', {
+          await callAuthenticatedFunction('save-page-summary', {
             book_id: dbBookId,
             page_number: index + 1,
             ocr_text: text,
@@ -1119,7 +1192,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           const text = ocrRes.text || '';
 
           // Summarize (non-stream for batch reliability)
-          const data = await callFunction<{
+          const data = await callAuthenticatedFunction<{
             summary?: string;
             error?: string;
           }>('summarize', {
@@ -1133,7 +1206,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
           // Save OCR confidence only
           const ocrQ = typeof (ocrRes as any).confidence === 'number' ? Math.max(0, Math.min(1, ((ocrRes as any).confidence as number) / 100)) : undefined;
-          await callFunction('save-page-summary', {
+          await callAuthenticatedFunction('save-page-summary', {
             book_id: bookIdentifier,
             page_number: i + 1,
             ocr_text: text,
