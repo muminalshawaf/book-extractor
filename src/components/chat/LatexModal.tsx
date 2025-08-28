@@ -32,9 +32,17 @@ const categories = [
 
 const renderKatex = (src: string) => {
   try {
-    return { __html: katex.renderToString(src, { throwOnError: false, displayMode: true, strict: "ignore" }) };
+    // SECURITY: Only render KaTeX - no arbitrary HTML
+    const rendered = katex.renderToString(src, { 
+      throwOnError: false, 
+      displayMode: true, 
+      strict: "ignore",
+      trust: false // Disable \href and other potentially dangerous commands
+    });
+    return { __html: rendered };
   } catch (e) {
-    return { __html: `<span class='text-destructive text-xs'>${(e as Error)?.message ?? "KaTeX error"}</span>` };
+    // Safe error message - no user input reflected
+    return { __html: `<span class='text-destructive text-xs'>Invalid LaTeX syntax</span>` };
   }
 };
 

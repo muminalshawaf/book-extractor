@@ -1,5 +1,6 @@
 import katex from 'katex';
 import { marked } from 'marked';
+import { sanitizeMarkdown } from '@/lib/markdownSanitizer';
 
 interface MathBlock {
   id: string;
@@ -47,7 +48,9 @@ export function renderContent(content: string, targetElement: HTMLElement): void
     breaks: true,
   });
   
-  targetElement.innerHTML = typeof parsedMarkdown === 'string' ? parsedMarkdown : '';
+  // SECURITY: Sanitize the parsed markdown before setting innerHTML
+  const sanitizedHtml = sanitizeMarkdown(typeof parsedMarkdown === 'string' ? parsedMarkdown : '');
+  targetElement.innerHTML = sanitizedHtml;
   
   // Add font family for Arabic content
   if (targetElement.closest('[dir="rtl"]')) {

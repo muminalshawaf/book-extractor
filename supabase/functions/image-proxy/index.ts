@@ -71,6 +71,9 @@ serve(async (req) => {
     const clientIP = req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || 'unknown';
     console.log(`Image proxy request from ${clientIP} for: ${imageUrl}`);
 
+    // Additional security: Check content length limits
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
+
     console.log('Fetching image from:', imageUrl)
 
     // Fetch the image with user agent and referer headers to bypass some restrictions
@@ -95,8 +98,42 @@ serve(async (req) => {
       )
     }
 
+    // Check content length
+    const contentLength = response.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > MAX_FILE_SIZE) {
+      return new Response(
+        JSON.stringify({ error: 'Image file too large (max 10MB)' }),
+        { 
+          status: 413, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Validate content type
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.startsWith('image/')) {
+      return new Response(
+        JSON.stringify({ error: 'URL does not point to an image' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
     const imageBuffer = await response.arrayBuffer()
-    const contentType = response.headers.get('content-type') || 'image/jpeg'
+    
+    // Final size check after download
+    if (imageBuffer.byteLength > MAX_FILE_SIZE) {
+      return new Response(
+        JSON.stringify({ error: 'Image file too large (max 10MB)' }),
+        { 
+          status: 413, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
 
     console.log('Successfully fetched image, size:', imageBuffer.byteLength)
 

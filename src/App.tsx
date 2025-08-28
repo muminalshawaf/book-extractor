@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Library from "./pages/Library";
 import GlobalSearch from "./components/search/GlobalSearch";
+import { AuthGuard } from "./components/AuthGuard";
 
 const queryClient = new QueryClient();
 
@@ -17,14 +18,16 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <GlobalSearch />
-        <Routes>
-          <Route path="/" element={<Navigate to={`/book/${books[0].id}`} replace />} />
-          <Route path="/library" element={<Library />} />
-          <Route path="/book/:bookId" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthGuard>
+          <GlobalSearch />
+          <Routes>
+            <Route path="/" element={<Navigate to={`/book/${books[0].id}`} replace />} />
+            <Route path="/library" element={<Library />} />
+            <Route path="/book/:bookId" element={<Index />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthGuard>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
