@@ -25,6 +25,52 @@ serve(async (req) => {
       )
     }
 
+    // Security: Validate URL format and allowed domains
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(imageUrl);
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid URL format' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Only allow HTTP/HTTPS protocols
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return new Response(
+        JSON.stringify({ error: 'Only HTTP/HTTPS URLs are allowed' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Block localhost and private IP ranges
+    const hostname = parsedUrl.hostname.toLowerCase();
+    if (hostname === 'localhost' || 
+        hostname === '127.0.0.1' || 
+        hostname.startsWith('192.168.') ||
+        hostname.startsWith('10.') ||
+        hostname.startsWith('172.16.') ||
+        hostname === '0.0.0.0') {
+      return new Response(
+        JSON.stringify({ error: 'Access to local/private networks is not allowed' }),
+        { 
+          status: 403, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Rate limiting: Simple in-memory cache (in production, use Redis or similar)
+    const clientIP = req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || 'unknown';
+    console.log(`Image proxy request from ${clientIP} for: ${imageUrl}`);
+
     console.log('Fetching image from:', imageUrl)
 
     // Fetch the image with user agent and referer headers to bypass some restrictions

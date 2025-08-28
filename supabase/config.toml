@@ -1,16 +1,19 @@
 project_id = "ukznsekygmipnucpouoy"
 
 [functions.summarize]
-verify_jwt = false
+verify_jwt = true
 
 [functions.qa]
-verify_jwt = false
+verify_jwt = true
 
 [functions.qa-stream]
-verify_jwt = false
+verify_jwt = true
 
 [functions.summarize-stream]
-verify_jwt = false
+verify_jwt = true
 
 [functions.save-page-summary]
+verify_jwt = true
+
+[functions.image-proxy]
 verify_jwt = false
