@@ -4,9 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { books } from "@/data/books";
+import { enhancedBooks } from "@/data/enhancedBooks";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Library from "./pages/Library";
+import LessonPage from "./pages/LessonPage";
+import ChapterPage from "./pages/ChapterPage";
 import GlobalSearch from "./components/search/GlobalSearch";
 
 const queryClient = new QueryClient();
@@ -22,6 +25,11 @@ const App = () => (
           <Route path="/" element={<Navigate to={`/book/${books[0].id}`} replace />} />
           <Route path="/library" element={<Library />} />
           <Route path="/book/:bookId" element={<Index />} />
+          
+          {/* New SEO-optimized routes with Arabic slugs */}
+          <Route path="/:bookSlug/الفصل-:chapterNumber" element={<ChapterPage />} />
+          <Route path="/:bookSlug/الفصل-:chapterNumber/:lessonSlug" element={<LessonPage />} />
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
