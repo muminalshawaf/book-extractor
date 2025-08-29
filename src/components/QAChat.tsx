@@ -148,12 +148,6 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
     };
 
     try {
-      // Get authentication session for streaming
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error || !session?.access_token) {
-        throw new Error('Authentication required for chat');
-      }
-      
       // Prefer EventSource (GET) for small payloads
       const canUseES = !summary || summary.length <= 1500;
       if (canUseES) {
@@ -167,70 +161,53 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
           params.set("lang", lang);
           params.set("page", String(page));
           params.set("title", title);
-          
-          // EventSource doesn't support custom headers, so we need to use the authenticated stream function
-          const streamResponse = streamAuthenticatedFunction("qa-stream", {
-            question: trimmed,
-            summary,
-            lang,
-            page,
-            title
-          });
-          
-          streamResponse.then(async (stream) => {
-            const reader = stream.getReader();
-            const decoder = new TextDecoder();
-            let buffer = "";
 
-            while (true) {
-              const { value, done } = await reader.read();
-              if (done) break;
-              buffer += decoder.decode(value, { stream: true });
+          const es = new EventSource(`${streamUrl}?${params.toString()}`);
+          esRef.current = es;
 
-              const events = buffer.split(/\r?\n\r?\n/);
-              buffer = events.pop() || "";
+          es.onmessage = (ev) => {
+            let chunk = ev.data;
+            try {
+              const j = JSON.parse(chunk);
+              chunk = j?.text ?? j?.delta ?? j?.content ?? chunk;
+            } catch {}
+            accumulated += chunk;
+            if (streamRef.current) streamRef.current.textContent = accumulated;
 
-              for (const evt of events) {
-                const lines = evt.split(/\r?\n/);
-                for (const ln of lines) {
-                  if (ln.startsWith("data:")) {
-                    const raw = ln.slice(5);
-                    const trimmedLine = raw.trim();
-                    if (trimmedLine === "[DONE]") continue;
-
-                    let chunk = raw;
-                    try {
-                      const j = JSON.parse(raw);
-                      chunk = j?.text ?? j?.delta ?? j?.content ?? raw;
-                    } catch {}
-
-                    accumulated += chunk;
-                    if (streamRef.current) streamRef.current.textContent = accumulated;
-
-                    const now = (globalThis.performance?.now?.() ?? Date.now());
-                    if (now - lastFlush > 200) {
-                      flush();
-                      lastFlush = now;
-                    }
-                  }
-                }
-              }
+            const now = (globalThis.performance?.now?.() ?? Date.now());
+            if (now - lastFlush > 200) {
+              flush();
+              lastFlush = now;
             }
+          };
+          es.addEventListener("done", () => {
             flush();
+            es.close();
+            esRef.current = null;
             resolve();
-          }).catch(reject);
+          });
+          es.onerror = (err) => {
+            es.close();
+            esRef.current = null;
+            reject(err);
+          };
         });
       } else {
-        // Use authenticated stream function for large payloads
-        const stream = await streamAuthenticatedFunction("qa-stream", {
-          question: trimmed,
-          summary,
-          lang,
-          page,
-          title
+        // Fallback to POST fetch streaming
+        const controller = new AbortController();
+        abortRef.current = controller;
+        const res = await fetch(streamUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+          body: JSON.stringify({ question: trimmed, summary, lang, page, title }),
+          signal: controller.signal,
         });
 
-        const reader = stream.getReader();
+        if (!res.ok || !res.body) {
+          throw new Error(`Stream request failed (${res.status})`);
+        }
+
+        const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
 
@@ -274,7 +251,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
     } catch (e) {
       console.warn("Streaming failed, falling back to non-streaming:", e);
       try {
-        const data = await callAuthenticatedFunction<{ answer?: string }>("qa", { question: trimmed, summary, lang, page, title });
+        const data = await callFunction<{ answer?: string }>("qa", { question: trimmed, summary, lang, page, title });
         const answer = data?.answer || (rtl ? "تعذّر الحصول على إجابة" : "Failed to get answer");
         setMessages((m) => {
           const copy = [...m];
