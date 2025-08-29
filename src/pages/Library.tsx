@@ -18,6 +18,125 @@ import SEOFAQSchema from "@/components/SEOFAQSchema";
 
 interface ContentHit { book_id: string; page_number: number; summary_md: string | null; ocr_text: string | null; }
 
+export default function Library() {
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const [q, setQ] = useState<string>(params.get("q") ?? "");
+  const [grade, setGrade] = useState<number | null>(params.get("grade") ? Number(params.get("grade")) : null);
+  const [semester, setSemester] = useState<number | null>(params.get("semester") ? Number(params.get("semester")) : null);
+  const [subject, setSubject] = useState<string | null>(params.get("subject"));
+  const [tab, setTab] = useState<"library" | "content">("library");
+  const [loading, setLoading] = useState(false);
+  const [contentHits, setContentHits] = useState<ContentHit[]>([]);
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (q) next.set("q", q);
+    if (grade) next.set("grade", String(grade));
+    if (semester) next.set("semester", String(semester));
+    if (subject) next.set("subject", subject);
+    setParams(next, { replace: true });
+  }, [q, grade, semester, subject, setParams]);
+
+  const subjects = useMemo(() => {
+    const set = new Set<string>();
+    books.forEach(b => b.subject && set.add(b.subject));
+    return Array.from(set).sort();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return books.filter(b => {
+      if (grade && b.grade !== grade) return false;
+      if (semester && b.semester !== semester) return false;
+      if (subject && b.subject !== subject) return false;
+      if (!term) return true;
+      const hay = [b.title, b.subject, ...(b.keywords ?? [])].join(" ").toLowerCase();
+      return hay.includes(term);
+    });
+  }, [q, grade, semester, subject]);
+
+  // Debounced content search
+  useEffect(() => {
+    let t: any;
+    const run = async () => {
+      if (tab !== "content") { setContentHits([]); return; }
+      const term = q.trim();
+      if (term.length < 2) { setContentHits([]); return; }
+      setLoading(true);
+      try {
+        const allowed = books
+          .filter(b => (
+            (!grade || b.grade === grade) &&
+            (!semester || b.semester === semester) &&
+            (!subject || b.subject === subject)
+          ))
+          .map(b => b.id);
+
+        let query = (supabase as any)
+          .from('page_summaries')
+          .select('book_id,page_number,summary_md,ocr_text')
+          .or(`summary_md.ilike.%${term}%,ocr_text.ilike.%${term}%`)
+          .limit(50);
+        if (allowed.length > 0) query = query.in('book_id', allowed);
+        const { data, error } = await query;
+        if (!error) setContentHits((data as ContentHit[]) || []);
+        else setContentHits([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    t = setTimeout(run, 300);
+    return () => clearTimeout(t);
+  }, [q, tab, grade, semester, subject]);
+
+  const GradeChip = ({ value }: { value: number }) => (
+    <Button
+      variant={grade === value ? "default" : "outline"}
+      size="sm"
+      onClick={() => setGrade(grade === value ? null : value)}
+      className="rounded-full"
+    >
+      {value}
+    </Button>
+  );
+
+  const SemesterChip = ({ value }: { value: number }) => (
+    <Button
+      variant={semester === value ? "default" : "outline"}
+      size="sm"
+      onClick={() => setSemester(semester === value ? null : value)}
+      className="rounded-full"
+    >
+      {value}
+    </Button>
+  );
+
+  const BookCard = ({ book }: { book: BookDef }) => (
+    <Link to={`/book/${book.id}`} className="block group">
+      <Card className="transition hover:shadow-md">
+        <CardContent className="p-3">
+          <AspectRatio ratio={3/4}>
+            <img
+              src={(book.buildPages?.()[0]?.src) || book.cover || "/placeholder.svg"}
+              alt={`${book.title} cover`}
+              loading="lazy"
+              className="h-full w-full object-cover rounded-md"
+            />
+          </AspectRatio>
+          <div className="mt-3 space-y-1">
+            <h3 className="text-sm font-medium line-clamp-2">{book.title}</h3>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {book.subject && <Badge variant="secondary">{book.subject === 'Physics' ? 'الفيزياء' : book.subject === 'Chemistry' ? 'الكيمياء' : book.subject === 'Sample' ? 'عينة' : book.subject}</Badge>}
+              {book.grade && <Badge variant="outline">الصف {book.grade}</Badge>}
+              {book.semester && <Badge variant="outline">الفصل {book.semester}</Badge>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       {/* Enhanced SEO Components */}
@@ -194,4 +313,4 @@ interface ContentHit { book_id: string; page_number: number; summary_md: string 
       </div>
     </div>
   );
-export default Library;
+}
