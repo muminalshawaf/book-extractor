@@ -51,8 +51,10 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
     });
 
     try {
+      let isRunning = true;
+      
       for (let pageNum = start; pageNum <= end; pageNum++) {
-        if (progress.status !== 'running') break;
+        if (!isRunning) break;
 
         setProgress(prev => ({
           ...prev,
