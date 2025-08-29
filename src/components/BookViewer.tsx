@@ -418,9 +418,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   };
 
   return (
-    <section className={cn("w-full h-screen overflow-hidden", rtl && "[direction:rtl]")}>
+    <section className={cn("w-full min-h-screen", rtl && "[direction:rtl]")}>
       {isMobile ? (
-        <div className="h-full">
+        <div className="min-h-screen">
           {/* Mobile controls would go here */}
           <div className="fixed top-0 left-0 right-0 z-50 bg-background border-b p-2 flex items-center justify-between">
             <Button onClick={goPrev} disabled={index === 0} size="sm">
@@ -432,14 +432,14 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             </Button>
           </div>
           
-          <div className="h-full pt-16">
+          <div className="pt-16 pb-4">
             <TouchGestureHandler
               onSwipeLeft={rtl ? goPrev : goNext}
               onSwipeRight={rtl ? goNext : goPrev}
               onPinch={(scale) => setZoom(prev => Math.min(Z.max, Math.max(Z.min, prev * scale)))}
-              className="h-full"
+              className="min-h-[60vh]"
             >
-              <div className="h-full flex items-center justify-center p-4">
+              <div className="flex items-center justify-center p-4">
                 {displaySrc ? (
                   <img
                     src={displaySrc}
@@ -510,7 +510,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           </Drawer>
         </div>
       ) : (
-        <div className="h-full flex gap-4">
+        <div className="min-h-screen flex gap-4">
           {/* Thumbnail Sidebar */}
           <div className={cn("flex-shrink-0 transition-all duration-300", !thumbnailsOpen && "w-0 overflow-hidden")}>
             <ThumbnailSidebar
@@ -524,7 +524,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 flex flex-col gap-6 p-4">
+          <div className="flex-1 flex flex-col gap-6 p-4 overflow-y-auto">
             {/* Book Title */}
             <div>
               <h1 className="text-2xl font-bold text-foreground">{title}</h1>
@@ -542,7 +542,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   >
                     <div 
                       ref={containerRef}
-                      className="relative group w-full border rounded-lg overflow-hidden max-h-[85vh]"
+                      className="relative group w-full border rounded-lg overflow-hidden max-h-[70vh]"
                       onWheel={handleWheelNav}
                       role="img"
                       aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`}
@@ -563,7 +563,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         onPanningStop={() => setIsPanning(false)}
                       >
                         <TransformComponent 
-                          wrapperClass="w-full h-[70vh] md:h-[78vh] lg:h-[85vh]"
+                          wrapperClass="w-full h-[50vh] md:h-[60vh] lg:h-[70vh]"
                           contentClass="flex items-center justify-center"
                         >
                           {displaySrc ? (
