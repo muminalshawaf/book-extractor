@@ -329,9 +329,29 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
       setOcrProgress(25);
       
-      // Run OCR
+      // Run OCR with better settings for Arabic physics textbook
+      console.log('Starting OCR for image blob:', imageBlob.size, 'bytes');
       const ocrResult = await runLocalOcr(imageBlob, {
+        lang: 'ara+eng', // Arabic + English for physics content
+        psm: 6, // Uniform block of text
+        preprocess: {
+          upsample: true,
+          targetMinWidth: 1200,
+          denoise: true,
+          binarize: true,
+          adaptiveBinarization: true,
+          contrastNormalize: true,
+          cropMargins: true,
+          deskew: true
+        },
+        autoRotate: true,
         onProgress: (progress) => setOcrProgress(25 + progress * 0.5)
+      });
+      
+      console.log('OCR completed:', {
+        textLength: ocrResult?.text?.length || 0,
+        confidence: ocrResult?.confidence,
+        firstChars: ocrResult?.text?.substring(0, 100)
       });
       
       setOcrProgress(75);
