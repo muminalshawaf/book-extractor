@@ -447,25 +447,95 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummary("");
     
     try {
-      const result = await callFunction('summarize-stream', {
-        text: text.trim(),
-        book_id: dbBookId,
-        page_number: index + 1,
-        language: rtl ? 'arabic' : 'english'
-      });
+      console.log('Starting summary generation for text:', text.substring(0, 100));
       
-      if (result?.summary) {
-        setSummary(result.summary);
-        localStorage.setItem(sumKey, result.summary);
-        setSummaryConfidence(result.confidence);
-        toast.success(rtl ? "تم إنشاء الملخص بنجاح" : "Summary generated successfully");
+      // Use streaming for real-time summary generation
+      const response = await fetch(`https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrem5zZWt5Z21pcG51Y3BvdW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjY4NzMsImV4cCI6MjA3MDIwMjg3M30.5gvy46gGEU-B9O3cutLNmLoX62dmEvKLC236yeaQ6So`
+        },
+        body: JSON.stringify({
+          text: text.trim(),
+          book_id: dbBookId,
+          page_number: index + 1,
+          language: rtl ? 'arabic' : 'english'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullSummary = '';
+
+      console.log('Starting to read streaming response...');
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = line.slice(6);
+              if (data === '[DONE]') {
+                console.log('Stream completed');
+                break;
+              }
+              
+              const parsed = JSON.parse(data);
+              if (parsed.text) {
+                fullSummary += parsed.text;
+                setSummary(fullSummary);
+                setSummaryProgress(Math.min(95, fullSummary.length / 10)); // Rough progress estimate
+              }
+            } catch (e) {
+              console.log('Failed to parse streaming data:', line.slice(6));
+            }
+          }
+        }
+      }
+
+      if (fullSummary.trim()) {
+        localStorage.setItem(sumKey, fullSummary);
+        setSummaryConfidence(0.8); // Default confidence for streaming
+        toast.success(rtl ? "تم إنشاء الملخص بنجاح" : "Summary generated successfully");
+        
+        // Save complete summary to database
+        try {
+          await callFunction('save-page-summary', {
+            book_id: dbBookId,
+            page_number: index + 1,
+            summary_md: fullSummary,
+            confidence: 0.8
+          });
+        } catch (saveError) {
+          console.error('Failed to save summary to database:', saveError);
+        }
+      } else {
+        throw new Error('No summary content received');
+      }
+      
     } catch (error) {
       console.error('Summarization error:', error);
       setLastError(error instanceof Error ? error : String(error));
-      toast.error(rtl ? "فشل في إنشاء الملخص" : "Failed to generate summary");
+      toast.error(rtl ? `خطأ في التلخيص: ${error instanceof Error ? error.message : String(error)}` : `Summarization error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setSummLoading(false);
+      setSummaryProgress(100);
     }
   };
 
