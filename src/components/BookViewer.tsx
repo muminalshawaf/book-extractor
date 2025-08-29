@@ -460,7 +460,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           text: text.trim(),
           book_id: dbBookId,
           page_number: index + 1,
-          language: rtl ? 'arabic' : 'english'
+          lang: rtl ? 'arabic' : 'english'  // Fixed parameter name
         })
       });
 

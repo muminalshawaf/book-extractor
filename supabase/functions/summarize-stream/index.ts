@@ -60,46 +60,106 @@ serve(async (req: Request) => {
 
     const notStated = lang === "ar" ? "غير واضح في النص" : "Not stated in text";
 
-    const prompt = `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+    const prompt = `أريد ملخصًا شاملاً للطلاب من هذا النص (صفحة واحدة فقط):
+"""
+${text}
+"""
+
+المطلوب: ملخص شامل ومفيد للطالب باللغة العربية، يغطي فقط المحتوى الموجود في النص. استخدم تنسيق Markdown مع عناوين H3 (###). 
+
+اتبع هذه القواعد:
+- اكتب فقط الأقسام التي لها محتوى فعلي من النص
+- لا تكتب أقسام فارغة أو "غير واضح في النص"
+- اجعل الملخص شاملاً بما يكفي ليشعر الطالب بالثقة أنه يعرف محتوى الصفحة دون قراءتها
+- استخدم اللغة العربية فقط مع علامات الترقيم العربية
+- احتفظ بالمعادلات والرموز كما هي
+
+الأقسام المحتملة (اكتب فقط ما ينطبق):
+
+### نظرة عامة
+- وضح الهدف والمحتوى الرئيسي للصفحة في 2-3 جمل
+
+### المفاهيم الأساسية  
+- قائمة شاملة بالمفاهيم مع شرح مختصر لكل منها
+
+### التعاريف والمصطلحات
+- قاموس شامل بالصيغة: **المصطلح** — التعريف (مع الوحدات والرموز إن وجدت)
+
+### الصيغ والقوانين
+- استخدم LaTeX للمعادلات ($$...$$ للكتل). اذكر المتغيرات ومعانيها والوحدات
+
+### الخطوات والإجراءات
+- قائمة مرقمة بالخطوات إن وجدت
+
+### أمثلة وتطبيقات
+- أمثلة محددة من النص فقط
+
+### أخطاء شائعة ونصائح
+- أخطاء يجب تجنبها أو نصائح مهمة
+
+### أسئلة سريعة
+إذا كان هناك محتوى كافٍ، أنشئ 3-5 أسئلة وأجوبة من النص في جدول:
+
+| السؤال | الجواب |
+|---|---|
+| ... | ... |
+
+قيود:
+- 300-500 كلمة إجمالاً
+- تجنب المبالغة في التنسيق والزخرفة
+- احتفظ بالمعادلات والرموز من النص الأصلي`;
+
+    // Use Arabic prompt if language is Arabic
+    const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 
+      `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 Text to summarize (single page, do not infer beyond it):
 """
 ${text}
 """
 
-Task: Produce a comprehensive study summary in ${lang}, strictly from the text. Output as clean Markdown using H3 headings (###) with localized section titles. Sections and exact formats:
+Create a comprehensive student-focused summary in ${lang}. Use clean Markdown with H3 headings (###). 
 
-### 1) ${lang === "ar" ? "نظرة عامة" : "Overview"}
-- 2–3 sentences covering the page's purpose and scope.
+Rules:
+- ONLY include sections that have actual content from the text
+- Do NOT write empty sections or "${notStated}"
+- Make the summary comprehensive enough that a student feels confident knowing the page content without reading it
+- Use ${lang} throughout with appropriate punctuation
+- Preserve equations/symbols as they appear
 
-### 2) ${lang === "ar" ? "المفاهيم الأساسية" : "Key Concepts"}
-- Exhaustive bullet list; each concept with a 1–2 sentence explanation. Do NOT bold the whole bullet; keep bold only for key terms if needed.
+Potential sections (include only if applicable):
 
-### 3) ${lang === "ar" ? "التعاريف والمصطلحات" : "Definitions & Terms"}
-- Exhaustive glossary in the format: **Term** — definition. Include symbols and units where relevant.
+### 1) Overview
+- 2–3 sentences covering the page's purpose and main content
 
-### 4) ${lang === "ar" ? "الصيغ والوحدات" : "Formulas & Units"}
-- Use LaTeX ($$...$$ for blocks). List variables with meanings and typical units.
+### 2) Key Concepts
+- Comprehensive bullet list; each concept with 1–2 sentence explanation
 
-### 5) ${lang === "ar" ? "الخطوات/الإجراءات" : "Procedures/Steps"}
-- Numbered list if applicable.
+### 3) Definitions & Terms
+- Complete glossary: **Term** — definition (include symbols/units)
 
-### 6) ${lang === "ar" ? "أمثلة وتطبيقات" : "Examples/Applications"}
-- Concrete examples from the text only.
+### 4) Formulas & Units
+- Use LaTeX ($$...$$ for blocks). List variables with meanings and units
 
-### 7) ${lang === "ar" ? "أخطاء شائعة/ملابسات" : "Misconceptions/Pitfalls"}
-- Bullets indicating common errors to avoid.
+### 5) Procedures/Steps
+- Numbered list if applicable
 
-### 8) ${lang === "ar" ? "أسئلة سريعة" : "Quick Q&A"}
-Provide 3–5 question–answer pairs strictly from the text as a Markdown table:
+### 6) Examples/Applications
+- Concrete examples from the text only
 
-| ${lang === "ar" ? "السؤال" : "Question"} | ${lang === "ar" ? "الجواب" : "Answer"} |
+### 7) Misconceptions/Pitfalls
+- Common errors to avoid or important tips
+
+### 8) Quick Q&A
+If sufficient content exists, create 3–5 Q&A pairs from the text:
+
+| Question | Answer |
 |---|---|
-| … | … |
+| ... | ... |
 
 Constraints:
-- Use ${lang} throughout. Use Arabic punctuation if ${lang} = ar.
-- No external knowledge or hallucinations; if something is missing, write "${notStated}".
-- 250–450 words total. Prefer concise bullets. Preserve equations/symbols. Avoid decorative characters and excessive bolding.`;
+- 300-500 words total
+- Avoid excessive formatting
+- Preserve equations/symbols from original text`;
 
     const dsRes = await fetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
@@ -111,8 +171,10 @@ Constraints:
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "You are an expert textbook summarizer for a single page. Be accurate, comprehensive, and structured. Prioritize complete coverage of Definitions & Terms and Key Concepts. Only use the provided text. Preserve math in LaTeX. The 'Quick Q&A' section MUST be a Markdown table that includes both clear questions and their direct answers from the text." },
-          { role: "user", content: prompt },
+          { role: "system", content: (lang === "ar" || lang === "arabic") ? 
+            "أنت خبير في تلخيص الكتب المدرسية لصفحة واحدة. كن دقيقًا وشاملاً ومنظمًا. ركز على التغطية الكاملة للتعاريف والمصطلحات والمفاهيم الأساسية. استخدم فقط النص المقدم. احتفظ بالرياضيات في LaTeX. قسم 'الأسئلة السريعة' يجب أن يكون جدول Markdown يتضمن أسئلة واضحة وأجوبتها المباشرة من النص." : 
+            "You are an expert textbook summarizer for a single page. Be accurate, comprehensive, and structured. Prioritize complete coverage of Definitions & Terms and Key Concepts. Only use the provided text. Preserve math in LaTeX. The 'Quick Q&A' section MUST be a Markdown table that includes both clear questions and their direct answers from the text." },
+          { role: "user", content: finalPrompt },
         ],
         temperature: 0.2,
         top_p: 0.9,
