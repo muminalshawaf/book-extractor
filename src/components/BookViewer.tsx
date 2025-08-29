@@ -1685,8 +1685,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       </div>
                     )}
                   </div>
-                {/* Insight Panel under reader (desktop) */}
-                <div ref={insightsRef}>
+                </details>
+
                 {/* Insight Panel under reader (desktop) */}
                 <div ref={insightsRef}>
                   <Card className="shadow-sm text-xs md:text-sm lg:text-base">
@@ -1768,8 +1768,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               </div>
             </div>
           </div>
-
         </div>}
-    </section>;
+      </section>
+    );
 };
 export default BookViewer;
