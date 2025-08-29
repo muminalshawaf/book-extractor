@@ -346,7 +346,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           book_id: dbBookId,
           page_number: index + 1,
           ocr_text: cleanText,
-          ocr_confidence: ocrResult.confidence || 0.8
+          ocr_confidence: ocrResult.confidence ? (ocrResult.confidence > 1 ? ocrResult.confidence / 100 : ocrResult.confidence) : 0.8
         });
         
         setOcrProgress(90);
