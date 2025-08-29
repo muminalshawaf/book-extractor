@@ -1622,25 +1622,46 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 {/* Error Handler */}
                 {lastError && <ImprovedErrorHandler error={lastError} onRetry={extractTextFromPage} isRetrying={ocrLoading || summLoading} retryCount={retryCount} context={ocrLoading ? rtl ? "استخراج النص" : "OCR" : rtl ? "التلخيص" : "Summarization"} rtl={rtl} />}
 
-                {/* OCR (Extracted Text) */}
-                <Card className="shadow-sm hidden">
-                  <CardHeader>
+                {/* OCR (Extracted Text) - Now indexable with details element */}
+                <details className="shadow-sm border rounded-lg bg-card">
+                  <summary className="cursor-pointer p-4 hover:bg-muted/50 transition-colors">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">{rtl ? "النص المستخرج (OCR)" : "OCR Text"}</CardTitle>
+                      <h3 className="text-base font-semibold flex items-center gap-2">
+                        {rtl ? "النص المستخرج (OCR)" : "OCR Text"}
+                      </h3>
                       <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}> 
-                        <Button variant="outline" size="sm" onClick={extractTextFromPage} disabled={ocrLoading || batchRunning}>
+                        <Button variant="outline" size="sm" onClick={(e) => { e.preventDefault(); extractTextFromPage(); }} disabled={ocrLoading || batchRunning}>
                           {ocrLoading ? rtl ? "جارٍ..." : "Working..." : rtl ? "تشغيل OCR" : "Run OCR"}
                         </Button>
-                        <Button variant="secondary" size="sm" disabled={!extractedText || batchRunning} onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(extractedText);
-                        toast.success(rtl ? "تم نسخ النص" : "Copied");
-                      } catch {
-                        toast.error(rtl ? "فشل النسخ" : "Copy failed");
-                      }
-                    }}>
+                        <Button variant="secondary" size="sm" disabled={!extractedText || batchRunning} onClick={async (e) => {
+                          e.preventDefault();
+                          try {
+                            await navigator.clipboard.writeText(extractedText);
+                            toast.success(rtl ? "تم نسخ النص" : "Copied");
+                          } catch {
+                            toast.error(rtl ? "فشل النسخ" : "Copy failed");
+                          }
+                        }}>
                           {rtl ? "نسخ" : "Copy"}
                         </Button>
+                      </div>
+                    </div>
+                  </summary>
+                  <div className="px-4 pb-4">
+                    {extractedText ? (
+                      <div className={cn(
+                        "text-sm leading-relaxed bg-muted/30 p-3 rounded border max-h-64 overflow-y-auto font-mono whitespace-pre-wrap",
+                        rtl && "text-right"
+                      )} dir={rtl ? "rtl" : "ltr"}>
+                        {extractedText}
+                      </div>
+                    ) : (
+                      <div className={cn("text-center text-muted-foreground py-4", rtl && "text-right")}>
+                        {rtl ? "لا يوجد نص مستخرج بعد" : "No OCR text extracted yet"}
+                      </div>
+                    )}
+                  </div>
+                </details>
                         <Input type="number" inputMode="numeric" min={1} max={total} value={rangeStart} onChange={e => setRangeStart(Math.max(1, Math.min(total, parseInt(e.target.value || '1', 10))))} className="w-20" placeholder={rtl ? "من" : "From"} aria-label={rtl ? "من الصفحة" : "From page"} disabled={batchRunning} />
                         <span className="text-muted-foreground">-</span>
                         <Input type="number" inputMode="numeric" min={1} max={total} value={rangeEnd} onChange={e => setRangeEnd(Math.max(1, Math.min(total, parseInt(e.target.value || String(total), 10))))} className="w-20" placeholder={rtl ? "إلى" : "To"} aria-label={rtl ? "إلى الصفحة" : "To page"} disabled={batchRunning} />
@@ -1648,13 +1669,24 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                           {batchRunning ? rtl ? `جارٍ المعالجة ${batchProgress.current}/${batchProgress.total}` : `Processing ${batchProgress.current}/${batchProgress.total}` : rtl ? `معالجة من ${rangeStart} إلى ${rangeEnd}` : `Process ${rangeStart}-${rangeEnd}`}
                         </Button>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <Textarea readOnly dir={rtl ? "rtl" : "ltr"} value={extractedText} placeholder={rtl ? "لا يوجد نص مستخرج بعد. اضغط تشغيل OCR." : "No extracted text yet. Click Run OCR."} className="min-h-40" />
-                  </CardContent>
-                </Card>
-
+                     </div>
+                  </summary>
+                  <div className="px-4 pb-4">
+                    {extractedText ? (
+                      <div className={cn(
+                        "text-sm leading-relaxed bg-muted/30 p-3 rounded border max-h-64 overflow-y-auto font-mono whitespace-pre-wrap",
+                        rtl && "text-right"
+                      )} dir={rtl ? "rtl" : "ltr"}>
+                        {extractedText}
+                      </div>
+                    ) : (
+                      <div className={cn("text-center text-muted-foreground py-4", rtl && "text-right")}>
+                        {rtl ? "لا يوجد نص مستخرج بعد" : "No OCR text extracted yet"}
+                      </div>
+                    )}
+                  </div>
+                {/* Insight Panel under reader (desktop) */}
+                <div ref={insightsRef}>
                 {/* Insight Panel under reader (desktop) */}
                 <div ref={insightsRef}>
                   <Card className="shadow-sm text-xs md:text-sm lg:text-base">

@@ -5,13 +5,18 @@ interface StructuredDataSchemasProps {
   lesson?: LessonData;
   pageNumber?: number;
   isLibraryPage?: boolean;
+  pageContent?: {
+    summary?: string;
+    ocrText?: string;
+  };
 }
 
 export default function StructuredDataSchemas({ 
   book, 
   lesson, 
   pageNumber, 
-  isLibraryPage = false 
+  isLibraryPage = false,
+  pageContent
 }: StructuredDataSchemasProps) {
   
   // Website Schema for main site
@@ -150,12 +155,42 @@ export default function StructuredDataSchemas({
     }
   };
 
+  // Creative Work Schema for OCR content
+  const creativeWorkSchema = pageContent?.ocrText && book ? {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    "name": `محتوى الصفحة ${pageNumber} - ${book.title}`,
+    "text": pageContent.ocrText.slice(0, 1000), // First 1000 chars for indexing
+    "inLanguage": "ar-SA",
+    "isPartOf": {
+      "@type": "Course",
+      "name": book.title
+    },
+    "educationalUse": "reading",
+    "audience": {
+      "@type": "EducationalAudience",
+      "educationalRole": "student"
+    }
+  } : null;
+
+  // Enhanced Article Schema with content
+  const enhancedArticleSchema = pageContent?.summary && lesson && book ? {
+    ...articleSchema,
+    "text": pageContent.summary,
+    "wordCount": pageContent.summary.split(/\s+/).length,
+    "about": {
+      "@type": "Thing",
+      "name": lesson.arabicKeywords.join(", ")
+    }
+  } : articleSchema;
+
   const schemas = [
     websiteSchema,
     organizationSchema,
     ...(courseSchema ? [courseSchema] : []),
     ...(learningResourceSchema ? [learningResourceSchema] : []),
-    ...(articleSchema ? [articleSchema] : [])
+    ...(enhancedArticleSchema ? [enhancedArticleSchema] : []),
+    ...(creativeWorkSchema ? [creativeWorkSchema] : [])
   ];
 
   return (
