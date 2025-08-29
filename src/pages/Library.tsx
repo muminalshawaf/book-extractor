@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Search, Filter, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import SEOBreadcrumb from "@/components/SEOBreadcrumb";
+import SEOFAQSchema from "@/components/SEOFAQSchema";
 
 interface ContentHit { book_id: string; page_number: number; summary_md: string | null; ocr_text: string | null; }
 
@@ -32,7 +34,17 @@ export default function Library() {
     if (semester) next.set("semester", String(semester));
     if (subject) next.set("subject", subject);
     setParams(next, { replace: true });
-    document.title = "المكتبة — ابحث عن الكتب (الصفوف 10–12)";
+    const titleSuffix = grade ? ` الصف ${grade}` : semester ? ` الفصل ${semester}` : subject ? ` ${subject === 'Physics' ? 'الفيزياء' : subject === 'Chemistry' ? 'الكيمياء' : subject === 'Mathematics' ? 'الرياضيات' : subject}` : '';
+    document.title = `مكتبة الكتب المنهج السعودي${titleSuffix} | البحث في كتب الثانوية العامة`;
+    
+    // Update meta description based on current filters
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) {
+      const desc = grade && semester && subject 
+        ? `كتب ${subject === 'Physics' ? 'الفيزياء' : subject === 'Chemistry' ? 'الكيمياء' : subject === 'Mathematics' ? 'الرياضيات' : subject} للصف ${grade} الفصل ${semester} - المنهج السعودي`
+        : `مكتبة شاملة لكتب المنهج السعودي للثانوية العامة مع إمكانية البحث في المحتوى والملخصات الذكية`;
+      meta.setAttribute('content', desc);
+    }
   }, [q, grade, semester, subject, setParams]);
 
   const subjects = useMemo(() => {
@@ -136,22 +148,60 @@ export default function Library() {
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: "مكتبة الكتب",
+    "@type": ["ItemList", "EducationalOrganization"],
+    name: "مكتبة كتب المنهج السعودي للثانوية العامة",
+    description: "مجموعة شاملة من كتب المنهج السعودي للصف الثاني عشر مع ملخصات ذكية ومحرك بحث متقدم",
+    educationalCredentialAwarded: "شهادة الثانوية العامة السعودية",
+    address: {
+      "@type": "PostalAddress",
+      addressCountry: "SA",
+      addressRegion: "المملكة العربية السعودية"
+    },
     itemListElement: filtered.map((b, i) => ({
       "@type": "ListItem",
       position: i + 1,
-      url: `${window.location.origin}/book/${b.id}`,
-      name: b.title,
+      item: {
+        "@type": ["Book", "EducationalResource"],
+        name: b.title,
+        url: `${window.location.origin}/book/${b.id}`,
+        educationalLevel: `الصف ${b.grade || 12}`,
+        about: b.subject === 'Physics' ? 'الفيزياء' : 
+               b.subject === 'Chemistry' ? 'الكيمياء' : 
+               b.subject === 'Mathematics' ? 'الرياضيات' : b.subject,
+        inLanguage: "ar-SA",
+        audience: {
+          "@type": "EducationalAudience",
+          educationalRole: "student",
+          audienceType: "طلاب الثانوية العامة"
+        }
+      }
     })),
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${window.location.origin}/library?q={search_term_string}`
+      },
+      "query-input": "required name=search_term_string"
+    }
   } as const;
 
   return (
     <div className="container mx-auto py-6 px-3" dir="rtl">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <SEOFAQSchema />
+      <SEOBreadcrumb />
       <header className="mb-6 text-right">
-        <h1 className="text-2xl font-semibold">ابحث عن الكتب حسب الصف والفصل</h1>
-        <p className="text-muted-foreground mt-1">رشّح حسب الصف، الفصل، المادة، أو ابحث بالعنوان/الكلمات المفتاحية.</p>
+        <h1 className="text-3xl font-bold mb-2">مكتبة كتب المنهج السعودي للثانوية العامة</h1>
+        <p className="text-muted-foreground mt-1 text-lg">
+          ابحث في كتب الفيزياء والكيمياء والرياضيات للصف الثاني عشر مع ملخصات ذكية ومحرك بحث متقدم
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted-foreground">
+          <span>🏫 المنهج السعودي</span>
+          <span>📚 الثانوية العامة</span>
+          <span>🧠 ملخصات ذكية</span>
+          <span>🔍 بحث متقدم</span>
+        </div>
       </header>
 
       <Tabs dir="rtl" value={tab} onValueChange={(v) => setTab(v as any)}>
