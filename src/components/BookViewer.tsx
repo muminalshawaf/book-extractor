@@ -429,10 +429,48 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }
   };
 
+  const streamExistingSummary = async (existingSummary: string) => {
+    setSummLoading(true);
+    setSummaryProgress(0);
+    setSummary("");
+    
+    const words = existingSummary.split(' ');
+    let currentText = '';
+    
+    // Stream the existing summary word by word for better UX
+    for (let i = 0; i < words.length; i++) {
+      currentText += (i > 0 ? ' ' : '') + words[i];
+      setSummary(currentText);
+      setSummaryProgress((i + 1) / words.length * 100);
+      await new Promise(resolve => setTimeout(resolve, 30)); // Small delay between words
+    }
+    
+    setSummLoading(false);
+    toast.success(rtl ? "تم تحميل الملخص المحفوظ" : "Loaded cached summary");
+  };
+
   const summarizeExtractedText = async (text: string = extractedText) => {
     if (!text?.trim()) {
       toast.error(rtl ? "لا يوجد نص لتلخيصه" : "No text to summarize");
       return;
+    }
+    
+    // First check if summary already exists in database
+    try {
+      const { data: existingData, error } = await supabase
+        .from('page_summaries')
+        .select('summary_md')
+        .eq('book_id', dbBookId)
+        .eq('page_number', index + 1)
+        .maybeSingle();
+      
+      if (!error && existingData?.summary_md?.trim()) {
+        console.log('Found existing summary in database, streaming it...');
+        await streamExistingSummary(existingData.summary_md);
+        return;
+      }
+    } catch (dbError) {
+      console.warn('Failed to check existing summary:', dbError);
     }
     
     setSummLoading(true);
@@ -453,7 +491,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           text: text.trim(),
           book_id: dbBookId,
           page_number: index + 1,
-          lang: rtl ? 'arabic' : 'english'  // Fixed parameter name
+          lang: rtl ? 'arabic' : 'english'
         })
       });
 
@@ -493,7 +531,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               if (parsed.text) {
                 fullSummary += parsed.text;
                 setSummary(fullSummary);
-                setSummaryProgress(Math.min(95, fullSummary.length / 10)); // Rough progress estimate
+                setSummaryProgress(Math.min(95, fullSummary.length / 10));
               }
             } catch (e) {
               console.log('Failed to parse streaming data:', line.slice(6));
@@ -504,7 +542,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
       if (fullSummary.trim()) {
         localStorage.setItem(sumKey, fullSummary);
-        setSummaryConfidence(0.8); // Default confidence for streaming
+        setSummaryConfidence(0.8);
         toast.success(rtl ? "تم إنشاء الملخص بنجاح" : "Summary generated successfully");
         
         // Save complete summary to database
@@ -532,10 +570,19 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }
   };
 
-  const handleSmartSummarizeClick = () => {
-    if (extractedText) {
+  const handleSmartSummarizeClick = async () => {
+    // Check if we already have a summary (either in state or database)
+    if (summary?.trim()) {
+      // If we have a summary, stream it again for better UX
+      await streamExistingSummary(summary);
+      return;
+    }
+    
+    // Check if we have extracted text to summarize
+    if (extractedText?.trim()) {
       summarizeExtractedText();
     } else {
+      // No text yet, extract it first
       extractTextFromPage();
     }
   };
