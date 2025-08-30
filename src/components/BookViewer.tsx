@@ -33,6 +33,7 @@ import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "reac
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { MobileControlsOverlay } from "@/components/reader/MobileControlsOverlay";
+import { MobileReaderChrome } from "@/components/reader/MobileReaderChrome";
 import { IndexableOCRContent } from "@/components/seo/IndexableOCRContent";
 
 export type BookPage = {
@@ -157,6 +158,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [gotoInput, setGotoInput] = useState<string>("");
   const [controlsOpen, setControlsOpen] = useState(true);
   const [insightTab, setInsightTab] = useState<'summary' | 'qa'>('summary');
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Navigation functions with URL sync
   const updatePageInUrl = useCallback((pageIndex: number) => {
@@ -799,16 +801,20 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     <section className={cn("w-full min-h-screen", rtl && "[direction:rtl]")}>
       {isMobile ? (
         <div className="min-h-screen">
-          {/* Mobile controls would go here */}
-          <div className="fixed top-0 left-0 right-0 z-50 bg-background border-b p-2 flex items-center justify-between">
-            <Button onClick={goPrev} disabled={index === 0} size="sm">
-              {rtl ? "السابق" : "Previous"}
-            </Button>
-            <span className="text-sm">{index + 1} / {total}</span>
-            <Button onClick={goNext} disabled={index === total - 1} size="sm">
-              {rtl ? "التالي" : "Next"}
-            </Button>
-          </div>
+          <MobileReaderChrome
+            title={title}
+            progressText={L.progress(index + 1, total, Math.round(((index + 1) / total) * 100))}
+            rtl={rtl}
+            onToggleThumbnails={() => setThumbnailsOpen(!thumbnailsOpen)}
+            onOpenInsights={() => setDrawerOpen(true)}
+            onPrev={goPrev}
+            onNext={goNext}
+            canPrev={index > 0}
+            canNext={index < total - 1}
+            onZoomIn={zoomIn}
+            onZoomOut={zoomOut}
+            fullscreenButton={<FullscreenButton />}
+          />
           
           <div className="pt-16 pb-4">
             <TouchGestureHandler
@@ -832,7 +838,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             </TouchGestureHandler>
           </div>
           
-          <Drawer>
+          <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
             <DrawerContent>
               <DrawerHeader>
                 <DrawerTitle>{rtl ? "مساعد القراءة الذكي" : "AI Reading Assistant"}</DrawerTitle>
@@ -862,10 +868,21 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       <div className="mt-4">
                         <EnhancedSummary
                           summary={summary}
-                          onSummaryChange={setSummary}
-                          onRegenerate={() => summarizeExtractedText()}
+                          onSummaryChange={newSummary => {
+                            setSummary(newSummary);
+                            try {
+                              localStorage.setItem(sumKey, newSummary);
+                            } catch {}
+                          }}
+                          onRegenerate={() => {
+                            if (extractedText) {
+                              summarizeExtractedText(extractedText);
+                            } else {
+                              toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
+                            }
+                          }}
                           isRegenerating={summLoading}
-                          confidence={summaryConfidence}
+                          confidence={ocrQuality ?? summaryConfidence}
                           pageNumber={index + 1}
                           rtl={rtl}
                           title={title}
@@ -873,7 +890,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       </div>
                     )}
                   </TabsContent>
-                  
+
                   <TabsContent value="qa" className="mt-4">
                     <QAChat 
                       summary={summary || extractedText} 
