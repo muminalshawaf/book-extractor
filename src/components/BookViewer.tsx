@@ -720,21 +720,25 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       }
 
       if (fullSummary.trim()) {
-        localStorage.setItem(sumKey, fullSummary);
+        // Remove duplicate content and limit summary size
+        const cleanSummary = fullSummary.split('### نظرة عامة')[0] + 
+                           (fullSummary.includes('### نظرة عامة') ? '### نظرة عامة' + fullSummary.split('### نظرة عامة')[1] : '');
+        const trimmedSummary = cleanSummary.substring(0, 8000); // Limit to 8KB
+        
+        localStorage.setItem(sumKey, trimmedSummary);
+        setSummary(trimmedSummary);
         setSummaryConfidence(0.8);
         toast.success(rtl ? "تم إنشاء الملخص بنجاح" : "Summary generated successfully");
         
-        // Save complete summary to database
-        try {
-          await callFunction('save-page-summary', {
-            book_id: dbBookId,
-            page_number: index + 1,
-            summary_md: fullSummary,
-            confidence: 0.8
-          });
-        } catch (saveError) {
+        // Save complete summary to database (async, non-blocking)
+        callFunction('save-page-summary', {
+          book_id: dbBookId,
+          page_number: index + 1,
+          summary_md: trimmedSummary,
+          confidence: 0.8
+        }).catch(saveError => {
           console.error('Failed to save summary to database:', saveError);
-        }
+        });
       } else {
         throw new Error('No summary content received');
       }
