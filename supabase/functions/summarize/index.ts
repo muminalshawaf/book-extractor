@@ -15,7 +15,9 @@ serve(async (req: Request) => {
   }
 
   try {
+    console.log('Summarize function started');
     const { text, lang = "en", page, title } = await req.json();
+    console.log(`Processing summary request - Page: ${page}, Lang: ${lang}, Text length: ${text?.length}`);
 
     if (!text || typeof text !== "string") {
       return new Response(JSON.stringify({ error: "Missing text" }), {
@@ -88,7 +90,8 @@ Constraints:
 - 300–600 words total (more if solving problems). Prefer concise bullets. Preserve equations/symbols. Avoid decorative characters and excessive bolding.
 - When solving problems, show ALL calculation steps clearly.`;
 
-    const resp = await fetch("https://api.deepseek.com/chat/completions", {
+    console.log('Making request to DeepSeek API...');
+    const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -102,26 +105,31 @@ Constraints:
         ],
         temperature: 0.2,
         top_p: 0.9,
-        max_tokens: 1100,
+        max_tokens: 2000,
       }),
     });
 
     if (!resp.ok) {
       const txt = await resp.text();
+      console.error('DeepSeek API error:', resp.status, txt);
       return new Response(JSON.stringify({ error: "DeepSeek error", details: txt }), {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
+    console.log('DeepSeek API responded successfully');
     const data = await resp.json();
     const summary = data.choices?.[0]?.message?.content ?? "";
+    console.log(`Summary generated successfully - Length: ${summary.length}`);
 
     return new Response(JSON.stringify({ summary }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (e) {
+    console.error('Unexpected error in summarize function:', e);
+    console.error('Error stack:', e.stack);
     return new Response(JSON.stringify({ error: "Unexpected error", details: String(e) }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },

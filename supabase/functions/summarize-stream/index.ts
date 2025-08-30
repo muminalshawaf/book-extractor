@@ -12,6 +12,7 @@ serve(async (req: Request) => {
   }
 
   try {
+    console.log('Summarize-stream function started');
     // Support GET (EventSource) and POST (fetch streaming)
     let text = "";
     let lang = "en";
@@ -42,6 +43,8 @@ serve(async (req: Request) => {
       page = body?.page;
       title = body?.title ?? "";
     }
+
+    console.log(`Processing streaming summary - Page: ${page}, Lang: ${lang}, Text length: ${text?.length}`);
 
     if (!text || typeof text !== "string") {
       return new Response(JSON.stringify({ error: "Missing text" }), {
@@ -183,6 +186,7 @@ Constraints:
 - Preserve equations/symbols from original text
 - When solving problems, show ALL calculation steps clearly`;
 
+    console.log('Making streaming request to DeepSeek API...');
     const dsRes = await fetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -200,18 +204,21 @@ Constraints:
         ],
         temperature: 0.2,
         top_p: 0.9,
-        max_tokens: 1100,
+        max_tokens: 2000,
         stream: true,
       }),
     });
 
     if (!dsRes.ok || !dsRes.body) {
       const t = await dsRes.text();
+      console.error('DeepSeek streaming API error:', dsRes.status, t);
       return new Response(
         JSON.stringify({ error: `DeepSeek error ${dsRes.status}`, details: t }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log('DeepSeek streaming API connected successfully');
 
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
@@ -225,10 +232,15 @@ Constraints:
           try { controller.enqueue(encoder.encode(`:ping\n\n`)); } catch (_) {}
         }, 15000);
 
+        let chunkCount = 0;
         try {
           while (true) {
             const { value, done } = await reader.read();
-            if (done) break;
+            if (done) {
+              console.log(`Stream completed after ${chunkCount} chunks`);
+              break;
+            }
+            chunkCount++;
             buffer += decoder.decode(value, { stream: true });
 
             const parts = buffer.split(/\r?\n\r?\n/);
@@ -257,8 +269,10 @@ Constraints:
             }
           }
         } catch (err) {
+          console.error('Streaming error:', err);
           controller.enqueue(encoder.encode(`event: error\ndata: ${String(err)}\n\n`));
         } finally {
+          console.log('Stream cleanup: clearing ping interval and closing controller');
           clearInterval(ping);
           controller.enqueue(encoder.encode(`event: done\ndata: [DONE]\n\n`));
           controller.close();
@@ -276,6 +290,8 @@ Constraints:
       },
     });
   } catch (e) {
+    console.error('Unexpected error in summarize-stream function:', e);
+    console.error('Error stack:', e.stack);
     return new Response(
       JSON.stringify({ error: "Unexpected error", details: String(e) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
