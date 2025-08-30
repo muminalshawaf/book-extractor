@@ -26,8 +26,8 @@ export default function LessonPage() {
   const { book, lesson } = lessonData;
   const pages = book.buildPages();
 
-  // Calculate estimated page number based on lesson data
-  const estimatedPageNumber = (lesson.unitNumber - 1) * 20 + (lesson.chapterNumber - 1) * 5 + lesson.lessonNumber;
+  // Calculate estimated page number based on lesson data  
+  const estimatedPageNumber = lesson.pageNumber;
 
   return (
     <div className="min-h-screen bg-background">

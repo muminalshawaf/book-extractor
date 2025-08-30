@@ -34,6 +34,17 @@ const Index = () => {
   // Get current page number from URL params for SEO
   const currentPageNumber = parseInt(searchParams.get('page') || '1');
 
+  // Handle redirect to lesson page if page number matches a lesson
+  useEffect(() => {
+    const currentPage = currentPageNumber;
+    if (enhancedBook.lessons) {
+      const matchingLesson = enhancedBook.lessons.find(lesson => lesson.pageNumber === currentPage);
+      if (matchingLesson) {
+        navigate(`/${enhancedBook.slug}/chapter-${matchingLesson.chapterNumber}/${matchingLesson.slug}`, { replace: true });
+      }
+    }
+  }, [currentPageNumber, enhancedBook, navigate]);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": ["Book", "EducationalResource"],

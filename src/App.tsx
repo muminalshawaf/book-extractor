@@ -26,9 +26,9 @@ const App = () => (
           <Route path="/library" element={<Library />} />
           <Route path="/book/:bookId" element={<Index />} />
           
-          {/* New SEO-optimized routes with Arabic slugs */}
-          <Route path="/:bookSlug/الفصل-:chapterNumber" element={<ChapterPage />} />
-          <Route path="/:bookSlug/الفصل-:chapterNumber/:lessonSlug" element={<LessonPage />} />
+          {/* New SEO-optimized routes with English structure and Arabic lesson names */}
+          <Route path="/:bookSlug/chapter-:chapterNumber" element={<ChapterPage />} />
+          <Route path="/:bookSlug/chapter-:chapterNumber/:lessonSlug" element={<LessonPage />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
