@@ -74,30 +74,45 @@ serve(async (req) => {
     // Prepare the prompt based on language
     const isArabic = language === 'ar'
     const prompt = isArabic 
-      ? `Analyze this image and extract ALL text content with maximum accuracy. This image contains Arabic educational content and may have multiple columns. Please return a JSON response with the following structure:
+      ? `Analyze this image and extract ALL text content with maximum accuracy. This image contains Arabic educational content with distinct visual sections. Please return a JSON response with the following structure:
 
 {
   "language": "ar",
   "direction": "rtl",
   "columns": [
-    {"order": 1, "text": "content of first column to read"},
-    {"order": 2, "text": "content of second column to read"}
+    {"order": 1, "text": "content of first column/section to read"},
+    {"order": 2, "text": "content of second column/section to read"}
   ]
 }
 
-CRITICAL INSTRUCTIONS:
-1. EXTRACT EVERYTHING: Include ALL text elements - headers, subheaders, main content, boxed text, highlighted sections, formulas, questions, and captions
-2. Column Reading Order: For multiple columns, read them in correct Arabic order (rightmost column = order 1, then left)
-3. Preserve Structure: Maintain exact formatting of mathematical formulas, equations, chemical symbols, and units (ml, L, %, etc.)
-4. Include All Sections: Do not skip any text - capture section titles like "الكيمياء في واقع الحياة", "الديزل الحيوي", highlighted formula boxes, and "ماذا قرأت؟" questions
-5. Maintain Numbering: Keep problem numbers (13., 14., 15., etc.) in exact sequence
-6. Formula Preservation: Copy mathematical expressions exactly as written, including fraction layouts and special formatting
-7. Question Inclusion: Include all questions, especially "ماذا قرأت؟" sections and comparisons
-8. Complete Content: Do NOT ignore headers, sidebars, boxes, or any text elements - extract everything visible
-9. Exact Transcription: DO NOT summarize, paraphrase, or modify - extract exactly as written
-10. Layout Awareness: Recognize and preserve text in boxes, highlighted sections, and special formatting
+CRITICAL INSTRUCTIONS FOR SECTION RECOGNITION:
+1. IDENTIFY VISUAL SECTIONS: Recognize distinct content areas - sidebars, main content, headers, boxed sections, highlighted areas
+2. SECTION BOUNDARIES: Use visual cues (borders, background colors, spacing, fonts) to identify where one section ends and another begins
+3. PRESERVE SECTION STRUCTURE: Add clear section breaks (use "--- SECTION: [title] ---" markers) between visually distinct areas
+4. HEADER RECOGNITION: Identify section headers like "مهن في الكيمياء", "مثال 2-1", etc. and mark them clearly
+5. SIDEBAR CONTENT: Treat sidebar content as separate sections from main content
+6. BOXED TEXT: Preserve content in colored boxes, highlighted areas, or bordered sections as distinct units
 
-Focus on 100% completeness - every single piece of text must be captured. The order field should reflect correct Arabic reading sequence (right-to-left for columns).`
+TEXT EXTRACTION REQUIREMENTS:
+7. EXTRACT EVERYTHING: Include ALL text elements - headers, subheaders, main content, boxed text, highlighted sections, formulas, questions, captions
+8. Column Reading Order: For multiple columns, read them in correct Arabic order (rightmost column = order 1, then left)  
+9. Preserve Structure: Maintain exact formatting of mathematical formulas, equations, chemical symbols, and units (ml, L, %, etc.)
+10. Include All Sections: Capture section titles, highlighted formula boxes, "ماذا قرأت؟" questions, step-by-step solutions
+11. Maintain Numbering: Keep problem numbers, step numbers, and bullet points in exact sequence
+12. Formula Preservation: Copy mathematical expressions exactly as written, including fraction layouts and special formatting
+13. Complete Content: Do NOT ignore any visible text - extract everything including page numbers, watermarks, ministry stamps
+14. Exact Transcription: DO NOT summarize, paraphrase, or modify - extract exactly as written
+15. Layout Awareness: Use spacing and formatting to show relationships between elements
+
+EXAMPLE OUTPUT FORMAT:
+For a page with a sidebar and main content, structure like:
+--- SECTION: مهن في الكيمياء ---
+[sidebar content here]
+
+--- SECTION: مثال 2-1 ---  
+[main example content here]
+
+Focus on 100% completeness while preserving visual structure and section boundaries.`
       : `Analyze this image and extract all text with high accuracy. Please return a JSON response with the following structure:
 
 {
