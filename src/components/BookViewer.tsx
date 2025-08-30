@@ -394,12 +394,24 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       localStorage.setItem(ocrKey, cleanText);
       
       // Save to database and generate summary
-      await callFunction('save-page-summary', {
-        book_id: dbBookId,
-        page_number: index + 1,
-        ocr_text: cleanText,
-        ocr_confidence: result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8
-      });
+      try {
+        const saveResult = await callFunction('save-page-summary', {
+          book_id: dbBookId,
+          page_number: index + 1,
+          ocr_text: cleanText,
+          ocr_confidence: result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8
+        });
+        console.log('OCR text saved successfully for page', index + 1, 'Result:', saveResult);
+        
+        // Force UI refresh to show the extracted text
+        setExtractedText(cleanText);
+        setOcrQuality(result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8);
+        
+      } catch (saveError) {
+        console.error('Failed to save OCR text to database:', saveError);
+        // Continue with summary generation even if save fails
+        toast.error(rtl ? "فشل في حفظ النص المستخرج" : "Failed to save extracted text");
+      }
       
       setOcrProgress(90);
       
