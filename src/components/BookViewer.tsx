@@ -640,17 +640,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           });
         } catch (eventSourceError) {
           console.warn('EventSource failed, falling back to fetch:', eventSourceError);
-          // Only fall back to fetch if no content was received from EventSource
-          if (!fullSummary.trim()) {
-            useEventSource = false;
-            setSummary('');
-          } else {
-            // EventSource got some content, keep it and finish
-            console.log('EventSource got partial content, keeping it:', fullSummary.length, 'characters');
-            setSummaryProgress(100);
-            setSummLoading(false);
-            return;
+          // If EventSource got partial content, save it and try to complete with fetch
+          if (fullSummary.trim()) {
+            console.log('EventSource got partial content, keeping it and trying fetch:', fullSummary.length, 'characters');
+            // Keep the partial summary visible while we try fetch
+            setSummary(fullSummary);
+            setSummaryProgress(50);
           }
+          // Always try fetch as fallback
+          useEventSource = false;
         }
       }
       
