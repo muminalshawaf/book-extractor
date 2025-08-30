@@ -12,9 +12,13 @@ serve(async (req) => {
   }
 
   try {
+    console.log('OCR Gemini function started')
+    
     const { imageUrl, language = 'en' } = await req.json()
+    console.log('Request parsed successfully:', { imageUrl: imageUrl?.substring(0, 100) + '...', language })
     
     if (!imageUrl) {
+      console.error('Missing imageUrl parameter')
       return new Response(
         JSON.stringify({ error: 'Missing imageUrl parameter' }), 
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -29,6 +33,8 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+    
+    console.log('Google API key found, length:', apiKey.length)
 
     console.log(`Processing OCR request for image: ${imageUrl.substring(0, 100)}...`)
     console.log(`Language: ${language}`)
@@ -49,9 +55,22 @@ serve(async (req) => {
     }
 
     // Convert image to base64
+    console.log('Converting image to base64...')
     const imageBuffer = await imageResponse.arrayBuffer()
-    const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)))
+    console.log('Image buffer size:', imageBuffer.byteLength)
+    
+    // Handle large images - split into chunks to avoid btoa issues
+    const uint8Array = new Uint8Array(imageBuffer)
+    let base64Image = ''
+    const chunkSize = 8192
+    
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.slice(i, i + chunkSize)
+      base64Image += btoa(String.fromCharCode(...chunk))
+    }
+    
     const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg'
+    console.log('Base64 conversion complete, mime type:', mimeType)
 
     // Prepare the prompt based on language
     const isArabic = language === 'ar'
@@ -195,9 +214,15 @@ Focus on accuracy and completeness. If there are equations or formulas, preserve
     }
 
   } catch (error) {
-    console.error('Unexpected error:', error)
+    console.error('Unexpected error in OCR function:', error)
+    console.error('Error stack:', error.stack)
+    console.error('Error message:', error.message)
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }), 
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error.message,
+        stack: error.stack 
+      }), 
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
