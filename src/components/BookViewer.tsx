@@ -257,6 +257,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   useEffect(() => {
     let cancelled = false;
     const fetchFromDb = async () => {
+      console.log('Fetching from database:', { book_id: dbBookId, page_number: index + 1 });
       try {
         const { data, error } = await supabase
           .from('page_summaries')
@@ -264,6 +265,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           .eq('book_id', dbBookId)
           .eq('page_number', index + 1)
           .maybeSingle();
+          
+        console.log('Database fetch result:', { data, error });
           
         if (error) {
           console.warn('Supabase fetch error:', error);
@@ -273,6 +276,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         
         const ocr = (data?.ocr_text ?? '').trim();
         const sum = (data?.summary_md ?? '').trim();
+        
+        console.log('Setting extracted text from database:', { 
+          ocrLength: ocr.length, 
+          summaryLength: sum.length,
+          ocrPreview: ocr.substring(0, 100) + '...'
+        });
         
         setExtractedText(ocr);
         setSummary(sum);
@@ -394,6 +403,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       localStorage.setItem(ocrKey, cleanText);
       
       // Save to database and generate summary
+      console.log('Saving OCR text to database:', { 
+        book_id: dbBookId, 
+        page_number: index + 1, 
+        ocr_text_length: cleanText?.length,
+        ocr_text_preview: cleanText?.substring(0, 100) + '...'
+      });
+      
       try {
         const saveResult = await callFunction('save-page-summary', {
           book_id: dbBookId,
