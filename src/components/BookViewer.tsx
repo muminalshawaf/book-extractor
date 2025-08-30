@@ -387,128 +387,78 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       // Run OCR with optimized settings for Arabic physics textbook
       console.log('Starting OCR for image blob:', imageBlob.size, 'bytes');
       
-      // Try multiple advanced OCR strategies for maximum text extraction accuracy
+      // Simplified, proven OCR strategies that actually work
       let bestResult = null;
       const strategies = [
-        // Strategy 1: High-quality preprocessing for clear text
+        // Strategy 1: Basic Arabic OCR with minimal preprocessing
         {
           lang: 'ara+eng',
-          psm: 3, // Fully automatic page segmentation
+          psm: 6, // Uniform block of text - most reliable
           preprocess: {
             upsample: true,
-            targetMinWidth: 2000, // Higher resolution for better accuracy
-            denoise: true,
-            binarize: false,
-            adaptiveBinarization: true,
-            contrastNormalize: true,
-            cropMargins: true,
-            deskew: true
-          },
-          autoRotate: true
-        },
-        // Strategy 2: Optimized for mixed Arabic-English content
-        {
-          lang: 'ara+eng',
-          psm: 4, // Variable-size blocks of text
-          preprocess: {
-            upsample: true,
-            targetMinWidth: 1800,
-            denoise: true,
-            binarize: true,
-            adaptiveBinarization: false,
-            contrastNormalize: true,
-            cropMargins: true,
-            deskew: true
-          },
-          autoRotate: true
-        },
-        // Strategy 3: Single column text layout
-        {
-          lang: 'ara+eng',
-          psm: 6, // Uniform block of text
-          preprocess: {
-            upsample: true,
-            targetMinWidth: 1600,
-            denoise: true,
+            targetMinWidth: 1200,
+            denoise: false,
             binarize: false,
             adaptiveBinarization: true,
             contrastNormalize: false,
             cropMargins: false,
             deskew: false
           },
-          autoRotate: false
+          autoRotate: true
         },
-        // Strategy 4: Dense text with high contrast
+        // Strategy 2: Full page segmentation
         {
           lang: 'ara+eng',
-          psm: 7, // Single text line
+          psm: 3, // Fully automatic page segmentation
           preprocess: {
             upsample: true,
-            targetMinWidth: 1400,
-            denoise: false,
-            binarize: true,
+            targetMinWidth: 1000,
+            denoise: true,
+            binarize: false,
             adaptiveBinarization: false,
-            contrastNormalize: true,
-            cropMargins: true,
+            contrastNormalize: false,
+            cropMargins: false,
             deskew: false
           },
           autoRotate: false
         },
-        // Strategy 5: Sparse text layout
+        // Strategy 3: Basic settings - fallback
         {
           lang: 'ara+eng',
-          psm: 11, // Sparse text
-          preprocess: {
-            upsample: true,
-            targetMinWidth: 1500,
-            denoise: true,
-            binarize: false,
-            adaptiveBinarization: true,
-            contrastNormalize: true,
-            cropMargins: true,
-            deskew: true
-          },
-          autoRotate: true
+          psm: 4, // Variable-size blocks
+          preprocess: false, // No preprocessing at all
+          autoRotate: false
         }
       ];
       
-      // Calculate progress increment per strategy
-      const progressPerStrategy = 50 / strategies.length;
-      
+      // Try each strategy with proper error handling and result logging
       for (let i = 0; i < strategies.length; i++) {
         try {
           console.log(`Trying OCR strategy ${i + 1}/${strategies.length}:`, strategies[i]);
           const result = await runLocalOcr(imageBlob, {
             ...strategies[i],
-            onProgress: (progress) => setOcrProgress(25 + (progress * progressPerStrategy / 100) + (i * progressPerStrategy))
+            onProgress: (progress) => setOcrProgress(25 + (progress * 60 / strategies.length / 100) + (i * 60 / strategies.length))
           });
-          
-          // Clean up OCR result
-          const cleanedText = result?.text ? cleanOcrText(result.text) : '';
-          const cleanedResult = { ...result, text: cleanedText };
           
           console.log(`Strategy ${i + 1} result:`, {
-            textLength: cleanedResult?.text?.length || 0,
-            confidence: cleanedResult?.confidence,
-            firstChars: cleanedResult?.text?.substring(0, 200)
+            textLength: result?.text?.length || 0,
+            confidence: result?.confidence,
+            preview: result?.text?.substring(0, 100) + (result?.text?.length > 100 ? '...' : '')
           });
           
-          // Smart result selection based on multiple criteria
-          if (!bestResult) {
-            bestResult = cleanedResult;
-          } else {
-            const currentScore = calculateOcrScore(cleanedResult);
-            const bestScore = calculateOcrScore(bestResult);
-            
-            if (currentScore > bestScore) {
-              bestResult = cleanedResult;
+          // Select best result based on text length and confidence
+          if (result?.text && result.text.trim().length > 0) {
+            if (!bestResult || 
+                result.text.length > bestResult.text.length || 
+                (result.text.length === bestResult.text.length && result.confidence > bestResult.confidence)) {
+              bestResult = result;
             }
           }
           
-          // Early exit if we got excellent results
-          if (cleanedResult?.text?.length > 100 && cleanedResult?.confidence > 75) {
-            console.log(`Early exit - excellent result found with strategy ${i + 1}`);
-            bestResult = cleanedResult;
+          // Early exit if we got good results
+          if (result?.text?.length > 50 && result?.confidence > 70) {
+            console.log(`Good result found with strategy ${i + 1}, using it`);
+            bestResult = result;
             break;
           }
           
