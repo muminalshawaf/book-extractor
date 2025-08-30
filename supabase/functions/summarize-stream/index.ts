@@ -70,7 +70,7 @@ ${text}
 
 المطلوب: ملخص شامل ومفيد للطالب باللغة العربية، يغطي فقط المحتوى الموجود في النص. استخدم تنسيق Markdown مع عناوين H3 (###). 
 
-**مهم جداً**: إذا احتوى النص على مسائل رياضية أو علمية مرقمة (مثل "13. ما النسبة المئوية..." أو "14. احسب...")، يجب حلها خطوة بخطوة في قسم مخصص.
+**مهم جداً**: إذا احتوى النص على أسئلة أو مسائل مرقمة (مثل "31. الفكرة الرئيسة قارن..." أو "32. وضح...")، يجب الإجابة عليها جميعاً في قسم مخصص.
 
 اتبع هذه القواعد:
 - اكتب فقط الأقسام التي لها محتوى فعلي من النص
@@ -93,12 +93,13 @@ ${text}
 ### الصيغ والقوانين
 - استخدم LaTeX للمعادلات ($$...$$ للكتل). اذكر المتغيرات ومعانيها والوحدات
 
-### حلول المسائل
-**اكتب هذا القسم فقط إذا وجدت مسائل رياضية مرقمة في النص.**
-لكل مسألة:
+### الأسئلة والمسائل
+**اكتب هذا القسم فقط إذا وجدت أسئلة أو مسائل مرقمة في النص.**
+لكل سؤال أو مسألة:
 - أعد صياغة السؤال بوضوح
-- اعرض الحل خطوة بخطوة مع الحسابات
-- اذكر الجواب النهائي مع الوحدات المناسبة
+- إذا كان سؤالاً مفاهيمياً: قدم إجابة شاملة ومفصلة
+- إذا كان مسألة حسابية: اعرض الحل خطوة بخطوة مع الحسابات
+- اذكر الجواب النهائي مع الوحدات المناسبة (للمسائل الحسابية)
 - استخدم LaTeX للمعادلات: $$...$$ للمعادلات المنفصلة، $...$ للمعادلات ضمن السطر
 
 ### الخطوات والإجراءات
@@ -133,7 +134,7 @@ ${text}
 
 Create a comprehensive student-focused summary in ${lang}. Use clean Markdown with H3 headings (###). 
 
-**IMPORTANT**: If the text contains numbered mathematical/scientific problems (like "13. Calculate..." or "14. Find..."), you MUST solve them step-by-step in a dedicated section.
+**IMPORTANT**: If the text contains numbered questions or problems (like "31. Compare..." or "32. Explain..."), you MUST answer ALL of them in a dedicated section.
 
 Rules:
 - ONLY include sections that have actual content from the text
@@ -156,12 +157,13 @@ Potential sections (include only if applicable):
 ### 4) Formulas & Units
 - Use LaTeX ($$...$$ for blocks). List variables with meanings and units
 
-### 5) Problem Solutions
-**ONLY include this section if there are numbered mathematical problems in the text.**
-For each problem found:
-- Restate the problem clearly
-- Show step-by-step solution with calculations
-- Provide final answer with proper units
+### 5) Questions & Problems
+**ONLY include this section if there are numbered questions or problems in the text.**
+For each question or problem found:
+- Restate the question clearly
+- If conceptual question: provide comprehensive, detailed answer
+- If calculation problem: show step-by-step solution with calculations
+- Provide final answer with proper units (for calculation problems)
 - Use LaTeX for equations: $$...$$ for display math, $...$ for inline
 
 ### 6) Procedures/Steps
