@@ -294,6 +294,61 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   }, [index, dbBookId, ocrKey, sumKey]);
 
   // OCR and Summarization functions
+  // OCR text cleaning function
+  const cleanOcrText = (text: string): string => {
+    if (!text) return '';
+    
+    return text
+      // Remove excessive whitespace
+      .replace(/\s+/g, ' ')
+      // Remove isolated special characters
+      .replace(/\s[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\w\d\s.,!?()[\]{}:;\"'-]+\s/g, ' ')
+      // Clean up common OCR artifacts
+      .replace(/[|\\\/`~]/g, '')
+      // Fix common Arabic OCR issues
+      .replace(/\u200F|\u200E/g, '') // Remove RTL/LTR marks
+      .replace(/\u061C/g, '') // Remove Arabic letter mark
+      // Normalize Arabic digits
+      .replace(/[٠-٩]/g, (match) => String.fromCharCode(match.charCodeAt(0) - 1632 + 48))
+      // Remove redundant punctuation
+      .replace(/[.]{2,}/g, '.')
+      .replace(/[,]{2,}/g, ',')
+      // Clean up line breaks
+      .replace(/\n\s*\n/g, '\n')
+      .trim();
+  };
+
+  // OCR scoring function for result selection
+  const calculateOcrScore = (result: { text: string; confidence?: number }): number => {
+    if (!result?.text) return 0;
+    
+    const text = result.text;
+    const confidence = result.confidence || 0;
+    const length = text.length;
+    
+    // Base score from confidence and length
+    let score = confidence + (Math.min(length, 500) / 10);
+    
+    // Bonus for Arabic text presence
+    const arabicChars = (text.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g) || []).length;
+    if (arabicChars > 0) score += arabicChars / 5;
+    
+    // Bonus for complete words
+    const arabicWords = (text.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+/g) || []).length;
+    const englishWords = (text.match(/[a-zA-Z]+/g) || []).length;
+    score += (arabicWords + englishWords) * 2;
+    
+    // Penalty for excessive artifacts
+    const artifacts = (text.match(/[|\\\/`~_]{2,}/g) || []).length;
+    score -= artifacts * 10;
+    
+    // Penalty for too many isolated characters
+    const isolatedChars = (text.match(/\s.\s/g) || []).length;
+    score -= isolatedChars * 5;
+    
+    return score;
+  };
+
   const extractTextFromPage = async () => {
     setOcrLoading(true);
     setOcrProgress(0);
@@ -332,18 +387,18 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       // Run OCR with optimized settings for Arabic physics textbook
       console.log('Starting OCR for image blob:', imageBlob.size, 'bytes');
       
-      // Try multiple OCR strategies for better text extraction
+      // Try multiple advanced OCR strategies for maximum text extraction accuracy
       let bestResult = null;
       const strategies = [
-        // Strategy 1: Default with preprocessing
+        // Strategy 1: High-quality preprocessing for clear text
         {
           lang: 'ara+eng',
           psm: 3, // Fully automatic page segmentation
           preprocess: {
             upsample: true,
-            targetMinWidth: 1500,
+            targetMinWidth: 2000, // Higher resolution for better accuracy
             denoise: true,
-            binarize: false, // Try without binarization first
+            binarize: false,
             adaptiveBinarization: true,
             contrastNormalize: true,
             cropMargins: true,
@@ -351,45 +406,109 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           },
           autoRotate: true
         },
-        // Strategy 2: Different PSM mode
+        // Strategy 2: Optimized for mixed Arabic-English content
+        {
+          lang: 'ara+eng',
+          psm: 4, // Variable-size blocks of text
+          preprocess: {
+            upsample: true,
+            targetMinWidth: 1800,
+            denoise: true,
+            binarize: true,
+            adaptiveBinarization: false,
+            contrastNormalize: true,
+            cropMargins: true,
+            deskew: true
+          },
+          autoRotate: true
+        },
+        // Strategy 3: Single column text layout
         {
           lang: 'ara+eng',
           psm: 6, // Uniform block of text
           preprocess: {
             upsample: true,
-            targetMinWidth: 1200,
+            targetMinWidth: 1600,
             denoise: true,
-            binarize: true,
-            adaptiveBinarization: false,
+            binarize: false,
+            adaptiveBinarization: true,
             contrastNormalize: false,
             cropMargins: false,
             deskew: false
           },
           autoRotate: false
+        },
+        // Strategy 4: Dense text with high contrast
+        {
+          lang: 'ara+eng',
+          psm: 7, // Single text line
+          preprocess: {
+            upsample: true,
+            targetMinWidth: 1400,
+            denoise: false,
+            binarize: true,
+            adaptiveBinarization: false,
+            contrastNormalize: true,
+            cropMargins: true,
+            deskew: false
+          },
+          autoRotate: false
+        },
+        // Strategy 5: Sparse text layout
+        {
+          lang: 'ara+eng',
+          psm: 11, // Sparse text
+          preprocess: {
+            upsample: true,
+            targetMinWidth: 1500,
+            denoise: true,
+            binarize: false,
+            adaptiveBinarization: true,
+            contrastNormalize: true,
+            cropMargins: true,
+            deskew: true
+          },
+          autoRotate: true
         }
       ];
       
+      // Calculate progress increment per strategy
+      const progressPerStrategy = 50 / strategies.length;
+      
       for (let i = 0; i < strategies.length; i++) {
         try {
-          console.log(`Trying OCR strategy ${i + 1}:`, strategies[i]);
+          console.log(`Trying OCR strategy ${i + 1}/${strategies.length}:`, strategies[i]);
           const result = await runLocalOcr(imageBlob, {
             ...strategies[i],
-            onProgress: (progress) => setOcrProgress(25 + (progress * 0.3) + (i * 20))
+            onProgress: (progress) => setOcrProgress(25 + (progress * progressPerStrategy / 100) + (i * progressPerStrategy))
           });
+          
+          // Clean up OCR result
+          const cleanedText = result?.text ? cleanOcrText(result.text) : '';
+          const cleanedResult = { ...result, text: cleanedText };
           
           console.log(`Strategy ${i + 1} result:`, {
-            textLength: result?.text?.length || 0,
-            confidence: result?.confidence,
-            firstChars: result?.text?.substring(0, 200)
+            textLength: cleanedResult?.text?.length || 0,
+            confidence: cleanedResult?.confidence,
+            firstChars: cleanedResult?.text?.substring(0, 200)
           });
           
-          if (!bestResult || (result?.text?.length > bestResult?.text?.length)) {
-            bestResult = result;
+          // Smart result selection based on multiple criteria
+          if (!bestResult) {
+            bestResult = cleanedResult;
+          } else {
+            const currentScore = calculateOcrScore(cleanedResult);
+            const bestScore = calculateOcrScore(bestResult);
+            
+            if (currentScore > bestScore) {
+              bestResult = cleanedResult;
+            }
           }
           
-          // If we got good results, use them
-          if (result?.text?.length > 50 && result?.confidence > 60) {
-            bestResult = result;
+          // Early exit if we got excellent results
+          if (cleanedResult?.text?.length > 100 && cleanedResult?.confidence > 75) {
+            console.log(`Early exit - excellent result found with strategy ${i + 1}`);
+            bestResult = cleanedResult;
             break;
           }
           

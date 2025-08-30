@@ -88,6 +88,18 @@ export async function runLocalOcr(input: string | Blob, options?: LocalOcrOption
       preserve_interword_spaces: '1',
       user_defined_dpi: '300',
       tessjs_create_pdf: '0',
+      // Enhanced Arabic OCR settings
+      tessedit_char_whitelist: lang.includes('ara') ? 
+        'ابتثجحخدذرزسشصضطظعغفقكلمنهوياًإآأؤئءةى٠١٢٣٤٥٦٧٨٩0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,!?()[]{}:;"\'-+=/\\<>@#$%^&*_~ ' :
+        undefined,
+      tessedit_ocr_engine_mode: '2', // Use LSTM OCR engine
+      load_system_dawg: '0',
+      load_freq_dawg: '0',
+      load_punc_dawg: '0',
+      load_number_dawg: '0',
+      load_unambig_dawg: '0',
+      load_bigram_dawg: '0',
+      load_fixed_length_dawgs: '0',
     } as any);
     return data as any;
   }
@@ -108,11 +120,11 @@ export async function runLocalOcr(input: string | Blob, options?: LocalOcrOption
       }
     }
 
-    // Try multiple PSM strategies (optimized for Arabic)
+    // Try comprehensive PSM strategies optimized for Arabic textbooks
     const tried = new Set<string>();
     const psmCandidates: (number | string)[] = [
       primaryPsm,
-      ...(lang.includes('ara') ? [4, 3, 6, 7, 11] : [11]),
+      ...(lang.includes('ara') ? [3, 4, 6, 7, 8, 11, 12, 13] : [3, 4, 6, 11]),
     ];
 
     let best: any | null = null;
