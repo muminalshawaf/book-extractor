@@ -51,33 +51,111 @@ export async function runLocalOcr(input: string | Blob, options?: LocalOcrOption
   console.log('OCR: Starting with language:', lang);
   onProgress?.(10);
 
-  // Simple approach - no complex preprocessing
+  // Enhanced preprocessing for Arabic text
+  const preprocessOptions: PreprocessOptions = {
+    upsample: true,              // Upscale for better resolution
+    targetMinWidth: 1400,        // Higher resolution target
+    denoise: true,               // Remove noise
+    contrastNormalize: true,     // Improve contrast for Arabic text
+    binarize: true,              // Apply thresholding
+    adaptiveBinarization: true,  // Better for Arabic text with uneven lighting
+    cropMargins: true,           // Remove white margins
+    deskew: true,                // Correct slight rotation
+  };
+
+  let processedBlob: Blob;
+  try {
+    console.log('OCR: Preprocessing image...');
+    // Convert string to blob if needed
+    const inputBlob = typeof input === 'string' ? await (await fetch(input)).blob() : input;
+    processedBlob = await preprocessImageBlob(inputBlob, preprocessOptions);
+    onProgress?.(25);
+  } catch (error) {
+    console.warn('OCR: Preprocessing failed, using original:', error);
+    processedBlob = typeof input === 'string' ? await (await fetch(input)).blob() : input;
+    onProgress?.(20);
+  }
+
   const worker = await createWorker(lang, 1, {
     logger: (m) => {
       if (m && typeof m.progress === 'number' && onProgress) {
-        const pct = Math.max(15, Math.min(90, Math.round(m.progress * 100)));
+        const pct = Math.max(30, Math.min(90, Math.round(30 + m.progress * 60)));
         onProgress(pct);
       }
     },
   } as any);
 
   try {
-    console.log('OCR: Worker created, starting recognition...');
+    console.log('OCR: Worker created, trying multiple recognition strategies...');
     
-    // Use the most basic recognition with minimal options
-    const { data } = await worker.recognize(input, {
-      tessedit_pageseg_mode: '6', // Uniform block of text
-      preserve_interword_spaces: '1',
-    } as any);
+    // Strategy 1: PSM 3 (Fully automatic page segmentation, no OSD)
+    let bestResult: any = null;
+    let bestScore = 0;
+
+    try {
+      const result1 = await worker.recognize(processedBlob, {
+        tessedit_pageseg_mode: '3',
+        preserve_interword_spaces: '1',
+        tessedit_char_whitelist: 'ابتثجحخدذرزسشصضطظعغفقكلمنهوياىءآأإئؤة٠١٢٣٤٥٦٧٨٩abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?()[]{}":;-+=*/\\|\u060C\u061B\u061F\u060D',
+      } as any);
+      
+      const text1 = (result1.data.text || '').trim();
+      const conf1 = result1.data.confidence || 0;
+      const score1 = text1.length > 5 ? conf1 + (text1.length * 0.1) : conf1 * 0.5;
+      
+      console.log('OCR Strategy 1 (PSM 3):', { length: text1.length, confidence: conf1, score: score1 });
+      
+      if (score1 > bestScore) {
+        bestResult = result1;
+        bestScore = score1;
+      }
+    } catch (e) {
+      console.warn('OCR Strategy 1 failed:', e);
+    }
+
+    // Strategy 2: PSM 6 (Uniform block of text) - good for textbooks
+    try {
+      const result2 = await worker.recognize(processedBlob, {
+        tessedit_pageseg_mode: '6',
+        preserve_interword_spaces: '1',
+        tessedit_char_whitelist: 'ابتثجحخدذرزسشصضطظعغفقكلمنهوياىءآأإئؤة٠١٢٣٤٥٦٧٨٩abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?()[]{}":;-+=*/\\|\u060C\u061B\u061F\u060D',
+      } as any);
+      
+      const text2 = (result2.data.text || '').trim();
+      const conf2 = result2.data.confidence || 0;
+      const score2 = text2.length > 5 ? conf2 + (text2.length * 0.1) : conf2 * 0.5;
+      
+      console.log('OCR Strategy 2 (PSM 6):', { length: text2.length, confidence: conf2, score: score2 });
+      
+      if (score2 > bestScore) {
+        bestResult = result2;
+        bestScore = score2;
+      }
+    } catch (e) {
+      console.warn('OCR Strategy 2 failed:', e);
+    }
+
+    if (!bestResult) {
+      throw new Error('All OCR strategies failed');
+    }
     
-    const text = (data.text || '').trim();
-    const confidence = data.confidence || 0;
+    const text = (bestResult.data.text || '').trim();
+    const confidence = bestResult.data.confidence || 0;
     
-    console.log('OCR: Result length:', text.length, 'Confidence:', confidence);
-    console.log('OCR: First 100 chars:', text.substring(0, 100));
+    // Clean the text
+    const cleanText = text
+      .replace(/[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z0-9\s.,!?()[\]{}":;=+\-*/\\|]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    console.log('OCR: Best result - Length:', cleanText.length, 'Confidence:', confidence);
+    console.log('OCR: First 100 chars:', cleanText.substring(0, 100));
     
     onProgress?.(100);
-    return { text, confidence };
+    return { 
+      text: cleanText, 
+      confidence: confidence > 1 ? confidence / 100 : confidence 
+    };
     
   } catch (error) {
     console.error('OCR: Recognition failed:', error);
