@@ -560,7 +560,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
           await new Promise<void>((resolve, reject) => {
             let timeoutId: NodeJS.Timeout;
-            let throttleTimeout: NodeJS.Timeout | null = null;
             
             eventSource.onopen = () => {
               console.log('EventSource opened');
@@ -580,8 +579,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 if (event.data === '[DONE]') {
                   console.log('EventSource stream completed');
                   clearTimeout(timeoutId);
-                  if (throttleTimeout) clearTimeout(throttleTimeout);
-                  setSummary(fullSummary); // Final update
                   eventSource.close();
                   resolve();
                   return;
@@ -590,13 +587,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 const parsed = JSON.parse(event.data);
                 if (parsed.text) {
                   fullSummary += parsed.text;
-                  
-                  // Throttle UI updates to every 100ms for better performance
-                  if (throttleTimeout) clearTimeout(throttleTimeout);
-                  throttleTimeout = setTimeout(() => {
-                    setSummary(fullSummary);
-                    setSummaryProgress(Math.min(95, fullSummary.length / 10));
-                  }, 100);
+                  setSummary(fullSummary);
+                  setSummaryProgress(Math.min(95, fullSummary.length / 10));
                 }
               } catch (e) {
                 console.log('Failed to parse EventSource data:', event.data);
