@@ -8,6 +8,8 @@ interface DynamicSEOHeadProps {
   pageTitle?: string;
   customTitle?: string;
   customDescription?: string;
+  noindex?: boolean;
+  totalPages?: number;
 }
 
 export default function DynamicSEOHead({ 
@@ -16,7 +18,9 @@ export default function DynamicSEOHead({
   pageNumber, 
   pageTitle, 
   customTitle, 
-  customDescription 
+  customDescription,
+  noindex = false,
+  totalPages
 }: DynamicSEOHeadProps) {
   
   useEffect(() => {
@@ -65,9 +69,61 @@ export default function DynamicSEOHead({
     updateOrCreateMetaTag('property', 'og:description', description);
     updateOrCreateMetaTag('property', 'og:type', lesson ? 'article' : 'website');
     
+    // Dynamic og:image and twitter:image based on page
+    const imageUrl = book ? `${window.location.origin}/api/og-image?book=${encodeURIComponent(book.title)}&page=${pageNumber || 1}` : `${window.location.origin}/og-default.jpg`;
+    updateOrCreateMetaTag('property', 'og:image', imageUrl);
+    updateOrCreateMetaTag('name', 'twitter:image', imageUrl);
+    
     // Update Twitter tags
     updateOrCreateMetaTag('name', 'twitter:title', title);
     updateOrCreateMetaTag('name', 'twitter:description', description);
+    updateOrCreateMetaTag('name', 'twitter:card', 'summary_large_image');
+    
+    // Robots meta tag for noindex
+    if (noindex) {
+      updateOrCreateMetaTag('name', 'robots', 'noindex, nofollow');
+    } else {
+      // Remove noindex if it exists
+      const robotsTag = document.querySelector('meta[name="robots"]');
+      if (robotsTag) robotsTag.remove();
+    }
+    
+    // Add hreflang for Arabic
+    const hreflangAr = document.querySelector('link[hreflang="ar"]') || document.createElement('link');
+    hreflangAr.setAttribute('rel', 'alternate');
+    hreflangAr.setAttribute('hreflang', 'ar');
+    hreflangAr.setAttribute('href', window.location.href);
+    if (!document.head.contains(hreflangAr)) {
+      document.head.appendChild(hreflangAr);
+    }
+    
+    const hreflangArSA = document.querySelector('link[hreflang="ar-SA"]') || document.createElement('link');
+    hreflangArSA.setAttribute('rel', 'alternate');
+    hreflangArSA.setAttribute('hreflang', 'ar-SA');
+    hreflangArSA.setAttribute('href', window.location.href);
+    if (!document.head.contains(hreflangArSA)) {
+      document.head.appendChild(hreflangArSA);
+    }
+    
+    // Add prev/next pagination links
+    if (book && pageNumber && totalPages) {
+      // Remove existing prev/next links
+      document.querySelectorAll('link[rel="prev"], link[rel="next"]').forEach(link => link.remove());
+      
+      if (pageNumber > 1) {
+        const prevLink = document.createElement('link');
+        prevLink.setAttribute('rel', 'prev');
+        prevLink.setAttribute('href', `${window.location.origin}/book/${book.id}?page=${pageNumber - 1}`);
+        document.head.appendChild(prevLink);
+      }
+      
+      if (pageNumber < totalPages) {
+        const nextLink = document.createElement('link');
+        nextLink.setAttribute('rel', 'next');
+        nextLink.setAttribute('href', `${window.location.origin}/book/${book.id}?page=${pageNumber + 1}`);
+        document.head.appendChild(nextLink);
+      }
+    }
     
     // Add canonical URL
     const canonical = document.querySelector('link[rel="canonical"]') || document.createElement('link');
@@ -83,7 +139,7 @@ export default function DynamicSEOHead({
       document.head.appendChild(canonical);
     }
     
-  }, [book, lesson, pageNumber, pageTitle, customTitle, customDescription]);
+  }, [book, lesson, pageNumber, pageTitle, customTitle, customDescription, noindex, totalPages]);
   
   const updateOrCreateMetaTag = (attribute: string, value: string, content: string) => {
     let tag = document.querySelector(`meta[${attribute}="${value}"]`);

@@ -43,6 +43,39 @@ export default function StructuredDataSchemas({
     ]
   };
 
+  // Book Schema for individual books  
+  const bookSchema = book ? {
+    "@context": "https://schema.org",
+    "@type": "Book",
+    "name": book.title,
+    "description": book.description,
+    "author": {
+      "@type": "Organization",
+      "name": "وزارة التعليم - المملكة العربية السعودية"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "منصة إدرس",
+      "url": window.location.origin
+    },
+    "educationalLevel": `الصف ${book.grade}`,
+    "about": {
+      "@type": "Thing",
+      "name": book.subjectArabic
+    },
+    "inLanguage": "ar-SA",
+    "isbn": book.id,
+    "numberOfPages": book.totalPages,
+    "keywords": book.keywords?.join(", "),
+    "url": `${window.location.origin}/book/${book.id}`,
+    "audience": {
+      "@type": "EducationalAudience",
+      "educationalRole": "student",
+      "audienceType": "طلاب الثانوية العامة السعودية"
+    },
+    "educationalUse": "دراسة ذاتية، تعلم، مراجعة"
+  } : null;
+
   // Course Schema for individual books
   const courseSchema = book ? {
     "@context": "https://schema.org",
@@ -187,6 +220,7 @@ export default function StructuredDataSchemas({
   const schemas = [
     websiteSchema,
     organizationSchema,
+    ...(bookSchema ? [bookSchema] : []),
     ...(courseSchema ? [courseSchema] : []),
     ...(learningResourceSchema ? [learningResourceSchema] : []),
     ...(enhancedArticleSchema ? [enhancedArticleSchema] : []),

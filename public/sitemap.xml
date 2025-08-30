@@ -1,40 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>/</loc>
-    <lastmod>2024-08-29</lastmod>
+    <loc>https://idros.lovable.app/</loc>
+    <lastmod>2025-08-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="/"/>
-    <xhtml:link rel="alternate" hreflang="ar-SA" href="/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/"/>
+    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/"/>
   </url>
   <url>
-    <loc>/library</loc>
-    <lastmod>2024-08-29</lastmod>
+    <loc>https://idros.lovable.app/library</loc>
+    <lastmod>2025-08-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="/library"/>
-    <xhtml:link rel="alternate" hreflang="ar-SA" href="/library"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/library"/>
+    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/library"/>
   </url>
   <url>
-    <loc>/book/chem12-1-3</loc>
-    <lastmod>2024-08-29</lastmod>
+    <loc>https://idros.lovable.app/book/chem12-1-3</loc>
+    <lastmod>2025-08-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="/book/chem12-1-3"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/book/chem12-1-3"/>
+    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/book/chem12-1-3"/>
   </url>
   <url>
-    <loc>/book/physics12-1-3</loc>
-    <lastmod>2024-08-29</lastmod>
+    <loc>https://idros.lovable.app/book/physics12-1-3</loc>
+    <lastmod>2025-08-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="/book/physics12-1-3"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/book/physics12-1-3"/>
+    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/book/physics12-1-3"/>
   </url>
   <url>
-    <loc>/book/math12-1-3</loc>
-    <lastmod>2024-08-29</lastmod>
+    <loc>https://idros.lovable.app/book/math12-1-3</loc>
+    <lastmod>2025-08-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="/book/math12-1-3"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/book/math12-1-3"/>
+    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/book/math12-1-3"/>
   </url>
 </urlset>

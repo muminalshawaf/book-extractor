@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { books, getBookById } from "@/data/books";
 import { getEnhancedBookById } from "@/data/enhancedBooks";
 import BookViewer from "@/components/BookViewer";
@@ -11,6 +11,7 @@ import TopSearchTabs from "@/components/search/TopSearchTabs";
 const Index = () => {
   const params = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const initialId = useMemo(() => params.bookId ?? books[0].id, [params.bookId]);
   const [selectedId, setSelectedId] = useState<string>(initialId);
   
@@ -31,8 +32,7 @@ const Index = () => {
   const pages = useMemo(() => selectedBook.buildPages(), [selectedBook]);
   
   // Get current page number from URL params for SEO
-  const urlParams = new URLSearchParams(window.location.search);
-  const currentPageNumber = parseInt(urlParams.get('page') || '1');
+  const currentPageNumber = parseInt(searchParams.get('page') || '1');
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -78,6 +78,7 @@ const Index = () => {
         book={enhancedBook} 
         pageNumber={currentPageNumber}
         pageTitle={selectedBook.title}
+        totalPages={pages.length}
       />
       <StructuredDataSchemas book={enhancedBook} pageNumber={currentPageNumber} />
       <SEOFAQSchema />

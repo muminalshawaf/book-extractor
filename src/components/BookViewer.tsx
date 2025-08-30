@@ -31,8 +31,9 @@ import { PerformanceMonitor } from "@/components/PerformanceMonitor";
 import { ContinuousReader, ContinuousReaderRef } from "@/components/reader/ContinuousReader";
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { MobileControlsOverlay } from "@/components/reader/MobileControlsOverlay";
+import { IndexableOCRContent } from "@/components/seo/IndexableOCRContent";
 
 export type BookPage = {
   src: string;
@@ -67,8 +68,16 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   labels = {},
   bookId
 }) => {
-  // Get last viewed page from localStorage
-  const getLastViewedPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Get initial page from URL params or localStorage
+  const getInitialPage = () => {
+    const urlPage = parseInt(searchParams.get('page') || '1');
+    if (urlPage >= 1 && urlPage <= pages.length) {
+      return urlPage - 1; // Convert to 0-based index
+    }
+    
+    // Fallback to localStorage
     try {
       const cacheId = bookId || title;
       const lastPage = localStorage.getItem(`book:lastPage:${cacheId}`);
@@ -79,7 +88,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }
   };
 
-  const [index, setIndex] = useState(getLastViewedPage);
+  const [index, setIndex] = useState(getInitialPage);
   const [zoom, setZoom] = useState(1);
   const Z = { min: 0.25, max: 4, step: 0.1 } as const;
   const total = pages.length;
@@ -149,14 +158,39 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [controlsOpen, setControlsOpen] = useState(true);
   const [insightTab, setInsightTab] = useState<'summary' | 'qa'>('summary');
 
-  // Navigation functions
-  const goPrev = () => setIndex(i => Math.max(0, i - 1));
-  const goNext = () => setIndex(i => Math.min(total - 1, i + 1));
+  // Navigation functions with URL sync
+  const updatePageInUrl = useCallback((pageIndex: number) => {
+    const pageNumber = pageIndex + 1; // Convert to 1-based
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      newParams.set('page', pageNumber.toString());
+      return newParams;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const goPrev = useCallback(() => {
+    setIndex(i => {
+      const newIndex = Math.max(0, i - 1);
+      updatePageInUrl(newIndex);
+      return newIndex;
+    });
+  }, [updatePageInUrl]);
+  
+  const goNext = useCallback(() => {
+    setIndex(i => {
+      const newIndex = Math.min(total - 1, i + 1);
+      updatePageInUrl(newIndex);
+      return newIndex;
+    });
+  }, [total, updatePageInUrl]);
+  
   const jumpToPage = useCallback((n: number) => {
     if (!Number.isFinite(n)) return;
     const clamped = Math.min(Math.max(1, Math.floor(n)), total);
-    setIndex(clamped - 1);
-  }, [total]);
+    const newIndex = clamped - 1;
+    setIndex(newIndex);
+    updatePageInUrl(newIndex);
+  }, [total, updatePageInUrl]);
 
   // Zoom functions
   const zoomIn = () => setZoom(prev => Math.min(Z.max, prev + Z.step));
@@ -1102,43 +1136,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             </div>
 
             {/* OCR Content - Now indexable */}
-            <details className="border rounded-lg bg-card shadow-sm">
-              <summary className="cursor-pointer p-4 hover:bg-muted/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-semibold">
-                    {rtl ? "النص في الكتاب" : "Text in Book"}
-                  </h3>
-                  <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={(e) => { e.preventDefault(); forceRegenerate(); }}
-                      disabled={ocrLoading || summLoading}
-                      title={rtl ? "إعادة توليد من جديد (Cmd+Ctrl+D)" : "Force regenerate (Cmd+Ctrl+D)"}
-                    >
-                      <Sparkles className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </summary>
-              <div className="px-4 pb-4">
-                {extractedText ? (
-                  <div 
-                    className={cn(
-                      "text-sm leading-relaxed bg-muted/30 p-3 rounded border max-h-64 overflow-y-auto font-mono whitespace-pre-wrap",
-                      rtl && "text-right"
-                    )}
-                    dir={rtl ? "rtl" : "ltr"}
-                  >
-                    {extractedText}
-                  </div>
-                ) : (
-                  <div className={cn("text-center text-muted-foreground py-4", rtl && "text-right")}>
-                    {rtl ? "لا يوجد نص مستخرج بعد" : "No OCR text extracted yet"}
-                  </div>
-                )}
-              </div>
-            </details>
+            <IndexableOCRContent
+              ocrText={extractedText}
+              pageNumber={index + 1}
+              rtl={rtl}
+            />
           </div>
         </div>
       )}
