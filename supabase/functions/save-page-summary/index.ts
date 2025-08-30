@@ -51,10 +51,14 @@ serve(async (req) => {
       });
     }
 
-    const payload: Record<string, any> = { book_id, page_number, ocr_text, summary_md };
+    const payload: Record<string, any> = { book_id, page_number };
+    if (ocr_text !== null) payload.ocr_text = ocr_text;
+    if (summary_md !== null) payload.summary_md = summary_md;
     if (confidence !== null) payload.confidence = confidence;
     if (ocr_confidence !== null) payload.ocr_confidence = ocr_confidence;
     if (confidence_meta !== null) payload.confidence_meta = confidence_meta;
+
+    console.log('Final payload for upsert:', JSON.stringify(payload, null, 2));
 
     const { data, error } = await supabase
       .from('page_summaries')
