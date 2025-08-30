@@ -233,15 +233,20 @@ Constraints:
         }, 15000);
 
         let chunkCount = 0;
+        let totalContentReceived = "";
         try {
           while (true) {
             const { value, done } = await reader.read();
             if (done) {
-              console.log(`Stream completed after ${chunkCount} chunks`);
+              console.log(`Stream completed after ${chunkCount} chunks. Total content length: ${totalContentReceived.length}`);
               break;
             }
+            
             chunkCount++;
-            buffer += decoder.decode(value, { stream: true });
+            const chunk = decoder.decode(value, { stream: true });
+            console.log(`Received chunk ${chunkCount}, size: ${chunk.length}`);
+            
+            buffer += chunk;
 
             const parts = buffer.split(/\r?\n\r?\n/);
             buffer = parts.pop() || "";
@@ -252,6 +257,7 @@ Constraints:
               const dataStr = line.slice(5).trim();
 
               if (dataStr === "[DONE]") {
+                console.log('Received [DONE] signal from DeepSeek');
                 controller.enqueue(encoder.encode(`event: done\ndata: [DONE]\n\n`));
                 controller.close();
                 return;
@@ -261,10 +267,12 @@ Constraints:
                 const json = JSON.parse(dataStr);
                 const delta = json?.choices?.[0]?.delta?.content ?? "";
                 if (delta) {
+                  console.log(`Forwarding delta content: "${delta.substring(0, 50)}${delta.length > 50 ? '...' : ''}"`);
+                  totalContentReceived += delta;
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`));
                 }
-              } catch (_) {
-                // ignore
+              } catch (parseErr) {
+                console.log('Failed to parse JSON data:', dataStr.substring(0, 100));
               }
             }
           }
@@ -284,9 +292,12 @@ Constraints:
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream; charset=utf-8",
-        "Cache-Control": "no-cache, no-transform",
+        "Cache-Control": "no-cache, no-store, must-revalidate, no-transform",
         "Connection": "keep-alive",
         "X-Accel-Buffering": "no",
+        "Transfer-Encoding": "chunked",
+        "Pragma": "no-cache",
+        "Expires": "0",
       },
     });
   } catch (e) {
