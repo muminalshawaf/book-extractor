@@ -1012,53 +1012,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               />
             )}
 
-            {/* OCR Content - Now indexable */}
-            <details className="border rounded-lg bg-card shadow-sm">
-              <summary className="cursor-pointer p-4 hover:bg-muted/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-semibold">
-                    {rtl ? "النص المستخرج (OCR)" : "Extracted Text (OCR)"}
-                  </h3>
-                  <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={(e) => { e.preventDefault(); extractTextFromPage(); }}
-                      disabled={ocrLoading}
-                    >
-                      {ocrLoading ? (rtl ? "جارٍ..." : "Working...") : (rtl ? "تشغيل OCR" : "Run OCR")}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={(e) => { e.preventDefault(); forceRegenerate(); }}
-                      disabled={ocrLoading || summLoading}
-                      title={rtl ? "إعادة توليد من جديد (Cmd+Ctrl+D)" : "Force regenerate (Cmd+Ctrl+D)"}
-                    >
-                      <Sparkles className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </summary>
-              <div className="px-4 pb-4">
-                {extractedText ? (
-                  <div 
-                    className={cn(
-                      "text-sm leading-relaxed bg-muted/30 p-3 rounded border max-h-64 overflow-y-auto font-mono whitespace-pre-wrap",
-                      rtl && "text-right"
-                    )}
-                    dir={rtl ? "rtl" : "ltr"}
-                  >
-                    {extractedText}
-                  </div>
-                ) : (
-                  <div className={cn("text-center text-muted-foreground py-4", rtl && "text-right")}>
-                    {rtl ? "لا يوجد نص مستخرج بعد" : "No OCR text extracted yet"}
-                  </div>
-                )}
-              </div>
-            </details>
-
             {/* AI Reading Assistant */}
             <div ref={insightsRef}>
               <Card className="shadow-sm">
@@ -1147,6 +1100,53 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 </CardContent>
               </Card>
             </div>
+
+            {/* OCR Content - Now indexable */}
+            <details className="border rounded-lg bg-card shadow-sm">
+              <summary className="cursor-pointer p-4 hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-semibold">
+                    {rtl ? "النص المستخرج (OCR)" : "Extracted Text (OCR)"}
+                  </h3>
+                  <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={(e) => { e.preventDefault(); extractTextFromPage(); }}
+                      disabled={ocrLoading}
+                    >
+                      {ocrLoading ? (rtl ? "جارٍ..." : "Working...") : (rtl ? "تشغيل OCR" : "Run OCR")}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => { e.preventDefault(); forceRegenerate(); }}
+                      disabled={ocrLoading || summLoading}
+                      title={rtl ? "إعادة توليد من جديد (Cmd+Ctrl+D)" : "Force regenerate (Cmd+Ctrl+D)"}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              </summary>
+              <div className="px-4 pb-4">
+                {extractedText ? (
+                  <div 
+                    className={cn(
+                      "text-sm leading-relaxed bg-muted/30 p-3 rounded border max-h-64 overflow-y-auto font-mono whitespace-pre-wrap",
+                      rtl && "text-right"
+                    )}
+                    dir={rtl ? "rtl" : "ltr"}
+                  >
+                    {extractedText}
+                  </div>
+                ) : (
+                  <div className={cn("text-center text-muted-foreground py-4", rtl && "text-right")}>
+                    {rtl ? "لا يوجد نص مستخرج بعد" : "No OCR text extracted yet"}
+                  </div>
+                )}
+              </div>
+            </details>
           </div>
         </div>
       )}
