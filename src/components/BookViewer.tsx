@@ -194,52 +194,20 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     return () => window.clearInterval(id);
   }, [imageLoading]);
 
-  // Keyboard navigation
+  // Keyboard shortcuts
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.tagName === "INPUT" || 
-          (e.target as HTMLElement)?.tagName === "TEXTAREA" || 
-          (e.target as HTMLElement)?.contentEditable === "true") {
+    const handleKeyboardShortcuts = (e: KeyboardEvent) => {
+      // Force regenerate OCR and summary: Cmd+Ctrl+D (Mac) or Ctrl+Alt+D (Windows/Linux)
+      if ((e.metaKey && e.ctrlKey && e.key === 'd') || (e.ctrlKey && e.altKey && e.key === 'd')) {
+        e.preventDefault();
+        forceRegenerate();
         return;
       }
-      
-      switch (e.key) {
-        case "ArrowLeft":
-          e.preventDefault();
-          rtl ? goNext() : goPrev();
-          break;
-        case "ArrowRight":
-          e.preventDefault();
-          rtl ? goPrev() : goNext();
-          break;
-        case " ":
-        case "Enter":
-          e.preventDefault();
-          goNext();
-          break;
-        case "Backspace":
-          e.preventDefault();
-          goPrev();
-          break;
-        case "+":
-        case "=":
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            zoomIn();
-          }
-          break;
-        case "-":
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            zoomOut();
-          }
-          break;
-      }
     };
-    
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [total, rtl]);
+
+    document.addEventListener('keydown', handleKeyboardShortcuts);
+    return () => document.removeEventListener('keydown', handleKeyboardShortcuts);
+  }, []);
 
   // Load cached data and fetch from DB
   useEffect(() => {
@@ -358,7 +326,60 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     return score;
   };
 
-  const extractTextFromPage = async () => {
+  const extractTextFromPage = async (force = false) => {
+    if (ocrLoading) return;
+    
+    // Skip database check if force is true
+    if (!force) {
+      // Check if we already have OCR text in database
+      try {
+        const { data: existingData, error } = await supabase
+          .from('page_summaries')
+          .select('ocr_text, ocr_confidence, confidence, confidence_meta')
+          .eq('book_id', dbBookId)
+          .eq('page_number', index + 1)
+          .maybeSingle();
+
+        console.log('Checking database for existing OCR text for page', index + 1, 'Result:', existingData);
+
+        if (!error && existingData?.ocr_text?.trim()) {
+          console.log('Found existing OCR text in database:', {
+            length: existingData.ocr_text.length,
+            preview: existingData.ocr_text.substring(0, 100) + '...'
+          });
+          
+          setExtractedText(existingData.ocr_text);
+          setOcrQuality(existingData.ocr_confidence || 0.8);
+          localStorage.setItem(ocrKey, existingData.ocr_text);
+          toast.success(rtl ? "تم تحميل النص المحفوظ" : "Loaded cached OCR text");
+          
+          // Check if we also need to load existing summary
+          if (existingData.confidence && !summary?.trim()) {
+            // Try to get the summary from the same record or query again
+            try {
+              const { data: summaryData } = await supabase
+                .from('page_summaries')
+                .select('summary_md')
+                .eq('book_id', dbBookId)
+                .eq('page_number', index + 1)
+                .maybeSingle();
+              
+              if (summaryData?.summary_md?.trim()) {
+                await streamExistingSummary(summaryData.summary_md);
+              }
+            } catch (summaryError) {
+              console.warn('Failed to load existing summary:', summaryError);
+            }
+          }
+          
+          return;
+        }
+      } catch (dbError) {
+        console.warn('Failed to check existing OCR text:', dbError);
+      }
+    } else {
+      toast.info(rtl ? "إعادة توليد النص والملخص من جديد..." : "Force regenerating OCR and summary...");
+    }
     setOcrLoading(true);
     setOcrProgress(0);
     setExtractedText("");
@@ -432,7 +453,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       setOcrProgress(90);
       
       // Generate summary
-      await summarizeExtractedText(cleanText);
+      await summarizeExtractedText(cleanText, force);
       
       setOcrProgress(100);
     } catch (error) {
@@ -464,28 +485,31 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     toast.success(rtl ? "تم تحميل الملخص المحفوظ" : "Loaded cached summary");
   };
 
-  const summarizeExtractedText = async (text: string = extractedText) => {
+  const summarizeExtractedText = async (text: string = extractedText, force = false) => {
     if (!text?.trim()) {
       toast.error(rtl ? "لا يوجد نص لتلخيصه" : "No text to summarize");
       return;
     }
     
-    // First check if summary already exists in database
-    try {
-      const { data: existingData, error } = await supabase
-        .from('page_summaries')
-        .select('summary_md')
-        .eq('book_id', dbBookId)
-        .eq('page_number', index + 1)
-        .maybeSingle();
-      
-      if (!error && existingData?.summary_md?.trim()) {
-        console.log('Found existing summary in database, streaming it...');
-        await streamExistingSummary(existingData.summary_md);
-        return;
+    // Skip database check if force is true
+    if (!force) {
+      // First check if summary already exists in database
+      try {
+        const { data: existingData, error } = await supabase
+          .from('page_summaries')
+          .select('summary_md')
+          .eq('book_id', dbBookId)
+          .eq('page_number', index + 1)
+          .maybeSingle();
+        
+        if (!error && existingData?.summary_md?.trim()) {
+          console.log('Found existing summary in database, streaming it...');
+          await streamExistingSummary(existingData.summary_md);
+          return;
+        }
+      } catch (dbError) {
+        console.warn('Failed to check existing summary:', dbError);
       }
-    } catch (dbError) {
-      console.warn('Failed to check existing summary:', dbError);
     }
     
     setSummLoading(true);
@@ -585,6 +609,24 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }
   };
 
+  const forceRegenerate = async () => {
+    try {
+      // Clear existing data
+      setExtractedText("");
+      setSummary("");
+      localStorage.removeItem(ocrKey);
+      localStorage.removeItem(sumKey);
+      
+      // Force regenerate OCR and summary
+      await extractTextFromPage(true);
+      
+      toast.success(rtl ? "تم إعادة توليد النص والملخص بنجاح" : "Successfully regenerated OCR and summary");
+    } catch (error) {
+      console.error('Force regenerate error:', error);
+      toast.error(rtl ? "فشل في إعادة التوليد" : "Failed to regenerate content");
+    }
+  };
+
   const handleSmartSummarizeClick = async () => {
     // Check if we already have a summary (either in state or database)
     if (summary?.trim()) {
@@ -598,7 +640,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       summarizeExtractedText();
     } else {
       // No text yet, extract it first
-      extractTextFromPage();
+      await extractTextFromPage();
     }
   };
 
@@ -856,7 +898,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             {lastError && (
               <ImprovedErrorHandler
                 error={lastError}
-                onRetry={extractTextFromPage}
+                onRetry={() => extractTextFromPage()}
                 isRetrying={ocrLoading || summLoading}
                 retryCount={retryCount}
                 context={ocrLoading ? (rtl ? "استخراج النص" : "OCR") : (rtl ? "التلخيص" : "Summarization")}
@@ -879,6 +921,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       disabled={ocrLoading}
                     >
                       {ocrLoading ? (rtl ? "جارٍ..." : "Working...") : (rtl ? "تشغيل OCR" : "Run OCR")}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => { e.preventDefault(); forceRegenerate(); }}
+                      disabled={ocrLoading || summLoading}
+                      title={rtl ? "إعادة توليد من جديد (Cmd+Ctrl+D)" : "Force regenerate (Cmd+Ctrl+D)"}
+                    >
+                      <Sparkles className="h-3 w-3" />
                     </Button>
                   </div>
                 </div>
