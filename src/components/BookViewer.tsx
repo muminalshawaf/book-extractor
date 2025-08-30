@@ -604,9 +604,17 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           });
         } catch (eventSourceError) {
           console.warn('EventSource failed, falling back to fetch:', eventSourceError);
-          useEventSource = false;
-          fullSummary = '';
-          setSummary('');
+          // Only fall back to fetch if no content was received from EventSource
+          if (!fullSummary.trim()) {
+            useEventSource = false;
+            setSummary('');
+          } else {
+            // EventSource got some content, keep it and finish
+            console.log('EventSource got partial content, keeping it:', fullSummary.length, 'characters');
+            setSummaryProgress(100);
+            setSummLoading(false);
+            return;
+          }
         }
       }
       
