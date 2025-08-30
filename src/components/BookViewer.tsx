@@ -384,91 +384,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
       setOcrProgress(25);
       
-      // Run OCR with optimized settings for Arabic physics textbook
+      // Run OCR with basic settings only
       console.log('Starting OCR for image blob:', imageBlob.size, 'bytes');
       
-      // Simplified, proven OCR strategies that actually work
-      let bestResult = null;
-      const strategies = [
-        // Strategy 1: Basic Arabic OCR with minimal preprocessing
-        {
-          lang: 'ara+eng',
-          psm: 6, // Uniform block of text - most reliable
-          preprocess: {
-            upsample: true,
-            targetMinWidth: 1200,
-            denoise: false,
-            binarize: false,
-            adaptiveBinarization: true,
-            contrastNormalize: false,
-            cropMargins: false,
-            deskew: false
-          },
-          autoRotate: true
-        },
-        // Strategy 2: Full page segmentation
-        {
-          lang: 'ara+eng',
-          psm: 3, // Fully automatic page segmentation
-          preprocess: {
-            upsample: true,
-            targetMinWidth: 1000,
-            denoise: true,
-            binarize: false,
-            adaptiveBinarization: false,
-            contrastNormalize: false,
-            cropMargins: false,
-            deskew: false
-          },
-          autoRotate: false
-        },
-        // Strategy 3: Basic settings - fallback
-        {
-          lang: 'ara+eng',
-          psm: 4, // Variable-size blocks
-          preprocess: false, // No preprocessing at all
-          autoRotate: false
-        }
-      ];
+      const ocrResult = await runLocalOcr(imageBlob, {
+        lang: 'ara+eng',
+        onProgress: (progress) => setOcrProgress(25 + (progress * 60 / 100))
+      });
       
-      // Try each strategy with proper error handling and result logging
-      for (let i = 0; i < strategies.length; i++) {
-        try {
-          console.log(`Trying OCR strategy ${i + 1}/${strategies.length}:`, strategies[i]);
-          const result = await runLocalOcr(imageBlob, {
-            ...strategies[i],
-            onProgress: (progress) => setOcrProgress(25 + (progress * 60 / strategies.length / 100) + (i * 60 / strategies.length))
-          });
-          
-          console.log(`Strategy ${i + 1} result:`, {
-            textLength: result?.text?.length || 0,
-            confidence: result?.confidence,
-            preview: result?.text?.substring(0, 100) + (result?.text?.length > 100 ? '...' : '')
-          });
-          
-          // Select best result based on text length and confidence
-          if (result?.text && result.text.trim().length > 0) {
-            if (!bestResult || 
-                result.text.length > bestResult.text.length || 
-                (result.text.length === bestResult.text.length && result.confidence > bestResult.confidence)) {
-              bestResult = result;
-            }
-          }
-          
-          // Early exit if we got good results
-          if (result?.text?.length > 50 && result?.confidence > 70) {
-            console.log(`Good result found with strategy ${i + 1}, using it`);
-            bestResult = result;
-            break;
-          }
-          
-        } catch (error) {
-          console.error(`Strategy ${i + 1} failed:`, error);
-        }
-      }
-      
-      const ocrResult = bestResult;
-      console.log('Final OCR result:', {
+      console.log('OCR result:', {
         textLength: ocrResult?.text?.length || 0,
         confidence: ocrResult?.confidence,
         preview: ocrResult?.text?.substring(0, 300)
