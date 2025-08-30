@@ -360,132 +360,51 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       const imageSrc = pages[index]?.src;
       setOcrProgress(10);
       
-      let result: { text: string; confidence: number; source?: string } | null = null;
-
-      // Try Google Gemini OCR first (most cost-effective and accurate)
-      try {
-        console.log('Attempting Google Gemini OCR...');
-        setOcrProgress(20);
-        
-        const { data: geminiResult, error: geminiError } = await supabase.functions.invoke('ocr-gemini', {
-          body: { 
-            imageUrl: imageSrc,
-            language: rtl ? 'ar' : 'en'
-          }
-        });
-
-        setOcrProgress(40);
-
-        if (geminiError) {
-          console.warn('Google Gemini OCR failed:', geminiError);
-        } else if (geminiResult?.text && geminiResult.text.trim().length > 3) {
-          result = {
-            text: geminiResult.text,
-            confidence: geminiResult.confidence || 0.85,
-            source: 'gemini'
-          };
-          console.log('Google Gemini OCR successful, confidence:', result.confidence);
+      console.log('Using Google Gemini OCR only...');
+      setOcrProgress(20);
+      
+      const { data: geminiResult, error: geminiError } = await supabase.functions.invoke('ocr-gemini', {
+        body: { 
+          imageUrl: imageSrc,
+          language: rtl ? 'ar' : 'en'
         }
-      } catch (geminiError) {
-        console.warn('Google Gemini OCR error:', geminiError);
+      });
+
+      setOcrProgress(60);
+
+      if (geminiError) {
+        throw new Error(`Google Gemini OCR failed: ${geminiError.message || geminiError}`);
+      }
+      
+      if (!geminiResult?.text || geminiResult.text.trim().length <= 3) {
+        throw new Error('Google Gemini OCR returned empty or insufficient text');
       }
 
-      // Fallback to DeepSeek OCR if Gemini failed
-      if (!result) {
-        try {
-          console.log('Falling back to DeepSeek OCR...');
-          setOcrProgress(50);
-        
-          const { data: deepseekResult, error: deepseekError } = await supabase.functions.invoke('ocr-deepseek', {
-            body: { 
-              imageUrl: imageSrc,
-              language: rtl ? 'ar' : 'en'
-            }
-          });
-
-          setOcrProgress(70);
-
-          if (deepseekError) {
-            console.warn('DeepSeek OCR failed:', deepseekError);
-          } else if (deepseekResult?.text && deepseekResult.text.trim().length > 3) {
-            result = {
-              text: deepseekResult.text,
-              confidence: deepseekResult.confidence || 0.8,
-              source: 'deepseek'
-            };
-            console.log('DeepSeek OCR successful, confidence:', result.confidence);
-          }
-        } catch (deepseekError) {
-          console.warn('DeepSeek OCR error:', deepseekError);
-        }
-      }
-
-      // Final fallback to local OCR if both Gemini and DeepSeek failed
-      if (!result) {
-        console.log('Falling back to local OCR...');
-        setOcrProgress(30);
-        
-        const isExternal = imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin);
-        let imageBlob: Blob | null = null;
-
-        if (isExternal) {
-          try {
-            const proxyUrl = `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
-            const response = await fetch(proxyUrl, {
-              headers: {
-                'Accept': 'image/*',
-                'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrem5zZWt5Z21pcG51Y3BvdW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjY4NzMsImV4cCI6MjA3MDIwMjg3M30.5gvy46gGEU-B9O3cutLNmLoX62dmEvKLC236yeaQ6So`
-              }
-            });
-            if (!response.ok) throw new Error(`Proxy failed: ${response.status}`);
-            imageBlob = await response.blob();
-          } catch (e) {
-            console.log('Proxy fetch failed, trying direct:', e);
-            const directResponse = await fetch(imageSrc);
-            imageBlob = await directResponse.blob();
-          }
-        } else {
-          const response = await fetch(imageSrc);
-          imageBlob = await response.blob();
-        }
-        
-        setOcrProgress(40);
-        
-        const localResult = await runLocalOcr(imageBlob, {
-          lang: 'ara+eng',
-          onProgress: (progress) => setOcrProgress(40 + (progress * 30 / 100))
-        });
-
-        result = {
-          text: localResult.text,
-          confidence: localResult.confidence,
-          source: 'local'
-        };
-        console.log('Local OCR completed with confidence:', result.confidence);
-      }
-
+      const result = {
+        text: geminiResult.text,
+        confidence: geminiResult.confidence || 0.85,
+        source: 'gemini'
+      };
+      
+      console.log('Google Gemini OCR successful, confidence:', result.confidence);
       setOcrProgress(75);
 
-      if (result?.text?.trim()) {
-        const cleanText = result.text.trim();
-        setExtractedText(cleanText);
-        localStorage.setItem(ocrKey, cleanText);
-        
-        // Save to database and generate summary
-        await callFunction('save-page-summary', {
-          book_id: dbBookId,
-          page_number: index + 1,
-          ocr_text: cleanText,
-          ocr_confidence: result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8
-        });
-        
-        setOcrProgress(90);
-        
-        // Generate summary
-        await summarizeExtractedText(cleanText);
-      } else {
-        throw new Error('No text extracted from either DeepSeek or local OCR');
-      }
+      const cleanText = result.text.trim();
+      setExtractedText(cleanText);
+      localStorage.setItem(ocrKey, cleanText);
+      
+      // Save to database and generate summary
+      await callFunction('save-page-summary', {
+        book_id: dbBookId,
+        page_number: index + 1,
+        ocr_text: cleanText,
+        ocr_confidence: result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8
+      });
+      
+      setOcrProgress(90);
+      
+      // Generate summary
+      await summarizeExtractedText(cleanText);
       
       setOcrProgress(100);
     } catch (error) {
