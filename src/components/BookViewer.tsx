@@ -1110,14 +1110,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   </h3>
                   <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
                     <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={(e) => { e.preventDefault(); extractTextFromPage(); }}
-                      disabled={ocrLoading}
-                    >
-                      {ocrLoading ? (rtl ? "جارٍ..." : "Working...") : (rtl ? "تشغيل OCR" : "Run OCR")}
-                    </Button>
-                    <Button 
                       variant="ghost" 
                       size="sm" 
                       onClick={(e) => { e.preventDefault(); forceRegenerate(); }}
