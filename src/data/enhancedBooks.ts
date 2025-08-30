@@ -174,10 +174,20 @@ export function getBookBySlug(slug: string): EnhancedBookDef | null {
 }
 
 export function getLessonBySlug(bookSlug: string, lessonSlug: string): { book: EnhancedBookDef, lesson: LessonData } | null {
+  console.log('getLessonBySlug called with:', { bookSlug, lessonSlug });
+  
   const book = getBookBySlug(bookSlug);
-  if (!book || !book.lessons) return null;
+  console.log('Found book:', book?.title);
+  
+  if (!book || !book.lessons) {
+    console.log('Book not found or no lessons');
+    return null;
+  }
   
   const lesson = book.lessons.find(l => l.slug === lessonSlug);
+  console.log('Found lesson:', lesson?.title);
+  console.log('Available lesson slugs:', book.lessons.map(l => l.slug));
+  
   if (!lesson) return null;
   
   return { book, lesson };

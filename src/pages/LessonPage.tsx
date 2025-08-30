@@ -16,7 +16,15 @@ export default function LessonPage() {
 
   const lessonData = useMemo(() => {
     if (!bookSlug || !lessonSlug) return null;
-    return getLessonBySlug(bookSlug, lessonSlug);
+    
+    // Decode URL parameters in case they contain encoded Arabic characters
+    const decodedBookSlug = decodeURIComponent(bookSlug);
+    const decodedLessonSlug = decodeURIComponent(lessonSlug);
+    
+    console.log('Original lessonSlug:', lessonSlug);
+    console.log('Decoded lessonSlug:', decodedLessonSlug);
+    
+    return getLessonBySlug(decodedBookSlug, decodedLessonSlug);
   }, [bookSlug, lessonSlug]);
 
   if (!lessonData) {
