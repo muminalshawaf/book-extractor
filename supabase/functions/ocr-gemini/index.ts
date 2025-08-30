@@ -74,23 +74,51 @@ serve(async (req) => {
     // Prepare the prompt based on language
     const isArabic = language === 'ar'
     const prompt = isArabic 
-      ? `Extract all text from this image with high accuracy. This image contains Arabic text. Please:
-1. Preserve the original text layout and structure
-2. Maintain proper Arabic text direction (right-to-left)
-3. Keep mathematical formulas, equations, and symbols intact
-4. Include any English text or numbers that appear
-5. Preserve paragraph breaks and formatting
-6. Only return the extracted text, nothing else
+      ? `Analyze this image and extract all text with high accuracy. This image contains Arabic text and may have multiple columns. Please return a JSON response with the following structure:
 
-Focus on accuracy and completeness. If there are equations or formulas, preserve them exactly as they appear.`
-      : `Extract all text from this image with high accuracy. Please:
-1. Preserve the original text layout and structure
-2. Keep mathematical formulas, equations, and symbols intact
-3. Include any Arabic or other non-English text that appears
-4. Preserve paragraph breaks and formatting
-5. Only return the extracted text, nothing else
+{
+  "language": "ar",
+  "direction": "rtl",
+  "columns": [
+    {"order": 1, "text": "content of first column to read"},
+    {"order": 2, "text": "content of second column to read"}
+  ]
+}
 
-Focus on accuracy and completeness. If there are equations or formulas, preserve them exactly as they appear.`
+Instructions:
+1. If the page has multiple columns, read them in the correct Arabic reading order (right-to-left)
+2. For single column pages, still use the JSON format with one column
+3. Preserve mathematical formulas, equations, and symbols exactly as they appear
+4. Include problem numbers (13., 14., 15., etc.) and maintain their sequence
+5. Keep units (ml, L, %, etc.) exactly as written
+6. Ignore headers, footers, page numbers, and navigation elements
+7. Maintain paragraph breaks within each column
+8. Include any English text or numbers that appear
+9. DO NOT summarize or modify the content - extract exactly as written
+
+Focus on accuracy and completeness. The order field should reflect the correct reading sequence for Arabic (rightmost column = order 1).`
+      : `Analyze this image and extract all text with high accuracy. Please return a JSON response with the following structure:
+
+{
+  "language": "en",
+  "direction": "ltr",
+  "columns": [
+    {"order": 1, "text": "content of first column to read"},
+    {"order": 2, "text": "content of second column to read"}
+  ]
+}
+
+Instructions:
+1. If the page has multiple columns, read them in left-to-right order
+2. For single column pages, still use the JSON format with one column
+3. Preserve mathematical formulas, equations, and symbols exactly as they appear
+4. Keep problem numbers and maintain their sequence
+5. Ignore headers, footers, page numbers, and navigation elements
+6. Maintain paragraph breaks within each column
+7. Include any Arabic or other non-English text that appears
+8. DO NOT summarize or modify the content - extract exactly as written
+
+Focus on accuracy and completeness.`
 
     // Call Google Gemini API
     try {
@@ -118,6 +146,7 @@ Focus on accuracy and completeness. If there are equations or formulas, preserve
               topK: 32,
               topP: 1,
               maxOutputTokens: 8192,
+              response_mime_type: "application/json"
             },
             safetySettings: [
               {
@@ -170,7 +199,39 @@ Focus on accuracy and completeness. If there are equations or formulas, preserve
         )
       }
 
-      const extractedText = candidate.content.parts[0].text || ''
+      const rawResponse = candidate.content.parts[0].text || ''
+      
+      // Try to parse JSON response
+      let parsedData
+      let extractedText = ''
+      let columnsDetected = 0
+      let direction = isArabic ? 'rtl' : 'ltr'
+      
+      try {
+        parsedData = JSON.parse(rawResponse)
+        console.log('Successfully parsed JSON response:', parsedData)
+        
+        if (parsedData.columns && Array.isArray(parsedData.columns)) {
+          // Sort columns by order
+          const sortedColumns = parsedData.columns.sort((a, b) => a.order - b.order)
+          columnsDetected = sortedColumns.length
+          direction = parsedData.direction || direction
+          
+          // Join column texts with double line breaks
+          extractedText = sortedColumns.map(col => col.text).join('\n\n')
+          
+          console.log(`Multi-column layout detected: ${columnsDetected} columns, direction: ${direction}`)
+        } else {
+          // Fallback to treating as single text block
+          extractedText = parsedData.text || rawResponse
+          columnsDetected = 1
+        }
+      } catch (jsonError) {
+        console.log('Failed to parse JSON, treating as plain text:', jsonError.message)
+        // Fallback to plain text
+        extractedText = rawResponse
+        columnsDetected = 1
+      }
       
       // Calculate confidence based on text quality
       let confidence = 0.85 // Base confidence for Gemini
@@ -189,14 +250,16 @@ Focus on accuracy and completeness. If there are equations or formulas, preserve
       // Cap confidence at 0.95
       confidence = Math.min(confidence, 0.95)
 
-      console.log(`OCR completed successfully. Text length: ${textLength}, Confidence: ${confidence}`)
+      console.log(`OCR completed successfully. Text length: ${textLength}, Confidence: ${confidence}, Columns: ${columnsDetected}`)
 
       return new Response(
         JSON.stringify({
           text: extractedText,
           confidence: confidence,
           source: 'gemini',
-          language: language
+          language: language,
+          columnsDetected: columnsDetected,
+          direction: direction
         }),
         { 
           status: 200, 
