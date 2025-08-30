@@ -74,7 +74,7 @@ serve(async (req) => {
     // Prepare the prompt based on language
     const isArabic = language === 'ar'
     const prompt = isArabic 
-      ? `Analyze this image and extract all text with high accuracy. This image contains Arabic text and may have multiple columns. Please return a JSON response with the following structure:
+      ? `Analyze this image and extract ALL text content with maximum accuracy. This image contains Arabic educational content and may have multiple columns. Please return a JSON response with the following structure:
 
 {
   "language": "ar",
@@ -85,18 +85,19 @@ serve(async (req) => {
   ]
 }
 
-Instructions:
-1. If the page has multiple columns, read them in the correct Arabic reading order (right-to-left)
-2. For single column pages, still use the JSON format with one column
-3. Preserve mathematical formulas, equations, and symbols exactly as they appear
-4. Include problem numbers (13., 14., 15., etc.) and maintain their sequence
-5. Keep units (ml, L, %, etc.) exactly as written
-6. Ignore headers, footers, page numbers, and navigation elements
-7. Maintain paragraph breaks within each column
-8. Include any English text or numbers that appear
-9. DO NOT summarize or modify the content - extract exactly as written
+CRITICAL INSTRUCTIONS:
+1. EXTRACT EVERYTHING: Include ALL text elements - headers, subheaders, main content, boxed text, highlighted sections, formulas, questions, and captions
+2. Column Reading Order: For multiple columns, read them in correct Arabic order (rightmost column = order 1, then left)
+3. Preserve Structure: Maintain exact formatting of mathematical formulas, equations, chemical symbols, and units (ml, L, %, etc.)
+4. Include All Sections: Do not skip any text - capture section titles like "الكيمياء في واقع الحياة", "الديزل الحيوي", highlighted formula boxes, and "ماذا قرأت؟" questions
+5. Maintain Numbering: Keep problem numbers (13., 14., 15., etc.) in exact sequence
+6. Formula Preservation: Copy mathematical expressions exactly as written, including fraction layouts and special formatting
+7. Question Inclusion: Include all questions, especially "ماذا قرأت؟" sections and comparisons
+8. Complete Content: Do NOT ignore headers, sidebars, boxes, or any text elements - extract everything visible
+9. Exact Transcription: DO NOT summarize, paraphrase, or modify - extract exactly as written
+10. Layout Awareness: Recognize and preserve text in boxes, highlighted sections, and special formatting
 
-Focus on accuracy and completeness. The order field should reflect the correct reading sequence for Arabic (rightmost column = order 1).`
+Focus on 100% completeness - every single piece of text must be captured. The order field should reflect correct Arabic reading sequence (right-to-left for columns).`
       : `Analyze this image and extract all text with high accuracy. Please return a JSON response with the following structure:
 
 {
