@@ -40,7 +40,11 @@ Text to summarize (single page, do not infer beyond it):
 ${text}
 """
 
-Task: Produce a comprehensive study summary in ${lang}, strictly from the text. Output as clean Markdown using H3 headings (###) with localized section titles. Sections and exact formats:
+Task: Produce a comprehensive study summary in ${lang}, strictly from the text. Output as clean Markdown using H3 headings (###) with localized section titles. 
+
+**IMPORTANT**: If the text contains numbered mathematical/scientific problems (like "13. ما النسبة المئوية..." or "14. احسب..."), you MUST solve them step-by-step in a dedicated section.
+
+Sections and exact formats:
 
 ### 1) ${lang === "ar" ? "نظرة عامة" : "Overview"}
 - 2–3 sentences covering the page's purpose and scope.
@@ -54,16 +58,24 @@ Task: Produce a comprehensive study summary in ${lang}, strictly from the text. 
 ### 4) ${lang === "ar" ? "الصيغ والوحدات" : "Formulas & Units"}
 - Use LaTeX ($$...$$ for blocks). List variables with meanings and typical units.
 
-### 5) ${lang === "ar" ? "الخطوات/الإجراءات" : "Procedures/Steps"}
+### 5) ${lang === "ar" ? "حلول المسائل" : "Problem Solutions"}
+**ONLY include this section if there are numbered mathematical problems in the text.**
+For each problem found:
+- Restate the problem clearly
+- Show step-by-step solution with calculations
+- Provide final answer with proper units
+- Use LaTeX for equations: $$...$$ for display math, $...$ for inline
+
+### 6) ${lang === "ar" ? "الخطوات/الإجراءات" : "Procedures/Steps"}
 - Numbered list if applicable.
 
-### 6) ${lang === "ar" ? "أمثلة وتطبيقات" : "Examples/Applications"}
+### 7) ${lang === "ar" ? "أمثلة وتطبيقات" : "Examples/Applications"}
 - Concrete examples from the text only.
 
-### 7) ${lang === "ar" ? "أخطاء شائعة/ملابسات" : "Misconceptions/Pitfalls"}
+### 8) ${lang === "ar" ? "أخطاء شائعة/ملابسات" : "Misconceptions/Pitfalls"}
 - Bullets indicating common errors to avoid.
 
-### 8) ${lang === "ar" ? "أسئلة سريعة" : "Quick Q&A"}
+### 9) ${lang === "ar" ? "أسئلة سريعة" : "Quick Q&A"}
 Provide 3–5 question–answer pairs strictly from the text as a Markdown table:
 
 | ${lang === "ar" ? "السؤال" : "Question"} | ${lang === "ar" ? "الجواب" : "Answer"} |
@@ -73,7 +85,8 @@ Provide 3–5 question–answer pairs strictly from the text as a Markdown table
 Constraints:
 - Use ${lang} throughout. Use Arabic punctuation if ${lang} = ar.
 - No external knowledge or hallucinations; if something is missing, write "${notStated}".
-- 250–450 words total. Prefer concise bullets. Preserve equations/symbols. Avoid decorative characters and excessive bolding.`;
+- 300–600 words total (more if solving problems). Prefer concise bullets. Preserve equations/symbols. Avoid decorative characters and excessive bolding.
+- When solving problems, show ALL calculation steps clearly.`;
 
     const resp = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
@@ -84,7 +97,7 @@ Constraints:
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "You are an expert textbook summarizer for a single page. Be accurate, comprehensive, and structured. Prioritize complete coverage of Definitions & Terms and Key Concepts. Only use the provided text. Preserve math in LaTeX. The 'Quick Q&A' section MUST be a Markdown table that includes both clear questions and their direct answers from the text." },
+          { role: "system", content: "You are an expert textbook summarizer for a single page. Be accurate, comprehensive, and structured. Prioritize complete coverage of Definitions & Terms and Key Concepts. Only use the provided text. Preserve math in LaTeX. When mathematical problems are present, solve them step-by-step showing all work. The 'Quick Q&A' section MUST be a Markdown table that includes both clear questions and their direct answers from the text." },
           { role: "user", content: prompt },
         ],
         temperature: 0.2,

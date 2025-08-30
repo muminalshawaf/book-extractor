@@ -67,6 +67,8 @@ ${text}
 
 المطلوب: ملخص شامل ومفيد للطالب باللغة العربية، يغطي فقط المحتوى الموجود في النص. استخدم تنسيق Markdown مع عناوين H3 (###). 
 
+**مهم جداً**: إذا احتوى النص على مسائل رياضية أو علمية مرقمة (مثل "13. ما النسبة المئوية..." أو "14. احسب...")، يجب حلها خطوة بخطوة في قسم مخصص.
+
 اتبع هذه القواعد:
 - اكتب فقط الأقسام التي لها محتوى فعلي من النص
 - لا تكتب أقسام فارغة أو "غير واضح في النص"
@@ -88,6 +90,14 @@ ${text}
 ### الصيغ والقوانين
 - استخدم LaTeX للمعادلات ($$...$$ للكتل). اذكر المتغيرات ومعانيها والوحدات
 
+### حلول المسائل
+**اكتب هذا القسم فقط إذا وجدت مسائل رياضية مرقمة في النص.**
+لكل مسألة:
+- أعد صياغة السؤال بوضوح
+- اعرض الحل خطوة بخطوة مع الحسابات
+- اذكر الجواب النهائي مع الوحدات المناسبة
+- استخدم LaTeX للمعادلات: $$...$$ للمعادلات المنفصلة، $...$ للمعادلات ضمن السطر
+
 ### الخطوات والإجراءات
 - قائمة مرقمة بالخطوات إن وجدت
 
@@ -105,9 +115,10 @@ ${text}
 | ... | ... |
 
 قيود:
-- 300-500 كلمة إجمالاً
+- 300-600 كلمة إجمالاً (أكثر إذا كنت تحل مسائل)
 - تجنب المبالغة في التنسيق والزخرفة
-- احتفظ بالمعادلات والرموز من النص الأصلي`;
+- احتفظ بالمعادلات والرموز من النص الأصلي
+- عند حل المسائل، أظهر جميع خطوات الحساب بوضوح`;
 
     // Use Arabic prompt if language is Arabic
     const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 
@@ -118,6 +129,8 @@ ${text}
 """
 
 Create a comprehensive student-focused summary in ${lang}. Use clean Markdown with H3 headings (###). 
+
+**IMPORTANT**: If the text contains numbered mathematical/scientific problems (like "13. Calculate..." or "14. Find..."), you MUST solve them step-by-step in a dedicated section.
 
 Rules:
 - ONLY include sections that have actual content from the text
@@ -140,16 +153,24 @@ Potential sections (include only if applicable):
 ### 4) Formulas & Units
 - Use LaTeX ($$...$$ for blocks). List variables with meanings and units
 
-### 5) Procedures/Steps
+### 5) Problem Solutions
+**ONLY include this section if there are numbered mathematical problems in the text.**
+For each problem found:
+- Restate the problem clearly
+- Show step-by-step solution with calculations
+- Provide final answer with proper units
+- Use LaTeX for equations: $$...$$ for display math, $...$ for inline
+
+### 6) Procedures/Steps
 - Numbered list if applicable
 
-### 6) Examples/Applications
+### 7) Examples/Applications
 - Concrete examples from the text only
 
-### 7) Misconceptions/Pitfalls
+### 8) Misconceptions/Pitfalls
 - Common errors to avoid or important tips
 
-### 8) Quick Q&A
+### 9) Quick Q&A
 If sufficient content exists, create 3–5 Q&A pairs from the text:
 
 | Question | Answer |
@@ -157,9 +178,10 @@ If sufficient content exists, create 3–5 Q&A pairs from the text:
 | ... | ... |
 
 Constraints:
-- 300-500 words total
+- 300-600 words total (more if solving problems)
 - Avoid excessive formatting
-- Preserve equations/symbols from original text`;
+- Preserve equations/symbols from original text
+- When solving problems, show ALL calculation steps clearly`;
 
     const dsRes = await fetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
@@ -172,8 +194,8 @@ Constraints:
         model: "deepseek-chat",
         messages: [
           { role: "system", content: (lang === "ar" || lang === "arabic") ? 
-            "أنت خبير في تلخيص الكتب المدرسية لصفحة واحدة. كن دقيقًا وشاملاً ومنظمًا. ركز على التغطية الكاملة للتعاريف والمصطلحات والمفاهيم الأساسية. استخدم فقط النص المقدم. احتفظ بالرياضيات في LaTeX. قسم 'الأسئلة السريعة' يجب أن يكون جدول Markdown يتضمن أسئلة واضحة وأجوبتها المباشرة من النص." : 
-            "You are an expert textbook summarizer for a single page. Be accurate, comprehensive, and structured. Prioritize complete coverage of Definitions & Terms and Key Concepts. Only use the provided text. Preserve math in LaTeX. The 'Quick Q&A' section MUST be a Markdown table that includes both clear questions and their direct answers from the text." },
+            "أنت خبير في تلخيص الكتب المدرسية لصفحة واحدة. كن دقيقًا وشاملاً ومنظمًا. ركز على التغطية الكاملة للتعاريف والمصطلحات والمفاهيم الأساسية. استخدم فقط النص المقدم. احتفظ بالرياضيات في LaTeX. عند وجود مسائل رياضية، احلها خطوة بخطوة مع إظهار جميع الخطوات. قسم 'الأسئلة السريعة' يجب أن يكون جدول Markdown يتضمن أسئلة واضحة وأجوبتها المباشرة من النص." : 
+            "You are an expert textbook summarizer for a single page. Be accurate, comprehensive, and structured. Prioritize complete coverage of Definitions & Terms and Key Concepts. Only use the provided text. Preserve math in LaTeX. When mathematical problems are present, solve them step-by-step showing all work. The 'Quick Q&A' section MUST be a Markdown table that includes both clear questions and their direct answers from the text." },
           { role: "user", content: finalPrompt },
         ],
         temperature: 0.2,
