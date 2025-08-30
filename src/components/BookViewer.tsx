@@ -1106,7 +1106,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               <summary className="cursor-pointer p-4 hover:bg-muted/50 transition-colors">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-semibold">
-                    {rtl ? "النص المستخرج (OCR)" : "Extracted Text (OCR)"}
+                    {rtl ? "النص في الكتاب" : "Text in Book"}
                   </h3>
                   <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
                     <Button 
