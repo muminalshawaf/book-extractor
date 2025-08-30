@@ -362,35 +362,65 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       
       let result: { text: string; confidence: number; source?: string } | null = null;
 
-      // Try DeepSeek OCR first
+      // Try Google Gemini OCR first (most cost-effective and accurate)
       try {
-        console.log('Attempting DeepSeek OCR...');
+        console.log('Attempting Google Gemini OCR...');
         setOcrProgress(20);
         
-        const { data: deepseekResult, error: deepseekError } = await supabase.functions.invoke('ocr-deepseek', {
+        const { data: geminiResult, error: geminiError } = await supabase.functions.invoke('ocr-gemini', {
           body: { 
             imageUrl: imageSrc,
             language: rtl ? 'ar' : 'en'
           }
         });
 
-        setOcrProgress(50);
+        setOcrProgress(40);
 
-        if (deepseekError) {
-          console.warn('DeepSeek OCR failed:', deepseekError);
-        } else if (deepseekResult?.text && deepseekResult.text.trim().length > 3) {
+        if (geminiError) {
+          console.warn('Google Gemini OCR failed:', geminiError);
+        } else if (geminiResult?.text && geminiResult.text.trim().length > 3) {
           result = {
-            text: deepseekResult.text,
-            confidence: deepseekResult.confidence || 0.8,
-            source: 'deepseek'
+            text: geminiResult.text,
+            confidence: geminiResult.confidence || 0.85,
+            source: 'gemini'
           };
-          console.log('DeepSeek OCR successful, confidence:', result.confidence);
+          console.log('Google Gemini OCR successful, confidence:', result.confidence);
         }
-      } catch (deepseekError) {
-        console.warn('DeepSeek OCR error:', deepseekError);
+      } catch (geminiError) {
+        console.warn('Google Gemini OCR error:', geminiError);
       }
 
-      // Fallback to local OCR if DeepSeek failed
+      // Fallback to DeepSeek OCR if Gemini failed
+      if (!result) {
+        try {
+          console.log('Falling back to DeepSeek OCR...');
+          setOcrProgress(50);
+        
+          const { data: deepseekResult, error: deepseekError } = await supabase.functions.invoke('ocr-deepseek', {
+            body: { 
+              imageUrl: imageSrc,
+              language: rtl ? 'ar' : 'en'
+            }
+          });
+
+          setOcrProgress(70);
+
+          if (deepseekError) {
+            console.warn('DeepSeek OCR failed:', deepseekError);
+          } else if (deepseekResult?.text && deepseekResult.text.trim().length > 3) {
+            result = {
+              text: deepseekResult.text,
+              confidence: deepseekResult.confidence || 0.8,
+              source: 'deepseek'
+            };
+            console.log('DeepSeek OCR successful, confidence:', result.confidence);
+          }
+        } catch (deepseekError) {
+          console.warn('DeepSeek OCR error:', deepseekError);
+        }
+      }
+
+      // Final fallback to local OCR if both Gemini and DeepSeek failed
       if (!result) {
         console.log('Falling back to local OCR...');
         setOcrProgress(30);

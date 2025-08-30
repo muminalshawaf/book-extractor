@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.save-page-summary]
 verify_jwt = false
+
+[functions.ocr-gemini]
+verify_jwt = false
