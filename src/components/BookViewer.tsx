@@ -883,6 +883,41 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     />
                   </TabsContent>
                 </Tabs>
+                
+                {/* Extracted Text Section for Mobile */}
+                <div className="mt-4">
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <div className="flex items-center gap-2 p-3 hover:bg-muted/50 cursor-pointer rounded border">
+                        <Sparkles className="h-4 w-4" />
+                        <span className="text-sm font-medium">{rtl ? "النص المستخرج من الصفحة" : "Extracted Text from Page"}</span>
+                        <ChevronDown className="h-4 w-4 ml-auto transition-transform" />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="p-3 border-x border-b rounded-b">
+                        {extractedText ? (
+                          <div 
+                            className={cn(
+                              "text-sm leading-relaxed bg-muted/30 p-3 rounded border max-h-48 overflow-y-auto",
+                              "whitespace-pre-wrap",
+                              rtl && "text-right font-arabic"
+                            )}
+                            dir={rtl ? "rtl" : "ltr"}
+                          >
+                            {extractedText}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded border text-center">
+                            <p className={rtl ? "text-right" : "text-left"}>
+                              {rtl ? "لم يتم استخراج النص من هذه الصفحة بعد. استخدم زر 'لخص هذه الصفحة' لاستخراج النص." : "No text has been extracted from this page yet. Use the 'Summarize this page' button to extract text."}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
               </div>
             </DrawerContent>
           </Drawer>
@@ -1054,6 +1089,43 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 rtl={rtl}
               />
             )}
+
+            {/* Extracted Text Section */}
+            <Card className="shadow-sm">
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="pb-2 hover:bg-muted/50 cursor-pointer">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      <span>{rtl ? "النص المستخرج من الصفحة" : "Extracted Text from Page"}</span>
+                      <ChevronDown className="h-4 w-4 ml-auto transition-transform" />
+                    </CardTitle>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="pt-0">
+                    {extractedText ? (
+                      <div 
+                        className={cn(
+                          "text-sm leading-relaxed bg-muted/30 p-3 rounded border max-h-48 overflow-y-auto",
+                          "whitespace-pre-wrap",
+                          rtl && "text-right font-arabic"
+                        )}
+                        dir={rtl ? "rtl" : "ltr"}
+                      >
+                        {extractedText}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded border text-center">
+                        <p className={rtl ? "text-right" : "text-left"}>
+                          {rtl ? "لم يتم استخراج النص من هذه الصفحة بعد. استخدم زر 'لخص هذه الصفحة' لاستخراج النص." : "No text has been extracted from this page yet. Use the 'Summarize this page' button to extract text."}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
 
             {/* AI Reading Assistant */}
             <div ref={insightsRef}>
