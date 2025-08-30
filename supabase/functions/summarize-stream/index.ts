@@ -98,10 +98,10 @@ ${text}
 |---|---|
 | ... | ... |
 
-قيود صارمة:
-- 200-400 كلمة فقط
+قيود:
 - لا تكرر المحتوى
-- كن مختصراً ومباشراً`;
+- كن واضحاً ومفصلاً
+- قدم كل التفاصيل المهمة`;
 
     // Use Arabic prompt if language is Arabic
     const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 
@@ -179,8 +179,8 @@ Constraints:
         model: "deepseek-chat",
         messages: [
           { role: "system", content: (lang === "ar" || lang === "arabic") ? 
-            "أنت خبير في تلخيص الكتب المدرسية. اكتب ملخصات مختصرة ومفيدة. استخدم 200-400 كلمة فقط. ركز على النقاط المهمة." : 
-            "You are a textbook summarizer. Write concise, useful summaries. Use 200-400 words only. Focus on key points." },
+            "أنت خبير في تلخيص الكتب المدرسية. اكتب ملخصات تفصيلية ومفيدة للطلاب. قدم كل المعلومات المهمة والتفاصيل الضرورية. حل جميع المسائل بالتفصيل." : 
+            "You are a textbook summarizer. Write detailed, useful summaries for students. Provide all important information and necessary details. Solve all problems with full detail." },
           { role: "user", content: finalPrompt },
         ],
         temperature: 0.2,
