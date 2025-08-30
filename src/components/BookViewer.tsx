@@ -886,6 +886,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               </div>
             </DrawerContent>
           </Drawer>
+          
+          {/* OCR Content for Mobile */}
+          <div className="px-4">
+            <IndexableOCRContent
+              ocrText={extractedText}
+              pageNumber={index + 1}
+              rtl={rtl}
+            />
+          </div>
         </div>
       ) : (
         <div className="min-h-screen flex gap-4">
