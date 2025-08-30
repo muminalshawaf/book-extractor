@@ -1072,7 +1072,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                           min={1}
                           max={total}
                           placeholder={rtl ? "اذهب إلى" : "Go to"}
-                          value={gotoInput}
+                          value=""
                           onChange={e => setGotoInput(e.target.value)}
                           className="w-20"
                         />
