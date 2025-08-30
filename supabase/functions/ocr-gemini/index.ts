@@ -59,15 +59,14 @@ serve(async (req) => {
     const imageBuffer = await imageResponse.arrayBuffer()
     console.log('Image buffer size:', imageBuffer.byteLength)
     
-    // Handle large images - split into chunks to avoid btoa issues
+    // Use TextEncoder and btoa for large images
     const uint8Array = new Uint8Array(imageBuffer)
-    let base64Image = ''
-    const chunkSize = 8192
-    
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.slice(i, i + chunkSize)
-      base64Image += btoa(String.fromCharCode(...chunk))
+    let binary = ''
+    const len = uint8Array.byteLength
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(uint8Array[i])
     }
+    const base64Image = btoa(binary)
     
     const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg'
     console.log('Base64 conversion complete, mime type:', mimeType)
