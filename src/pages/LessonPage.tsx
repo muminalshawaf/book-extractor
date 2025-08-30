@@ -1,4 +1,4 @@
-import { useParams, Navigate, useLocation } from "react-router-dom";
+import { useParams, Navigate } from "react-router-dom";
 import { getLessonBySlug } from "@/data/enhancedBooks";
 import DynamicSEOHead from "@/components/seo/DynamicSEOHead";
 import StructuredDataSchemas from "@/components/seo/StructuredDataSchemas";
@@ -8,32 +8,15 @@ import BookViewer from "@/components/BookViewer";
 import { useMemo } from "react";
 
 export default function LessonPage() {
-  const { bookSlug, chapterNumber } = useParams<{
+  const { bookSlug, chapterNumber, lessonSlug } = useParams<{
     bookSlug: string;
     chapterNumber: string;
+    lessonSlug: string;
   }>();
-  
-  const location = useLocation();
-  console.log('LessonPage - Full pathname:', location.pathname);
-  console.log('LessonPage - Params:', { bookSlug, chapterNumber });
-
-  // Extract lesson slug from the full path
-  const pathParts = location.pathname.split('/');
-  const lessonSlug = pathParts.slice(3).join('/'); // Everything after /bookSlug/chapter-X/
-  
-  console.log('LessonPage - Extracted lesson slug:', lessonSlug);
 
   const lessonData = useMemo(() => {
     if (!bookSlug || !lessonSlug) return null;
-    
-    // Decode URL parameters in case they contain encoded Arabic characters
-    const decodedBookSlug = decodeURIComponent(bookSlug);
-    const decodedLessonSlug = decodeURIComponent(lessonSlug);
-    
-    console.log('Original lessonSlug:', lessonSlug);
-    console.log('Decoded lessonSlug:', decodedLessonSlug);
-    
-    return getLessonBySlug(decodedBookSlug, decodedLessonSlug);
+    return getLessonBySlug(bookSlug, lessonSlug);
   }, [bookSlug, lessonSlug]);
 
   if (!lessonData) {
@@ -43,8 +26,8 @@ export default function LessonPage() {
   const { book, lesson } = lessonData;
   const pages = book.buildPages();
 
-  // Calculate estimated page number based on lesson data  
-  const estimatedPageNumber = lesson.pageNumber;
+  // Calculate estimated page number based on lesson data
+  const estimatedPageNumber = (lesson.unitNumber - 1) * 20 + (lesson.chapterNumber - 1) * 5 + lesson.lessonNumber;
 
   return (
     <div className="min-h-screen bg-background">

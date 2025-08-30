@@ -16,8 +16,6 @@
     <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/library"/>
     <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/library"/>
   </url>
-  
-  <!-- Original book URLs -->
   <url>
     <loc>https://idros.lovable.app/book/chem12-1-3</loc>
     <lastmod>2025-08-30</lastmod>
@@ -41,68 +39,5 @@
     <priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/book/math12-1-3"/>
     <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/book/math12-1-3"/>
-  </url>
-
-  <!-- New SEO-optimized URLs -->
-  <!-- Chemistry 3 -->
-  <url>
-    <loc>https://idros.lovable.app/chemistry-3/chapter-1</loc>
-    <lastmod>2025-08-30</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/chemistry-3/chapter-1"/>
-    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/chemistry-3/chapter-1"/>
-  </url>
-  <url>
-    <loc>https://idros.lovable.app/chemistry-3/chapter-1/page2-كيمياء-الصف-الثاني-عشر-الفصل-الأول-مقدمة-في-المركبات-العضوية</loc>
-    <lastmod>2025-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/chemistry-3/chapter-1/page2-كيمياء-الصف-الثاني-عشر-الفصل-الأول-مقدمة-في-المركبات-العضوية"/>
-    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/chemistry-3/chapter-1/page2-كيمياء-الصف-الثاني-عشر-الفصل-الأول-مقدمة-في-المركبات-العضوية"/>
-  </url>
-  <url>
-    <loc>https://idros.lovable.app/chemistry-3/chapter-1/page4-كيمياء-الصف-الثاني-عشر-الفصل-الأول-الهيدروكربونات</loc>
-    <lastmod>2025-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/chemistry-3/chapter-1/page4-كيمياء-الصف-الثاني-عشر-الفصل-الأول-الهيدروكربونات"/>
-    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/chemistry-3/chapter-1/page4-كيمياء-الصف-الثاني-عشر-الفصل-الأول-الهيدروكربونات"/>
-  </url>
-
-  <!-- Physics 3 -->
-  <url>
-    <loc>https://idros.lovable.app/physics-3/chapter-1</loc>
-    <lastmod>2025-08-30</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/physics-3/chapter-1"/>
-    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/physics-3/chapter-1"/>
-  </url>
-  <url>
-    <loc>https://idros.lovable.app/physics-3/chapter-1/page2-فيزياء-الصف-الثاني-عشر-الفصل-الأول-الحركة-في-خط-مستقيم</loc>
-    <lastmod>2025-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/physics-3/chapter-1/page2-فيزياء-الصف-الثاني-عشر-الفصل-الأول-الحركة-في-خط-مستقيم"/>
-    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/physics-3/chapter-1/page2-فيزياء-الصف-الثاني-عشر-الفصل-الأول-الحركة-في-خط-مستقيم"/>
-  </url>
-
-  <!-- Mathematics 3 -->
-  <url>
-    <loc>https://idros.lovable.app/mathematics-3/chapter-1</loc>
-    <lastmod>2025-08-30</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/mathematics-3/chapter-1"/>
-    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/mathematics-3/chapter-1"/>
-  </url>
-  <url>
-    <loc>https://idros.lovable.app/mathematics-3/chapter-1/page2-رياضيات-الصف-الثاني-عشر-الفصل-الأول-مقدمة-في-التفاضل</loc>
-    <lastmod>2025-08-30</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/mathematics-3/chapter-1/page2-رياضيات-الصف-الثاني-عشر-الفصل-الأول-مقدمة-في-التفاضل"/>
-    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/mathematics-3/chapter-1/page2-رياضيات-الصف-الثاني-عشر-الفصل-الأول-مقدمة-في-التفاضل"/>
   </url>
 </urlset>

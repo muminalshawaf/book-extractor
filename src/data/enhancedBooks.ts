@@ -7,7 +7,6 @@ export interface LessonData {
   unitNumber: number;
   chapterNumber: number;
   lessonNumber: number;
-  pageNumber: number;
   arabicKeywords: string[];
   englishKeywords: string[];
   metaDescription: string;
@@ -37,7 +36,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
   {
     id: "chem12-1-3",
     title: "كتاب الكيمياء 12 (الفصل 1–3)",
-    slug: "chemistry-3",
+    slug: "كيمياء-3",
     rtl: true,
     grade: 12,
     semester: 1,
@@ -58,39 +57,23 @@ export const enhancedBooks: EnhancedBookDef[] = [
       {
         id: "chem12-1-3-intro",
         title: "مقدمة في المركبات العضوية",
-        slug: "page2-كيمياء-الصف-الثاني-عشر-الفصل-الأول-مقدمة-في-المركبات-العضوية",
+        slug: "مقدمة-في-المركبات-العضوية",
         unitNumber: 1,
         chapterNumber: 1,
         lessonNumber: 1,
-        pageNumber: 2,
         arabicKeywords: ["كيمياء عضوية", "مركبات الكربون", "روابط تساهمية"],
         englishKeywords: ["organic chemistry", "carbon compounds", "covalent bonds"],
         metaDescription: "شرح تفصيلي لمقدمة في المركبات العضوية وخصائص مركبات الكربون في كيمياء الصف الثاني عشر",
         contentType: "lesson",
         difficultyLevel: "beginner",
         estimatedReadTime: 15
-      },
-      {
-        id: "chem12-1-3-hydrocarbons",
-        title: "الهيدروكربونات",
-        slug: "page4-كيمياء-الصف-الثاني-عشر-الفصل-الأول-الهيدروكربونات",
-        unitNumber: 1,
-        chapterNumber: 1,
-        lessonNumber: 2,
-        pageNumber: 4,
-        arabicKeywords: ["هيدروكربونات", "ألكانات", "ألكينات", "ألكاينات", "بنزين"],
-        englishKeywords: ["hydrocarbons", "alkanes", "alkenes", "alkynes", "benzene"],
-        metaDescription: "حلول وتمارين درس الهيدروكربونات لمادة كيمياء 3. شرح بالفيديو وأمثلة تفاعلية لمساعدتك على فهم المنهج السعودي",
-        contentType: "lesson",
-        difficultyLevel: "intermediate",
-        estimatedReadTime: 20
       }
     ]
   },
   {
     id: "physics12-1-3",
     title: "كتاب الفيزياء 12 (الفصل 1–3)",
-    slug: "physics-3",
+    slug: "فيزياء-3",
     rtl: true,
     grade: 12,
     semester: 1,
@@ -111,11 +94,10 @@ export const enhancedBooks: EnhancedBookDef[] = [
       {
         id: "physics12-1-3-motion",
         title: "الحركة في خط مستقيم",
-        slug: "page2-فيزياء-الصف-الثاني-عشر-الفصل-الأول-الحركة-في-خط-مستقيم",
+        slug: "الحركة-في-خط-مستقيم",
         unitNumber: 1,
         chapterNumber: 1,
         lessonNumber: 1,
-        pageNumber: 2,
         arabicKeywords: ["حركة", "سرعة", "تسارع", "إزاحة"],
         englishKeywords: ["motion", "velocity", "acceleration", "displacement"],
         metaDescription: "شرح مفصل لدرس الحركة في خط مستقيم وقوانين الحركة في فيزياء الصف الثاني عشر",
@@ -128,7 +110,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
   {
     id: "math12-1-3",
     title: "كتاب الرياضيات 12 (الفصل 1–3)",
-    slug: "mathematics-3",
+    slug: "رياضيات-3",
     rtl: true,
     grade: 12,
     semester: 1,
@@ -149,11 +131,10 @@ export const enhancedBooks: EnhancedBookDef[] = [
       {
         id: "math12-1-3-calculus",
         title: "مقدمة في التفاضل",
-        slug: "page2-رياضيات-الصف-الثاني-عشر-الفصل-الأول-مقدمة-في-التفاضل",
+        slug: "مقدمة-في-التفاضل",
         unitNumber: 1,
         chapterNumber: 1,
         lessonNumber: 1,
-        pageNumber: 2,
         arabicKeywords: ["تفاضل", "مشتقة", "دوال", "حدود"],
         englishKeywords: ["calculus", "derivative", "functions", "limits"],
         metaDescription: "شرح مبسط لمقدمة في التفاضل والمشتقات في رياضيات الصف الثاني عشر",
@@ -174,20 +155,10 @@ export function getBookBySlug(slug: string): EnhancedBookDef | null {
 }
 
 export function getLessonBySlug(bookSlug: string, lessonSlug: string): { book: EnhancedBookDef, lesson: LessonData } | null {
-  console.log('getLessonBySlug called with:', { bookSlug, lessonSlug });
-  
   const book = getBookBySlug(bookSlug);
-  console.log('Found book:', book?.title);
-  
-  if (!book || !book.lessons) {
-    console.log('Book not found or no lessons');
-    return null;
-  }
+  if (!book || !book.lessons) return null;
   
   const lesson = book.lessons.find(l => l.slug === lessonSlug);
-  console.log('Found lesson:', lesson?.title);
-  console.log('Available lesson slugs:', book.lessons.map(l => l.slug));
-  
   if (!lesson) return null;
   
   return { book, lesson };
