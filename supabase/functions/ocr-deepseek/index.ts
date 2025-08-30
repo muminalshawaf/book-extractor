@@ -47,18 +47,8 @@ serve(async (req) => {
         messages: [
           {
             role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: prompt
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: imageUrl
-                }
-              }
-            ]
+            content: prompt,
+            images: [imageUrl]
           }
         ],
         max_tokens: 4000,
