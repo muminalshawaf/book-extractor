@@ -181,19 +181,19 @@ Focus on accuracy and completeness.`
             safetySettings: [
               {
                 category: "HARM_CATEGORY_HARASSMENT",
-                threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                threshold: "BLOCK_ONLY_HIGH"
               },
               {
                 category: "HARM_CATEGORY_HATE_SPEECH",
-                threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                threshold: "BLOCK_ONLY_HIGH"
               },
               {
                 category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                threshold: "BLOCK_ONLY_HIGH"
               },
               {
                 category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                threshold: "BLOCK_ONLY_HIGH"
               }
             ]
           })
@@ -221,6 +221,19 @@ Focus on accuracy and completeness.`
       }
 
       const candidate = geminiResult.candidates[0]
+      
+      // Check if content was blocked by safety filters
+      if (candidate.finishReason === 'SAFETY') {
+        console.error('Content blocked by safety filters:', candidate.safetyRatings)
+        return new Response(
+          JSON.stringify({ 
+            error: 'Content blocked by safety filters. This appears to be educational chemistry content that was mistakenly flagged.',
+            details: 'Safety filters blocked educational chemistry content'
+          }), 
+          { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      
       if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
         console.error('Invalid candidate structure:', candidate)
         return new Response(
