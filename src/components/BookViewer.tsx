@@ -358,50 +358,86 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     
     try {
       const imageSrc = pages[index]?.src;
-      const isExternal = imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin);
-      let imageBlob: Blob | null = null;
+      setOcrProgress(10);
+      
+      let result: { text: string; confidence: number; source?: string } | null = null;
 
-      if (isExternal) {
-        try {
-          const proxyUrl = `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
-          const response = await fetch(proxyUrl, {
-            headers: {
-              'Accept': 'image/*',
-              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrem5zZWt5Z21pcG51Y3BvdW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjY4NzMsImV4cCI6MjA3MDIwMjg3M30.5gvy46gGEU-B9O3cutLNmLoX62dmEvKLC236yeaQ6So`
-            }
-          });
-          if (!response.ok) throw new Error(`Proxy failed: ${response.status}`);
-          imageBlob = await response.blob();
-        } catch (e) {
-          console.log('Proxy fetch failed, trying direct:', e);
-          const directResponse = await fetch(imageSrc);
-          imageBlob = await directResponse.blob();
+      // Try DeepSeek OCR first
+      try {
+        console.log('Attempting DeepSeek OCR...');
+        setOcrProgress(20);
+        
+        const { data: deepseekResult, error: deepseekError } = await supabase.functions.invoke('ocr-deepseek', {
+          body: { 
+            imageUrl: imageSrc,
+            language: rtl ? 'ar' : 'en'
+          }
+        });
+
+        setOcrProgress(50);
+
+        if (deepseekError) {
+          console.warn('DeepSeek OCR failed:', deepseekError);
+        } else if (deepseekResult?.text && deepseekResult.text.trim().length > 3) {
+          result = {
+            text: deepseekResult.text,
+            confidence: deepseekResult.confidence || 0.8,
+            source: 'deepseek'
+          };
+          console.log('DeepSeek OCR successful, confidence:', result.confidence);
         }
-      } else {
-        const response = await fetch(imageSrc);
-        imageBlob = await response.blob();
+      } catch (deepseekError) {
+        console.warn('DeepSeek OCR error:', deepseekError);
       }
 
-      setOcrProgress(25);
-      
-      // Run OCR with basic settings only
-      console.log('Starting OCR for image blob:', imageBlob.size, 'bytes');
-      
-      const ocrResult = await runLocalOcr(imageBlob, {
-        lang: 'ara+eng',
-        onProgress: (progress) => setOcrProgress(25 + (progress * 60 / 100))
-      });
-      
-      console.log('OCR result:', {
-        textLength: ocrResult?.text?.length || 0,
-        confidence: ocrResult?.confidence,
-        preview: ocrResult?.text?.substring(0, 300)
-      });
-      
+      // Fallback to local OCR if DeepSeek failed
+      if (!result) {
+        console.log('Falling back to local OCR...');
+        setOcrProgress(30);
+        
+        const isExternal = imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin);
+        let imageBlob: Blob | null = null;
+
+        if (isExternal) {
+          try {
+            const proxyUrl = `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
+            const response = await fetch(proxyUrl, {
+              headers: {
+                'Accept': 'image/*',
+                'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrem5zZWt5Z21pcG51Y3BvdW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjY4NzMsImV4cCI6MjA3MDIwMjg3M30.5gvy46gGEU-B9O3cutLNmLoX62dmEvKLC236yeaQ6So`
+              }
+            });
+            if (!response.ok) throw new Error(`Proxy failed: ${response.status}`);
+            imageBlob = await response.blob();
+          } catch (e) {
+            console.log('Proxy fetch failed, trying direct:', e);
+            const directResponse = await fetch(imageSrc);
+            imageBlob = await directResponse.blob();
+          }
+        } else {
+          const response = await fetch(imageSrc);
+          imageBlob = await response.blob();
+        }
+        
+        setOcrProgress(40);
+        
+        const localResult = await runLocalOcr(imageBlob, {
+          lang: 'ara+eng',
+          onProgress: (progress) => setOcrProgress(40 + (progress * 30 / 100))
+        });
+
+        result = {
+          text: localResult.text,
+          confidence: localResult.confidence,
+          source: 'local'
+        };
+        console.log('Local OCR completed with confidence:', result.confidence);
+      }
+
       setOcrProgress(75);
-      
-      if (ocrResult?.text?.trim()) {
-        const cleanText = ocrResult.text.trim();
+
+      if (result?.text?.trim()) {
+        const cleanText = result.text.trim();
         setExtractedText(cleanText);
         localStorage.setItem(ocrKey, cleanText);
         
@@ -410,13 +446,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           book_id: dbBookId,
           page_number: index + 1,
           ocr_text: cleanText,
-          ocr_confidence: ocrResult.confidence ? (ocrResult.confidence > 1 ? ocrResult.confidence / 100 : ocrResult.confidence) : 0.8
+          ocr_confidence: result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8
         });
         
         setOcrProgress(90);
         
         // Generate summary
         await summarizeExtractedText(cleanText);
+      } else {
+        throw new Error('No text extracted from either DeepSeek or local OCR');
       }
       
       setOcrProgress(100);
