@@ -655,6 +655,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       if (!useEventSource) {
         console.log('Using fetch POST method');
         
+        // Reset fullSummary when using fetch fallback to avoid duplication
+        if (fullSummary.trim()) {
+          console.log('Resetting existing partial summary for fresh fetch attempt');
+          fullSummary = '';
+          setSummary('');
+        }
+        
         const response = await fetch(`https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream`, {
           method: 'POST',
           headers: {
