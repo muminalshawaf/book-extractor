@@ -88,8 +88,8 @@ serve(async (req) => {
 CRITICAL INSTRUCTIONS FOR SECTION RECOGNITION:
 1. IDENTIFY VISUAL SECTIONS: Recognize distinct content areas - sidebars, main content, headers, boxed sections, highlighted areas
 2. SECTION BOUNDARIES: Use visual cues (borders, background colors, spacing, fonts) to identify where one section ends and another begins
-3. PRESERVE SECTION STRUCTURE: Add clear section breaks (use "--- SECTION: [title] ---" markers) between visually distinct areas
-4. HEADER RECOGNITION: Identify section headers like "مهن في الكيمياء", "مثال 2-1", etc. and mark them clearly
+3. PRESERVE SECTION STRUCTURE: **MANDATORY** - Add clear section breaks using EXACTLY "--- SECTION: [title] ---" markers between visually distinct areas
+4. HEADER RECOGNITION: Identify section headers like "مهن في الكيمياء", "مثال 2-1", "الكيمياء في واقع الحياة", etc. and mark them clearly
 5. SIDEBAR CONTENT: Treat sidebar content as separate sections from main content
 6. BOXED TEXT: Preserve content in colored boxes, highlighted areas, or bordered sections as distinct units
 
@@ -104,13 +104,27 @@ TEXT EXTRACTION REQUIREMENTS:
 14. Exact Transcription: DO NOT summarize, paraphrase, or modify - extract exactly as written
 15. Layout Awareness: Use spacing and formatting to show relationships between elements
 
-EXAMPLE OUTPUT FORMAT:
-For a page with a sidebar and main content, structure like:
---- SECTION: مهن في الكيمياء ---
-[sidebar content here]
+MANDATORY SECTION FORMATTING:
+- Every distinct section MUST start with "--- SECTION: [exact section title] ---"
+- Examples:
+  * "--- SECTION: الكيمياء في واقع الحياة ---"
+  * "--- SECTION: مهن في الكيمياء ---" 
+  * "--- SECTION: مثال 2-1 ---"
+  * "--- SECTION: الديزل الحيوي ---"
+  * "--- SECTION: مسائل تدريبية ---"
 
---- SECTION: مثال 2-1 ---  
-[main example content here]
+EXAMPLE OUTPUT FORMAT:
+--- SECTION: الكيمياء في واقع الحياة ---
+النسبة المئوية بدلالة الحجم تصف عادة المحاليل...
+
+--- SECTION: مهن في الكيمياء ---
+فنيو الصيدلة يستعين الكثير من الصيادلة...
+
+--- SECTION: مثال 2-1 ---
+حساب المولارية يحتوي 100.5...
+
+--- SECTION: الديزل الحيوي ---
+يعد الديزل الحيوي وقوداً بديلاً نظيف الاحتراق...
 
 Focus on 100% completeness while preserving visual structure and section boundaries.`
       : `Analyze this image and extract all text with high accuracy. Please return a JSON response with the following structure:
