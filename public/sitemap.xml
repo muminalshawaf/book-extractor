@@ -16,6 +16,7 @@
     <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/library"/>
     <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/library"/>
   </url>
+  <!-- Book Pages -->
   <url>
     <loc>https://idros.lovable.app/book/chem12-1-3</loc>
     <lastmod>2025-08-30</lastmod>
@@ -39,5 +40,39 @@
     <priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/book/math12-1-3"/>
     <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/book/math12-1-3"/>
+  </url>
+  
+  <!-- Semantic Lesson URLs -->
+  <url>
+    <loc>https://idros.lovable.app/chemistry-3/الفصل-1</loc>
+    <lastmod>2025-08-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/chemistry-3/الفصل-1"/>
+    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/chemistry-3/الفصل-1"/>
+  </url>
+  <url>
+    <loc>https://idros.lovable.app/chemistry-3/الفصل-1/lesson-3-hydrocarbons</loc>
+    <lastmod>2025-08-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/chemistry-3/الفصل-1/lesson-3-hydrocarbons"/>
+    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/chemistry-3/الفصل-1/lesson-3-hydrocarbons"/>
+  </url>
+  <url>
+    <loc>https://idros.lovable.app/chemistry-3/الفصل-1/مقدمة-في-المركبات-العضوية</loc>
+    <lastmod>2025-08-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/chemistry-3/الفصل-1/مقدمة-في-المركبات-العضوية"/>
+    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/chemistry-3/الفصل-1/مقدمة-في-المركبات-العضوية"/>
+  </url>
+  <url>
+    <loc>https://idros.lovable.app/chemistry-3/الفصل-1/الألكانات</loc>
+    <lastmod>2025-08-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/chemistry-3/الفصل-1/الألكانات"/>
+    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/chemistry-3/الفصل-1/الألكانات"/>
   </url>
 </urlset>

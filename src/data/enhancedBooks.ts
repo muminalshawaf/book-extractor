@@ -36,7 +36,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
   {
     id: "chem12-1-3",
     title: "كتاب الكيمياء 12 (الفصل 1–3)",
-    slug: "كيمياء-3",
+    slug: "chemistry-3",
     rtl: true,
     grade: 12,
     semester: 1,
@@ -55,7 +55,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
     },
     lessons: [
       {
-        id: "chem12-1-3-intro",
+        id: "chem12-1-1-intro",
         title: "مقدمة في المركبات العضوية",
         slug: "مقدمة-في-المركبات-العضوية",
         unitNumber: 1,
@@ -67,13 +67,55 @@ export const enhancedBooks: EnhancedBookDef[] = [
         contentType: "lesson",
         difficultyLevel: "beginner",
         estimatedReadTime: 15
+      },
+      {
+        id: "chem12-1-1-alkanes",
+        title: "الألكانات - الهيدروكربونات المشبعة",
+        slug: "الألكانات",
+        unitNumber: 1,
+        chapterNumber: 1,
+        lessonNumber: 2,
+        arabicKeywords: ["ألكانات", "هيدروكربونات مشبعة", "ميثان", "إيثان", "بروبان"],
+        englishKeywords: ["alkanes", "saturated hydrocarbons", "methane", "ethane", "propane"],
+        metaDescription: "حلول وتمارين درس الألكانات - الهيدروكربونات المشبعة لمادة كيمياء 3. شرح بالفيديو وأمثلة تفاعلية لمساعدتك على فهم المنهج السعودي.",
+        contentType: "lesson",
+        difficultyLevel: "intermediate", 
+        estimatedReadTime: 25
+      },
+      {
+        id: "chem12-1-1-hydrocarbons",
+        title: "شرح درس الهيدروكربونات",
+        slug: "lesson-3-hydrocarbons",
+        unitNumber: 1,
+        chapterNumber: 1,
+        lessonNumber: 3,
+        arabicKeywords: ["هيدروكربونات", "ألكينات", "ألكاينات", "بنزين", "مركبات عطرية"],
+        englishKeywords: ["hydrocarbons", "alkenes", "alkynes", "benzene", "aromatic compounds"],
+        metaDescription: "حلول وتمارين درس الهيدروكربونات لمادة كيمياء 3. شرح بالفيديو وأمثلة تفاعلية لمساعدتك على فهم المنهج السعودي.",
+        contentType: "lesson", 
+        difficultyLevel: "intermediate",
+        estimatedReadTime: 30
+      },
+      {
+        id: "chem12-1-1-reactions",
+        title: "تفاعلات المركبات العضوية",
+        slug: "تفاعلات-المركبات-العضوية",
+        unitNumber: 1,
+        chapterNumber: 1,
+        lessonNumber: 4,
+        arabicKeywords: ["تفاعلات عضوية", "احتراق", "هلجنة", "أكسدة"],
+        englishKeywords: ["organic reactions", "combustion", "halogenation", "oxidation"],
+        metaDescription: "شرح تفصيلي لتفاعلات المركبات العضوية وآليات التفاعل في كيمياء الصف الثاني عشر",
+        contentType: "lesson",
+        difficultyLevel: "advanced",
+        estimatedReadTime: 20
       }
     ]
   },
   {
     id: "physics12-1-3",
     title: "كتاب الفيزياء 12 (الفصل 1–3)",
-    slug: "فيزياء-3",
+    slug: "physics-3",
     rtl: true,
     grade: 12,
     semester: 1,
@@ -110,7 +152,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
   {
     id: "math12-1-3",
     title: "كتاب الرياضيات 12 (الفصل 1–3)",
-    slug: "رياضيات-3",
+    slug: "mathematics-3",
     rtl: true,
     grade: 12,
     semester: 1,

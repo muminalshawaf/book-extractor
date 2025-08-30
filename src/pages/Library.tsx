@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { books, BookDef } from "@/data/books";
+import { enhancedBooks, getBookBySlug } from "@/data/enhancedBooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
-import { Search, Filter, BookOpen } from "lucide-react";
+import { Search, Filter, BookOpen, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import DynamicSEOHead from "@/components/seo/DynamicSEOHead";
 import StructuredDataSchemas from "@/components/seo/StructuredDataSchemas";
@@ -112,8 +113,11 @@ export default function Library() {
     </Button>
   );
 
-  const BookCard = ({ book }: { book: BookDef }) => (
-    <Link to={`/book/${book.id}`} className="block group">
+  const BookCard = ({ book }: { book: BookDef }) => {
+    const enhancedBook = enhancedBooks.find(eb => eb.id === book.id);
+    const hasLessons = enhancedBook?.lessons && enhancedBook.lessons.length > 0;
+    
+    return (
       <Card className="transition hover:shadow-md">
         <CardContent className="p-3">
           <AspectRatio ratio={3/4}>
@@ -124,18 +128,49 @@ export default function Library() {
               className="h-full w-full object-cover rounded-md"
             />
           </AspectRatio>
-          <div className="mt-3 space-y-1">
-            <h3 className="text-sm font-medium line-clamp-2">{book.title}</h3>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              {book.subject && <Badge variant="secondary">{book.subject === 'Physics' ? 'الفيزياء' : book.subject === 'Chemistry' ? 'الكيمياء' : book.subject === 'Sample' ? 'عينة' : book.subject}</Badge>}
-              {book.grade && <Badge variant="outline">الصف {book.grade}</Badge>}
-              {book.semester && <Badge variant="outline">الفصل {book.semester}</Badge>}
+          <div className="mt-2 space-y-1 text-center">
+            <h3 className="font-medium text-sm leading-tight">{book.title}</h3>
+            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+              <Badge variant="secondary" className="text-xs px-1 py-0">
+                {book.subject === 'Physics' ? 'الفيزياء' : book.subject === 'Chemistry' ? 'الكيمياء' : book.subject || '—'}
+              </Badge>
+              <span>الصف {book.grade ?? '—'}</span>
+            </div>
+            
+            {/* Navigation Options */}
+            <div className="flex flex-col gap-1 mt-2">
+              {hasLessons ? (
+                <>
+                  <Link 
+                    to={`/${enhancedBook!.slug}/الفصل-1`} 
+                    className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded hover:bg-primary/90 transition-colors flex items-center gap-1 justify-center"
+                  >
+                    <BookOpen className="h-3 w-3" />
+                    عرض الدروس
+                  </Link>
+                  <Link 
+                    to={`/book/${book.id}`}
+                    className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded hover:bg-muted/80 transition-colors flex items-center gap-1 justify-center"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    الكتاب الكامل
+                  </Link>
+                </>
+              ) : (
+                <Link 
+                  to={`/book/${book.id}`}
+                  className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded hover:bg-primary/90 transition-colors flex items-center gap-1 justify-center"
+                >
+                  <BookOpen className="h-3 w-3" />
+                  فتح الكتاب
+                </Link>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
-    </Link>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">

@@ -26,9 +26,14 @@ const App = () => (
           <Route path="/library" element={<Library />} />
           <Route path="/book/:bookId" element={<Index />} />
           
-          {/* New SEO-optimized routes with Arabic slugs */}
+          {/* SEO-optimized routes with semantic slugs */}
           <Route path="/:bookSlug/الفصل-:chapterNumber" element={<ChapterPage />} />
           <Route path="/:bookSlug/الفصل-:chapterNumber/:lessonSlug" element={<LessonPage />} />
+          
+          {/* Legacy redirects for old book URLs */}
+          <Route path="/كيمياء-3/*" element={<Navigate to="/chemistry-3" replace />} />
+          <Route path="/فيزياء-3/*" element={<Navigate to="/physics-3" replace />} />
+          <Route path="/رياضيات-3/*" element={<Navigate to="/mathematics-3" replace />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

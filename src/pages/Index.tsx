@@ -3,6 +3,8 @@ import { books, getBookById } from "@/data/books";
 import { getEnhancedBookById } from "@/data/enhancedBooks";
 import BookViewer from "@/components/BookViewer";
 import { useMemo, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 import DynamicSEOHead from "@/components/seo/DynamicSEOHead";
 import StructuredDataSchemas from "@/components/seo/StructuredDataSchemas";
 import EnhancedSEOBreadcrumb from "@/components/seo/EnhancedSEOBreadcrumb";
@@ -113,6 +115,50 @@ const Index = () => {
             progress: (c, t, p) => `الصفحة ${c} من ${t} • ${p}%`
           }}
         />
+
+        {/* Enhanced Navigation */}
+        {enhancedBook.lessons && enhancedBook.lessons.length > 0 && (
+          <div className="mt-8 p-4 bg-muted/30 rounded-lg border">
+            <h2 className="text-lg font-semibold mb-3" dir="rtl">
+              الدروس المتاحة في هذا الكتاب:
+            </h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {enhancedBook.lessons.slice(0, 6).map((lesson) => (
+                <Link 
+                  key={lesson.id}
+                  to={`/${enhancedBook.slug}/الفصل-${lesson.chapterNumber}/${lesson.slug}`}
+                  className="block p-3 bg-background rounded border hover:shadow-md transition-all"
+                >
+                  <div dir="rtl">
+                    <h3 className="font-medium text-sm mb-1">{lesson.title}</h3>
+                    <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                      {lesson.metaDescription}
+                    </p>
+                    <div className="flex gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        الفصل {lesson.chapterNumber}
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        {lesson.estimatedReadTime} دقيقة
+                      </Badge>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            
+            {enhancedBook.lessons.length > 6 && (
+              <div className="mt-4 text-center">
+                <Link 
+                  to={`/${enhancedBook.slug}/الفصل-1`}
+                  className="text-primary hover:underline text-sm"
+                >
+                  عرض جميع الدروس ({enhancedBook.lessons.length})
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
