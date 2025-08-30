@@ -1,10 +1,12 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Sparkles } from 'lucide-react';
 
 interface IndexableOCRContentProps {
   ocrText: string;
   pageNumber: number;
   rtl?: boolean;
+  onForceRegenerate?: () => void;
 }
 
 /**
@@ -15,14 +17,28 @@ interface IndexableOCRContentProps {
 export const IndexableOCRContent: React.FC<IndexableOCRContentProps> = ({
   ocrText,
   pageNumber,
-  rtl = false
+  rtl = false,
+  onForceRegenerate
 }) => {
   if (!ocrText) return null;
 
   return (
     <details className="mt-4 border rounded-lg bg-card shadow-sm">
-      <summary className="cursor-pointer p-3 hover:bg-muted/50 transition-colors font-medium">
-        {rtl ? `محتوى الصفحة ${pageNumber} (نص مستخرج)` : `Page ${pageNumber} Content (Extracted Text)`}
+      <summary className="cursor-pointer p-3 hover:bg-muted/50 transition-colors font-medium flex items-center justify-between">
+        <span>{rtl ? `محتوى الصفحة ${pageNumber} (نص مستخرج)` : `Page ${pageNumber} Content (Extracted Text)`}</span>
+        {onForceRegenerate && (
+          <div 
+            className="cursor-pointer hover:text-primary"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onForceRegenerate();
+            }}
+            title={rtl ? "إعادة استخراج النص وإنشاء الملخص" : "Force extract text and regenerate summary"}
+          >
+            <Sparkles className="h-4 w-4 ml-2" />
+          </div>
+        )}
       </summary>
       
       <div className="px-3 pb-3">

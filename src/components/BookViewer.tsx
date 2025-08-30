@@ -945,6 +945,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               ocrText={extractedText}
               pageNumber={index + 1}
               rtl={rtl}
+              onForceRegenerate={forceRegenerate}
             />
           </div>
         </div>
@@ -1202,6 +1203,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               ocrText={extractedText}
               pageNumber={index + 1}
               rtl={rtl}
+              onForceRegenerate={forceRegenerate}
             />
           </div>
         </div>
