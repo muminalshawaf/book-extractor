@@ -816,7 +816,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             fullscreenButton={<FullscreenButton />}
           />
           
-          <div className="pt-16 pb-20">
+          <div className="pt-16 pb-4">
             <TouchGestureHandler
               onSwipeLeft={rtl ? goPrev : goNext}
               onSwipeRight={rtl ? goNext : goPrev}
@@ -836,32 +836,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 )}
               </div>
             </TouchGestureHandler>
-          </div>
-          
-          {/* Fixed Smart Extract Button */}
-          <div className="fixed bottom-16 left-4 right-4 z-40">
-            <Button 
-              className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-xl border border-primary/30" 
-              onClick={() => forceRegenerate()}
-              disabled={ocrLoading || summLoading}
-              size="lg"
-            >
-              {ocrLoading || summLoading ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin mr-3" />
-                  <span>
-                    {rtl
-                      ? (ocrLoading ? `استخراج... ${Math.round(ocrProgress)}%` : "تلخيص...")
-                      : (ocrLoading ? `Extracting... ${Math.round(ocrProgress)}%` : "Summarizing...")}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-5 w-5 mr-3" />
-                  <span className="font-medium">{rtl ? "استخراج وتلخيص ذكي" : "Smart Extract & Summarize"}</span>
-                </>
-              )}
-            </Button>
           </div>
           
           <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
@@ -1120,37 +1094,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 </CardContent>
               </Card>
             </FullscreenMode>
-
-            {/* Smart Extract & Summarize Button - Prominent */}
-            <Card className="shadow-sm border-primary/20">
-              <CardContent className="p-4">
-                <Button 
-                  className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-lg" 
-                  onClick={() => forceRegenerate()}
-                  disabled={ocrLoading || summLoading}
-                  size="lg"
-                >
-                  {ocrLoading || summLoading ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin mr-3" />
-                      <span>
-                        {rtl
-                          ? (ocrLoading ? `جارٍ استخراج النص... ${Math.round(ocrProgress)}%` : "جارٍ التلخيص...")
-                          : (ocrLoading ? `Extracting text... ${Math.round(ocrProgress)}%` : "Summarizing...")}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-5 w-5 mr-3" />
-                      <span className="font-medium">{rtl ? "استخراج النص وتوليد الملخص" : "Extract Text & Generate Summary"}</span>
-                    </>
-                  )}
-                </Button>
-                <p className="text-xs text-muted-foreground mt-2 text-center">
-                  {rtl ? "يستخرج النص من الصورة ويولد ملخصاً ذكياً حتى لو كان محفوظاً مسبقاً" : "Extracts text from image and generates smart summary, even if previously cached"}
-                </p>
-              </CardContent>
-            </Card>
 
             {/* Error Handler */}
             {lastError && (
