@@ -36,7 +36,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
   {
     id: "chem12-1-3",
     title: "كتاب الكيمياء 12 (الفصل 1–3)",
-    slug: "كيمياء-3",
+    slug: "kimiya-3",
     rtl: true,
     grade: 12,
     semester: 1,
@@ -57,7 +57,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
       {
         id: "chem12-1-1-intro",
         title: "مقدمة في المركبات العضوية",
-        slug: "مقدمة-في-المركبات-العضوية",
+        slug: "muqaddima-fi-murakkabat-udwiya",
         unitNumber: 1,
         chapterNumber: 1,
         lessonNumber: 1,
@@ -71,7 +71,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
       {
         id: "chem12-1-1-alkanes",
         title: "الألكانات - الهيدروكربونات المشبعة",
-        slug: "الألكانات",
+        slug: "alkanat",
         unitNumber: 1,
         chapterNumber: 1,
         lessonNumber: 2,
@@ -85,7 +85,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
       {
         id: "chem12-1-1-hydrocarbons",
         title: "شرح درس الهيدروكربونات",
-        slug: "درس-الهيدروكربونات",
+        slug: "dars-hydrocarbons",
         unitNumber: 1,
         chapterNumber: 1,
         lessonNumber: 3,
@@ -99,7 +99,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
       {
         id: "chem12-1-1-reactions",
         title: "تفاعلات المركبات العضوية",
-        slug: "تفاعلات-المركبات-العضوية",
+        slug: "tafaulat-murakkabat-udwiya",
         unitNumber: 1,
         chapterNumber: 1,
         lessonNumber: 4,
@@ -115,7 +115,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
   {
     id: "physics12-1-3",
     title: "كتاب الفيزياء 12 (الفصل 1–3)",
-    slug: "فيزياء-3",
+    slug: "fiziya-3",
     rtl: true,
     grade: 12,
     semester: 1,
@@ -136,7 +136,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
       {
         id: "physics12-1-3-motion",
         title: "الحركة في خط مستقيم",
-        slug: "الحركة-في-خط-مستقيم",
+        slug: "haraka-fi-khat-mustaqeem",
         unitNumber: 1,
         chapterNumber: 1,
         lessonNumber: 1,
@@ -152,7 +152,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
   {
     id: "math12-1-3",
     title: "كتاب الرياضيات 12 (الفصل 1–3)",
-    slug: "رياضيات-3",
+    slug: "riyadiyat-3",
     rtl: true,
     grade: 12,
     semester: 1,
@@ -173,7 +173,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
       {
         id: "math12-1-3-calculus",
         title: "مقدمة في التفاضل",
-        slug: "مقدمة-في-التفاضل",
+        slug: "muqaddima-fi-tafadul",
         unitNumber: 1,
         chapterNumber: 1,
         lessonNumber: 1,

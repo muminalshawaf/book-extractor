@@ -65,13 +65,13 @@ export const BookLessonNavigator: React.FC<BookLessonNavigatorProps> = ({ curren
               
               <div className="flex gap-2">
                 <Button asChild size="sm" className="flex-1">
-                  <Link to={`/${book.slug}/الفصل-${lesson.chapterNumber}/${lesson.slug}`}>
+                  <Link to={`/${book.slug}/fasl-${lesson.chapterNumber}/${lesson.slug}`}>
                     <BookOpen className="h-4 w-4 ml-2" />
                     ابدأ الدرس
                   </Link>
                 </Button>
                 <Button asChild variant="outline" size="sm">
-                  <Link to={`/${book.slug}/الفصل-${lesson.chapterNumber}`}>
+                  <Link to={`/${book.slug}/fasl-${lesson.chapterNumber}`}>
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>

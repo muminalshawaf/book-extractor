@@ -142,7 +142,7 @@ export default function Library() {
               {hasLessons ? (
                 <>
                   <Link 
-                    to={`/${enhancedBook!.slug}/الفصل-1`} 
+                    to={`/${enhancedBook!.slug}/fasl-1`} 
                     className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded hover:bg-primary/90 transition-colors flex items-center gap-1 justify-center"
                   >
                     <BookOpen className="h-3 w-3" />

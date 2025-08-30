@@ -30,22 +30,21 @@ const Index = () => {
         
         if (page) {
           const pageNumber = parseInt(page);
-          // Map page numbers to specific lessons
           if (bookId === 'chem12-1-3') {
             if (pageNumber >= 1 && pageNumber <= 3) {
-              targetLesson = book.lessons.find(l => l.slug === 'مقدمة-في-المركبات-العضوية') || book.lessons[0];
+              targetLesson = book.lessons.find(l => l.slug === 'muqaddima-fi-murakkabat-udwiya') || book.lessons[0];
             } else if (pageNumber >= 4 && pageNumber <= 8) {
-              targetLesson = book.lessons.find(l => l.slug === 'درس-الهيدروكربونات') || book.lessons[2];
+              targetLesson = book.lessons.find(l => l.slug === 'dars-hydrocarbons') || book.lessons[2];
             } else if (pageNumber >= 9 && pageNumber <= 15) {
-              targetLesson = book.lessons.find(l => l.slug === 'الألكانات') || book.lessons[1];
+              targetLesson = book.lessons.find(l => l.slug === 'alkanat') || book.lessons[1];
             } else if (pageNumber > 15) {
-              targetLesson = book.lessons.find(l => l.slug === 'تفاعلات-المركبات-العضوية') || book.lessons[3];
+              targetLesson = book.lessons.find(l => l.slug === 'tafaulat-murakkabat-udwiya') || book.lessons[3];
             }
           }
         }
         
-        // Redirect to the new Arabic URL format
-        navigate(`/${book.slug}/الفصل-${targetLesson.chapterNumber}/${targetLesson.slug}`, { replace: true });
+        // Redirect to the new URL-safe format
+        navigate(`/${book.slug}/fasl-${targetLesson.chapterNumber}/${targetLesson.slug}`, { replace: true });
         return;
       }
     }
@@ -160,7 +159,7 @@ const Index = () => {
               {enhancedBook.lessons.slice(0, 6).map((lesson) => (
                 <Link 
                   key={lesson.id}
-                  to={`/${enhancedBook.slug}/الفصل-${lesson.chapterNumber}/${lesson.slug}`}
+                  to={`/${enhancedBook.slug}/fasl-${lesson.chapterNumber}/${lesson.slug}`}
                   className="block p-3 bg-background rounded border hover:shadow-md transition-all"
                 >
                   <div dir="rtl">
@@ -184,7 +183,7 @@ const Index = () => {
             {enhancedBook.lessons.length > 6 && (
               <div className="mt-4 text-center">
                 <Link 
-                  to={`/${enhancedBook.slug}/الفصل-1`}
+                  to={`/${enhancedBook.slug}/fasl-1`}
                   className="text-primary hover:underline text-sm"
                 >
                   عرض جميع الدروس ({enhancedBook.lessons.length})

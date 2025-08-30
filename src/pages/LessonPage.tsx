@@ -38,7 +38,7 @@ export default function LessonPage() {
 
       // Get interactive content based on lesson type
       const getInteractiveContent = () => {
-        if (lesson.slug === 'درس-الهيدروكربونات') {
+        if (lesson.slug === 'dars-hydrocarbons') {
           return {
             summary: `
 # أنواع الهيدروكربونات
@@ -291,7 +291,7 @@ export default function LessonPage() {
         <nav className="mt-12 pt-8 border-t">
           <div className="flex justify-between items-center">
             <Link 
-              to={`/${book.slug}/الفصل-${lesson.chapterNumber}`}
+              to={`/${book.slug}/fasl-${lesson.chapterNumber}`}
               className="text-primary hover:underline"
             >
               ← عرض جميع دروس الفصل {lesson.chapterNumber}

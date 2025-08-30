@@ -112,10 +112,10 @@ export default function ChapterPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1" dir="rtl">
                         <CardTitle className="text-xl mb-2">
-                          <Link 
-                            to={`/${book.slug}/الفصل-${lesson.chapterNumber}/${lesson.slug}`}
-                            className="hover:text-primary transition-colors"
-                          >
+                        <Link 
+                          to={`/${book.slug}/fasl-${lesson.chapterNumber}/${lesson.slug}`}
+                          className="hover:text-primary transition-colors"
+                        >
                             {lesson.title}
                           </Link>
                         </CardTitle>
