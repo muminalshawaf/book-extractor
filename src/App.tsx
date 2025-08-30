@@ -24,16 +24,15 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to={`/book/${books[0].id}`} replace />} />
           <Route path="/library" element={<Library />} />
+          {/* Legacy book URL redirects to semantic URLs */}
+          <Route path="/book/chem12-1-3" element={<Navigate to="/كيمياء-3/الفصل-1" replace />} />
+          <Route path="/book/physics12-1-3" element={<Navigate to="/فيزياء-3/الفصل-1" replace />} />
+          <Route path="/book/math12-1-3" element={<Navigate to="/رياضيات-3/الفصل-1" replace />} />
           <Route path="/book/:bookId" element={<Index />} />
           
-          {/* SEO-optimized routes with semantic slugs */}
+          {/* SEO-optimized routes with Arabic slugs */}
           <Route path="/:bookSlug/الفصل-:chapterNumber" element={<ChapterPage />} />
           <Route path="/:bookSlug/الفصل-:chapterNumber/:lessonSlug" element={<LessonPage />} />
-          
-          {/* Legacy redirects for old book URLs */}
-          <Route path="/كيمياء-3/*" element={<Navigate to="/chemistry-3" replace />} />
-          <Route path="/فيزياء-3/*" element={<Navigate to="/physics-3" replace />} />
-          <Route path="/رياضيات-3/*" element={<Navigate to="/mathematics-3" replace />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

@@ -36,11 +36,11 @@ export default function LessonPage() {
   // Calculate estimated page number based on lesson data
   const estimatedPageNumber = (lesson.unitNumber - 1) * 20 + (lesson.chapterNumber - 1) * 5 + lesson.lessonNumber;
 
-  // Sample interactive content based on lesson type
-  const getInteractiveContent = () => {
-    if (lesson.slug === 'lesson-3-hydrocarbons') {
-      return {
-        summary: `
+      // Get interactive content based on lesson type
+      const getInteractiveContent = () => {
+        if (lesson.slug === 'درس-الهيدروكربونات') {
+          return {
+            summary: `
 # أنواع الهيدروكربونات
 
 ## الهيدروكربونات المشبعة (Saturated Hydrocarbons)
@@ -57,31 +57,31 @@ export default function LessonPage() {
 ## المركبات العطرية (Aromatic Compounds)
 - تحتوي على حلقة البنزين
 - خصائص خاصة ومقاومة للتفاعلات
-        `,
-        commonQuestions: [
-          {
-            question: "ما الفرق بين الألكانات والألكينات؟",
-            answer: "الألكانات تحتوي على روابط أحادية فقط وهي مشبعة، بينما الألكينات تحتوي على رابطة مزدوجة واحدة وهي غير مشبعة."
-          },
-          {
-            question: "لماذا سميت الهيدروكربونات بهذا الاسم؟",
-            answer: "لأنها تتكون من عنصرين فقط: الهيدروجين والكربون."
-          },
-          {
-            question: "ما أهمية الهيدروكربونات في الحياة؟",
-            answer: "تستخدم كوقود (بنزين، ديزل، غاز طبيعي) ومواد خام لصناعة البلاستيك والأدوية."
-          }
-        ],
-        keyTakeaways: [
-          "الهيدروكربونات هي مركبات تحتوي على الكربون والهيدروجين فقط",
-          "تنقسم إلى مشبعة (ألكانات) وغير مشبعة (ألكينات وألكاينات)",
-          "المركبات العطرية لها خصائص مميزة وتحتوي على حلقة البنزين",
-          "لها أهمية كبيرة في الصناعة والطاقة"
-        ]
+            `,
+            commonQuestions: [
+              {
+                question: "ما الفرق بين الألكانات والألكينات؟",
+                answer: "الألكانات تحتوي على روابط أحادية فقط وهي مشبعة، بينما الألكينات تحتوي على رابطة مزدوجة واحدة وهي غير مشبعة."
+              },
+              {
+                question: "لماذا سميت الهيدروكربونات بهذا الاسم؟",
+                answer: "لأنها تتكون من عنصرين فقط: الهيدروجين والكربون."
+              },
+              {
+                question: "ما أهمية الهيدروكربونات في الحياة؟",
+                answer: "تستخدم كوقود (بنزين، ديزل، غاز طبيعي) ومواد خام لصناعة البلاستيك والأدوية."
+              }
+            ],
+            keyTakeaways: [
+              "الهيدروكربونات هي مركبات تحتوي على الكربون والهيدروجين فقط",
+              "تنقسم إلى مشبعة (ألكانات) وغير مشبعة (ألكينات وألكاينات)",
+              "المركبات العطرية لها خصائص مميزة وتحتوي على حلقة البنزين",
+              "لها أهمية كبيرة في الصناعة والطاقة"
+            ]
+          };
+        }
+        return null;
       };
-    }
-    return null;
-  };
 
   const interactiveContent = getInteractiveContent();
 

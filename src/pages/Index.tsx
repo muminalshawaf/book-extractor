@@ -17,6 +17,40 @@ const Index = () => {
   const initialId = useMemo(() => params.bookId ?? books[0].id, [params.bookId]);
   const [selectedId, setSelectedId] = useState<string>(initialId);
   
+  // Redirect old book URLs to new semantic URLs
+  useEffect(() => {
+    const bookId = params.bookId;
+    const page = searchParams.get('page');
+    
+    if (bookId) {
+      const book = getEnhancedBookById(bookId);
+      // If we're on an old-style URL and have lessons, redirect to new format
+      if (book.lessons && book.lessons.length > 0) {
+        let targetLesson = book.lessons[0]; // default to first lesson
+        
+        if (page) {
+          const pageNumber = parseInt(page);
+          // Map page numbers to specific lessons
+          if (bookId === 'chem12-1-3') {
+            if (pageNumber >= 1 && pageNumber <= 3) {
+              targetLesson = book.lessons.find(l => l.slug === 'مقدمة-في-المركبات-العضوية') || book.lessons[0];
+            } else if (pageNumber >= 4 && pageNumber <= 8) {
+              targetLesson = book.lessons.find(l => l.slug === 'درس-الهيدروكربونات') || book.lessons[2];
+            } else if (pageNumber >= 9 && pageNumber <= 15) {
+              targetLesson = book.lessons.find(l => l.slug === 'الألكانات') || book.lessons[1];
+            } else if (pageNumber > 15) {
+              targetLesson = book.lessons.find(l => l.slug === 'تفاعلات-المركبات-العضوية') || book.lessons[3];
+            }
+          }
+        }
+        
+        // Redirect to the new Arabic URL format
+        navigate(`/${book.slug}/الفصل-${targetLesson.chapterNumber}/${targetLesson.slug}`, { replace: true });
+        return;
+      }
+    }
+  }, [params.bookId, searchParams, navigate]);
+  
   useEffect(() => {
     if (selectedId !== initialId) setSelectedId(initialId);
   }, [initialId]);

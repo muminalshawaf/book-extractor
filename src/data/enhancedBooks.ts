@@ -36,7 +36,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
   {
     id: "chem12-1-3",
     title: "كتاب الكيمياء 12 (الفصل 1–3)",
-    slug: "chemistry-3",
+    slug: "كيمياء-3",
     rtl: true,
     grade: 12,
     semester: 1,
@@ -85,7 +85,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
       {
         id: "chem12-1-1-hydrocarbons",
         title: "شرح درس الهيدروكربونات",
-        slug: "lesson-3-hydrocarbons",
+        slug: "درس-الهيدروكربونات",
         unitNumber: 1,
         chapterNumber: 1,
         lessonNumber: 3,
@@ -115,7 +115,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
   {
     id: "physics12-1-3",
     title: "كتاب الفيزياء 12 (الفصل 1–3)",
-    slug: "physics-3",
+    slug: "فيزياء-3",
     rtl: true,
     grade: 12,
     semester: 1,
@@ -152,7 +152,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
   {
     id: "math12-1-3",
     title: "كتاب الرياضيات 12 (الفصل 1–3)",
-    slug: "mathematics-3",
+    slug: "رياضيات-3",
     rtl: true,
     grade: 12,
     semester: 1,
