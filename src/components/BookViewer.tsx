@@ -541,61 +541,132 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     try {
       console.log('Starting summary generation for text:', text.substring(0, 100));
       
-      // Use streaming for real-time summary generation
-      const response = await fetch(`https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrem5zZWt5Z21pcG51Y3BvdW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjY4NzMsImV4cCI6MjA3MDIwMjg3M30.5gvy46gGEU-B9O3cutLNmLoX62dmEvKLC236yeaQ6So`
-        },
-        body: JSON.stringify({
-          text: text.trim(),
-          book_id: dbBookId,
-          page_number: index + 1,
-          lang: rtl ? 'arabic' : 'english'
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      if (!response.body) {
-        throw new Error('No response body');
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+      const trimmedText = text.trim();
       let fullSummary = '';
+      let useEventSource = trimmedText.length <= 4000;
+      
+      if (useEventSource) {
+        console.log('Using EventSource for smaller text');
+        
+        try {
+          const textB64 = btoa(unescape(encodeURIComponent(trimmedText)));
+          const eventSource = new EventSource(
+            `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream?` +
+            `text_b64=${encodeURIComponent(textB64)}&` +
+            `book_id=${encodeURIComponent(dbBookId)}&` +
+            `page_number=${index + 1}&` +
+            `lang=${rtl ? 'arabic' : 'english'}`
+          );
 
-      console.log('Starting to read streaming response...');
+          await new Promise<void>((resolve, reject) => {
+            let timeoutId: NodeJS.Timeout;
+            
+            eventSource.onopen = () => {
+              console.log('EventSource opened');
+              timeoutId = setTimeout(() => {
+                eventSource.close();
+                reject(new Error('EventSource timeout'));
+              }, 120000);
+            };
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = line.slice(6);
-              if (data === '[DONE]') {
-                console.log('Stream completed');
-                break;
+            eventSource.onmessage = (event) => {
+              try {
+                if (event.data === '[DONE]') {
+                  console.log('EventSource stream completed');
+                  clearTimeout(timeoutId);
+                  eventSource.close();
+                  resolve();
+                  return;
+                }
+                
+                const parsed = JSON.parse(event.data);
+                if (parsed.text) {
+                  fullSummary += parsed.text;
+                  setSummary(fullSummary);
+                  setSummaryProgress(Math.min(95, fullSummary.length / 10));
+                }
+              } catch (e) {
+                console.log('Failed to parse EventSource data:', event.data);
               }
-              
-              const parsed = JSON.parse(data);
-              if (parsed.text) {
-                fullSummary += parsed.text;
-                setSummary(fullSummary);
-                setSummaryProgress(Math.min(95, fullSummary.length / 10));
+            };
+
+            eventSource.onerror = (error) => {
+              console.error('EventSource error:', error);
+              clearTimeout(timeoutId);
+              eventSource.close();
+              reject(new Error('EventSource connection failed'));
+            };
+          });
+        } catch (eventSourceError) {
+          console.warn('EventSource failed, falling back to fetch:', eventSourceError);
+          useEventSource = false;
+          fullSummary = '';
+          setSummary('');
+        }
+      }
+      
+      if (!useEventSource) {
+        console.log('Using fetch POST method');
+        
+        const response = await fetch(`https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+            // No Authorization header to prevent buffering
+          },
+          body: JSON.stringify({
+            text: trimmedText,
+            book_id: dbBookId,
+            page_number: index + 1,
+            lang: rtl ? 'arabic' : 'english'
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        if (!response.body) {
+          throw new Error('No response body');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        console.log('Starting to read streaming response...');
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Split on double newlines for more robust frame parsing
+          const frames = buffer.split('\n\n');
+          buffer = frames.pop() || '';
+
+          for (const frame of frames) {
+            const lines = frame.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = line.slice(6);
+                  if (data === '[DONE]') {
+                    console.log('Stream completed');
+                    break;
+                  }
+                  
+                  const parsed = JSON.parse(data);
+                  if (parsed.text) {
+                    fullSummary += parsed.text;
+                    setSummary(fullSummary);
+                    setSummaryProgress(Math.min(95, fullSummary.length / 10));
+                  }
+                } catch (e) {
+                  console.log('Failed to parse streaming data:', line.slice(6));
+                }
               }
-            } catch (e) {
-              console.log('Failed to parse streaming data:', line.slice(6));
             }
           }
         }
