@@ -36,7 +36,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
   {
     id: "chem12-1-3",
     title: "كتاب الكيمياء 12 (الفصل 1–3)",
-    slug: "kimiya-3",
+    slug: "كيمياء-3",
     rtl: true,
     grade: 12,
     semester: 1,
@@ -55,9 +55,9 @@ export const enhancedBooks: EnhancedBookDef[] = [
     },
     lessons: [
       {
-        id: "chem12-1-1-intro",
+        id: "chem12-1-3-intro",
         title: "مقدمة في المركبات العضوية",
-        slug: "muqaddima-fi-murakkabat-udwiya",
+        slug: "مقدمة-في-المركبات-العضوية",
         unitNumber: 1,
         chapterNumber: 1,
         lessonNumber: 1,
@@ -67,55 +67,13 @@ export const enhancedBooks: EnhancedBookDef[] = [
         contentType: "lesson",
         difficultyLevel: "beginner",
         estimatedReadTime: 15
-      },
-      {
-        id: "chem12-1-1-alkanes",
-        title: "الألكانات - الهيدروكربونات المشبعة",
-        slug: "alkanat",
-        unitNumber: 1,
-        chapterNumber: 1,
-        lessonNumber: 2,
-        arabicKeywords: ["ألكانات", "هيدروكربونات مشبعة", "ميثان", "إيثان", "بروبان"],
-        englishKeywords: ["alkanes", "saturated hydrocarbons", "methane", "ethane", "propane"],
-        metaDescription: "حلول وتمارين درس الألكانات - الهيدروكربونات المشبعة لمادة كيمياء 3. شرح بالفيديو وأمثلة تفاعلية لمساعدتك على فهم المنهج السعودي.",
-        contentType: "lesson",
-        difficultyLevel: "intermediate", 
-        estimatedReadTime: 25
-      },
-      {
-        id: "chem12-1-1-hydrocarbons",
-        title: "شرح درس الهيدروكربونات",
-        slug: "dars-hydrocarbons",
-        unitNumber: 1,
-        chapterNumber: 1,
-        lessonNumber: 3,
-        arabicKeywords: ["هيدروكربونات", "ألكينات", "ألكاينات", "بنزين", "مركبات عطرية"],
-        englishKeywords: ["hydrocarbons", "alkenes", "alkynes", "benzene", "aromatic compounds"],
-        metaDescription: "حلول وتمارين درس الهيدروكربونات لمادة كيمياء 3. شرح بالفيديو وأمثلة تفاعلية لمساعدتك على فهم المنهج السعودي.",
-        contentType: "lesson", 
-        difficultyLevel: "intermediate",
-        estimatedReadTime: 30
-      },
-      {
-        id: "chem12-1-1-reactions",
-        title: "تفاعلات المركبات العضوية",
-        slug: "tafaulat-murakkabat-udwiya",
-        unitNumber: 1,
-        chapterNumber: 1,
-        lessonNumber: 4,
-        arabicKeywords: ["تفاعلات عضوية", "احتراق", "هلجنة", "أكسدة"],
-        englishKeywords: ["organic reactions", "combustion", "halogenation", "oxidation"],
-        metaDescription: "شرح تفصيلي لتفاعلات المركبات العضوية وآليات التفاعل في كيمياء الصف الثاني عشر",
-        contentType: "lesson",
-        difficultyLevel: "advanced",
-        estimatedReadTime: 20
       }
     ]
   },
   {
     id: "physics12-1-3",
     title: "كتاب الفيزياء 12 (الفصل 1–3)",
-    slug: "fiziya-3",
+    slug: "فيزياء-3",
     rtl: true,
     grade: 12,
     semester: 1,
@@ -136,7 +94,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
       {
         id: "physics12-1-3-motion",
         title: "الحركة في خط مستقيم",
-        slug: "haraka-fi-khat-mustaqeem",
+        slug: "الحركة-في-خط-مستقيم",
         unitNumber: 1,
         chapterNumber: 1,
         lessonNumber: 1,
@@ -152,7 +110,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
   {
     id: "math12-1-3",
     title: "كتاب الرياضيات 12 (الفصل 1–3)",
-    slug: "riyadiyat-3",
+    slug: "رياضيات-3",
     rtl: true,
     grade: 12,
     semester: 1,
@@ -173,7 +131,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
       {
         id: "math12-1-3-calculus",
         title: "مقدمة في التفاضل",
-        slug: "muqaddima-fi-tafadul",
+        slug: "مقدمة-في-التفاضل",
         unitNumber: 1,
         chapterNumber: 1,
         lessonNumber: 1,

@@ -16,7 +16,6 @@
     <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/library"/>
     <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/library"/>
   </url>
-  <!-- Book Pages -->
   <url>
     <loc>https://idros.lovable.app/book/chem12-1-3</loc>
     <lastmod>2025-08-30</lastmod>
@@ -40,39 +39,5 @@
     <priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/book/math12-1-3"/>
     <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/book/math12-1-3"/>
-  </url>
-  
-  <!-- Semantic Lesson URLs with transliterated Arabic slugs -->
-  <url>
-    <loc>https://idros.lovable.app/kimiya-3/fasl-1</loc>
-    <lastmod>2025-08-30</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/kimiya-3/fasl-1"/>
-    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/kimiya-3/fasl-1"/>
-  </url>
-  <url>
-    <loc>https://idros.lovable.app/kimiya-3/fasl-1/dars-hydrocarbons</loc>
-    <lastmod>2025-08-30</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/kimiya-3/fasl-1/dars-hydrocarbons"/>
-    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/kimiya-3/fasl-1/dars-hydrocarbons"/>
-  </url>
-  <url>
-    <loc>https://idros.lovable.app/kimiya-3/fasl-1/muqaddima-fi-murakkabat-udwiya</loc>
-    <lastmod>2025-08-30</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/kimiya-3/fasl-1/muqaddima-fi-murakkabat-udwiya"/>
-    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/kimiya-3/fasl-1/muqaddima-fi-murakkabat-udwiya"/>
-  </url>
-  <url>
-    <loc>https://idros.lovable.app/kimiya-3/fasl-1/alkanat</loc>
-    <lastmod>2025-08-30</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://idros.lovable.app/kimiya-3/fasl-1/alkanat"/>
-    <xhtml:link rel="alternate" hreflang="ar-SA" href="https://idros.lovable.app/kimiya-3/fasl-1/alkanat"/>
   </url>
 </urlset>

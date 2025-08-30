@@ -3,8 +3,6 @@ import { books, getBookById } from "@/data/books";
 import { getEnhancedBookById } from "@/data/enhancedBooks";
 import BookViewer from "@/components/BookViewer";
 import { useMemo, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 import DynamicSEOHead from "@/components/seo/DynamicSEOHead";
 import StructuredDataSchemas from "@/components/seo/StructuredDataSchemas";
 import EnhancedSEOBreadcrumb from "@/components/seo/EnhancedSEOBreadcrumb";
@@ -16,39 +14,6 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialId = useMemo(() => params.bookId ?? books[0].id, [params.bookId]);
   const [selectedId, setSelectedId] = useState<string>(initialId);
-  
-  // Redirect old book URLs to new semantic URLs
-  useEffect(() => {
-    const bookId = params.bookId;
-    const page = searchParams.get('page');
-    
-    if (bookId) {
-      const book = getEnhancedBookById(bookId);
-      // If we're on an old-style URL and have lessons, redirect to new format
-      if (book.lessons && book.lessons.length > 0) {
-        let targetLesson = book.lessons[0]; // default to first lesson
-        
-        if (page) {
-          const pageNumber = parseInt(page);
-          if (bookId === 'chem12-1-3') {
-            if (pageNumber >= 1 && pageNumber <= 3) {
-              targetLesson = book.lessons.find(l => l.slug === 'muqaddima-fi-murakkabat-udwiya') || book.lessons[0];
-            } else if (pageNumber >= 4 && pageNumber <= 8) {
-              targetLesson = book.lessons.find(l => l.slug === 'dars-hydrocarbons') || book.lessons[2];
-            } else if (pageNumber >= 9 && pageNumber <= 15) {
-              targetLesson = book.lessons.find(l => l.slug === 'alkanat') || book.lessons[1];
-            } else if (pageNumber > 15) {
-              targetLesson = book.lessons.find(l => l.slug === 'tafaulat-murakkabat-udwiya') || book.lessons[3];
-            }
-          }
-        }
-        
-        // Redirect to the new URL-safe format
-        navigate(`/${book.slug}/fasl-${targetLesson.chapterNumber}/${targetLesson.slug}`, { replace: true });
-        return;
-      }
-    }
-  }, [params.bookId, searchParams, navigate]);
   
   useEffect(() => {
     if (selectedId !== initialId) setSelectedId(initialId);
@@ -148,50 +113,6 @@ const Index = () => {
             progress: (c, t, p) => `الصفحة ${c} من ${t} • ${p}%`
           }}
         />
-
-        {/* Enhanced Navigation */}
-        {enhancedBook.lessons && enhancedBook.lessons.length > 0 && (
-          <div className="mt-8 p-4 bg-muted/30 rounded-lg border">
-            <h2 className="text-lg font-semibold mb-3" dir="rtl">
-              الدروس المتاحة في هذا الكتاب:
-            </h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {enhancedBook.lessons.slice(0, 6).map((lesson) => (
-                <Link 
-                  key={lesson.id}
-                  to={`/${enhancedBook.slug}/fasl-${lesson.chapterNumber}/${lesson.slug}`}
-                  className="block p-3 bg-background rounded border hover:shadow-md transition-all"
-                >
-                  <div dir="rtl">
-                    <h3 className="font-medium text-sm mb-1">{lesson.title}</h3>
-                    <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
-                      {lesson.metaDescription}
-                    </p>
-                    <div className="flex gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        الفصل {lesson.chapterNumber}
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">
-                        {lesson.estimatedReadTime} دقيقة
-                      </Badge>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-            
-            {enhancedBook.lessons.length > 6 && (
-              <div className="mt-4 text-center">
-                <Link 
-                  to={`/${enhancedBook.slug}/fasl-1`}
-                  className="text-primary hover:underline text-sm"
-                >
-                  عرض جميع الدروس ({enhancedBook.lessons.length})
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
