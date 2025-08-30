@@ -1,4 +1,4 @@
-import { useParams, Navigate } from "react-router-dom";
+import { useParams, Navigate, useLocation } from "react-router-dom";
 import { getLessonBySlug } from "@/data/enhancedBooks";
 import DynamicSEOHead from "@/components/seo/DynamicSEOHead";
 import StructuredDataSchemas from "@/components/seo/StructuredDataSchemas";
@@ -8,11 +8,20 @@ import BookViewer from "@/components/BookViewer";
 import { useMemo } from "react";
 
 export default function LessonPage() {
-  const { bookSlug, chapterNumber, lessonSlug } = useParams<{
+  const { bookSlug, chapterNumber } = useParams<{
     bookSlug: string;
     chapterNumber: string;
-    lessonSlug: string;
   }>();
+  
+  const location = useLocation();
+  console.log('LessonPage - Full pathname:', location.pathname);
+  console.log('LessonPage - Params:', { bookSlug, chapterNumber });
+
+  // Extract lesson slug from the full path
+  const pathParts = location.pathname.split('/');
+  const lessonSlug = pathParts.slice(3).join('/'); // Everything after /bookSlug/chapter-X/
+  
+  console.log('LessonPage - Extracted lesson slug:', lessonSlug);
 
   const lessonData = useMemo(() => {
     if (!bookSlug || !lessonSlug) return null;

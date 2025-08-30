@@ -28,7 +28,7 @@ const App = () => (
           
           {/* New SEO-optimized routes with English structure and Arabic lesson names */}
           <Route path="/:bookSlug/chapter-:chapterNumber" element={<ChapterPage />} />
-          <Route path="/:bookSlug/chapter-:chapterNumber/:lessonSlug" element={<LessonPage />} />
+          <Route path="/:bookSlug/chapter-:chapterNumber/*" element={<LessonPage />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
