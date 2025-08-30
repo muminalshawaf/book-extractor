@@ -67,7 +67,19 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   labels = {},
   bookId
 }) => {
-  const [index, setIndex] = useState(0);
+  // Get last viewed page from localStorage
+  const getLastViewedPage = () => {
+    try {
+      const cacheId = bookId || title;
+      const lastPage = localStorage.getItem(`book:lastPage:${cacheId}`);
+      const pageNum = lastPage ? parseInt(lastPage, 10) : 0;
+      return Math.max(0, Math.min(pageNum, pages.length - 1));
+    } catch {
+      return 0;
+    }
+  };
+
+  const [index, setIndex] = useState(getLastViewedPage);
   const [zoom, setZoom] = useState(1);
   const Z = { min: 0.25, max: 4, step: 0.1 } as const;
   const total = pages.length;
@@ -269,6 +281,16 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     fetchFromDb();
     return () => { cancelled = true; };
   }, [index, dbBookId, ocrKey, sumKey]);
+
+  // Save current page to localStorage
+  useEffect(() => {
+    try {
+      const cacheId = bookId || title;
+      localStorage.setItem(`book:lastPage:${cacheId}`, index.toString());
+    } catch (error) {
+      console.warn('Failed to save last page:', error);
+    }
+  }, [index, bookId, title]);
 
   // OCR and Summarization functions
   // OCR text cleaning function
