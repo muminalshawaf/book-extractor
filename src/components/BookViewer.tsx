@@ -571,12 +571,18 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 fullSummary += parsed.text;
                 setSummary(fullSummary);
                 setSummaryProgress(Math.min(95, fullSummary.length / 10));
+                
+                // Force a small delay to ensure streaming appears smoothly
+                await new Promise(resolve => setTimeout(resolve, 10));
               }
             } catch (e) {
               console.log('Failed to parse streaming data:', line.slice(6));
             }
           }
         }
+        
+        // Force UI update after each chunk
+        await new Promise(resolve => setTimeout(resolve, 1));
       }
 
       if (fullSummary.trim()) {
