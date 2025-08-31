@@ -61,6 +61,26 @@ serve(async (req: Request) => {
       });
     }
 
+    // Extract numbered questions/problems from the text
+    const extractQuestionNumbers = (text: string): number[] => {
+      const matches = text.match(/(?:^|\s)(\d{1,3})[\u002E\u06D4]\s*[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z]/gm);
+      if (!matches) return [];
+      
+      const numbers = matches
+        .map(match => {
+          const num = match.trim().match(/(\d{1,3})/);
+          return num ? parseInt(num[1], 10) : 0;
+        })
+        .filter(num => num > 0 && num < 200) // Reasonable range for textbook questions
+        .sort((a, b) => a - b);
+      
+      // Remove duplicates
+      return [...new Set(numbers)];
+    };
+
+    const requiredQuestionIds = extractQuestionNumbers(text);
+    console.log(`Extracted question numbers: [${requiredQuestionIds.join(', ')}]`);
+
     const notStated = lang === "ar" ? "غير واضح في النص" : "Not stated in text";
 
     const prompt = `لخص هذا النص بإيجاز وبطريقة مفيدة للطلاب (صفحة واحدة فقط):
@@ -68,31 +88,40 @@ serve(async (req: Request) => {
 ${text}
 """
 
-اكتب ملخصاً مختصراً وعملياً باللغة العربية باستخدام Markdown مع عناوين H3 (###).
+${requiredQuestionIds.length > 0 ? 
+`**مهم جداً:** يجب أن تجيب على جميع الأسئلة المرقمة الموجودة في النص. الأرقام المطلوبة: [${requiredQuestionIds.join(', ')}]
+
+تأكد من تضمين كل رقم في قسم "حل المسائل" مع الإجابة الكاملة.` : ''}
+
+اكتب ملخصاً تفصيلياً وعملياً باللغة العربية باستخدام Markdown مع عناوين H3 (###).
 
 اتبع هذه القواعد:
 - اكتب فقط الأقسام المهمة من النص
-- كن مختصراً وواضحاً
+- كن واضحاً ومفصلاً
 - استخدم اللغة العربية البسيطة
-- احتفظ بالمعادلات والرموز كما هي
+- احتفظ بالمعادلات والرموز كما هي باستخدام $$...$$ للمعادلات
 
-أقسام مختصرة (فقط المطلوب):
+الأقسام المطلوبة:
 
 ### نظرة عامة
-- جملة واحدة عن محتوى الصفحة
+تتناول هذه الصفحة... (وصف شامل للمحتوى)
 
 ### المفاهيم الأساسية  
-- نقاط مختصرة للمفاهيم المهمة
+- نقاط مفصلة للمفاهيم المهمة مع الشرح
 
 ### التعاريف والمصطلحات
-- **المصطلح** — تعريف مختصر
+- **المصطلح** — تعريف واضح ومفصل
 
-### حلول المسائل
-**فقط إذا وجدت مسائل مرقمة في النص:**
-- اكتب الحل مباشرة بخطوات مختصرة
+${requiredQuestionIds.length > 0 ? `
+### حل المسائل
+**يجب حل جميع المسائل المرقمة [${requiredQuestionIds.join(', ')}]:**
+
+` + requiredQuestionIds.map(num => `**${num}. [اكتب السؤال كاملاً من النص]**
+- الحل: [خطوات مفصلة]
+- الجواب النهائي: [النتيجة مع الوحدات]`).join('\n\n') : ''}
 
 ### أسئلة سريعة
-جدول بسيط بـ 3 أسئلة وأجوبة:
+جدول بـ 3-5 أسئلة وأجوبة مهمة:
 
 | السؤال | الجواب |
 |---|---|
@@ -101,7 +130,8 @@ ${text}
 قيود:
 - لا تكرر المحتوى
 - كن واضحاً ومفصلاً
-- قدم كل التفاصيل المهمة`;
+- قدم كل التفاصيل المهمة
+- تأكد من حل جميع الأسئلة المرقمة`;
 
     // Use Arabic prompt if language is Arabic
     const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 

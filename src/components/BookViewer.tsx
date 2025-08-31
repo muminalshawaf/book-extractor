@@ -735,6 +735,10 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         localStorage.setItem(sumKey, trimmedSummary);
         setSummary(trimmedSummary);
         setSummaryConfidence(0.8);
+        
+        // Post-process: Check for missing numbered questions and complete them
+        await checkAndCompleteMissingQuestions(trimmedSummary, trimmedText);
+        
         toast.success(rtl ? "تم إنشاء الملخص بنجاح" : "Summary generated successfully");
         
         // Save complete summary to database (async, non-blocking)
@@ -776,6 +780,116 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       console.error('Force regenerate error:', error);
       toast.error(rtl ? "فشل في إعادة التوليد" : "Failed to regenerate content");
     }
+  };
+
+  // Post-processing function to ensure all numbered questions are answered
+  const checkAndCompleteMissingQuestions = async (generatedSummary: string, originalText: string) => {
+    try {
+      // Extract question numbers from original text
+      const extractQuestionNumbers = (text: string): number[] => {
+        const matches = text.match(/(?:^|\s)(\d{1,3})[\u002E\u06D4]\s*[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z]/gm);
+        if (!matches) return [];
+        
+        const numbers = matches
+          .map(match => {
+            const num = match.trim().match(/(\d{1,3})/);
+            return num ? parseInt(num[1], 10) : 0;
+          })
+          .filter(num => num > 0 && num < 200)
+          .sort((a, b) => a - b);
+        
+        return [...new Set(numbers)];
+      };
+
+      const requiredIds = extractQuestionNumbers(originalText);
+      if (requiredIds.length === 0) return;
+
+      console.log(`Post-processing: Found ${requiredIds.length} questions: [${requiredIds.join(', ')}]`);
+
+      // Extract answered question numbers from summary
+      const answeredIds = extractQuestionNumbers(generatedSummary);
+      const missingIds = requiredIds.filter(id => !answeredIds.includes(id));
+
+      if (missingIds.length === 0) {
+        console.log('Post-processing: All questions answered ✓');
+        return;
+      }
+
+      console.log(`Post-processing: Missing questions: [${missingIds.join(', ')}]`);
+
+      // Call qa-stream for each missing question
+      let additionalAnswers = '';
+      for (const questionId of missingIds) {
+        try {
+          const question = `حل السؤال رقم ${questionId} من النص المعطى`;
+          const answer = await callQAStreamForQuestion(question, generatedSummary, originalText);
+          
+          if (answer.trim()) {
+            additionalAnswers += `\n\n**${questionId}. [من النص]**\n${answer}`;
+          }
+        } catch (qaError) {
+          console.error(`Failed to get answer for question ${questionId}:`, qaError);
+        }
+      }
+
+      if (additionalAnswers.trim()) {
+        // Append missing answers to the summary
+        const updatedSummary = generatedSummary + 
+          (generatedSummary.includes('### حل المسائل') ? additionalAnswers : 
+           `\n\n### حل المسائل إضافية${additionalAnswers}`);
+        
+        setSummary(updatedSummary);
+        localStorage.setItem(sumKey, updatedSummary);
+        
+        console.log(`Post-processing: Added ${missingIds.length} missing answers ✓`);
+      }
+    } catch (error) {
+      console.error('Post-processing error:', error);
+    }
+  };
+
+  // Helper function to call qa-stream for individual questions
+  const callQAStreamForQuestion = async (question: string, summary: string, pageText: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      let fullAnswer = '';
+      
+      const eventSource = new EventSource(
+        `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/qa-stream?` +
+        `question=${encodeURIComponent(question)}&` +
+        `summary=${encodeURIComponent(summary.substring(0, 2000))}&` +
+        `context=${encodeURIComponent(pageText.substring(0, 3000))}&` +
+        `lang=${rtl ? 'arabic' : 'english'}`
+      );
+
+      const timeout = setTimeout(() => {
+        eventSource.close();
+        resolve(fullAnswer);
+      }, 30000);
+
+      eventSource.onmessage = (event) => {
+        try {
+          if (event.data === '[DONE]') {
+            clearTimeout(timeout);
+            eventSource.close();
+            resolve(fullAnswer);
+            return;
+          }
+          
+          const parsed = JSON.parse(event.data);
+          if (parsed.text) {
+            fullAnswer += parsed.text;
+          }
+        } catch (e) {
+          console.log ('Failed to parse QA data:', event.data);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        clearTimeout(timeout);
+        eventSource.close();
+        resolve(fullAnswer); // Return partial answer instead of rejecting
+      };
+    });
   };
 
   const handleSmartSummarizeClick = async () => {
