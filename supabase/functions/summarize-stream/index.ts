@@ -53,6 +53,46 @@ serve(async (req: Request) => {
       });
     }
 
+    // Check if this is a table of contents page
+    const tableOfContentsKeywords = [
+      "قائمة المحتويات", "فهرس", "المحتويات", "جدول المحتويات",
+      "table of contents", "contents", "index", "table des matières"
+    ];
+    
+    const isTableOfContents = tableOfContentsKeywords.some(keyword => 
+      text.toLowerCase().includes(keyword.toLowerCase())
+    );
+
+    if (isTableOfContents) {
+      console.log('Detected table of contents page - returning simple response');
+      const tocResponse = lang === "ar" || lang === "arabic" 
+        ? "### قائمة المحتويات\n\nهذه الصفحة تحتوي على فهرس الكتاب وقائمة بالفصول والمواضيع. لا تحتاج إلى تلخيص - يمكنك استخدامها للتنقل إلى الصفحات المطلوبة."
+        : "### Table of Contents\n\nThis page contains the book's index and list of chapters and topics. No summarization needed - use it to navigate to the desired pages.";
+      
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode(`event: open\ndata: ok\n\n`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: tocResponse })}\n\n`));
+          controller.enqueue(encoder.encode(`event: done\ndata: [DONE]\n\n`));
+          controller.close();
+        }
+      });
+
+      return new Response(stream, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-store, must-revalidate, no-transform",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no",
+          "Transfer-Encoding": "chunked",
+          "Pragma": "no-cache",
+          "Expires": "0",
+        },
+      });
+    }
+
     const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "Missing DEEPSEEK_API_KEY" }), {
