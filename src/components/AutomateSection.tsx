@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Play, Square, BookOpen } from 'lucide-react';
+import { Play, Square, BookOpen, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -19,12 +19,14 @@ interface AutomateSectionProps {
 
 interface AutomationProgress {
   isRunning: boolean;
+  isPaused: boolean;
   currentPage: number;
   startPage: number;
   endPage: number;
   processedPages: number;
   skippedPages: number;
   totalPages: number;
+  lastActiveTime: number;
 }
 
 export const AutomateSection: React.FC<AutomateSectionProps> = ({
@@ -40,15 +42,41 @@ export const AutomateSection: React.FC<AutomateSectionProps> = ({
   const [endPage, setEndPage] = useState(Math.min(10, totalPages));
   const [progress, setProgress] = useState<AutomationProgress>({
     isRunning: false,
+    isPaused: false,
     currentPage: 0,
     startPage: 0,
     endPage: 0,
     processedPages: 0,
     skippedPages: 0,
-    totalPages: 0
+    totalPages: 0,
+    lastActiveTime: Date.now()
   });
   
   const stopRequested = useRef(false);
+  const pauseRequested = useRef(false);
+
+  // Sleep/wake detection
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && progress.isRunning) {
+        console.log('Tab became hidden, pausing automation...');
+        pauseRequested.current = true;
+        setProgress(prev => ({ ...prev, isPaused: true, lastActiveTime: Date.now() }));
+        toast.info(rtl ? 'تم إيقاف العملية مؤقتاً (الكمبيوتر في وضع السكون)' : 'Process paused (computer went to sleep)');
+      } else if (!document.hidden && progress.isPaused && progress.isRunning) {
+        console.log('Tab became visible, resuming automation...');
+        const timeDiff = Date.now() - progress.lastActiveTime;
+        if (timeDiff > 5000) { // If more than 5 seconds passed
+          toast.info(rtl ? 'استئناف العملية...' : 'Resuming process...');
+        }
+        pauseRequested.current = false;
+        setProgress(prev => ({ ...prev, isPaused: false, lastActiveTime: Date.now() }));
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [progress.isRunning, progress.isPaused, progress.lastActiveTime, rtl]);
 
   const startAutomation = async () => {
     const start = Math.max(1, Math.min(startPage, totalPages));
@@ -57,24 +85,44 @@ export const AutomateSection: React.FC<AutomateSectionProps> = ({
 
     setProgress({
       isRunning: true,
+      isPaused: false,
       currentPage: start,
       startPage: start,
       endPage: end,
       processedPages: 0,
       skippedPages: 0,
-      totalPages: total
+      totalPages: total,
+      lastActiveTime: Date.now()
     });
 
     stopRequested.current = false;
+    pauseRequested.current = false;
 
     try {
       for (let pageNum = start; pageNum <= end; pageNum++) {
+        // Check for stop request
         if (stopRequested.current) {
           toast.info(rtl ? 'تم إيقاف العملية' : 'Process stopped');
           break;
         }
 
-        setProgress(prev => ({ ...prev, currentPage: pageNum }));
+        // Wait while paused (sleep/wake handling)
+        while (pauseRequested.current && !stopRequested.current) {
+          console.log('Automation paused, waiting...');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        // Check again for stop after pause
+        if (stopRequested.current) {
+          toast.info(rtl ? 'تم إيقاف العملية' : 'Process stopped');
+          break;
+        }
+
+        setProgress(prev => ({ 
+          ...prev, 
+          currentPage: pageNum, 
+          lastActiveTime: Date.now() 
+        }));
 
         // Navigate to the page
         console.log(`Automation: Navigating to page ${pageNum}`);
@@ -83,10 +131,29 @@ export const AutomateSection: React.FC<AutomateSectionProps> = ({
         // Wait longer for navigation and page loading to complete
         await new Promise(resolve => setTimeout(resolve, 3000));
 
-        // Check if page is already processed
+        // Check if page is already processed (with retry for network issues)
         console.log(`Automation: Checking if page ${pageNum} is processed`);
-        const isProcessed = await checkIfPageProcessed(pageNum);
-        console.log(`Automation: Page ${pageNum} processed status:`, isProcessed);
+        let isProcessed = false;
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+          try {
+            isProcessed = await checkIfPageProcessed(pageNum);
+            console.log(`Automation: Page ${pageNum} processed status:`, isProcessed);
+            break;
+          } catch (error) {
+            retryCount++;
+            console.warn(`Retry ${retryCount}/${maxRetries} checking page ${pageNum}:`, error);
+            if (retryCount < maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            } else {
+              console.error(`Failed to check page ${pageNum} after ${maxRetries} retries`);
+              // Assume not processed and continue
+              isProcessed = false;
+            }
+          }
+        }
         
         if (isProcessed) {
           console.log(`Page ${pageNum} already processed, skipping...`);
@@ -102,33 +169,49 @@ export const AutomateSection: React.FC<AutomateSectionProps> = ({
           continue;
         }
 
-        try {
-          // Extract and summarize current page
-          await onExtractAndSummarize(pageNum);
-          
-          setProgress(prev => ({ 
-            ...prev, 
-            processedPages: prev.processedPages + 1 
-          }));
+        // Extract and summarize current page (with retry logic)
+        let processSuccess = false;
+        retryCount = 0;
+        
+        while (retryCount < maxRetries && !processSuccess) {
+          try {
+            await onExtractAndSummarize(pageNum);
+            processSuccess = true;
+            
+            setProgress(prev => ({ 
+              ...prev, 
+              processedPages: prev.processedPages + 1 
+            }));
 
-          toast.success(
-            rtl 
-              ? `تم معالجة الصفحة ${pageNum}` 
-              : `Processed page ${pageNum}`
-          );
+            toast.success(
+              rtl 
+                ? `تم معالجة الصفحة ${pageNum}` 
+                : `Processed page ${pageNum}`
+            );
 
-          // Wait between pages to prevent overwhelming the API
-          await new Promise(resolve => setTimeout(resolve, 2000));
+            // Wait between pages to prevent overwhelming the API
+            await new Promise(resolve => setTimeout(resolve, 2000));
 
-        } catch (error) {
-          console.error(`Error processing page ${pageNum}:`, error);
-          toast.error(
-            rtl 
-              ? `خطأ في معالجة الصفحة ${pageNum}` 
-              : `Error processing page ${pageNum}`
-          );
-          
-          // Continue to next page even if this one failed
+          } catch (error) {
+            retryCount++;
+            console.error(`Error processing page ${pageNum} (attempt ${retryCount}/${maxRetries}):`, error);
+            
+            if (retryCount < maxRetries) {
+              toast.info(
+                rtl 
+                  ? `إعادة محاولة معالجة الصفحة ${pageNum}...` 
+                  : `Retrying page ${pageNum}...`
+              );
+              // Wait before retry, increasing delay each time
+              await new Promise(resolve => setTimeout(resolve, 3000 * retryCount));
+            } else {
+              toast.error(
+                rtl 
+                  ? `فشل في معالجة الصفحة ${pageNum} بعد ${maxRetries} محاولات` 
+                  : `Failed to process page ${pageNum} after ${maxRetries} attempts`
+              );
+            }
+          }
         }
       }
 
@@ -230,10 +313,12 @@ export const AutomateSection: React.FC<AutomateSectionProps> = ({
         {progress.isRunning && (
           <div className="space-y-3">
             <div className={cn("flex items-center justify-between text-sm", rtl && "flex-row-reverse")}>
-              <span className="font-medium">
-                {rtl 
-                  ? `معالجة الصفحة ${progress.currentPage}` 
-                  : `Processing page ${progress.currentPage}`}
+              <span className={cn("font-medium flex items-center gap-2", rtl && "flex-row-reverse")}>
+                {progress.isPaused && <Pause className="h-4 w-4 text-yellow-500" />}
+                {progress.isPaused 
+                  ? (rtl ? 'مُتوقف مؤقتاً' : 'Paused') 
+                  : (rtl ? `معالجة الصفحة ${progress.currentPage}` : `Processing page ${progress.currentPage}`)
+                }
               </span>
               <span className="text-muted-foreground">
                 {progress.processedPages + progress.skippedPages} / {progress.totalPages}
@@ -252,13 +337,23 @@ export const AutomateSection: React.FC<AutomateSectionProps> = ({
                   : `Skipped: ${progress.skippedPages}`}
               </span>
             </div>
+            {progress.isPaused && (
+              <div className={cn("flex items-center gap-2 text-xs text-yellow-600 bg-yellow-50 p-2 rounded", rtl && "flex-row-reverse")}>
+                <Pause className="h-3 w-3" />
+                <span>
+                  {rtl 
+                    ? 'العملية متوقفة مؤقتاً - ستستأنف تلقائياً عند العودة' 
+                    : 'Process paused - will resume automatically when you return'}
+                </span>
+              </div>
+            )}
           </div>
         )}
 
         <div className="text-xs text-muted-foreground">
           {rtl 
-            ? "تقوم هذه العملية بفحص كل صفحة، وإذا لم تكن معالجة، تستخرج النص وتلخصه تلقائياً"
-            : "This process checks each page and automatically extracts text and creates summaries for unprocessed pages"}
+            ? "تقوم هذه العملية بفحص كل صفحة، وإذا لم تكن معالجة، تستخرج النص وتلخصه تلقائياً. تعمل حتى لو ذهب الكمبيوتر في وضع السكون."
+            : "This process checks each page and automatically extracts text and creates summaries for unprocessed pages. Works even if computer goes to sleep."}
         </div>
       </CardContent>
     </Card>
