@@ -40,6 +40,9 @@ const AdminProcessing = () => {
     logs: []
   });
 
+  // Use ref to track running state for the processing loop
+  const isRunningRef = React.useRef(false);
+
   const selectedBook = enhancedBooks.find(b => b.id === selectedBookId);
 
   const addLog = (message: string) => {
@@ -53,6 +56,7 @@ const AdminProcessing = () => {
   const startProcessing = async () => {
     if (!selectedBook) return;
 
+    isRunningRef.current = true;
     setStatus({
       isRunning: true,
       currentPage: 0,
@@ -68,7 +72,7 @@ const AdminProcessing = () => {
 
     try {
       for (let pageNum = 1; pageNum <= selectedBook.totalPages; pageNum++) {
-        if (!status.isRunning) {
+        if (!isRunningRef.current) {
           addLog("Processing stopped by user");
           break;
         }
@@ -112,8 +116,7 @@ const AdminProcessing = () => {
               // Try Gemini OCR first
               const ocrResult = await callFunction('ocr-gemini', {
                 imageUrl: pageImage.src,
-                bookId: selectedBookId,
-                pageNumber: pageNum
+                language: 'ar' // Arabic language for Saudi books
               });
               
               ocrText = ocrResult.text || '';
@@ -125,15 +128,14 @@ const AdminProcessing = () => {
                 addLog(`Page ${pageNum}: Gemini OCR failed, trying DeepSeek...`);
                 const fallbackResult = await callFunction('ocr-deepseek', {
                   imageUrl: pageImage.src,
-                  bookId: selectedBookId,
-                  pageNumber: pageNum
+                  language: 'ar'
                 });
                 
                 ocrText = fallbackResult.text || '';
                 ocrConfidence = fallbackResult.confidence || 0.6;
                 addLog(`Page ${pageNum}: DeepSeek OCR completed (confidence: ${(ocrConfidence * 100).toFixed(1)}%)`);
               } catch (fallbackError) {
-                addLog(`Page ${pageNum}: OCR failed - ${fallbackError}`);
+                addLog(`Page ${pageNum}: OCR failed - ${fallbackError.message || fallbackError}`);
                 setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
                 continue;
               }
@@ -150,16 +152,16 @@ const AdminProcessing = () => {
             try {
               const summaryResult = await callFunction('summarize', {
                 text: ocrText,
-                bookId: selectedBookId,
-                pageNumber: pageNum,
-                language: 'arabic'
+                lang: 'ar',
+                page: pageNum,
+                title: selectedBook.title
               });
               
               summary = summaryResult.summary || '';
-              summaryConfidence = summaryResult.confidence || 0.8;
-              addLog(`Page ${pageNum}: Summary generated (confidence: ${(summaryConfidence * 100).toFixed(1)}%)`);
+              summaryConfidence = 0.8; // Set default confidence since summarize function doesn't return it
+              addLog(`Page ${pageNum}: Summary generated successfully`);
             } catch (summaryError) {
-              addLog(`Page ${pageNum}: Summary generation failed - ${summaryError}`);
+              addLog(`Page ${pageNum}: Summary generation failed - ${summaryError.message || summaryError}`);
               setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
               continue;
             }
@@ -186,12 +188,12 @@ const AdminProcessing = () => {
           await new Promise(resolve => setTimeout(resolve, 1000));
 
         } catch (error) {
-          addLog(`Page ${pageNum}: Error - ${error}`);
+          addLog(`Page ${pageNum}: Error - ${error.message || error}`);
           setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
         }
       }
 
-      if (status.isRunning) {
+      if (isRunningRef.current) {
         const duration = Date.now() - (status.startTime?.getTime() || 0);
         addLog(`Processing completed in ${Math.round(duration / 1000)}s`);
         toast.success("Book processing completed successfully!");
@@ -201,11 +203,13 @@ const AdminProcessing = () => {
       addLog(`Fatal error: ${error}`);
       toast.error("Processing failed with fatal error");
     } finally {
+      isRunningRef.current = false;
       setStatus(prev => ({ ...prev, isRunning: false }));
     }
   };
 
   const stopProcessing = () => {
+    isRunningRef.current = false;
     setStatus(prev => ({ ...prev, isRunning: false }));
     addLog("Processing stopped by user");
     toast.info("Processing stopped");
