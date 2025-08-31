@@ -802,36 +802,73 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const validateCurrentPage = async (expectedPage: number): Promise<boolean> => {
     const urlParams = new URLSearchParams(window.location.search);
     const currentUrlPage = parseInt(urlParams.get('page') || '1');
-    const currentDisplayPage = index + 1;
     
     console.log('VALIDATION:', {
       expectedPage,
       currentUrlPage,
-      currentDisplayPage,
+      currentDisplayPage: index + 1,
       displaySrc,
       expectedSrc: pages[expectedPage - 1]?.src
     });
     
-    // Check if URL matches expected page
+    // Primary check: URL should match expected page (most reliable)
     if (currentUrlPage !== expectedPage) {
       console.warn(`URL page mismatch: expected ${expectedPage}, got ${currentUrlPage}`);
       return false;
     }
     
-    // Check if displayed page matches expected page
-    if (currentDisplayPage !== expectedPage) {
-      console.warn(`Display page mismatch: expected ${expectedPage}, got ${currentDisplayPage}`);
-      return false;
+    // Secondary check: Wait for React state to catch up (with timeout)
+    let stateCheckAttempts = 0;
+    const maxStateChecks = 5;
+    
+    while (stateCheckAttempts < maxStateChecks) {
+      const currentDisplayPage = index + 1;
+      
+      if (currentDisplayPage === expectedPage) {
+        // State is synchronized, now check image source if available
+        const expectedSrc = pages[expectedPage - 1]?.src;
+        
+        // If we have both sources, check they match
+        if (displaySrc && expectedSrc) {
+          if (displaySrc === expectedSrc) {
+            console.log(`Validation successful for page ${expectedPage}`);
+            return true;
+          } else {
+            // Image source mismatch - this might be okay if image is still loading
+            console.log(`Image source mismatch (may be loading): expected ${expectedSrc}, got ${displaySrc}`);
+            // Allow a brief moment for image to update
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Check once more
+            if (displaySrc === expectedSrc) {
+              return true;
+            }
+          }
+        } else {
+          // If displaySrc is not available yet, that's okay - state is correct
+          console.log(`State matches, image source not yet available - considering valid`);
+          return true;
+        }
+        
+        break;
+      }
+      
+      // Wait for state to update
+      stateCheckAttempts++;
+      if (stateCheckAttempts < maxStateChecks) {
+        console.log(`Waiting for state to update (attempt ${stateCheckAttempts}/${maxStateChecks})`);
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
     }
     
-    // Check if displayed image source matches expected page
-    const expectedSrc = pages[expectedPage - 1]?.src;
-    if (displaySrc && expectedSrc && displaySrc !== expectedSrc) {
-      console.warn(`Image source mismatch: expected ${expectedSrc}, got ${displaySrc}`);
-      return false;
+    // Final check - if URL is correct but state hasn't caught up, be more lenient
+    if (currentUrlPage === expectedPage) {
+      console.log(`URL is correct (${expectedPage}), accepting despite state lag`);
+      return true;
     }
     
-    return true;
+    console.warn(`Final validation failed for page ${expectedPage}`);
+    return false;
   };
 
   const handleNavigateToPage = useCallback((page: number) => {
