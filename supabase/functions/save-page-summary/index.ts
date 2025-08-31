@@ -22,8 +22,9 @@ serve(async (req) => {
   }
 
   try {
+    console.log(`[SAVE-PAGE-SUMMARY ${new Date().toISOString()}] Function started`);
     const body = await req.json();
-    console.log('Raw request body:', JSON.stringify(body, null, 2));
+    console.log(`[SAVE-PAGE-SUMMARY ${new Date().toISOString()}] Raw request body:`, JSON.stringify(body, null, 2));
     
     const book_id = String(body?.book_id || '').trim();
     const page_number = Number(body?.page_number);
@@ -33,7 +34,7 @@ serve(async (req) => {
     const ocr_confidence = typeof body?.ocr_confidence === 'number' ? body.ocr_confidence : null;
     const confidence_meta = body?.confidence_meta && typeof body.confidence_meta === 'object' ? body.confidence_meta : null;
 
-    console.log('Processed parameters:', {
+    console.log(`[SAVE-PAGE-SUMMARY ${new Date().toISOString()}] Processed parameters:`, {
       book_id,
       page_number,
       ocr_text_type: typeof body?.ocr_text,
@@ -41,7 +42,8 @@ serve(async (req) => {
       ocr_text_preview: typeof body?.ocr_text === 'string' ? body.ocr_text.substring(0, 100) + '...' : 'NOT STRING',
       summary_md_length: summary_md?.length,
       confidence,
-      ocr_confidence
+      ocr_confidence,
+      timestamp: new Date().toISOString()
     });
 
     if (!book_id || !Number.isFinite(page_number) || page_number < 1) {

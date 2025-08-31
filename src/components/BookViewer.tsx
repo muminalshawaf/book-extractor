@@ -20,6 +20,8 @@ import { ZoomControls, ZoomMode } from "@/components/ZoomControls";
 import { MiniMap } from "@/components/MiniMap";
 import { useImagePreloader } from "@/hooks/useImagePreloader";
 import { EnhancedSummary } from "@/components/EnhancedSummary";
+import { EnhancedAutomateSection } from "./EnhancedAutomateSection";
+import { DebugHUD } from "./DebugHUD";
 import { ImprovedErrorHandler } from "@/components/ImprovedErrorHandler";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { TouchGestureHandler } from "@/components/TouchGestureHandler";
@@ -797,6 +799,42 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   };
 
   // Automation functions for batch processing
+  // Page validation function for automation
+  const validateCurrentPage = async (expectedPage: number): Promise<boolean> => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentUrlPage = parseInt(urlParams.get('page') || '1');
+    const currentDisplayPage = index + 1;
+    
+    console.log('VALIDATION:', {
+      expectedPage,
+      currentUrlPage,
+      currentDisplayPage,
+      displaySrc,
+      expectedSrc: pages[expectedPage - 1]?.src
+    });
+    
+    // Check if URL matches expected page
+    if (currentUrlPage !== expectedPage) {
+      console.warn(`URL page mismatch: expected ${expectedPage}, got ${currentUrlPage}`);
+      return false;
+    }
+    
+    // Check if displayed page matches expected page
+    if (currentDisplayPage !== expectedPage) {
+      console.warn(`Display page mismatch: expected ${expectedPage}, got ${currentDisplayPage}`);
+      return false;
+    }
+    
+    // Check if displayed image source matches expected page
+    const expectedSrc = pages[expectedPage - 1]?.src;
+    if (displaySrc && expectedSrc && displaySrc !== expectedSrc) {
+      console.warn(`Image source mismatch: expected ${expectedSrc}, got ${displaySrc}`);
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleNavigateToPage = useCallback((page: number) => {
     jumpToPage(page);
   }, [jumpToPage]);
@@ -1483,8 +1521,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               </Card>
             </div>
 
-            {/* Automate Processing Section */}
-            <AutomateSection
+            {/* Enhanced Automate Processing Section with Debug Features */}
+            <EnhancedAutomateSection
               bookTitle={title}
               totalPages={total}
               currentPage={index + 1}
@@ -1492,6 +1530,26 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               onNavigateToPage={handleNavigateToPage}
               onExtractAndSummarize={handleExtractAndSummarize}
               checkIfPageProcessed={checkIfPageProcessed}
+              validateCurrentPage={validateCurrentPage}
+            />
+
+            {/* Debug HUD */}
+            <DebugHUD
+              debugInfo={{
+                currentPage: index + 1,
+                displayedImageSrc: displaySrc,
+                expectedImageSrc: pages[index]?.src || '',
+                imageMatches: displaySrc === pages[index]?.src,
+                extractedTextLength: extractedText.length,
+                summaryLength: summary.length,
+                isProcessing: ocrLoading || summLoading,
+                lastError: lastError?.toString() || null,
+                ocrQuality,
+                summaryConfidence
+              }}
+              rtl={rtl}
+              onValidateImage={async () => await validateCurrentPage(index + 1)}
+              onRefreshPage={() => window.location.reload()}
             />
 
             {/* OCR Content - Now indexable */}

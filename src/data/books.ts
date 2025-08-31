@@ -25,7 +25,7 @@ export const books: BookDef[] = [
     buildPages: () => {
       const baseUrl = "https://ksa.idros.ai/books/chem12-1-3/";
       return Array.from({ length: 178 }, (_, i) => ({
-        src: `${baseUrl}kitab-alkimya-3-${i + 2}.webp`,
+        src: `${baseUrl}kitab-alkimya-3-${i + 1}.webp`,
         alt: `صفحة كتاب الكيمياء ${i + 1}`,
       }));
     },
@@ -42,8 +42,8 @@ export const books: BookDef[] = [
     buildPages: () => {
       const baseUrl = "https://ksa.idros.ai/books/physics12-1-3/";
       return Array.from({ length: 315 }, (_, i) => ({
-        src: `${baseUrl}kitab-alfizya3-12025-${i + 2}.webp`,
-        alt: `صفحة كتاب الفيزياء ${i + 2}`,
+        src: `${baseUrl}kitab-alfizya3-12025-${i + 1}.webp`,
+        alt: `صفحة كتاب الفيزياء ${i + 1}`,
       }));
     },
   },
@@ -59,8 +59,8 @@ export const books: BookDef[] = [
     buildPages: () => {
       const baseUrl = "https://www.ksa.idros.ai/books/math12-1-3/";
       return Array.from({ length: 213 }, (_, i) => ({
-        src: `${baseUrl}math12-3-1-${i + 2}.webp`,
-        alt: `صفحة كتاب الرياضيات ${i + 2}`,
+        src: `${baseUrl}math12-3-1-${i + 1}.webp`,
+        alt: `صفحة كتاب الرياضيات ${i + 1}`,
       }));
     },
   },
