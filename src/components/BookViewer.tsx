@@ -215,14 +215,20 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     const img = new Image();
     img.decoding = "async";
     img.src = nextSrc;
+    
+    console.log('DEBUG: Loading image for page', index + 1, 'src:', nextSrc);
+    
     img.onload = () => {
       if (!active) return;
+      console.log('DEBUG: Image loaded successfully for page', index + 1);
       setDisplaySrc(nextSrc);
       setImageLoading(false);
       setPageProgress(100);
     };
+    
     img.onerror = () => {
       if (!active) return;
+      console.log('DEBUG: Image failed to load for page', index + 1, 'src:', nextSrc);
       setImageLoading(false);
     };
 
@@ -299,8 +305,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           ocrPreview: ocr.substring(0, 100) + '...'
         });
         
+        console.log('DEBUG: Before setting state - current extractedText length:', extractedText.length);
+        console.log('DEBUG: Before setting state - current summary length:', summary.length);
+        
         setExtractedText(ocr);
         setSummary(sum);
+        
+        console.log('DEBUG: State update called with OCR length:', ocr.length, 'Summary length:', sum.length);
         setSummaryConfidence(typeof data?.confidence === 'number' ? data.confidence : undefined);
         setOcrQuality(typeof data?.ocr_confidence === 'number' ? data.ocr_confidence : undefined);
         
@@ -921,6 +932,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     if (e.deltaY > 0) goNext();
     else if (e.deltaY < 0) goPrev();
   };
+
+  console.log('DEBUG: BookViewer render - Page:', index + 1, 'extractedText length:', extractedText.length, 'summary length:', summary.length, 'displaySrc:', displaySrc ? displaySrc.substring(0, 50) + '...' : 'null');
 
   return (
     <section className={cn("w-full min-h-screen", rtl && "[direction:rtl]")}>
