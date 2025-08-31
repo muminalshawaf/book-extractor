@@ -118,18 +118,21 @@ export const AutomateSection: React.FC<AutomateSectionProps> = ({
           break;
         }
 
-        setProgress(prev => ({ 
-          ...prev, 
-          currentPage: pageNum, 
-          lastActiveTime: Date.now() 
-        }));
-
-        // Navigate to the page
-        console.log(`Automation: Navigating to page ${pageNum}`);
-        onNavigateToPage(pageNum);
-        
-        // Wait for navigation to complete - reduced initial wait since we have better sync in handleExtractAndSummarize
-        await new Promise(resolve => setTimeout(resolve, 1500));
+         // Navigate to the page first
+         console.log(`Automation: Navigating to page ${pageNum}`);
+         onNavigateToPage(pageNum);
+         
+         // Update progress AFTER navigation starts to ensure correct display
+         setProgress(prev => ({ 
+           ...prev, 
+           currentPage: pageNum, 
+           lastActiveTime: Date.now() 
+         }));
+         
+         console.log(`Automation: Updated progress display to show page ${pageNum}`);
+         
+         // Wait for navigation to complete - reduced initial wait since we have better sync in handleExtractAndSummarize
+         await new Promise(resolve => setTimeout(resolve, 1500));
 
         // Check if page is already processed (with retry for network issues)
         console.log(`Automation: Checking if page ${pageNum} is processed`);
