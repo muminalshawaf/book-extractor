@@ -33,6 +33,7 @@ const AdminProcessing = () => {
   const [selectedBookId, setSelectedBookId] = useState(initialBookId);
   const [startPage, setStartPage] = useState(1);
   const [endPage, setEndPage] = useState(10);
+  const [skipProcessed, setSkipProcessed] = useState(true);
   const [status, setStatus] = useState<ProcessingStatus>({
     isRunning: false,
     currentPage: 0,
@@ -110,10 +111,14 @@ const AdminProcessing = () => {
           .eq('page_number', pageNum)
           .maybeSingle();
 
-        if (existingData?.ocr_text && existingData?.summary_md) {
+        if (skipProcessed && existingData?.ocr_text && existingData?.summary_md) {
           addLog(`Page ${pageNum}: Already processed - skipping`);
           setStatus(prev => ({ ...prev, skipped: prev.skipped + 1 }));
           continue;
+        }
+
+        if (!skipProcessed && existingData?.ocr_text && existingData?.summary_md) {
+          addLog(`Page ${pageNum}: Reprocessing existing data`);
         }
 
         try {
@@ -127,8 +132,8 @@ const AdminProcessing = () => {
             continue;
           }
 
-          // OCR the page if no text exists
-          let ocrText = existingData?.ocr_text || '';
+          // OCR the page if no text exists or if we're not skipping processed pages
+          let ocrText = (skipProcessed ? existingData?.ocr_text : '') || '';
           let ocrConfidence = 0.8;
 
           if (!ocrText) {
@@ -164,8 +169,8 @@ const AdminProcessing = () => {
             }
           }
 
-          // Generate summary if no summary exists
-          let summary = existingData?.summary_md || '';
+          // Generate summary if no summary exists or if we're not skipping processed pages
+          let summary = (skipProcessed ? existingData?.summary_md : '') || '';
           let summaryConfidence = 0.8;
 
           if (!summary && ocrText) {
@@ -189,8 +194,10 @@ const AdminProcessing = () => {
             }
           }
 
-          // Save to database if we have new content
-          if ((ocrText && !existingData?.ocr_text) || (summary && !existingData?.summary_md)) {
+          // Save to database if we have new content or if we're reprocessing
+          if ((ocrText && !existingData?.ocr_text) || 
+              (summary && !existingData?.summary_md) || 
+              !skipProcessed) {
             await supabase.from('page_summaries').upsert({
               book_id: selectedBookId,
               page_number: pageNum,
@@ -323,7 +330,32 @@ const AdminProcessing = () => {
               <div className="text-sm text-muted-foreground">
                 Processing {Math.max(0, endPage - startPage + 1)} pages 
                 {selectedBook && ` (out of ${selectedBook.totalPages} total)`}
+                {skipProcessed ? " (skipping already processed)" : " (reprocessing all)"}
               </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="skip-processed"
+                  checked={skipProcessed}
+                  onChange={(e) => setSkipProcessed(e.target.checked)}
+                  disabled={status.isRunning}
+                  className="h-4 w-4"
+                />
+                <label htmlFor="skip-processed" className="text-sm font-medium">
+                  Skip already processed pages
+                </label>
+              </div>
+              
+              {!skipProcessed && (
+                <Alert>
+                  <RefreshCw className="w-4 h-4" />
+                  <AlertDescription>
+                    <strong>Reprocess mode:</strong> All pages will be reprocessed even if they already have OCR text and summaries. 
+                    This will overwrite existing data.
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div className="flex gap-2 flex-wrap">
                 <Button
