@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,6 +31,8 @@ const AdminProcessing = () => {
   const initialBookId = searchParams.get('bookId') || enhancedBooks[0]?.id;
 
   const [selectedBookId, setSelectedBookId] = useState(initialBookId);
+  const [startPage, setStartPage] = useState(1);
+  const [endPage, setEndPage] = useState(10);
   const [status, setStatus] = useState<ProcessingStatus>({
     isRunning: false,
     currentPage: 0,
@@ -45,6 +48,13 @@ const AdminProcessing = () => {
 
   const selectedBook = enhancedBooks.find(b => b.id === selectedBookId);
 
+  // Update end page when book changes
+  React.useEffect(() => {
+    if (selectedBook) {
+      setEndPage(Math.min(10, selectedBook.totalPages));
+    }
+  }, [selectedBook]);
+
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setStatus(prev => ({
@@ -56,11 +66,22 @@ const AdminProcessing = () => {
   const startProcessing = async () => {
     if (!selectedBook) return;
 
+    // Validate page range
+    const validStartPage = Math.max(1, Math.min(startPage, selectedBook.totalPages));
+    const validEndPage = Math.max(validStartPage, Math.min(endPage, selectedBook.totalPages));
+    
+    if (validStartPage > validEndPage) {
+      toast.error("Invalid page range");
+      return;
+    }
+
+    const totalPagesToProcess = validEndPage - validStartPage + 1;
+
     isRunningRef.current = true;
     setStatus({
       isRunning: true,
       currentPage: 0,
-      totalPages: selectedBook.totalPages,
+      totalPages: totalPagesToProcess,
       processed: 0,
       skipped: 0,
       errors: 0,
@@ -68,16 +89,17 @@ const AdminProcessing = () => {
       logs: []
     });
 
-    addLog(`Starting processing for ${selectedBook.title} (${selectedBook.totalPages} pages)`);
+    addLog(`Starting processing for ${selectedBook.title} (pages ${validStartPage}-${validEndPage}, ${totalPagesToProcess} pages total)`);
 
     try {
-      for (let pageNum = 1; pageNum <= selectedBook.totalPages; pageNum++) {
+      for (let pageNum = validStartPage; pageNum <= validEndPage; pageNum++) {
         if (!isRunningRef.current) {
           addLog("Processing stopped by user");
           break;
         }
 
-        setStatus(prev => ({ ...prev, currentPage: pageNum }));
+        const currentPageInRange = pageNum - validStartPage + 1;
+        setStatus(prev => ({ ...prev, currentPage: currentPageInRange }));
         addLog(`Processing page ${pageNum}...`);
 
         // Check if page already has summary in database
@@ -267,6 +289,71 @@ const AdminProcessing = () => {
             </CardContent>
           </Card>
 
+          {/* Page Range Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Page Range Selection</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Start Page</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={selectedBook?.totalPages || 1}
+                    value={startPage}
+                    onChange={(e) => setStartPage(Math.max(1, parseInt(e.target.value) || 1))}
+                    disabled={status.isRunning}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">End Page</label>
+                  <Input
+                    type="number"
+                    min={startPage}
+                    max={selectedBook?.totalPages || 1}
+                    value={endPage}
+                    onChange={(e) => setEndPage(Math.max(startPage, parseInt(e.target.value) || startPage))}
+                    disabled={status.isRunning}
+                  />
+                </div>
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                Processing {Math.max(0, endPage - startPage + 1)} pages 
+                {selectedBook && ` (out of ${selectedBook.totalPages} total)`}
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setStartPage(1); setEndPage(5); }}
+                  disabled={status.isRunning}
+                >
+                  First 5 pages
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setStartPage(1); setEndPage(10); }}
+                  disabled={status.isRunning}
+                >
+                  First 10 pages
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setStartPage(1); setEndPage(selectedBook?.totalPages || 1); }}
+                  disabled={status.isRunning}
+                >
+                  Entire book
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Processing Controls */}
           <Card>
             <CardHeader>
@@ -298,8 +385,7 @@ const AdminProcessing = () => {
                 <Alert>
                   <Clock className="w-4 h-4" />
                   <AlertDescription>
-                    Processing is running. This may take a while depending on the book size.
-                    You can safely leave this page - processing will continue in the background.
+                    Processing pages {startPage}-{endPage}. You can safely leave this page - processing will continue in the background.
                   </AlertDescription>
                 </Alert>
               )}
