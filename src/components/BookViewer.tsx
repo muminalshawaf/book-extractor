@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
@@ -21,8 +20,6 @@ import { ZoomControls, ZoomMode } from "@/components/ZoomControls";
 import { MiniMap } from "@/components/MiniMap";
 import { useImagePreloader } from "@/hooks/useImagePreloader";
 import { EnhancedSummary } from "@/components/EnhancedSummary";
-
-
 import { ImprovedErrorHandler } from "@/components/ImprovedErrorHandler";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { TouchGestureHandler } from "@/components/TouchGestureHandler";
@@ -34,14 +31,16 @@ import { PerformanceMonitor } from "@/components/PerformanceMonitor";
 import { ContinuousReader, ContinuousReaderRef } from "@/components/reader/ContinuousReader";
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { MobileControlsOverlay } from "@/components/reader/MobileControlsOverlay";
-
+import { MobileReaderChrome } from "@/components/reader/MobileReaderChrome";
+import { IndexableOCRContent } from "@/components/seo/IndexableOCRContent";
 
 export type BookPage = {
   src: string;
   alt: string;
 };
+
 type Labels = {
   previous?: string;
   next?: string;
@@ -54,13 +53,15 @@ type Labels = {
   toastCleared?: string;
   progress?: (current: number, total: number, pct: number) => string;
 };
+
 interface BookViewerProps {
   pages: BookPage[];
   title?: string;
   rtl?: boolean;
   labels?: Labels;
-  bookId?: string; // used for per-book caching keys
+  bookId?: string;
 }
+
 export const BookViewer: React.FC<BookViewerProps> = ({
   pages,
   title = "Book",
@@ -68,38 +69,41 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   labels = {},
   bookId
 }) => {
-  const [index, setIndex] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Get initial page from URL params or localStorage
+  const getInitialPage = () => {
+    const urlPage = parseInt(searchParams.get('page') || '1');
+    if (urlPage >= 1 && urlPage <= pages.length) {
+      return urlPage - 1; // Convert to 0-based index
+    }
+    
+    // Fallback to localStorage
+    try {
+      const cacheId = bookId || title;
+      const lastPage = localStorage.getItem(`book:lastPage:${cacheId}`);
+      const pageNum = lastPage ? parseInt(lastPage, 10) : 0;
+      return Math.max(0, Math.min(pageNum, pages.length - 1));
+    } catch {
+      return 0;
+    }
+  };
+
+  const [index, setIndex] = useState(getInitialPage);
   const [zoom, setZoom] = useState(1);
-  const Z = {
-    min: 0.25,
-    max: 4,
-    step: 0.1
-  } as const;
-  const dims = useMemo(() => ({
-    width: Math.round(800 * zoom),
-    height: Math.round(1100 * zoom),
-    minWidth: Math.round(320 * zoom),
-    maxWidth: Math.round(900 * zoom),
-    minHeight: Math.round(480 * zoom),
-    maxHeight: Math.round(1400 * zoom)
-  }), [zoom]);
+  const Z = { min: 0.25, max: 4, step: 0.1 } as const;
   const total = pages.length;
   const navigate = useNavigate();
   const { toggleFullscreen } = useFullscreen(rtl);
   
   const containerRef = useRef<HTMLDivElement | null>(null);
   const zoomApiRef = useRef<ReactZoomPanPinchRef | null>(null);
-  const [transformState, setTransformState] = useState<{
-    scale: number;
-    positionX: number;
-    positionY: number;
-  }>({
+  const [transformState, setTransformState] = useState({
     scale: 1,
     positionX: 0,
     positionY: 0
   });
-  const lastWheelNavRef = useRef<number>(0);
-  // const flipRef = useRef<any>(null);
+  const [isPanning, setIsPanning] = useState(false);
 
   const L = {
     previous: labels.previous ?? "Previous",
@@ -114,46 +118,88 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     progress: labels.progress ?? ((c: number, t: number, p: number) => `Page ${c} of ${t} • ${p}%`)
   } as const;
 
-  // Caching keys and state
+  // Caching and state management
   const cacheId = useMemo(() => bookId || title, [bookId, title]);
   const ocrKey = useMemo(() => `book:ocr:${cacheId}:${index}`, [cacheId, index]);
   const sumKey = useMemo(() => `book:summary:${cacheId}:${index}`, [cacheId, index]);
   const dbBookId = useMemo(() => bookId || title || 'book', [bookId, title]);
+  
   const [summary, setSummary] = useState("");
   const [summLoading, setSummLoading] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [extractedText, setExtractedText] = useState("");
-
-  // New state for enhanced features
   const [ocrProgress, setOcrProgress] = useState(0);
   const [summaryProgress, setSummaryProgress] = useState(0);
   const [thumbnailsOpen, setThumbnailsOpen] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
 
-  // Phase 2 enhancements
+  // UI state
   const [zoomMode, setZoomMode] = useState<ZoomMode>("custom");
   const [showMiniMap, setShowMiniMap] = useState(false);
-  const [containerDimensions, setContainerDimensions] = useState({
-    width: 800,
-    height: 600
-  });
-  const [naturalSize, setNaturalSize] = useState<{
-    width: number;
-    height: number;
-  }>({
-    width: 800,
-    height: 1100
-  });
+  const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 600 });
+  const [naturalSize, setNaturalSize] = useState({ width: 800, height: 1100 });
   const [readerMode, setReaderMode] = useState<'page' | 'continuous'>("page");
   const continuousRef = useRef<ContinuousReaderRef | null>(null);
 
-  // Image preloading
+  // Image loading
   const { getPreloadStatus } = useImagePreloader(pages, index);
-
-  // Controlled page image loading (hide previous, show progress)
   const [displaySrc, setDisplaySrc] = useState<string | null>(null);
   const [pageProgress, setPageProgress] = useState(0);
 
+  // Error handling
+  const [lastError, setLastError] = useState<Error | string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [summaryConfidence, setSummaryConfidence] = useState<number | undefined>();
+  const [ocrQuality, setOcrQuality] = useState<number | undefined>();
+
+  // Mobile
+  const isMobile = useIsMobile();
+  const insightsRef = useRef<HTMLDivElement | null>(null);
+  const [gotoInput, setGotoInput] = useState<string>("");
+  const [controlsOpen, setControlsOpen] = useState(true);
+  const [insightTab, setInsightTab] = useState<'summary' | 'qa'>('summary');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Navigation functions with URL sync
+  const updatePageInUrl = useCallback((pageIndex: number) => {
+    const pageNumber = pageIndex + 1; // Convert to 1-based
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      newParams.set('page', pageNumber.toString());
+      return newParams;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const goPrev = useCallback(() => {
+    setIndex(i => {
+      const newIndex = Math.max(0, i - 1);
+      updatePageInUrl(newIndex);
+      return newIndex;
+    });
+  }, [updatePageInUrl]);
+  
+  const goNext = useCallback(() => {
+    setIndex(i => {
+      const newIndex = Math.min(total - 1, i + 1);
+      updatePageInUrl(newIndex);
+      return newIndex;
+    });
+  }, [total, updatePageInUrl]);
+  
+  const jumpToPage = useCallback((n: number) => {
+    if (!Number.isFinite(n)) return;
+    const clamped = Math.min(Math.max(1, Math.floor(n)), total);
+    const newIndex = clamped - 1;
+    setIndex(newIndex);
+    updatePageInUrl(newIndex);
+  }, [total, updatePageInUrl]);
+
+  // Zoom functions
+  const zoomIn = () => setZoom(prev => Math.min(Z.max, prev + Z.step));
+  const zoomOut = () => setZoom(prev => Math.max(Z.min, prev - Z.step));
+  const resetZoom = () => setZoom(1);
+
+  // Image loading effect
   useEffect(() => {
     let active = true;
     const nextSrc = pages[index]?.src;
@@ -169,20 +215,27 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     const img = new Image();
     img.decoding = "async";
     img.src = nextSrc;
+    
+    console.log('DEBUG: Loading image for page', index + 1, 'src:', nextSrc);
+    
     img.onload = () => {
       if (!active) return;
+      console.log('DEBUG: Image loaded successfully for page', index + 1);
       setDisplaySrc(nextSrc);
       setImageLoading(false);
       setPageProgress(100);
     };
+    
     img.onerror = () => {
       if (!active) return;
+      console.log('DEBUG: Image failed to load for page', index + 1, 'src:', nextSrc);
       setImageLoading(false);
     };
 
     return () => { active = false; };
   }, [index, pages]);
 
+  // Loading progress simulation
   useEffect(() => {
     if (!imageLoading) return;
     setPageProgress(0);
@@ -194,1550 +247,1107 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }, 120);
     return () => window.clearInterval(id);
   }, [imageLoading]);
-  // Phase 3 enhancements
-  const [searchHighlight, setSearchHighlight] = useState("");
-  const [lastError, setLastError] = useState<Error | string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const [summaryConfidence, setSummaryConfidence] = useState<number | undefined>();
-  const [ocrQuality, setOcrQuality] = useState<number | undefined>();
 
-  // Store extracted text for all pages for search
-  const [allExtractedTexts, setAllExtractedTexts] = useState<Record<number, string>>({});
-
-  // Prefetch OCR text for all pages to enable global search
+  // Keyboard shortcuts
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data, error } = await (supabase as any)
-          .from('page_summaries')
-          .select('page_number, ocr_text')
-          .eq('book_id', dbBookId)
-          .order('page_number', { ascending: true });
-        if (error) {
-          console.warn('Supabase fetch all pages error:', error);
-          return;
-        }
-        if (cancelled) return;
-        const map: Record<number, string> = {};
-        for (const row of (data ?? [])) {
-          const n = (row as any).page_number as number;
-          const txt = ((row as any).ocr_text || '').trim();
-          if (typeof n === 'number' && txt) {
-            map[n - 1] = txt;
-          }
-        }
-        if (Object.keys(map).length) {
-          setAllExtractedTexts(prev => ({ ...map, ...prev }));
-        }
-      } catch (e) {
-        console.warn('Failed to fetch all page OCR:', e);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [dbBookId]);
-
-  // Phase 4 enhancements
-  const [accessibilityPanelOpen, setAccessibilityPanelOpen] = useState(false);
-  const [performanceMonitorOpen, setPerformanceMonitorOpen] = useState(false);
-  const isMobile = useIsMobile();
-  const insightsRef = useRef<HTMLDivElement | null>(null);
-  const [gotoInput, setGotoInput] = useState<string>("");
-  const [controlsOpen, setControlsOpen] = useState(true);
-  const [insightTab, setInsightTab] = useState<'summary' | 'qa'>('summary');
-
-  // Batch processing state
-  const [batchRunning, setBatchRunning] = useState(false);
-  const [batchProgress, setBatchProgress] = useState<{
-    current: number;
-    total: number;
-  }>({
-    current: 0,
-    total: 0
-  });
-  // Page range selection for batch processing
-  const [rangeStart, setRangeStart] = useState<number>(1);
-  const [rangeEnd, setRangeEnd] = useState<number>(10);
-  const goPrev = () => {
-    setIndex(i => {
-      const ni = Math.max(0, i - 1);
-      if (readerMode === 'continuous') {
-        continuousRef.current?.scrollToIndex(ni);
-      }
-      return ni;
-    });
-  };
-  const goNext = () => {
-    setIndex(i => {
-      const ni = Math.min(total - 1, i + 1);
-      if (readerMode === 'continuous') {
-        continuousRef.current?.scrollToIndex(ni);
-      }
-      return ni;
-    });
-  };
-  const jumpToPage = useCallback((n: number) => {
-    if (!Number.isFinite(n)) return;
-    const clamped = Math.min(Math.max(1, Math.floor(n)), total);
-    const target = clamped - 1;
-    setIndex(target);
-    if (readerMode === 'continuous') {
-      continuousRef.current?.scrollToIndex(target);
-    }
-  }, [total, readerMode]);
-
-  // Enhanced keyboard navigation
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      // Ignore if typing in input fields
-      if ((e.target as HTMLElement)?.tagName === "INPUT" || (e.target as HTMLElement)?.tagName === "TEXTAREA" || (e.target as HTMLElement)?.contentEditable === "true") {
+    const handleKeyboardShortcuts = (e: KeyboardEvent) => {
+      // Force regenerate OCR and summary: Cmd+Ctrl+D (Mac) or Ctrl+Alt+D (Windows/Linux)
+      if ((e.metaKey && e.ctrlKey && e.key === 'd') || (e.ctrlKey && e.altKey && e.key === 'd')) {
+        e.preventDefault();
+        forceRegenerate();
         return;
       }
-      switch (e.key) {
-        case "ArrowLeft":
-          e.preventDefault();
-          rtl ? goNext() : goPrev();
-          break;
-        case "ArrowRight":
-          e.preventDefault();
-          rtl ? goPrev() : goNext();
-          break;
-        case " ":
-        case "Enter":
-          e.preventDefault();
-          goNext();
-          break;
-        case "Backspace":
-          e.preventDefault();
-          goPrev();
-          break;
-        case "+":
-        case "=":
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            zoomIn();
-          }
-          break;
-        case "-":
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            zoomOut();
-          }
-          break;
-        case "t":
-        case "T":
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            setThumbnailsOpen(!thumbnailsOpen);
-          }
-          break;
-        case "s":
-        case "S":
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            if (!ocrLoading && !summLoading) {
-              extractTextFromPage();
-            }
-          }
-          break;
-        case "f":
-        case "F":
-          if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
-            e.preventDefault();
-            if (!ocrLoading && !summLoading) {
-              const pageNum = index + 1;
-              console.log('[Shortcut] Cmd/Ctrl+Shift+F on page', pageNum, 'src:', pages[index]?.src);
-              toast.message(
-                rtl
-                  ? `تشغيل OCR + تلخيص إجباري للصفحة ${pageNum}`
-                  : `Forcing OCR + Summarization for page ${pageNum}`
-              );
-              extractTextFromPage();
-            }
-          }
-          break;
-      }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [total, rtl, thumbnailsOpen, ocrLoading, summLoading, index]);
 
-  // Load cached data on page change
+    document.addEventListener('keydown', handleKeyboardShortcuts);
+    return () => document.removeEventListener('keydown', handleKeyboardShortcuts);
+  }, []);
+
+  // Load cached data and fetch from DB
   useEffect(() => {
     try {
       const cachedText = localStorage.getItem(ocrKey) || "";
       const cachedSummary = localStorage.getItem(sumKey) || "";
-      if (cachedText) {
-        setExtractedText(cachedText);
-        setAllExtractedTexts(prev => ({
-          ...prev,
-          [index]: cachedText
-        }));
-      }
+      if (cachedText) setExtractedText(cachedText);
       if (cachedSummary) setSummary(cachedSummary);
-
-      // Clear error state when changing pages
       setLastError(null);
       setRetryCount(0);
     } catch {}
   }, [index, ocrKey, sumKey]);
 
-  // Fetch OCR and summary from Supabase for current page
+  // Fetch from Supabase
   useEffect(() => {
     let cancelled = false;
     const fetchFromDb = async () => {
+      console.log('Fetching from database:', { book_id: dbBookId, page_number: index + 1 });
       try {
-        const {
-          data,
-          error
-        } = await (supabase as any).from('page_summaries').select('ocr_text, summary_md, confidence, ocr_confidence').eq('book_id', dbBookId).eq('page_number', index + 1).maybeSingle();
+        const { data, error } = await supabase
+          .from('page_summaries')
+          .select('ocr_text, summary_md, confidence, ocr_confidence')
+          .eq('book_id', dbBookId)
+          .eq('page_number', index + 1)
+          .maybeSingle();
+          
+        console.log('Database fetch result:', { data, error });
+          
         if (error) {
           console.warn('Supabase fetch error:', error);
           return;
         }
         if (cancelled) return;
+        
         const ocr = (data?.ocr_text ?? '').trim();
         const sum = (data?.summary_md ?? '').trim();
-
-        // Always mirror DB state. If no value in DB, fields should be empty
+        
+        console.log('Setting extracted text from database:', { 
+          ocrLength: ocr.length, 
+          summaryLength: sum.length,
+          ocrPreview: ocr.substring(0, 100) + '...'
+        });
+        
+        console.log('DEBUG: Before setting state - current extractedText length:', extractedText.length);
+        console.log('DEBUG: Before setting state - current summary length:', summary.length);
+        
         setExtractedText(ocr);
-        setAllExtractedTexts(prev => ({
-          ...prev,
-          [index]: ocr
-        }));
         setSummary(sum);
-        setSummaryConfidence(typeof (data as any)?.confidence === 'number' ? (data as any).confidence : undefined);
-        setOcrQuality(typeof (data as any)?.ocr_confidence === 'number' ? (data as any).ocr_confidence : undefined);
+        
+        console.log('DEBUG: State update called with OCR length:', ocr.length, 'Summary length:', sum.length);
+        setSummaryConfidence(typeof data?.confidence === 'number' ? data.confidence : undefined);
+        setOcrQuality(typeof data?.ocr_confidence === 'number' ? data.ocr_confidence : undefined);
+        
         try {
-          if (ocr) localStorage.setItem(ocrKey, ocr);else localStorage.removeItem(ocrKey);
-          if (sum) localStorage.setItem(sumKey, sum);else localStorage.removeItem(sumKey);
+          if (ocr) localStorage.setItem(ocrKey, ocr);
+          else localStorage.removeItem(ocrKey);
+          if (sum) localStorage.setItem(sumKey, sum);
+          else localStorage.removeItem(sumKey);
         } catch {}
       } catch (e) {
         console.warn('Failed to fetch page from DB:', e);
       }
     };
     fetchFromDb();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [index, dbBookId, ocrKey, sumKey]);
 
-  // Restore last page when switching books
+  // Save current page to localStorage
   useEffect(() => {
-    let startIndex = 0;
     try {
-      const key = `book:lastPage:${cacheId}`;
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        const n = parseInt(saved, 10);
-        if (!Number.isNaN(n)) {
-          const clamped = Math.min(Math.max(1, n), total);
-          startIndex = clamped - 1;
+      const cacheId = bookId || title;
+      localStorage.setItem(`book:lastPage:${cacheId}`, index.toString());
+    } catch (error) {
+      console.warn('Failed to save last page:', error);
+    }
+  }, [index, bookId, title]);
+
+  // OCR and Summarization functions
+  // OCR text cleaning function
+  const cleanOcrText = (text: string): string => {
+    if (!text) return '';
+    
+    return text
+      // Remove excessive whitespace
+      .replace(/\s+/g, ' ')
+      // Remove isolated special characters
+      .replace(/\s[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\w\d\s.,!?()[\]{}:;\"'-]+\s/g, ' ')
+      // Clean up common OCR artifacts
+      .replace(/[|\\\/`~]/g, '')
+      // Fix common Arabic OCR issues
+      .replace(/\u200F|\u200E/g, '') // Remove RTL/LTR marks
+      .replace(/\u061C/g, '') // Remove Arabic letter mark
+      // Normalize Arabic digits
+      .replace(/[٠-٩]/g, (match) => String.fromCharCode(match.charCodeAt(0) - 1632 + 48))
+      // Remove redundant punctuation
+      .replace(/[.]{2,}/g, '.')
+      .replace(/[,]{2,}/g, ',')
+      // Clean up line breaks
+      .replace(/\n\s*\n/g, '\n')
+      .trim();
+  };
+
+  // OCR scoring function for result selection
+  const calculateOcrScore = (result: { text: string; confidence?: number }): number => {
+    if (!result?.text) return 0;
+    
+    const text = result.text;
+    const confidence = result.confidence || 0;
+    const length = text.length;
+    
+    // Base score from confidence and length
+    let score = confidence + (Math.min(length, 500) / 10);
+    
+    // Bonus for Arabic text presence
+    const arabicChars = (text.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g) || []).length;
+    if (arabicChars > 0) score += arabicChars / 5;
+    
+    // Bonus for complete words
+    const arabicWords = (text.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+/g) || []).length;
+    const englishWords = (text.match(/[a-zA-Z]+/g) || []).length;
+    score += (arabicWords + englishWords) * 2;
+    
+    // Penalty for excessive artifacts
+    const artifacts = (text.match(/[|\\\/`~_]{2,}/g) || []).length;
+    score -= artifacts * 10;
+    
+    // Penalty for too many isolated characters
+    const isolatedChars = (text.match(/\s.\s/g) || []).length;
+    score -= isolatedChars * 5;
+    
+    return score;
+  };
+
+  const extractTextFromPage = async (force = false) => {
+    if (ocrLoading) return;
+    
+    // Skip database check if force is true
+    if (!force) {
+      // Check if we already have OCR text in database
+      try {
+        const { data: existingData, error } = await supabase
+          .from('page_summaries')
+          .select('ocr_text, ocr_confidence, confidence, confidence_meta')
+          .eq('book_id', dbBookId)
+          .eq('page_number', index + 1)
+          .maybeSingle();
+
+        console.log('Checking database for existing OCR text for page', index + 1, 'Result:', existingData);
+
+        if (!error && existingData?.ocr_text?.trim()) {
+          console.log('Found existing OCR text in database:', {
+            length: existingData.ocr_text.length,
+            preview: existingData.ocr_text.substring(0, 100) + '...'
+          });
+          
+          setExtractedText(existingData.ocr_text);
+          setOcrQuality(existingData.ocr_confidence || 0.8);
+          localStorage.setItem(ocrKey, existingData.ocr_text);
+          toast.success(rtl ? "تم تحميل النص المحفوظ" : "Loaded cached OCR text");
+          
+          // Check if we also need to load existing summary
+          if (existingData.confidence && !summary?.trim()) {
+            // Try to get the summary from the same record or query again
+            try {
+              const { data: summaryData } = await supabase
+                .from('page_summaries')
+                .select('summary_md')
+                .eq('book_id', dbBookId)
+                .eq('page_number', index + 1)
+                .maybeSingle();
+              
+              if (summaryData?.summary_md?.trim()) {
+                await streamExistingSummary(summaryData.summary_md);
+              }
+            } catch (summaryError) {
+              console.warn('Failed to load existing summary:', summaryError);
+            }
+          }
+          
+          return;
         }
+      } catch (dbError) {
+        console.warn('Failed to check existing OCR text:', dbError);
       }
-    } catch {}
-    setIndex(startIndex);
-    setSummary("");
-    setExtractedText("");
-    setAllExtractedTexts({});
-    setLastError(null);
-  }, [cacheId, pages, total]);
-
-  // Persist last page on change
-  useEffect(() => {
-    try {
-      const key = `book:lastPage:${cacheId}`;
-      localStorage.setItem(key, String(index + 1));
-    } catch {}
-  }, [index, cacheId]);
-
-  // Enhanced OCR function with better error handling
-  const extractTextFromPage = async () => {
+    } else {
+      toast.info(rtl ? "إعادة توليد النص والملخص من جديد..." : "Force regenerating OCR and summary...");
+    }
     setOcrLoading(true);
     setOcrProgress(0);
     setExtractedText("");
     setSummary("");
     setLastError(null);
+    
     try {
-      console.log('Starting OCR process...');
       const imageSrc = pages[index]?.src;
-      console.log('Image source:', imageSrc);
-      let imageBlob: Blob | null = null;
-
-      // If external image, try proxy and public image CDN fallbacks
-      const isExternal = imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin);
-      if (isExternal) {
-        // 1) Try Supabase Edge Function proxy
-        try {
-          console.log('Trying Supabase image-proxy...');
-          const proxyUrl = `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
-          const response = await fetch(proxyUrl, {
-            headers: {
-              'Accept': 'image/*',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
-            }
-          });
-          if (!response.ok) throw new Error(`Proxy failed: ${response.status} ${response.statusText}`);
-          const ct = response.headers.get('content-type') || '';
-          if (!ct.includes('image')) throw new Error(`Proxy returned non-image (content-type: ${ct})`);
-          imageBlob = await response.blob();
-          console.log('Image fetched via proxy successfully, blob size:', imageBlob.size);
-        } catch (e) {
-          console.log('Proxy fetch failed, will try weserv fallback. Error:', e);
-          toast.error(`Failed to fetch image via proxy: ${e instanceof Error ? e.message : String(e)}`);
-        }
-
-        // 2) Fallback to images.weserv.nl (public image proxy with CORS)
-        if (!imageBlob) {
-          try {
-            const hostless = imageSrc.replace(/^https?:\/\//, '');
-            const weservUrl = `https://images.weserv.nl/?url=${encodeURIComponent(hostless)}&output=jpg`;
-            console.log('Trying weserv proxy:', weservUrl);
-            const wesRes = await fetch(weservUrl, {
-              headers: {
-                'Accept': 'image/*'
-              }
-            });
-            if (!wesRes.ok) throw new Error(`weserv failed: ${wesRes.status}`);
-            const ct2 = wesRes.headers.get('content-type') || '';
-            if (!ct2.includes('image')) throw new Error(`weserv returned non-image (content-type: ${ct2})`);
-            imageBlob = await wesRes.blob();
-            console.log('Image fetched via weserv successfully');
-          } catch (wesErr) {
-            console.log('weserv proxy failed, Error:', wesErr);
-            toast.warning(`Failed to fetch image via weserv fallback: ${wesErr instanceof Error ? wesErr.message : String(wesErr)}`);
-          }
-        }
-      }
-
-      // 3) Local images or last-resort canvas conversion
-      if (!imageBlob) {
-        console.log('Attempting to load image via HTMLImageElement + canvas...');
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = reject;
-          img.src = imageSrc;
-        });
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Could not get canvas context');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        ctx.drawImage(img, 0, 0);
-        imageBlob = await new Promise<Blob>((resolve, reject) => {
-          canvas.toBlob(blob => {
-            if (blob) resolve(blob);else reject(new Error('Failed to convert canvas to blob'));
-          }, 'image/jpeg', 0.9);
-        });
-        console.log('Image converted to blob via canvas');
-      }
-      if (!imageBlob) {
-        throw new Error('Unable to load image due to CORS or network restrictions');
-      }
-      console.log('Running enhanced local OCR...');
+      setOcrProgress(10);
+      
+      console.log('Using Google Gemini OCR only...');
       setOcrProgress(20);
-      const result = await runLocalOcr(imageBlob, {
-        lang: rtl ? 'ara+eng' : 'eng',
-        psm: 6,
-        preprocess: {
-          upsample: true,
-          targetMinWidth: 1500,
-          denoise: true,
-          binarize: true,
-          cropMargins: true,
-          deskew: true
-        },
-        onProgress: p => setOcrProgress(Math.max(20, Math.min(95, p)))
+      
+      const { data: geminiResult, error: geminiError } = await supabase.functions.invoke('ocr-gemini', {
+        body: { 
+          imageUrl: imageSrc,
+          language: rtl ? 'ar' : 'en'
+        }
       });
-      setOcrProgress(100);
-      let text = result.text || '';
-      const confPct = typeof (result as any).confidence === 'number' ? ((result as any).confidence as number) : undefined;
-      setOcrQuality(typeof confPct === 'number' ? Math.max(0, Math.min(1, confPct / 100)) : undefined);
-      console.log('OCR completed, extracted text length:', text.length);
-      console.log('First 200 chars:', text.substring(0, 200));
 
-      // If low confidence/short text, try background removal and a second OCR pass
-      if (((confPct ?? 0) < 55) || text.trim().length < 60) {
-        try {
-          console.log('Attempting background removal + second OCR pass...');
-          const bgRemoved = await removeBackgroundFromBlob(imageBlob);
-          const second = await runLocalOcr(bgRemoved, {
-            lang: rtl ? 'ara+eng' : 'eng',
-            psm: 6,
-            preprocess: {
-              upsample: true,
-              targetMinWidth: 1500,
-              denoise: true,
-              binarize: true,
-              cropMargins: true,
-              deskew: true
-            }
-          });
-          const secondText = (second.text || '').trim();
-          const secondConf = typeof (second as any).confidence === 'number' ? (second as any).confidence as number : undefined;
-          if (secondText.length > text.trim().length || (secondConf ?? 0) > (confPct ?? 0)) {
-            console.log('Second OCR pass improved results.');
-            text = secondText || text;
-            setOcrQuality(typeof secondConf === 'number' ? Math.max(0, Math.min(1, secondConf / 100)) : undefined);
-          }
-        } catch (e) {
-          console.warn('Background removal OCR fallback failed:', e);
-        }
-      }
+      setOcrProgress(60);
 
-      // If still very short, try image captioning to assist summarization
-      let caption = '';
-      if (text.trim().length < 60) {
-        try {
-          caption = await captionImageFromBlob(imageBlob);
-          if (caption) {
-            const note = rtl ? `\n\n[وصف الصورة]: ${caption}` : `\n\n[Image description]: ${caption}`;
-            text += note;
-          }
-        } catch (e) {
-          console.warn('Captioning failed:', e);
-        }
-      }
-
-      if (!text.trim()) {
-        throw new Error(rtl ? "لم يتم العثور على نص في الصورة" : "No text found in image");
-      }
-      setExtractedText(text);
-      setAllExtractedTexts(prev => ({
-        ...prev,
-        [index]: text
-      }));
-      try {
-        localStorage.setItem(ocrKey, text);
-      } catch {}
-      // Switch UI from OCR to summarization state before starting
-      setOcrLoading(false);
-      setOcrProgress(0);
-      console.log('Starting summarization...');
-      await summarizeExtractedText(text);
-      toast.success(rtl ? "تم استخراج النص من الصفحة بنجاح" : "Text extracted successfully");
-      setRetryCount(0); // Reset retry count on success
-    } catch (error: any) {
-      console.error('OCR error details:', error);
-      const errorMsg = error?.message || (typeof error === 'string' ? error : 'Unknown error');
-      setLastError(error);
-      setRetryCount(prev => prev + 1);
-      // Provide more helpful error messages for common issues
-      let userMessage = errorMsg;
-      if (errorMsg.includes('CORS') || errorMsg.includes('network restrictions') || errorMsg.includes('Proxy failed')) {
-        userMessage = rtl 
-          ? 'فشل في تحميل الصورة بسبب قيود CORS. جرب صفحة أخرى أو تأكد من اتصال الإنترنت.'
-          : 'Failed to load image due to CORS restrictions. Try another page or check internet connection.';
-      } else if (errorMsg.includes('WebP') || errorMsg.includes('image format')) {
-        userMessage = rtl
-          ? 'مشكلة في تنسيق الصورة WebP. جرب صفحة بتنسيق مختلف.'
-          : 'WebP image format issue. Try a page with different format.';
+      if (geminiError) {
+        throw new Error(`Google Gemini OCR failed: ${geminiError.message || geminiError}`);
       }
       
-      toast.error(rtl ? `فشل في استخراج النص: ${userMessage}` : `Failed to extract text: ${userMessage}`);
+      if (!geminiResult?.text || geminiResult.text.trim().length <= 3) {
+        throw new Error('Google Gemini OCR returned empty or insufficient text');
+      }
+
+      const result = {
+        text: geminiResult.text,
+        confidence: geminiResult.confidence || 0.85,
+        source: 'gemini'
+      };
+      
+      console.log('Google Gemini OCR successful, confidence:', result.confidence);
+      setOcrProgress(75);
+
+      const cleanText = result.text.trim();
+      setExtractedText(cleanText);
+      localStorage.setItem(ocrKey, cleanText);
+      
+      // Save to database and generate summary
+      console.log('Saving OCR text to database:', { 
+        book_id: dbBookId, 
+        page_number: index + 1, 
+        ocr_text_length: cleanText?.length,
+        ocr_text_preview: cleanText?.substring(0, 100) + '...'
+      });
+      
+      try {
+        const saveResult = await callFunction('save-page-summary', {
+          book_id: dbBookId,
+          page_number: index + 1,
+          ocr_text: cleanText,
+          ocr_confidence: result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8
+        });
+        console.log('OCR text saved successfully for page', index + 1, 'Result:', saveResult);
+        
+        // Force UI refresh to show the extracted text
+        setExtractedText(cleanText);
+        setOcrQuality(result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8);
+        
+      } catch (saveError) {
+        console.error('Failed to save OCR text to database:', saveError);
+        // Continue with summary generation even if save fails
+        toast.error(rtl ? "فشل في حفظ النص المستخرج" : "Failed to save extracted text");
+      }
+      
+      setOcrProgress(90);
+      
+      // Generate summary
+      await summarizeExtractedText(cleanText, force);
+      
+      setOcrProgress(100);
+    } catch (error) {
+      console.error('OCR Error:', error);
+      setLastError(error instanceof Error ? error : String(error));
+      toast.error(rtl ? "فشل في استخراج النص" : "Failed to extract text");
     } finally {
       setOcrLoading(false);
-      setOcrProgress(0);
     }
   };
 
-  // Enhanced summarization function with confidence scoring (streaming)
-  const summarizeExtractedText = async (text: string) => {
+  const streamExistingSummary = async (existingSummary: string) => {
     setSummLoading(true);
     setSummaryProgress(0);
+    setSummary("");
+    
+    const words = existingSummary.split(' ');
+    let currentText = '';
+    
+    // Stream the existing summary word by word for better UX
+    for (let i = 0; i < words.length; i++) {
+      currentText += (i > 0 ? ' ' : '') + words[i];
+      setSummary(currentText);
+      setSummaryProgress((i + 1) / words.length * 100);
+      await new Promise(resolve => setTimeout(resolve, 30)); // Small delay between words
+    }
+    
+    setSummLoading(false);
+    toast.success(rtl ? "تم تحميل الملخص المحفوظ" : "Loaded cached summary");
+  };
+
+  const summarizeExtractedText = async (text: string = extractedText, force = false) => {
+    if (!text?.trim()) {
+      toast.error(rtl ? "لا يوجد نص لتلخيصه" : "No text to summarize");
+      return;
+    }
+    
+    // Skip database check if force is true
+    if (!force) {
+      // First check if summary already exists in database
+      try {
+        const { data: existingData, error } = await supabase
+          .from('page_summaries')
+          .select('summary_md')
+          .eq('book_id', dbBookId)
+          .eq('page_number', index + 1)
+          .maybeSingle();
+        
+        if (!error && existingData?.summary_md?.trim()) {
+          console.log('Found existing summary in database, streaming it...');
+          await streamExistingSummary(existingData.summary_md);
+          return;
+        }
+      } catch (dbError) {
+        console.warn('Failed to check existing summary:', dbError);
+      }
+    }
+    
+    setSummLoading(true);
+    setSummaryProgress(0);
+    setSummary("");
+    
     try {
-      console.log('Starting summarization with text length:', text.length);
-      setSummary('');
-      setSummaryConfidence(undefined);
-      const streamUrl = "https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream";
-      const lang = rtl ? 'ar' : 'en';
-      let accumulated = '';
-      let lastFlush = 0;
-      const flush = () => {
-        setSummary(accumulated);
-      };
+      console.log('Starting summary generation for text:', text.substring(0, 100));
+      
+      const trimmedText = text.trim();
+      let fullSummary = '';
+      let useEventSource = trimmedText.length <= 4000;
+      
+      if (useEventSource) {
+        console.log('Using EventSource for smaller text');
+        
+        try {
+          const textB64 = btoa(unescape(encodeURIComponent(trimmedText)));
+          const eventSource = new EventSource(
+            `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream?` +
+            `text_b64=${encodeURIComponent(textB64)}&` +
+            `book_id=${encodeURIComponent(dbBookId)}&` +
+            `page_number=${index + 1}&` +
+            `lang=${rtl ? 'arabic' : 'english'}`
+          );
 
-      // Prefer EventSource for smaller payloads
-      const canUseES = text.length <= 8000; // allow larger payloads via GET EventSource for better streaming
-      if (canUseES) {
-        console.info('Using summarize-stream via EventSource (GET)');
-        await new Promise<void>((resolve) => {
-          const params = new URLSearchParams();
-          const b64 = btoa(unescape(encodeURIComponent(text)));
-          params.set('text_b64', b64);
-          params.set('lang', lang);
-          params.set('page', String(index + 1));
-          params.set('title', title);
+          await new Promise<void>((resolve, reject) => {
+            let timeoutId: NodeJS.Timeout;
+            
+            eventSource.onopen = () => {
+              console.log('EventSource opened');
+              timeoutId = setTimeout(() => {
+                eventSource.close();
+                reject(new Error('EventSource timeout'));
+              }, 120000);
+            };
 
-          const es = new EventSource(`${streamUrl}?${params.toString()}`);
-          let ended = false;
-          let lastMsgAt = Date.now();
-
-          const finalize = () => {
-            if (ended) return;
-            ended = true;
-            try { flush(); } catch {}
-            try { es.close(); } catch {}
-            resolve();
-          };
-
-          // Force-finish after 90s max
-          const hardTimeout = setTimeout(finalize, 90_000);
-          // Finish if idle for 5s (no new chunks)
-          let idleTimeout: number | undefined = undefined as any;
-          const resetIdle = () => {
-            if (idleTimeout) clearTimeout(idleTimeout);
-            idleTimeout = setTimeout(finalize, 5_000) as unknown as number;
-          };
-
-          es.onopen = () => {
-            lastMsgAt = Date.now();
-            resetIdle();
-          };
-
-          es.onmessage = ev => {
-            let chunk = ev.data;
-            if (chunk === '[DONE]' || chunk === '"[DONE]"') {
-              finalize();
-              return;
-            }
-            try {
-              const j = JSON.parse(chunk);
-              if (j?.done) {
-                finalize();
-                return;
+            eventSource.onmessage = (event) => {
+              try {
+                if (event.data === 'ok') {
+                  // Skip the initial "ok" message
+                  return;
+                }
+                
+                if (event.data === '[DONE]') {
+                  console.log('EventSource stream completed');
+                  clearTimeout(timeoutId);
+                  eventSource.close();
+                  resolve();
+                  return;
+                }
+                
+                const parsed = JSON.parse(event.data);
+                if (parsed.text) {
+                  fullSummary += parsed.text;
+                  setSummary(fullSummary);
+                  setSummaryProgress(Math.min(95, fullSummary.length / 10));
+                }
+              } catch (e) {
+                console.log('Failed to parse EventSource data:', event.data);
               }
-              chunk = j?.text ?? chunk;
-            } catch {}
-            accumulated += chunk;
-            // Strip accidental leading "ok" tokens from some models
-            accumulated = accumulated.replace(/^\s*ok[\s,:-]*/i, '');
-            const now = globalThis.performance?.now?.() ?? Date.now();
-            if (now - lastFlush > 300) {
-              flush();
-              lastFlush = now;
-            }
-            lastMsgAt = Date.now();
-            resetIdle();
-          };
+            };
 
-          es.addEventListener('done', finalize);
-
-          es.onerror = () => {
-            // Treat errors as end of stream; use accumulated content
-            finalize();
-          };
-        });
-      } else {
-        // Fallback to POST streaming
-        console.info('Using summarize-stream via POST SSE');
-        const res = await fetch(streamUrl, {
+            eventSource.onerror = (error) => {
+              console.error('EventSource error:', error);
+              clearTimeout(timeoutId);
+              eventSource.close();
+              reject(new Error('EventSource connection failed'));
+            };
+          });
+        } catch (eventSourceError) {
+          console.warn('EventSource failed, falling back to fetch:', eventSourceError);
+          // If EventSource got partial content, save it and try to complete with fetch
+          if (fullSummary.trim()) {
+            console.log('EventSource got partial content, keeping it and trying fetch:', fullSummary.length, 'characters');
+            // Keep the partial summary visible while we try fetch
+            setSummary(fullSummary);
+            setSummaryProgress(50);
+          }
+          // Always try fetch as fallback
+          useEventSource = false;
+        }
+      }
+      
+      if (!useEventSource) {
+        console.log('Using fetch POST method');
+        
+        // Reset fullSummary when using fetch fallback to avoid duplication
+        if (fullSummary.trim()) {
+          console.log('Resetting existing partial summary for fresh fetch attempt');
+          fullSummary = '';
+          setSummary('');
+        }
+        
+        const response = await fetch(`https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'text/event-stream',
-            'Cache-Control': 'no-cache'
+            'Content-Type': 'application/json'
+            // No Authorization header to prevent buffering
           },
           body: JSON.stringify({
-            text,
-            lang,
-            page: index + 1,
-            title
+            text: trimmedText,
+            book_id: dbBookId,
+            page_number: index + 1,
+            lang: rtl ? 'arabic' : 'english'
           })
         });
-        if (!res.ok || !res.body) throw new Error(`Stream request failed (${res.status})`);
-        const reader = res.body.getReader();
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        if (!response.body) {
+          throw new Error('No response body');
+        }
+
+        const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+
+        console.log('Starting to read streaming response...');
+
         while (true) {
-          const {
-            value,
-            done
-          } = await reader.read();
+          const { value, done } = await reader.read();
           if (done) break;
-          buffer += decoder.decode(value, {
-            stream: true
-          });
-          const events = buffer.split(/\r?\n\r?\n/);
-          buffer = events.pop() || '';
-          for (const evt of events) {
-            const lines = evt.split(/\r?\n/);
-            for (const ln of lines) {
-              if (ln.startsWith('data:')) {
-                const raw = ln.slice(5);
-                if (raw.trim() === '[DONE]') continue;
-                let chunk = raw;
+
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Split on double newlines for more robust frame parsing
+          const frames = buffer.split('\n\n');
+          buffer = frames.pop() || '';
+
+          for (const frame of frames) {
+            const lines = frame.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
                 try {
-                  const j = JSON.parse(raw);
-                  chunk = j?.text ?? chunk;
-                } catch {}
-                accumulated += chunk;
-                // Strip accidental leading "ok" tokens from some models
-                accumulated = accumulated.replace(/^\s*ok[\s,:-]*/i, '');
-                const now = globalThis.performance?.now?.() ?? Date.now();
-                if (now - lastFlush > 300) {
-                  flush();
-                  lastFlush = now;
+                  const data = line.slice(6);
+                  if (data === '[DONE]') {
+                    console.log('Stream completed');
+                    break;
+                  }
+                  
+                  const parsed = JSON.parse(data);
+                  if (parsed.text) {
+                    fullSummary += parsed.text;
+                    setSummary(fullSummary);
+                    setSummaryProgress(Math.min(95, fullSummary.length / 10));
+                  }
+                } catch (e) {
+                  console.log('Failed to parse streaming data:', line.slice(6));
                 }
               }
             }
           }
         }
-        flush();
       }
-      if (!accumulated.trim()) {
-        throw new Error('Empty streamed summary');
-      }
-      setSummaryProgress(100);
-      try {
-        localStorage.setItem(sumKey, accumulated);
-      } catch {}
-      // Save OCR confidence to DB
-      try {
-        setSummaryConfidence(ocrQuality);
-        await callFunction('save-page-summary', {
+
+      if (fullSummary.trim()) {
+        // Remove duplicate content and limit summary size
+        const cleanSummary = fullSummary.split('### نظرة عامة')[0] + 
+                           (fullSummary.includes('### نظرة عامة') ? '### نظرة عامة' + fullSummary.split('### نظرة عامة')[1] : '');
+        const trimmedSummary = cleanSummary.substring(0, 8000); // Limit to 8KB
+        
+        localStorage.setItem(sumKey, trimmedSummary);
+        setSummary(trimmedSummary);
+        setSummaryConfidence(0.8);
+        
+        // Post-process: Check for missing numbered questions and complete them (non-blocking)
+        checkAndCompleteMissingQuestions(trimmedSummary, trimmedText).catch(error => {
+          console.error('Post-processing failed:', error);
+        });
+        
+        toast.success(rtl ? "تم إنشاء الملخص بنجاح" : "Summary generated successfully");
+        
+        // Save complete summary to database (async, non-blocking)
+        callFunction('save-page-summary', {
           book_id: dbBookId,
           page_number: index + 1,
-          ocr_text: text,
-          summary_md: accumulated,
-          confidence: ocrQuality ?? null,
-          ocr_confidence: ocrQuality ?? null,
-          confidence_meta: null
+          summary_md: trimmedSummary,
+          confidence: 0.8
+        }).catch(saveError => {
+          console.error('Failed to save summary to database:', saveError);
         });
-      } catch (saveErr) {
-        console.warn('Failed to save summary to DB:', saveErr);
+      } else {
+        throw new Error('No summary content received');
       }
-      setRetryCount(0);
-    } catch (e: any) {
-      console.error('Summarize stream error, falling back:', e);
-      try {
-        setSummaryProgress(25);
-        const data = await callFunction<{
-          summary?: string;
-          error?: string;
-          confidence?: number;
-        }>('summarize', {
-          text,
-          lang: rtl ? 'ar' : 'en',
-          page: index + 1,
-          title
-        });
-        setSummaryProgress(75);
-        if (data?.error) throw new Error(data.error);
-        const raw = data?.summary || '';
-        const clean = raw.replace(/^\s*ok[\s,:-]*/i, '');
-        setSummary(clean);
-        setSummaryProgress(100);
-        try {
-          localStorage.setItem(sumKey, clean);
-        } catch {}
-        try {
-          setSummaryConfidence(ocrQuality);
-          await callFunction('save-page-summary', {
-            book_id: dbBookId,
-            page_number: index + 1,
-            ocr_text: text,
-            summary_md: clean,
-            confidence: ocrQuality ?? null,
-            ocr_confidence: ocrQuality ?? null,
-            confidence_meta: null
-          });
-        } catch (saveErr) {
-          console.warn('Failed to save summary to DB:', saveErr);
-        }
-        toast.success(rtl ? 'تم إنشاء الملخص' : 'Summary ready');
-        setRetryCount(0);
-      } catch (err: any) {
-        console.error('Summarize error details:', err);
-        const errorMsg = err?.message || String(err);
-        setLastError(err);
-        setRetryCount(prev => prev + 1);
-        toast.error(rtl ? `فشل التلخيص: ${errorMsg}` : `Failed to summarize: ${errorMsg}`);
-      }
+      
+    } catch (error) {
+      console.error('Summarization error:', error);
+      setLastError(error instanceof Error ? error : String(error));
+      toast.error(rtl ? `خطأ في التلخيص: ${error instanceof Error ? error.message : String(error)}` : `Summarization error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setSummLoading(false);
-      setSummaryProgress(0);
+      setSummaryProgress(100);
     }
   };
 
-  // Helper: stream pre-saved summary to UI as if AI is responding
-  const simulateStreaming = async (full: string, opts?: { cps?: number }) => {
-    setSummary("");
-    setSummLoading(true);
-    setSummaryProgress(0);
-
-    // Sanitize any accidental leading "ok" prefix from stored text
-    const fullText = (full || "").replace(/^\s*ok[\s,:-]*/i, "");
-
-    const totalLen = fullText.length;
-    // Target natural typing speed (chars per second)
-    const baseCps = rtl ? 30 : 38;
-    const cps = typeof opts?.cps === 'number' ? opts.cps : baseCps;
-    const tickMs = 50; // update cadence
-    const perTick = Math.max(1, Math.round((cps * tickMs) / 1000));
-
-    let pos = 0;
-    const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-    while (pos < totalLen) {
-      const next = Math.min(perTick, totalLen - pos);
-      const chunk = fullText.slice(pos, pos + next);
-      pos += next;
-      setSummary(prev => prev + chunk);
-
-      // Punctuation-aware pause for more natural feel
-      const lastChar = chunk[chunk.length - 1];
-      const isSentenceEnd = /[\.\!\?\n\r،؛]/.test(lastChar);
-      await wait(isSentenceEnd ? tickMs + 200 : tickMs);
-    }
-
-    setSummaryProgress(100);
-    setSummLoading(false);
-    try { localStorage.setItem(sumKey, fullText); } catch {}
-  };
-
-  // Smart summarize button: prefer DB if available, otherwise process page
-  const handleSmartSummarizeClick = async () => {
-    if (ocrLoading || summLoading) return;
-    setLastError(null);
-    setInsightTab('summary');
-    insightsRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start'
-    });
+  const forceRegenerate = async () => {
     try {
-      const {
-        data,
-        error
-      } = await (supabase as any).from('page_summaries').select('ocr_text, summary_md').eq('book_id', dbBookId).eq('page_number', index + 1).maybeSingle();
-      if (error) {
-        console.warn('Supabase read error:', error);
-      }
-      const storedSummary = (data?.summary_md || '').trim();
-      const storedOcr = (data?.ocr_text || '').trim();
-      if (storedSummary) {
-        if (storedOcr) {
-          setExtractedText(storedOcr);
-          setAllExtractedTexts(prev => ({
-            ...prev,
-            [index]: storedOcr
-          }));
-          try {
-            localStorage.setItem(ocrKey, storedOcr);
-          } catch {}
-        }
-        await simulateStreaming(storedSummary, { cps: rtl ? 60 : 68 });
-        toast.message(rtl ? 'تم استرجاع ملخص محفوظ' : 'Loaded saved summary');
+      // Clear existing data
+      setExtractedText("");
+      setSummary("");
+      localStorage.removeItem(ocrKey);
+      localStorage.removeItem(sumKey);
+      
+      // Force regenerate OCR and summary
+      await extractTextFromPage(true);
+      
+      toast.success(rtl ? "تم إعادة توليد النص والملخص بنجاح" : "Successfully regenerated OCR and summary");
+    } catch (error) {
+      console.error('Force regenerate error:', error);
+      toast.error(rtl ? "فشل في إعادة التوليد" : "Failed to regenerate content");
+    }
+  };
+
+  // Post-processing function to ensure all numbered questions are answered
+  const checkAndCompleteMissingQuestions = async (generatedSummary: string, originalText: string) => {
+    try {
+      // Extract question numbers from original text
+      const extractQuestionNumbers = (text: string): number[] => {
+        const matches = text.match(/(?:^|\s)(\d{1,3})[\u002E\u06D4]\s*[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z]/gm);
+        if (!matches) return [];
+        
+        const numbers = matches
+          .map(match => {
+            const num = match.trim().match(/(\d{1,3})/);
+            return num ? parseInt(num[1], 10) : 0;
+          })
+          .filter(num => num > 0 && num < 200)
+          .sort((a, b) => a - b);
+        
+        return [...new Set(numbers)];
+      };
+
+      const requiredIds = extractQuestionNumbers(originalText);
+      if (requiredIds.length === 0) return;
+
+      console.log(`Post-processing: Found ${requiredIds.length} questions: [${requiredIds.join(', ')}]`);
+
+      // Extract answered question numbers from summary
+      const answeredIds = extractQuestionNumbers(generatedSummary);
+      const missingIds = requiredIds.filter(id => !answeredIds.includes(id));
+
+      if (missingIds.length === 0) {
+        console.log('Post-processing: All questions answered ✓');
         return;
       }
-    } catch (e) {
-      console.warn('DB check failed, proceeding to generate:', e);
-    }
 
-    // If nothing in DB, follow processing flow for this page
-    if (extractedText) {
-      await summarizeExtractedText(extractedText);
+      console.log(`Post-processing: Missing questions: [${missingIds.join(', ')}]`);
+
+      // Call qa-stream for each missing question
+      let additionalAnswers = '';
+      for (const questionId of missingIds) {
+        try {
+          const question = `حل السؤال رقم ${questionId} من النص المعطى`;
+          const answer = await callQAStreamForQuestion(question, generatedSummary, originalText);
+          
+          if (answer.trim()) {
+            additionalAnswers += `\n\n**${questionId}. [من النص]**\n${answer}`;
+          }
+        } catch (qaError) {
+          console.error(`Failed to get answer for question ${questionId}:`, qaError);
+        }
+      }
+
+      if (additionalAnswers.trim()) {
+        // Append missing answers to the summary
+        const updatedSummary = generatedSummary + 
+          (generatedSummary.includes('### حل المسائل') ? additionalAnswers : 
+           `\n\n### حل المسائل إضافية${additionalAnswers}`);
+        
+        setSummary(updatedSummary);
+        localStorage.setItem(sumKey, updatedSummary);
+        
+        console.log(`Post-processing: Added ${missingIds.length} missing answers ✓`);
+      }
+    } catch (error) {
+      console.error('Post-processing error:', error);
+    }
+  };
+
+  // Helper function to call qa-stream for individual questions
+  const callQAStreamForQuestion = async (question: string, summary: string, pageText: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      let fullAnswer = '';
+      
+      const eventSource = new EventSource(
+        `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/qa-stream?` +
+        `question=${encodeURIComponent(question)}&` +
+        `summary=${encodeURIComponent(summary.substring(0, 2000))}&` +
+        `context=${encodeURIComponent(pageText.substring(0, 3000))}&` +
+        `lang=${rtl ? 'arabic' : 'english'}`
+      );
+
+      const timeout = setTimeout(() => {
+        eventSource.close();
+        resolve(fullAnswer);
+      }, 30000);
+
+      eventSource.onmessage = (event) => {
+        try {
+          if (event.data === '[DONE]') {
+            clearTimeout(timeout);
+            eventSource.close();
+            resolve(fullAnswer);
+            return;
+          }
+          
+          const parsed = JSON.parse(event.data);
+          if (parsed.text) {
+            fullAnswer += parsed.text;
+          }
+        } catch (e) {
+          console.log ('Failed to parse QA data:', event.data);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        clearTimeout(timeout);
+        eventSource.close();
+        resolve(fullAnswer); // Return partial answer instead of rejecting
+      };
+    });
+  };
+
+  const handleSmartSummarizeClick = async () => {
+    // Check if we already have a summary (either in state or database)
+    if (summary?.trim()) {
+      // If we have a summary, stream it again for better UX
+      await streamExistingSummary(summary);
+      return;
+    }
+    
+    // Check if we have extracted text to summarize
+    if (extractedText?.trim()) {
+      summarizeExtractedText();
     } else {
+      // No text yet, extract it first
       await extractTextFromPage();
     }
   };
 
-  // Utility to compute best-fit scale for current container
-  const getFitScale = useCallback(() => {
-    const el = containerRef.current;
-    if (!el) return 1;
-    const containerWidth = el.clientWidth - 32;
-    const containerHeight = el.clientHeight - 32;
-    const fitWidthScale = containerWidth / 800;
-    const fitHeightScale = containerHeight / 1100;
-    return Math.min(fitWidthScale, fitHeightScale);
-  }, []);
-
-  // Enhanced zoom functions (prefer engine API in Slides mode)
-  const zoomOut = useCallback(() => {
-    if (readerMode === 'page' && zoomApiRef.current) {
-      zoomApiRef.current.zoomOut(Z.step, 200, 'easeOut');
-      setZoomMode('custom');
-    } else {
-      setZoom(z => Math.max(Z.min, +(z - Z.step).toFixed(2)));
-      setZoomMode('custom');
-    }
-  }, [readerMode]);
-  const zoomIn = useCallback(() => {
-    if (readerMode === 'page' && zoomApiRef.current) {
-      zoomApiRef.current.zoomIn(Z.step, 200, 'easeOut');
-      setZoomMode('custom');
-    } else {
-      setZoom(z => Math.min(Z.max, +(z + Z.step).toFixed(2)));
-      setZoomMode('custom');
-    }
-  }, [readerMode]);
-  const fitToWidth = useCallback(() => {
-    const el = containerRef.current;
-    const newZoom = el ? Math.min(Z.max, (el.clientWidth - 32) / 800) : 1;
-    if (readerMode === 'page' && zoomApiRef.current) {
-      zoomApiRef.current.setTransform(transformState.positionX, transformState.positionY, newZoom, 200, 'easeOut');
-    } else {
-      setZoom(newZoom);
-    }
-    setZoomMode('fit-width');
-  }, [readerMode, transformState.positionX, transformState.positionY]);
-  const fitToHeight = useCallback(() => {
-    const el = containerRef.current;
-    const newZoom = el ? Math.min(Z.max, (el.clientHeight - 32) / 1100) : 1;
-    if (readerMode === 'page' && zoomApiRef.current) {
-      zoomApiRef.current.setTransform(transformState.positionX, transformState.positionY, newZoom, 200, 'easeOut');
-    } else {
-      setZoom(newZoom);
-    }
-    setZoomMode('fit-height');
-  }, [readerMode, transformState.positionX, transformState.positionY]);
-  const actualSize = useCallback(() => {
-    if (readerMode === 'page' && zoomApiRef.current) {
-      zoomApiRef.current.setTransform(transformState.positionX, transformState.positionY, 1, 200, 'easeOut');
-    } else {
-      setZoom(1);
-    }
-    setZoomMode('actual-size');
-  }, [readerMode, transformState.positionX, transformState.positionY]);
-
-  // Process whole book: OCR -> summarize -> save (skips already-processed pages)
-  const processFirstTenPages = async () => {
-    if (batchRunning) return;
-    const bookIdentifier = bookId || title || 'book';
-    setBatchRunning(true);
-    try {
-      // 1) Find pages already processed to avoid duplicate work
-      const {
-        data: existingRows,
-        error: existingErr
-      } = await (supabase as any).from('page_summaries').select('page_number').eq('book_id', bookIdentifier);
-      if (existingErr) {
-        console.warn('Failed to fetch existing pages:', existingErr);
-      }
-      const processed = new Set<number>((existingRows || []).map((r: any) => r.page_number));
-
-      // 2) Build processing queue for selected range (only missing pages)
-      const s = Math.max(1, Math.min(total, Math.floor(rangeStart || 1)));
-      const e = Math.max(1, Math.min(total, Math.floor(rangeEnd || s)));
-      if (s > e) {
-        toast.error(rtl ? 'الرجاء تحديد نطاق صحيح: البداية أقل من أو تساوي النهاية' : 'Please select a valid range: start <= end');
-        return;
-      }
-      const toProcessIndices: number[] = [];
-      for (let i = s - 1; i <= e - 1; i++) {
-        const pageNo = i + 1;
-        if (!processed.has(pageNo)) toProcessIndices.push(i);
-      }
-      const limit = toProcessIndices.length;
-      setBatchProgress({
-        current: 0,
-        total: limit
-      });
-      if (limit === 0) {
-        toast.info(rtl ? 'النطاق المحدد مُعالج مسبقًا' : 'Selected range already processed');
-        return;
-      }
-      toast.message(rtl ? `بدء معالجة الصفحات من ${s} إلى ${e}` : `Starting pages ${s} to ${e}`);
-      const getImageBlob = async (imageSrc: string): Promise<Blob> => {
-        let imageBlob: Blob | null = null;
-        const isExternal = imageSrc.startsWith('http') && !imageSrc.includes(window.location.origin);
-        if (isExternal) {
-          try {
-            const proxyUrl = `/functions/v1/image-proxy?url=${encodeURIComponent(imageSrc)}`;
-            const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error(`Proxy failed: ${response.status}`);
-            const ct = response.headers.get('content-type') || '';
-            if (!ct.includes('image')) throw new Error(`Proxy returned non-image (content-type: ${ct})`);
-            imageBlob = await response.blob();
-          } catch {}
-          if (!imageBlob) {
-            try {
-              const hostless = imageSrc.replace(/^https?:\/\//, '');
-              const weservUrl = `https://images.weserv.nl/?url=${encodeURIComponent(hostless)}&output=jpg`;
-              const wesRes = await fetch(weservUrl, {
-                headers: {
-                  'Accept': 'image/*'
-                }
-              });
-              if (!wesRes.ok) throw new Error(`weserv failed: ${wesRes.status}`);
-              const ct2 = wesRes.headers.get('content-type') || '';
-              if (!ct2.includes('image')) throw new Error(`weserv returned non-image (content-type: ${ct2})`);
-              imageBlob = await wesRes.blob();
-            } catch {}
-          }
-        }
-        if (!imageBlob) {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          await new Promise((resolve, reject) => {
-            img.onload = resolve as any;
-            img.onerror = reject as any;
-            img.src = imageSrc;
-          });
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          if (!ctx) throw new Error('Could not get canvas context');
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          ctx.drawImage(img, 0, 0);
-          imageBlob = await new Promise<Blob>((resolve, reject) => {
-            canvas.toBlob(blob => {
-              if (blob) resolve(blob);else reject(new Error('Failed to convert canvas to blob'));
-            }, 'image/jpeg', 0.9);
-          });
-        }
-        return imageBlob;
-      };
-
-      // 3) Process queue sequentially to avoid CPU overload and function timeouts
-      for (let k = 0; k < toProcessIndices.length; k++) {
-        const i = toProcessIndices[k];
-        setBatchProgress({
-          current: k + 1,
-          total: limit
-        });
-        const page = pages[i];
-        if (!page) continue;
-        try {
-          // OCR
-          const blob = await getImageBlob(page.src);
-          const ocrRes = await runLocalOcr(blob, {
-            lang: rtl ? 'ara+eng' : 'eng',
-            psm: 6,
-            preprocess: {
-              upsample: true,
-              targetMinWidth: 1200,
-              // slightly lower for speed in batch
-              denoise: true,
-              binarize: true,
-              cropMargins: true
-            }
-          });
-          const text = ocrRes.text || '';
-
-          // Summarize (non-stream for batch reliability)
-          const data = await callFunction<{
-            summary?: string;
-            error?: string;
-          }>('summarize', {
-            text,
-            lang: rtl ? 'ar' : 'en',
-            page: i + 1,
-            title
-          });
-          if (data?.error) throw new Error(data.error);
-          const summaryMd = data?.summary || '';
-
-          // Save OCR confidence only
-          const ocrQ = typeof (ocrRes as any).confidence === 'number' ? Math.max(0, Math.min(1, ((ocrRes as any).confidence as number) / 100)) : undefined;
-          await callFunction('save-page-summary', {
-            book_id: bookIdentifier,
-            page_number: i + 1,
-            ocr_text: text,
-            summary_md: summaryMd,
-            confidence: ocrQ ?? null,
-            ocr_confidence: ocrQ ?? null,
-            confidence_meta: null
-          });
-        } catch (pageErr: any) {
-          console.warn(`Failed processing page ${i + 1}:`, pageErr);
-          // Continue with next page
-        }
-
-        // Yield to the browser to keep UI responsive
-        await new Promise(r => setTimeout(r, 0));
-      }
-      toast.success(rtl ? 'اكتملت معالجة الصفحات المحددة' : 'Processed selected pages successfully');
-    } catch (e: any) {
-      console.error('Batch processing failed:', e);
-      toast.error((rtl ? 'فشل المعالجة: ' : 'Processing failed: ') + (e?.message || e));
-    } finally {
-      setBatchRunning(false);
-    }
+  const handleWheelNav = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) return;
+    
+    const now = Date.now();
+    if (now - (containerRef.current as any)?.lastWheelNav < 300) return;
+    (containerRef.current as any).lastWheelNav = now;
+    
+    if (e.deltaY > 0) goNext();
+    else if (e.deltaY < 0) goPrev();
   };
-  const progressPct = total > 1 ? Math.round((index + 1) / total * 100) : 100;
 
-  // Pan/zoom engine state (managed by react-zoom-pan-pinch)
-  const [isPanning, setIsPanning] = useState(false);
-  const handleWheelNav = useCallback((e: React.WheelEvent) => {
-    if (readerMode !== 'page') return;
-    if (e.ctrlKey || e.metaKey) return; // let ctrl/cmd+wheel zoom
-    if (isPanning) return;
-    const el = containerRef.current;
-    if (!el) return;
-    const now = globalThis.performance?.now?.() ?? Date.now();
+  console.log('DEBUG: BookViewer render - Page:', index + 1, 'extractedText length:', extractedText.length, 'summary length:', summary.length, 'displaySrc:', displaySrc ? displaySrc.substring(0, 50) + '...' : 'null');
 
-    // Compute "fit" scale and whether content is pannable (larger than viewport)
-    const containerWidth = el.clientWidth;
-    const containerHeight = el.clientHeight;
-    const imgW = naturalSize.width || 800;
-    const imgH = naturalSize.height || 1100;
-    const contentW = imgW * transformState.scale;
-    const contentH = imgH * transformState.scale;
-    const pannable = contentW > containerWidth + 1 || contentH > containerHeight + 1;
-    if (pannable) return; // don't navigate via wheel when zoomed in
-
-    const fitWidthScale = containerWidth / imgW;
-    const fitHeightScale = containerHeight / imgH;
-    const fitScale = Math.min(fitWidthScale, fitHeightScale);
-
-    // Only navigate when at or below fit scale
-    if (transformState.scale <= fitScale + 0.0001) {
-      e.preventDefault();
-      if (now - lastWheelNavRef.current < 300) return; // throttle navigation
-      lastWheelNavRef.current = now;
-      if (e.deltaY > 0) goNext();else goPrev();
-    }
-  }, [readerMode, isPanning, transformState.scale, naturalSize]);
-  const panningEnabled = useMemo(() => {
-    const el = containerRef.current;
-    if (!el) return false;
-    const wrapperW = el.clientWidth;
-    const wrapperH = el.clientHeight;
-    const imgW = naturalSize.width || 800;
-    const imgH = naturalSize.height || 1100;
-    const contentW = imgW * transformState.scale;
-    const contentH = imgH * transformState.scale;
-    return contentW > wrapperW + 1 || contentH > wrapperH + 1;
-  }, [transformState.scale, naturalSize, readerMode, index]);
-
-  return <section aria-label={`${title} viewer`} dir={rtl ? "rtl" : "ltr"} className="w-full" itemScope itemType="https://schema.org/CreativeWork">
-      {isMobile ? <div className="flex flex-col gap-4">
-
-          {/* Viewer */}
-          <FullscreenMode rtl={rtl}>
-            <Card className="shadow-none border-none bg-transparent animate-fade-in">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-semibold text-foreground" itemProp="name">{title}</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <KeyboardShortcuts rtl={rtl} />
-                    <div className="text-sm text-muted-foreground select-none">
-                      {L.progress(index + 1, total, progressPct)}
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <TouchGestureHandler
-                  onSwipeLeft={!panningEnabled ? (rtl ? goPrev : goNext) : undefined}
-                  onSwipeRight={!panningEnabled ? (rtl ? goNext : goPrev) : undefined}
-                  onPinch={scale => {
-                  const newZoom = Math.min(Z.max, Math.max(Z.min, zoom * scale));
-                  setZoom(newZoom);
-                  setZoomMode("custom");
-                }}
-                  disabled={!isMobile || readerMode === 'continuous'}
-                  className="relative">
-                  <div ref={containerRef} className={cn("relative group w-full overflow-hidden", !isMobile && "border rounded-lg mb-4", isPanning ? "cursor-grabbing" : "cursor-grab", isMobile && "book-viewer-mobile")} style={{}} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
-                    <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} limitToBounds={false} panning={{
-                  disabled: false
-                }} wheel={{
-                  activationKeys: ["Control", "Meta"],
-                  step: Z.step
-                }} doubleClick={{
-                  disabled: false,
-                  step: 0.5,
-                  mode: "zoomIn"
-                }} onTransformed={refState => {
-                  const {
-                    scale,
-                    positionX,
-                    positionY
-                  } = refState.state;
-                  setTransformState({
-                    scale,
-                    positionX,
-                    positionY
-                  });
-                  setZoomMode("custom");
-                  setZoom(scale);
-                }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => setIsPanning(false)}>
-                      <TransformComponent wrapperClass="w-full h-svh" contentClass="flex items-center justify-center py-2">
-                        {displaySrc && (
-                          <img src={displaySrc} alt={pages[index]?.alt} loading="eager" decoding="async" draggable={false} onLoad={e => {
-                          setImageLoading(false);
-                          const imgEl = e.currentTarget;
-                          setNaturalSize({
-                            width: imgEl.naturalWidth,
-                            height: imgEl.naturalHeight
-                          });
-                          if (containerRef.current) {
-                            setContainerDimensions({
-                              width: containerRef.current.clientWidth,
-                              height: containerRef.current.clientHeight
-                            });
-                          }
-                        }} onError={() => setImageLoading(false)} className="select-none max-w-full max-h-full object-contain will-change-transform" itemProp="image" aria-describedby={`page-${index}-description`} />
-                        )}
-                      </TransformComponent>
-                    </TransformWrapper>
-
-                    <ZoomControls
-                      zoom={transformState.scale}
-                      minZoom={Z.min}
-                      maxZoom={Z.max}
-                      zoomStep={Z.step}
-                      mode={zoomMode}
-                      onZoomIn={zoomIn}
-                      onZoomOut={zoomOut}
-                      onFitWidth={fitToWidth}
-                      onFitHeight={fitToHeight}
-                      onActualSize={actualSize}
-                      rtl={rtl}
-                      iconsOnly
-                      onToggleFullscreen={toggleFullscreen}
-                      onCenter={() => {
-                        const api = zoomApiRef.current as any;
-                        if (readerMode === 'page' && api) {
-                          try {
-                            const el = containerRef.current;
-                            const imgW = naturalSize.width || 0;
-                            const imgH = naturalSize.height || 0;
-
-                            if (el && imgW > 0 && imgH > 0) {
-                              const padding = 32;
-                              const wrapperW = el.clientWidth;
-                              const wrapperH = el.clientHeight;
-                              const imgEl = el.querySelector('img') as HTMLImageElement | null;
-                              const baseW = imgEl?.clientWidth || imgW;
-                              const baseH = imgEl?.clientHeight || imgH;
-
-                              const scaleFit = Math.min(
-                                Z.max,
-                                Math.max(Z.min, Math.min((wrapperW - padding) / baseW, (wrapperH - padding) / baseH))
-                              );
-                              const contentW = baseW * scaleFit;
-                              const contentH = baseH * scaleFit;
-                              const posX = (wrapperW - contentW) / 2;
-                              const posY = (wrapperH - contentH) / 2;
-                              api.setTransform(posX, posY, scaleFit, 220, 'easeOut');
-                            } else if (typeof api.centerView === 'function') {
-                              api.centerView(200, 'easeOut');
-                            } else {
-                              api.resetTransform(200, 'easeOut');
-                            }
-                          } catch {}
-                        }
-                      }}
-                      onPrev={goPrev}
-                      onNext={goNext}
-                    />
-
-                    <MobileControlsOverlay 
-                      progressText={L.progress(index + 1, total, progressPct)}
-                      rtl={rtl}
-                      onPrev={goPrev}
-                      onNext={goNext}
-                      canPrev={index > 0}
-                      canNext={index < total - 1}
-                      onZoomOut={zoomOut}
-                    />
-
-                    {displaySrc === null && <div className="absolute inset-0 flex items-center justify-center bg-background">
-                        <LoadingProgress type="image" progress={pageProgress} rtl={rtl} />
-                      </div>}
-
-                    <div id={`page-${index}-description`} className="sr-only">
-                      {rtl ? `صفحة ${index + 1} من ${total}` : `Page ${index + 1} of ${total}`}
-                    </div>
-                  </div>
-                </TouchGestureHandler>
-
-              </CardContent>
-            </Card>
-          </FullscreenMode>
-
-
-          <div ref={insightsRef} className="px-3 pt-4">
-            <Card className="shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs md:text-sm flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" />
-                  <span>{rtl ? "مساعد القراءة الذكي" : "AI Reading Assistant"}</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-3">
-                <Tabs value={insightTab} onValueChange={v => setInsightTab(v as any)} className="w-full">
-                  <TabsList className="flex w-full text-xs md:text-sm bg-muted rounded-md p-1 gap-1">
-                    <TabsTrigger value="summary" className="h-8 rounded-md flex-1 leading-none px-2 py-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm text-xs">
-                      {rtl ? "ملخص الصفحة" : "Page Summary"}
-                    </TabsTrigger>
-                    <TabsTrigger value="qa" className="h-8 rounded-md flex-1 leading-none px-2 py-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm text-xs">
-                      {rtl ? (
-                        <span className="inline-flex items-center gap-2">
-                          <Sparkles className="h-4 w-4" />
-                          <span>المدرس الإفتراضي</span>
-                        </span>
-                      ) : (
-                        "Ask the doc"
-                      )}
-                    </TabsTrigger>
+  return (
+    <section className={cn("w-full min-h-screen", rtl && "[direction:rtl]")}>
+      {isMobile ? (
+        <div className="min-h-screen">
+          <MobileReaderChrome
+            title={title}
+            progressText={L.progress(index + 1, total, Math.round(((index + 1) / total) * 100))}
+            rtl={rtl}
+            onToggleThumbnails={() => setThumbnailsOpen(!thumbnailsOpen)}
+            onOpenInsights={() => setDrawerOpen(true)}
+            onPrev={goPrev}
+            onNext={goNext}
+            canPrev={index > 0}
+            canNext={index < total - 1}
+            onZoomIn={zoomIn}
+            onZoomOut={zoomOut}
+            fullscreenButton={<FullscreenButton />}
+          />
+          
+          <div className="pt-16 pb-4">
+            <TouchGestureHandler
+              onSwipeLeft={rtl ? goPrev : goNext}
+              onSwipeRight={rtl ? goNext : goPrev}
+              onPinch={(scale) => setZoom(prev => Math.min(Z.max, Math.max(Z.min, prev * scale)))}
+              className="min-h-[60vh]"
+            >
+              <div className="flex items-center justify-center p-4">
+                {displaySrc ? (
+                  <img
+                    src={displaySrc}
+                    alt={pages[index]?.alt}
+                    className="max-w-full max-h-full object-contain"
+                    style={{ transform: `scale(${zoom})` }}
+                  />
+                ) : (
+                  <LoadingProgress type="image" progress={pageProgress} rtl={rtl} />
+                )}
+              </div>
+            </TouchGestureHandler>
+          </div>
+          
+          <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+            <DrawerContent>
+              <DrawerHeader>
+                <DrawerTitle>{rtl ? "مساعد القراءة الذكي" : "AI Reading Assistant"}</DrawerTitle>
+              </DrawerHeader>
+              <div className="p-4">
+                <Tabs value={insightTab} onValueChange={v => setInsightTab(v as any)}>
+                  <TabsList className="grid grid-cols-2 w-full">
+                    <TabsTrigger value="summary">{rtl ? "الملخص" : "Summary"}</TabsTrigger>
+                    <TabsTrigger value="qa">{rtl ? "المدرس الذكي" : "AI Tutor"}</TabsTrigger>
                   </TabsList>
-
-                  <TabsContent value="summary" className="mt-4 m-0">
-                    <Button className="w-full" variant="default" onClick={handleSmartSummarizeClick} disabled={ocrLoading || summLoading}>
-                      <>
-                        {ocrLoading || summLoading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>
-                              {rtl
-                                ? (ocrLoading
-                                  ? `جارٍ استخراج النص... ${Math.max(0, Math.min(100, Math.round(ocrProgress)))}%`
-                                  : "جارٍ التلخيص...")
-                                : (ocrLoading
-                                  ? `Extracting text... ${Math.max(0, Math.min(100, Math.round(ocrProgress)))}%`
-                                  : "Summarizing...")}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className={cn("h-4 w-4", rtl ? "ml-2" : "mr-2")} />
-                            <span>{rtl ? "المدرس الإفتراضي" : "AI Tutor"}</span>
-                          </>
-                        )}
-                      </>
+                  
+                  <TabsContent value="summary" className="mt-4">
+                    <Button 
+                      className="w-full" 
+                      onClick={handleSmartSummarizeClick}
+                      disabled={ocrLoading || summLoading}
+                    >
+                      {ocrLoading || summLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 mr-2" />
+                      )}
+                      {rtl ? "لخص هذه الصفحة" : "Summarize this page"}
                     </Button>
-                    {!summary && <div className="mt-3 text-sm text-muted-foreground border rounded-md p-3">
-                        {rtl ? "لا يوجد ملخص بعد. اضغط \"لخص هذه الصفحة\" لإنشائه." : "No summary yet. Click Summarize this page to generate one."}
-                      </div>}
-                    {lastError && <div className="mt-3">
-                        <ImprovedErrorHandler error={lastError} onRetry={extractTextFromPage} isRetrying={ocrLoading || summLoading} retryCount={retryCount} context={ocrLoading ? rtl ? "استخراج النص" : "OCR" : rtl ? "التلخيص" : "Summarization"} rtl={rtl} />
-                      </div>}
-                    {summary && <div className="mt-3">
-                        <EnhancedSummary summary={summary} onSummaryChange={newSummary => {
-                    setSummary(newSummary);
-                    try {
-                      localStorage.setItem(sumKey, newSummary);
-                    } catch {}
-                  }} onRegenerate={() => {
-                    if (extractedText) {
-                      summarizeExtractedText(extractedText);
-                    } else {
-                      toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
-                    }
-                  }} isRegenerating={summLoading} confidence={ocrQuality ?? summaryConfidence} pageNumber={index + 1} rtl={rtl} title={title} />
-                      </div>}
+                    
+                    {summary && (
+                      <div className="mt-4">
+                        <EnhancedSummary
+                          summary={summary}
+                          onSummaryChange={newSummary => {
+                            setSummary(newSummary);
+                            try {
+                              localStorage.setItem(sumKey, newSummary);
+                            } catch {}
+                          }}
+                          onRegenerate={() => {
+                            if (extractedText) {
+                              summarizeExtractedText(extractedText);
+                            } else {
+                              toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
+                            }
+                          }}
+                          isRegenerating={summLoading}
+                          confidence={ocrQuality ?? summaryConfidence}
+                          pageNumber={index + 1}
+                          rtl={rtl}
+                          title={title}
+                        />
+                      </div>
+                    )}
                   </TabsContent>
 
-                  <TabsContent value="qa" className="mt-4 m-0">
-                    <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
+                  <TabsContent value="qa" className="mt-4">
+                    <QAChat 
+                      summary={summary || extractedText} 
+                      rtl={rtl} 
+                      title={title} 
+                      page={index + 1} 
+                    />
                   </TabsContent>
                 </Tabs>
-              </CardContent>
-            </Card>
-          </div>
-        </div> : <div className="gap-4">
-          {/* LEFT: Viewer */}
-          <div>
-            <div className="flex gap-4">
-              {/* Thumbnail Sidebar */}
-              <div className={cn("flex-shrink-0 animate-fade-in transition-all duration-300", !thumbnailsOpen && "w-0 overflow-hidden")}>
-                <ThumbnailSidebar pages={pages} currentIndex={index} onPageSelect={i => {
-              setIndex(i);
-              if (readerMode === 'continuous') {
-                continuousRef.current?.scrollToIndex(i);
-              }
-            }} isOpen={thumbnailsOpen} onToggle={() => setThumbnailsOpen(!thumbnailsOpen)} rtl={rtl} />
-              </div>
-
-              {/* Main Content */}
-              <div className="flex-1 flex flex-col gap-6">
-                {/* Book Title Header */}
-                <div className="px-4">
-                  <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+                
+                {/* Extracted Text Section for Mobile */}
+                <div className="mt-4">
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <div className="flex items-center gap-2 p-3 hover:bg-muted/50 cursor-pointer rounded border">
+                        <Sparkles className="h-4 w-4" />
+                        <span className="text-sm font-medium">{rtl ? "النص المستخرج من الصفحة" : "Extracted Text from Page"}</span>
+                        <ChevronDown className="h-4 w-4 ml-auto transition-transform" />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="p-3 border-x border-b rounded-b">
+                        {extractedText ? (
+                          <div 
+                            className={cn(
+                              "text-sm leading-relaxed bg-muted/30 p-3 rounded border max-h-48 overflow-y-auto",
+                              "whitespace-pre-wrap",
+                              rtl && "text-right font-arabic"
+                            )}
+                            dir={rtl ? "rtl" : "ltr"}
+                          >
+                            {extractedText}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded border text-center">
+                            <p className={rtl ? "text-right" : "text-left"}>
+                              {rtl ? "لم يتم استخراج النص من هذه الصفحة بعد. استخدم زر 'لخص هذه الصفحة' لاستخراج النص." : "No text has been extracted from this page yet. Use the 'Summarize this page' button to extract text."}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </div>
-                
-                {/* Library/Search unified: tabs removed */}
+              </div>
+            </DrawerContent>
+          </Drawer>
+          
+          {/* OCR Content for Mobile */}
+          <div className="px-4">
+            <IndexableOCRContent
+              ocrText={extractedText}
+              pageNumber={index + 1}
+              rtl={rtl}
+              onForceRegenerate={forceRegenerate}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="min-h-screen flex gap-4">
+          {/* Thumbnail Sidebar */}
+          <div className={cn("flex-shrink-0 transition-all duration-300", !thumbnailsOpen && "w-0 overflow-hidden")}>
+            <ThumbnailSidebar
+              pages={pages}
+              currentIndex={index}
+              onPageSelect={setIndex}
+              isOpen={thumbnailsOpen}
+              onToggle={() => setThumbnailsOpen(!thumbnailsOpen)}
+              rtl={rtl}
+            />
+          </div>
 
-                
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col gap-6 p-4 overflow-y-auto">
+            {/* Book Title */}
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+            </div>
 
-
-
-                {/* Page Area with Fullscreen */}
-                <FullscreenMode rtl={rtl}>
-                  <Card className="shadow-sm animate-fade-in">
-                    <CardContent>
-                      <TouchGestureHandler onSwipeLeft={rtl ? goPrev : goNext} onSwipeRight={rtl ? goNext : goPrev} onPinch={scale => {
-                    const newZoom = Math.min(Z.max, Math.max(Z.min, zoom * scale));
-                    setZoom(newZoom);
-                    setZoomMode("custom");
-                  }} disabled={!isMobile || readerMode === 'continuous'} className="relative">
-                        {readerMode === 'page' ? <div ref={containerRef} className={cn("relative group w-full border rounded-lg mb-1 overflow-hidden max-h-[85vh] md:max-h-[78vh] lg:max-h-[85vh]", isPanning ? "cursor-grabbing" : "cursor-grab", isMobile && "book-viewer-mobile")} onWheel={handleWheelNav} role="img" aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`} tabIndex={0}>
-                            <TransformWrapper ref={zoomApiRef as any} initialScale={zoom} minScale={Z.min} maxScale={Z.max} limitToBounds={false} panning={{
-                        disabled: false
-                      }} wheel={{
-                        activationKeys: ["Control", "Meta"],
-                        step: Z.step
-                      }} doubleClick={{
-                        disabled: false,
-                        step: 0.5,
-                        mode: "zoomIn"
-                      }} onTransformed={refState => {
-                        const {
-                          scale,
-                          positionX,
-                          positionY
-                        } = refState.state;
-                        setTransformState({
-                          scale,
-                          positionX,
-                          positionY
-                        });
-                        setZoomMode("custom");
-                        setZoom(scale);
-                      }} onPanningStart={() => setIsPanning(true)} onPanningStop={() => setIsPanning(false)}>
-                              <TransformComponent wrapperClass="w-full h-[70vh] md:h-[78vh] lg:h-[85vh]" contentClass="flex items-center justify-center py-0">
-                                {displaySrc && (
-                                  <img src={displaySrc} alt={pages[index]?.alt} loading="eager" decoding="async" fetchPriority="high" draggable={false} onLoad={e => {
+            {/* Page Area */}
+            <FullscreenMode rtl={rtl}>
+              <Card className="shadow-sm">
+                <CardContent className="p-0">
+                  <TouchGestureHandler
+                    onSwipeLeft={rtl ? goPrev : goNext}
+                    onSwipeRight={rtl ? goNext : goPrev}
+                    onPinch={scale => setZoom(prev => Math.min(Z.max, Math.max(Z.min, prev * scale)))}
+                    className="relative"
+                  >
+                    <div 
+                      ref={containerRef}
+                      className="relative group w-full border rounded-lg overflow-hidden max-h-[70vh]"
+                      onWheel={handleWheelNav}
+                      role="img"
+                      aria-label={`${pages[index]?.alt} - Page ${index + 1} of ${total}`}
+                      tabIndex={0}
+                    >
+                      <TransformWrapper
+                        ref={zoomApiRef as any}
+                        initialScale={zoom}
+                        minScale={Z.min}
+                        maxScale={Z.max}
+                        limitToBounds={false}
+                        onTransformed={refState => {
+                          const { scale, positionX, positionY } = refState.state;
+                          setTransformState({ scale, positionX, positionY });
+                          setZoom(scale);
+                        }}
+                        onPanningStart={() => setIsPanning(true)}
+                        onPanningStop={() => setIsPanning(false)}
+                      >
+                        <TransformComponent 
+                          wrapperClass="w-full h-[50vh] md:h-[60vh] lg:h-[70vh]"
+                          contentClass="flex items-center justify-center"
+                        >
+                          {displaySrc ? (
+                            <img
+                              src={displaySrc}
+                              alt={pages[index]?.alt}
+                              loading="eager"
+                              decoding="async"
+                              fetchPriority="high"
+                              draggable={false}
+                              onLoad={e => {
                                 setImageLoading(false);
                                 const imgEl = e.currentTarget;
                                 setNaturalSize({
                                   width: imgEl.naturalWidth,
                                   height: imgEl.naturalHeight
                                 });
-                                if (containerRef.current) {
-                                  setContainerDimensions({
-                                    width: containerRef.current.clientWidth,
-                                    height: containerRef.current.clientHeight
-                                  });
-                                }
-                              }} onError={() => setImageLoading(false)} className="select-none max-w-full max-h-full object-contain will-change-transform" itemProp="image" aria-describedby={`page-${index}-description`} />
-                                )}
-                              </TransformComponent>
-                             </TransformWrapper>
-
-                             <ZoomControls
-                               zoom={transformState.scale}
-                               minZoom={Z.min}
-                               maxZoom={Z.max}
-                               zoomStep={Z.step}
-                               mode={zoomMode}
-                               onZoomIn={zoomIn}
-                               onZoomOut={zoomOut}
-                               onFitWidth={fitToWidth}
-                               onFitHeight={fitToHeight}
-                               onActualSize={actualSize}
-                               rtl={rtl}
-                               iconsOnly
-                               onToggleFullscreen={toggleFullscreen}
-                               onCenter={() => {
-                                 const api = zoomApiRef.current as any;
-                                 if (readerMode === 'page' && api) {
-                                   try {
-                                     const el = containerRef.current;
-                                     const imgW = naturalSize.width || 0;
-                                     const imgH = naturalSize.height || 0;
-
-                                     if (el && imgW > 0 && imgH > 0) {
-                                       const padding = 32;
-                                       const wrapperW = el.clientWidth;
-                                       const wrapperH = el.clientHeight;
-                                       const imgEl = el.querySelector('img') as HTMLImageElement | null;
-                                       const baseW = imgEl?.clientWidth || imgW;
-                                       const baseH = imgEl?.clientHeight || imgH;
-
-                                       const scaleFit = Math.min(
-                                         Z.max,
-                                         Math.max(Z.min, Math.min((wrapperW - padding) / baseW, (wrapperH - padding) / baseH))
-                                       );
-                                       const contentW = baseW * scaleFit;
-                                       const contentH = baseH * scaleFit;
-                                       const posX = (wrapperW - contentW) / 2;
-                                       const posY = (wrapperH - contentH) / 2;
-                                       api.setTransform(posX, posY, scaleFit, 220, 'easeOut');
-                                     } else if (typeof api.centerView === 'function') {
-                                       api.centerView(200, 'easeOut');
-                                     } else {
-                                       api.resetTransform(200, 'easeOut');
-                                     }
-                                   } catch {}
-                                 }
-                               }}
-                               onPrev={goPrev}
-                               onNext={goNext}
-                             />
-
-                              {displaySrc === null && <div className="absolute inset-0 flex items-center justify-center bg-background">
-                                <LoadingProgress type="image" progress={pageProgress} rtl={rtl} />
-                              </div>}
-
-                            <div id={`page-${index}-description`} className="sr-only">
-                              {rtl ? `صفحة ${index + 1} من ${total}` : `Page ${index + 1} of ${total}`}
+                              }}
+                              className="max-w-full max-h-full object-contain select-none"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full">
+                              <LoadingProgress type="image" progress={pageProgress} rtl={rtl} />
                             </div>
-                          </div> : <div className="relative w-full overflow-hidden border rounded-lg mb-1 max-h-[85vh] md:max-h-[78vh] lg:max-h-[85vh]">
-                            <ContinuousReader ref={continuousRef} pages={pages} index={index} onIndexChange={setIndex} zoom={zoom} rtl={rtl} onScrollerReady={el => {
-                        containerRef.current = el as HTMLDivElement;
-                        setContainerDimensions({
-                          width: el.clientWidth,
-                          height: el.clientHeight
-                        });
-                      }} />
-                          </div>}
-                      </TouchGestureHandler>
-                      <div className={cn("mt-4 grid grid-cols-1 md:grid-cols-3 items-center gap-2 text-xs md:text-sm lg:text-base", rtl && "[direction:rtl]")}>
-                        <Button onClick={goPrev} variant="secondary" disabled={index === 0} aria-label={L.previous} className={cn("justify-self-start", isMobile && "min-h-[44px] min-w-[44px]")}>{rtl ? `${L.previous} →` : "← " + L.previous}</Button>
-                        <div className="flex flex-wrap items-center justify-center md:justify-center gap-2 md:gap-3 justify-self-center">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span className="tabular-nums">{index + 1}</span>
-                            <Separator orientation="vertical" className="h-5" />
-                            <span className="tabular-nums">{total}</span>
-                            {readerMode === 'page' && (displaySrc === null || imageLoading) && (
-                              <span className="flex items-center gap-1 pl-2">
-                                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                                <span className="text-xs">{rtl ? "جارٍ تحميل الصفحة" : "Page loading"}</span>
-                              </span>
-                            )}
-                          </div>
-                          <form className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} onSubmit={e => {
-                        e.preventDefault();
-                        const n = parseInt(gotoInput, 10);
-                        if (!Number.isNaN(n)) jumpToPage(n);
-                      }} aria-label={rtl ? "اذهب إلى صفحة معينة" : "Jump to page"}>
-                            <Input type="number" inputMode="numeric" min={1} max={total} placeholder={rtl ? "اذهب إلى صفحة" : "Go to page"} value={gotoInput} onChange={e => setGotoInput(e.target.value)} className="w-20 md:w-24" aria-label={rtl ? "أدخل رقم الصفحة" : "Enter page number"} />
-                            <Button type="submit" variant="outline" size="sm">{rtl ? "اذهب" : "Go"}</Button>
-                          </form>
-                          <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")} aria-label={rtl ? "إجراءات" : "Actions"}>
-                            <FullscreenButton rtl={rtl} />
-                          </div>
-                        </div>
-                        <Button onClick={goNext} variant="default" disabled={index === total - 1} aria-label={L.next} className={cn("justify-self-end", isMobile && "min-h-[44px] min-w-[44px]")}>{rtl ? `← ${L.next}` : L.next + " →"}</Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                          )}
+                        </TransformComponent>
+                      </TransformWrapper>
 
-                  {/* Mini-map overlay */}
-                  {readerMode === 'page' && showMiniMap && zoom > 1 && containerRef.current && <MiniMap imageSrc={pages[index]?.src} imageAlt={pages[index]?.alt} containerWidth={containerDimensions.width} containerHeight={containerDimensions.height} imageWidth={800} imageHeight={1100} scrollLeft={containerRef.current.scrollLeft} scrollTop={containerRef.current.scrollTop} zoom={zoom} onNavigate={(x, y) => {
-                if (containerRef.current) {
-                  containerRef.current.scrollLeft = x;
-                  containerRef.current.scrollTop = y;
-                }
-              }} rtl={rtl} />}
-                </FullscreenMode>
-
-                {/* Error Handler */}
-                {lastError && <ImprovedErrorHandler error={lastError} onRetry={extractTextFromPage} isRetrying={ocrLoading || summLoading} retryCount={retryCount} context={ocrLoading ? rtl ? "استخراج النص" : "OCR" : rtl ? "التلخيص" : "Summarization"} rtl={rtl} />}
-
-                {/* OCR (Extracted Text) */}
-                <Card className="shadow-sm hidden">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">{rtl ? "النص المستخرج (OCR)" : "OCR Text"}</CardTitle>
-                      <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}> 
-                        <Button variant="outline" size="sm" onClick={extractTextFromPage} disabled={ocrLoading || batchRunning}>
-                          {ocrLoading ? rtl ? "جارٍ..." : "Working..." : rtl ? "تشغيل OCR" : "Run OCR"}
+                      {/* Zoom controls would go here */}
+                      <div className="absolute top-2 right-2 flex gap-2">
+                        <Button onClick={zoomOut} size="sm" variant="outline">
+                          <ZoomOut className="h-3 w-3" />
                         </Button>
-                        <Button variant="secondary" size="sm" disabled={!extractedText || batchRunning} onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(extractedText);
-                        toast.success(rtl ? "تم نسخ النص" : "Copied");
-                      } catch {
-                        toast.error(rtl ? "فشل النسخ" : "Copy failed");
-                      }
-                    }}>
-                          {rtl ? "نسخ" : "Copy"}
-                        </Button>
-                        <Input type="number" inputMode="numeric" min={1} max={total} value={rangeStart} onChange={e => setRangeStart(Math.max(1, Math.min(total, parseInt(e.target.value || '1', 10))))} className="w-20" placeholder={rtl ? "من" : "From"} aria-label={rtl ? "من الصفحة" : "From page"} disabled={batchRunning} />
-                        <span className="text-muted-foreground">-</span>
-                        <Input type="number" inputMode="numeric" min={1} max={total} value={rangeEnd} onChange={e => setRangeEnd(Math.max(1, Math.min(total, parseInt(e.target.value || String(total), 10))))} className="w-20" placeholder={rtl ? "إلى" : "To"} aria-label={rtl ? "إلى الصفحة" : "To page"} disabled={batchRunning} />
-                        <Button variant="default" size="sm" onClick={processFirstTenPages} disabled={batchRunning}>
-                          {batchRunning ? rtl ? `جارٍ المعالجة ${batchProgress.current}/${batchProgress.total}` : `Processing ${batchProgress.current}/${batchProgress.total}` : rtl ? `معالجة من ${rangeStart} إلى ${rangeEnd}` : `Process ${rangeStart}-${rangeEnd}`}
+                        <Button onClick={zoomIn} size="sm" variant="outline">
+                          <ZoomIn className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <Textarea readOnly dir={rtl ? "rtl" : "ltr"} value={extractedText} placeholder={rtl ? "لا يوجد نص مستخرج بعد. اضغط تشغيل OCR." : "No extracted text yet. Click Run OCR."} className="min-h-40" />
-                  </CardContent>
-                </Card>
+                  </TouchGestureHandler>
 
-                {/* Insight Panel under reader (desktop) */}
-                <div ref={insightsRef}>
-                  <Card className="shadow-sm text-xs md:text-sm lg:text-base">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-xs md:text-sm lg:text-base">
-                        <span className="inline-flex items-center gap-2">
-                          <Sparkles className="h-4 w-4" />
-                          <span>{rtl ? "مساعد القراءة الذكي" : "AI Reading Assistant"}</span>
-                        </span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-5 lg:px-8 lg:py-6 text-[13px] sm:text-sm md:text-base lg:text-lg">
-                      <Tabs value={insightTab} onValueChange={v => setInsightTab(v as any)} className="w-full">
-                         <TabsList className="grid grid-cols-2 w-full gap-1 text-xs md:text-sm p-1 h-auto">
-                           <TabsTrigger value="summary" className="w-full px-2 py-1 text-xs md:text-sm leading-none">{rtl ? "ملخص الصفحة" : "Page Summary"}</TabsTrigger>
-                           <TabsTrigger value="qa" className="w-full px-2 py-1 text-xs md:text-sm leading-none">
-                              {rtl ? <span className="inline-flex items-center gap-2">
-                                  <Sparkles className="h-4 w-4" />
-                                  <span>المدرس الإفتراضي</span>
-                                </span> : "Ask the doc"}
-                           </TabsTrigger>
-                         </TabsList>
+                  {/* Navigation Controls */}
+                  <div className={cn("mt-4 grid grid-cols-3 items-center gap-2 px-4 pb-4", rtl && "[direction:rtl]")}>
+                    <Button 
+                      onClick={goPrev} 
+                      variant="secondary" 
+                      disabled={index === 0}
+                      className="justify-self-start"
+                    >
+                      {rtl ? `${L.previous} →` : `← ${L.previous}`}
+                    </Button>
+                    
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {index + 1} / {total}
+                      </span>
+                      <form 
+                        className="flex items-center gap-2"
+                        onSubmit={e => {
+                          e.preventDefault();
+                          const n = parseInt(gotoInput, 10);
+                          if (!Number.isNaN(n)) jumpToPage(n);
+                        }}
+                      >
+                        <Input
+                          type="number"
+                          min={1}
+                          max={total}
+                          placeholder={rtl ? "إلى" : "Go to"}
+                          value=""
+                          onChange={e => setGotoInput("")}
+                          className="w-20"
+                        />
+                        <Button type="submit" variant="outline" size="sm">
+                          {rtl ? "اذهب" : "Go"}
+                        </Button>
+                      </form>
+                      <FullscreenButton rtl={rtl} />
+                    </div>
+                    
+                    <Button 
+                      onClick={goNext} 
+                      variant="default" 
+                      disabled={index === total - 1}
+                      className="justify-self-end"
+                    >
+                      {rtl ? `← ${L.next}` : `${L.next} →`}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </FullscreenMode>
 
-                        <TabsContent value="summary" className="mt-4 m-0">
-                          <Button className="w-full bg-[#4285f4] text-white border-[#4285f4] hover:bg-[#3367d6] hover:border-[#3367d6] hover:text-white" variant="default" onClick={handleSmartSummarizeClick} disabled={ocrLoading || summLoading}>
-                            <>
-                              {ocrLoading || summLoading ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                  <span>
-                                    {rtl
-                                      ? (ocrLoading
-                                        ? `جارٍ استخراج النص... ${Math.max(0, Math.min(100, Math.round(ocrProgress)))}%`
-                                        : "جارٍ التلخيص...")
-                                      : (ocrLoading
-                                        ? `Extracting text... ${Math.max(0, Math.min(100, Math.round(ocrProgress)))}%`
-                                        : "Summarizing...")}
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles className={cn("h-4 w-4", rtl ? "ml-2" : "mr-2")} />
-                                  <span>قم بتلخيص هذه الصفحة</span>
-                                </>
-                              )}
-                            </>
-                          </Button>
-                          {!summary && <div className="mt-3 text-sm text-muted-foreground border rounded-md p-3">
-                              {rtl ? "لا يوجد ملخص بعد. اضغط \"لخص هذه الصفحة\" لإنشائه." : "No summary yet. Click Summarize this page to generate one."}
-                            </div>}
-                          {lastError && <div className="mt-3">
-                              <ImprovedErrorHandler error={lastError} onRetry={extractTextFromPage} isRetrying={ocrLoading || summLoading} retryCount={retryCount} context={ocrLoading ? rtl ? "استخراج النص" : "OCR" : rtl ? "التلخيص" : "Summarization"} rtl={rtl} />
-                            </div>}
-                          {summary && <div className="mt-3">
-                              <EnhancedSummary summary={summary} onSummaryChange={newSummary => {
-                          setSummary(newSummary);
-                          try {
-                            localStorage.setItem(sumKey, newSummary);
-                          } catch {}
-                        }} onRegenerate={() => {
-                          if (extractedText) {
-                            summarizeExtractedText(extractedText);
-                          } else {
-                            toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
-                          }
-                        }} isRegenerating={summLoading} confidence={ocrQuality ?? summaryConfidence} pageNumber={index + 1} rtl={rtl} title={title} />
-                            </div>}
-                        </TabsContent>
+            {/* Error Handler */}
+            {lastError && (
+              <ImprovedErrorHandler
+                error={lastError}
+                onRetry={() => extractTextFromPage()}
+                isRetrying={ocrLoading || summLoading}
+                retryCount={retryCount}
+                context={ocrLoading ? (rtl ? "استخراج النص" : "OCR") : (rtl ? "التلخيص" : "Summarization")}
+                rtl={rtl}
+              />
+            )}
 
-                        <TabsContent value="qa" className="mt-3 sm:mt-4 md:mt-5 m-0">
-                          <div className="rounded-lg border bg-muted/40 shadow-sm px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-5">
-                            <QAChat summary={summary || extractedText} rtl={rtl} title={title} page={index + 1} />
-                          </div>
-                        </TabsContent>
-                      </Tabs>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
+
+            {/* AI Reading Assistant */}
+            <div ref={insightsRef}>
+              <Card className="shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    <span>{rtl ? "مساعد القراءة الذكي" : "AI Reading Assistant"}</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Tabs value={insightTab} onValueChange={v => setInsightTab(v as any)} className="w-full">
+                    <TabsList className="grid grid-cols-2 w-full">
+                      <TabsTrigger value="summary">
+                        {rtl ? "ملخص الصفحة" : "Page Summary"}
+                      </TabsTrigger>
+                      <TabsTrigger value="qa">
+                        {rtl ? "المدرس الإفتراضي" : "AI Tutor"}
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="summary" className="mt-4">
+                      <Button 
+                        className="w-full bg-[#4285f4] hover:bg-[#3367d6]" 
+                        onClick={handleSmartSummarizeClick}
+                        disabled={ocrLoading || summLoading}
+                      >
+                        {ocrLoading || summLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            <span>
+                              {rtl
+                                ? (ocrLoading ? `جارٍ استخراج النص... ${Math.round(ocrProgress)}%` : "جارٍ التلخيص...")
+                                : (ocrLoading ? `Extracting text... ${Math.round(ocrProgress)}%` : "Summarizing...")}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            <span>{rtl ? "لخص هذه الصفحة" : "Summarize this page"}</span>
+                          </>
+                        )}
+                      </Button>
+                      
+                      {!summary && (
+                        <div className="mt-3 text-sm text-muted-foreground border rounded-md p-3">
+                          {rtl ? "لا يوجد ملخص بعد. اضغط \"لخص هذه الصفحة\" لإنشائه." : "No summary yet. Click 'Summarize this page' to generate one."}
+                        </div>
+                      )}
+                      
+                      {summary && (
+                        <div className="mt-3">
+                          <EnhancedSummary
+                            summary={summary}
+                            onSummaryChange={newSummary => {
+                              setSummary(newSummary);
+                              try {
+                                localStorage.setItem(sumKey, newSummary);
+                              } catch {}
+                            }}
+                            onRegenerate={() => {
+                              if (extractedText) {
+                                summarizeExtractedText(extractedText);
+                              } else {
+                                toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
+                              }
+                            }}
+                            isRegenerating={summLoading}
+                            confidence={ocrQuality ?? summaryConfidence}
+                            pageNumber={index + 1}
+                            rtl={rtl}
+                            title={title}
+                          />
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="qa" className="mt-4">
+                      <QAChat 
+                        summary={summary || extractedText} 
+                        rtl={rtl} 
+                        title={title} 
+                        page={index + 1} 
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
             </div>
-          </div>
 
-        </div>}
-    </section>;
+            {/* OCR Content - Now indexable */}
+            <IndexableOCRContent
+              ocrText={extractedText}
+              pageNumber={index + 1}
+              rtl={rtl}
+              onForceRegenerate={forceRegenerate}
+            />
+          </div>
+        </div>
+      )}
+    </section>
+  );
 };
+
 export default BookViewer;

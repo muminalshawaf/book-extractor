@@ -46,101 +46,120 @@ async function rotateImageBlob(input: string | Blob, angleDeg: number): Promise<
 
 export async function runLocalOcr(input: string | Blob, options?: LocalOcrOptions): Promise<LocalOcrResult> {
   const lang = options?.lang || 'ara+eng';
-  const primaryPsm = options?.psm ?? 6; // default: uniform block of text
   const onProgress = options?.onProgress;
+  
+  console.log('OCR: Starting with language:', lang);
+  onProgress?.(10);
 
-  let image: string | Blob = input;
-  const shouldPreprocess =
-    options?.preprocess === false ? false : Boolean(options?.preprocess) || lang.includes('ara');
+  // Enhanced preprocessing for Arabic text
+  const preprocessOptions: PreprocessOptions = {
+    upsample: true,              // Upscale for better resolution
+    targetMinWidth: 1400,        // Higher resolution target
+    denoise: true,               // Remove noise
+    contrastNormalize: true,     // Improve contrast for Arabic text
+    binarize: true,              // Apply thresholding
+    adaptiveBinarization: true,  // Better for Arabic text with uneven lighting
+    cropMargins: true,           // Remove white margins
+    deskew: true,                // Correct slight rotation
+  };
+
+  let processedBlob: Blob;
   try {
-    if (shouldPreprocess) {
-      const preOptions =
-        typeof options?.preprocess === 'object'
-          ? options.preprocess
-          : (lang.includes('ara')
-              ? ({ adaptiveBinarization: true, deskew: true, contrastNormalize: true } as any)
-              : undefined);
-      const preBlob = await preprocessImageBlob(
-        typeof input === 'string' ? await (await fetch(input)).blob() : input,
-        preOptions
-      );
-      image = preBlob;
-    }
-  } catch (e) {
-    // If preprocessing fails, fallback to raw input
-    console.warn('Preprocessing failed, falling back to original image:', e);
-    image = input;
+    console.log('OCR: Preprocessing image...');
+    // Convert string to blob if needed
+    const inputBlob = typeof input === 'string' ? await (await fetch(input)).blob() : input;
+    processedBlob = await preprocessImageBlob(inputBlob, preprocessOptions);
+    onProgress?.(25);
+  } catch (error) {
+    console.warn('OCR: Preprocessing failed, using original:', error);
+    processedBlob = typeof input === 'string' ? await (await fetch(input)).blob() : input;
+    onProgress?.(20);
   }
+
   const worker = await createWorker(lang, 1, {
-    // logger provides progress: { progress, status }
     logger: (m) => {
       if (m && typeof m.progress === 'number' && onProgress) {
-        // map [0,1] to [10,95] to keep UI lively
-        const pct = Math.max(10, Math.min(95, Math.round(m.progress * 100)));
+        const pct = Math.max(30, Math.min(90, Math.round(30 + m.progress * 60)));
         onProgress(pct);
       }
     },
   } as any);
 
-  async function recognizeWith(psm: number | string) {
-    const { data } = await worker.recognize(image, {
-      tessedit_pageseg_mode: String(psm),
-      preserve_interword_spaces: '1',
-      user_defined_dpi: '300',
-      tessjs_create_pdf: '0',
-    } as any);
-    return data as any;
-  }
-
   try {
-    // Auto-rotate using Tesseract OSD if enabled
-    if (options?.autoRotate ?? lang.includes('ara')) {
-      try {
-        const det: any = await (worker as any).detect(image as any);
-        const angle = Math.round(det?.data?.orientation?.degrees ?? det?.data?.orientation?.angle ?? 0);
-        const norm = ((angle % 360) + 360) % 360;
-        if (norm === 90 || norm === 180 || norm === 270) {
-          const rotateBy = (360 - norm) % 360;
-          image = await rotateImageBlob(image, rotateBy);
-        }
-      } catch {
-        // ignore OSD errors
+    console.log('OCR: Worker created, trying multiple recognition strategies...');
+    
+    // Strategy 1: PSM 3 (Fully automatic page segmentation, no OSD)
+    let bestResult: any = null;
+    let bestScore = 0;
+
+    try {
+      const result1 = await worker.recognize(processedBlob, {
+        tessedit_pageseg_mode: '3',
+        preserve_interword_spaces: '1',
+        tessedit_char_whitelist: 'ابتثجحخدذرزسشصضطظعغفقكلمنهوياىءآأإئؤة٠١٢٣٤٥٦٧٨٩abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?()[]{}":;-+=*/\\|\u060C\u061B\u061F\u060D',
+      } as any);
+      
+      const text1 = (result1.data.text || '').trim();
+      const conf1 = result1.data.confidence || 0;
+      const score1 = text1.length > 5 ? conf1 + (text1.length * 0.1) : conf1 * 0.5;
+      
+      console.log('OCR Strategy 1 (PSM 3):', { length: text1.length, confidence: conf1, score: score1 });
+      
+      if (score1 > bestScore) {
+        bestResult = result1;
+        bestScore = score1;
       }
+    } catch (e) {
+      console.warn('OCR Strategy 1 failed:', e);
     }
 
-    // Try multiple PSM strategies (optimized for Arabic)
-    const tried = new Set<string>();
-    const psmCandidates: (number | string)[] = [
-      primaryPsm,
-      ...(lang.includes('ara') ? [4, 3, 6, 7, 11] : [11]),
-    ];
-
-    let best: any | null = null;
-    for (const psm of psmCandidates) {
-      const key = String(psm);
-      if (tried.has(key)) continue;
-      tried.add(key);
-      try {
-        const result = await recognizeWith(psm);
-        if (!best) {
-          best = result;
-          continue;
-        }
-        const bConf = Number((best as any).confidence ?? 0);
-        const rConf = Number((result as any).confidence ?? 0);
-        const bLen = (best?.text || '').trim().length;
-        const rLen = (result?.text || '').trim().length;
-        if (rConf > bConf || (rConf === bConf && rLen > bLen)) {
-          best = result;
-        }
-      } catch {
-        // ignore errors per PSM
+    // Strategy 2: PSM 6 (Uniform block of text) - good for textbooks
+    try {
+      const result2 = await worker.recognize(processedBlob, {
+        tessedit_pageseg_mode: '6',
+        preserve_interword_spaces: '1',
+        tessedit_char_whitelist: 'ابتثجحخدذرزسشصضطظعغفقكلمنهوياىءآأإئؤة٠١٢٣٤٥٦٧٨٩abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?()[]{}":;-+=*/\\|\u060C\u061B\u061F\u060D',
+      } as any);
+      
+      const text2 = (result2.data.text || '').trim();
+      const conf2 = result2.data.confidence || 0;
+      const score2 = text2.length > 5 ? conf2 + (text2.length * 0.1) : conf2 * 0.5;
+      
+      console.log('OCR Strategy 2 (PSM 6):', { length: text2.length, confidence: conf2, score: score2 });
+      
+      if (score2 > bestScore) {
+        bestResult = result2;
+        bestScore = score2;
       }
+    } catch (e) {
+      console.warn('OCR Strategy 2 failed:', e);
     }
 
-    const data = best ?? { text: '', confidence: 0 };
+    if (!bestResult) {
+      throw new Error('All OCR strategies failed');
+    }
+    
+    const text = (bestResult.data.text || '').trim();
+    const confidence = bestResult.data.confidence || 0;
+    
+    // Clean the text
+    const cleanText = text
+      .replace(/[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z0-9\s.,!?()[\]{}":;=+\-*/\\|]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    console.log('OCR: Best result - Length:', cleanText.length, 'Confidence:', confidence);
+    console.log('OCR: First 100 chars:', cleanText.substring(0, 100));
+    
     onProgress?.(100);
-    return { text: data.text || '', confidence: (data as any).confidence };
+    return { 
+      text: cleanText, 
+      confidence: confidence > 1 ? confidence / 100 : confidence 
+    };
+    
+  } catch (error) {
+    console.error('OCR: Recognition failed:', error);
+    return { text: '', confidence: 0 };
   } finally {
     await worker.terminate();
   }
