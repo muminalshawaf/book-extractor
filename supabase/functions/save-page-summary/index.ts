@@ -72,7 +72,8 @@ Deno.serve(async (req) => {
     const { data, error } = await supabaseAdmin
       .from('page_summaries')
       .upsert(upsertData, { 
-        onConflict: 'book_id,page_number'
+        onConflict: 'book_id,page_number',
+        ignoreDuplicates: false
       })
       .select()
 
