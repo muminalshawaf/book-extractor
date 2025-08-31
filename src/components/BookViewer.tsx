@@ -37,7 +37,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { MobileControlsOverlay } from "@/components/reader/MobileControlsOverlay";
 import { MobileReaderChrome } from "@/components/reader/MobileReaderChrome";
 import { IndexableOCRContent } from "@/components/seo/IndexableOCRContent";
-import { AutomateSection } from "./AutomateSection";
 
 export type BookPage = {
   src: string;
