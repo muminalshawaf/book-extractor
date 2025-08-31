@@ -44,7 +44,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
     subjectArabic: "كيمياء",
     cover: "/placeholder.svg",
     totalPages: 178,
-    description: "كتاب الكيمياء للصف الثاني عشر - نظام المسارات، يغطي الفصول الدراسية الأول والثاني والثالث، مع شرح تفصيلي للمركبات العضوية والتفاعلات الكيميائية",
+    description: "كتاب الكيمياء للصف الثاني عشر - نظام المسارات للمملكة العربية السعودية، يغطي الفصول الدراسية الأول والثاني والثالث، مع شرح تفصيلي للمركبات العضوية والتفاعلات الكيميائية",
     keywords: ["كيمياء", "Chemistry", "Grade 12", "Semester 1-3", "نظام المسارات", "المركبات العضوية", "التفاعلات الكيميائية"],
     buildPages: () => {
       const baseUrl = "https://ksa.idros.ai/books/chem12-1-3/";
@@ -81,7 +81,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
     subjectArabic: "فيزياء",
     cover: "/placeholder.svg",
     totalPages: 315,
-    description: "كتاب الفيزياء للصف الثاني عشر - نظام المسارات، يشمل دراسة الحركة والقوى والطاقة والكهرباء والمغناطيسية",
+    description: "كتاب الفيزياء للصف الثاني عشر - نظام المسارات للمملكة العربية السعودية، يشمل دراسة الحركة والقوى والطاقة والكهرباء والمغناطيسية",
     keywords: ["فيزياء", "Physics", "Grade 12", "Semester 1-3", "نظام المسارات", "الحركة", "القوى", "الطاقة"],
     buildPages: () => {
       const baseUrl = "https://ksa.idros.ai/books/physics12-1-3/";
@@ -118,7 +118,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
     subjectArabic: "رياضيات",
     cover: "/placeholder.svg",
     totalPages: 213,
-    description: "كتاب الرياضيات للصف الثاني عشر - نظام المسارات، يغطي التفاضل والتكامل والهندسة والإحصاء",
+    description: "كتاب الرياضيات للصف الثاني عشر - نظام المسارات للمملكة العربية السعودية، يغطي التفاضل والتكامل والهندسة والإحصاء",
     keywords: ["رياضيات", "Mathematics", "Grade 12", "Semester 1-3", "نظام المسارات", "تفاضل", "تكامل", "هندسة"],
     buildPages: () => {
       const baseUrl = "https://www.ksa.idros.ai/books/math12-1-3/";
