@@ -305,11 +305,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           ocrPreview: ocr.substring(0, 100) + '...'
         });
         
-        console.log('DEBUG: Before setting state - current extractedText length:', extractedText.length);
-        console.log('DEBUG: Before setting state - current summary length:', summary.length);
-        
-        setExtractedText(ocr);
-        setSummary(sum);
+        // Only update state if we have actual content to prevent clearing existing data
+        if (ocr && ocr.length > 0) {
+          setExtractedText(ocr);
+        }
+        if (sum && sum.length > 0) {
+          setSummary(sum);
+        }
         
         console.log('DEBUG: State update called with OCR length:', ocr.length, 'Summary length:', sum.length);
         setSummaryConfidence(typeof data?.confidence === 'number' ? data.confidence : undefined);
@@ -539,15 +541,19 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummaryProgress(0);
     setSummary("");
     
+    // Instant replay for cached summaries - much faster UX
     const words = existingSummary.split(' ');
-    let currentText = '';
+    const chunkSize = 20; // Process 20 words at a time
     
-    // Stream the existing summary word by word for better UX
-    for (let i = 0; i < words.length; i++) {
-      currentText += (i > 0 ? ' ' : '') + words[i];
-      setSummary(currentText);
-      setSummaryProgress((i + 1) / words.length * 100);
-      await new Promise(resolve => setTimeout(resolve, 30)); // Small delay between words
+    for (let i = 0; i < words.length; i += chunkSize) {
+      const chunk = words.slice(i, i + chunkSize).join(' ');
+      setSummary(prev => prev + (i > 0 ? ' ' : '') + chunk);
+      setSummaryProgress((i + chunkSize) / words.length * 100);
+      
+      // Fast chunked rendering - only 50ms delay between chunks
+      if (i + chunkSize < words.length) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
     }
     
     setSummLoading(false);
@@ -590,7 +596,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       
       const trimmedText = text.trim();
       let fullSummary = '';
-      let useEventSource = trimmedText.length <= 4000;
+      let useEventSource = trimmedText.length <= 7500; // Increased threshold for better EventSource usage
       
       if (useEventSource) {
         console.log('Using EventSource for smaller text');
@@ -601,7 +607,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream?` +
             `text_b64=${encodeURIComponent(textB64)}&` +
             `book_id=${encodeURIComponent(dbBookId)}&` +
-            `page_number=${index + 1}&` +
+            `page=${index + 1}&` + // Fixed parameter name to match server
             `lang=${rtl ? 'arabic' : 'english'}`
           );
 
@@ -616,6 +622,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               }, 120000);
             };
 
+            let lastUpdate = 0;
             eventSource.onmessage = (event) => {
               try {
                 if (event.data === 'ok') {
@@ -634,8 +641,14 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 const parsed = JSON.parse(event.data);
                 if (parsed.text) {
                   fullSummary += parsed.text;
-                  setSummary(fullSummary);
-                  setSummaryProgress(Math.min(95, fullSummary.length / 10));
+                  
+                  // Throttled UI updates for better performance (250ms)
+                  const now = Date.now();
+                  if (now - lastUpdate > 250) {
+                    setSummary(fullSummary);
+                    setSummaryProgress(Math.min(95, fullSummary.length / 10));
+                    lastUpdate = now;
+                  }
                 }
               } catch (e) {
                 console.log('Failed to parse EventSource data:', event.data);
@@ -676,13 +689,14 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         const response = await fetch(`https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream' // Better streaming support
             // No Authorization header to prevent buffering
           },
           body: JSON.stringify({
             text: trimmedText,
             book_id: dbBookId,
-            page_number: index + 1,
+            page: index + 1, // Fixed parameter name to match server
             lang: rtl ? 'arabic' : 'english'
           })
         });
@@ -698,6 +712,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        let lastUpdate = 0;
 
         console.log('Starting to read streaming response...');
 
@@ -725,8 +740,14 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                   const parsed = JSON.parse(data);
                   if (parsed.text) {
                     fullSummary += parsed.text;
-                    setSummary(fullSummary);
-                    setSummaryProgress(Math.min(95, fullSummary.length / 10));
+                    
+                    // Throttled UI updates for better performance (250ms)
+                    const now = Date.now();
+                    if (now - lastUpdate > 250) {
+                      setSummary(fullSummary);
+                      setSummaryProgress(Math.min(95, fullSummary.length / 10));
+                      lastUpdate = now;
+                    }
                   }
                 } catch (e) {
                   console.log('Failed to parse streaming data:', line.slice(6));
@@ -734,6 +755,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               }
             }
           }
+        }
+        
+        // Final update to ensure we show all content
+        if (fullSummary !== '') {
+          setSummary(fullSummary);
+          setSummaryProgress(Math.min(95, fullSummary.length / 10));
         }
       }
 

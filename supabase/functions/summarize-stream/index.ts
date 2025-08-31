@@ -93,24 +93,22 @@ ${requiredQuestionIds.length > 0 ?
 
 تأكد من تضمين كل رقم في قسم "حل المسائل" مع الإجابة الكاملة.` : ''}
 
-اكتب ملخصاً تفصيلياً وعملياً باللغة العربية باستخدام Markdown مع عناوين H3 (###).
+اكتب ملخصاً مفيداً وموجزاً باللغة العربية باستخدام Markdown مع عناوين H3 (###).
 
 اتبع هذه القواعد:
-- اكتب فقط الأقسام المهمة من النص
-- كن واضحاً ومفصلاً
+- اكتب فقط الأقسام المهمة من النص (300-500 كلمة)
+- كن واضحاً وموجزاً
 - استخدم اللغة العربية البسيطة
 - احتفظ بالمعادلات والرموز كما هي باستخدام $$...$$ للمعادلات
 
-الأقسام المطلوبة:
-
 ### نظرة عامة
-تتناول هذه الصفحة... (وصف شامل للمحتوى)
+ملخص موجز للصفحة
 
 ### المفاهيم الأساسية  
-- نقاط مفصلة للمفاهيم المهمة مع الشرح
+- النقاط المهمة فقط
 
-### التعاريف والمصطلحات
-- **المصطلح** — تعريف واضح ومفصل
+### التعاريف الرئيسية
+- **المصطلح الأهم** — تعريف مختصر
 
 ${requiredQuestionIds.length > 0 ? `
 ### حل المسائل
@@ -255,7 +253,10 @@ Constraints:
             
             chunkCount++;
             const chunk = decoder.decode(value, { stream: true });
-            console.log(`Received chunk ${chunkCount}, size: ${chunk.length}`);
+            // Reduced logging for better performance - only log every 10th chunk
+            if (chunkCount % 10 === 0) {
+              console.log(`Received chunk ${chunkCount}, size: ${chunk.length}`);
+            }
             
             buffer += chunk;
 
@@ -278,7 +279,10 @@ Constraints:
                 const json = JSON.parse(dataStr);
                 const delta = json?.choices?.[0]?.delta?.content ?? "";
                 if (delta) {
-                  console.log(`Forwarding delta content: "${delta.substring(0, 50)}${delta.length > 50 ? '...' : ''}"`);
+                  // Reduced delta logging - only log significant chunks
+                  if (delta.length > 20) {
+                    console.log(`Forwarding delta content: "${delta.substring(0, 50)}${delta.length > 50 ? '...' : ''}"`);
+                  }
                   totalContentReceived += delta;
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`));
                 }
