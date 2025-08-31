@@ -97,7 +97,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const { toggleFullscreen } = useFullscreen(rtl);
   
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const zoomApiRef = useRef<ReactZoomPanPinchRef | null>(null);
+  const zoomApiRef = useRef<any>(null);
   const [transformState, setTransformState] = useState({
     scale: 1,
     positionX: 0,
@@ -1203,7 +1203,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       tabIndex={0}
                     >
                       <TransformWrapper
-                        ref={zoomApiRef as any}
+                        ref={(instance) => {
+                          if (instance) {
+                            zoomApiRef.current = instance;
+                          }
+                        }}
                         initialScale={zoom}
                         minScale={Z.min}
                         maxScale={Z.max}
