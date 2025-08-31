@@ -90,7 +90,7 @@ const Index = () => {
             {selectedBook.title}
           </h1>
           <p className="text-muted-foreground mb-4" dir="rtl">
-            {enhancedBook.description || "المنهج السعودي للمملكة العربية السعودية - اكتشف محتوى الكتاب مع الملخصات الذكية والبحث المتقدم"}
+            {enhancedBook.description || "كتب المنهج السعودي للمملكة العربية السعودية - اكتشف محتوى الكتاب مع الملخصات الذكية والبحث المتقدم"}
           </p>
           <TopSearchTabs currentBookId={selectedBook.id} />
         </div>
