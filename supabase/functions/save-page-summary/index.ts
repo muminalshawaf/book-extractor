@@ -23,8 +23,6 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    console.log('Raw request body:', JSON.stringify(body, null, 2));
-    
     const book_id = String(body?.book_id || '').trim();
     const page_number = Number(body?.page_number);
     const ocr_text = typeof body?.ocr_text === 'string' ? body.ocr_text : null;
@@ -33,17 +31,6 @@ serve(async (req) => {
     const ocr_confidence = typeof body?.ocr_confidence === 'number' ? body.ocr_confidence : null;
     const confidence_meta = body?.confidence_meta && typeof body.confidence_meta === 'object' ? body.confidence_meta : null;
 
-    console.log('Processed parameters:', {
-      book_id,
-      page_number,
-      ocr_text_type: typeof body?.ocr_text,
-      ocr_text_length: body?.ocr_text?.length,
-      ocr_text_preview: typeof body?.ocr_text === 'string' ? body.ocr_text.substring(0, 100) + '...' : 'NOT STRING',
-      summary_md_length: summary_md?.length,
-      confidence,
-      ocr_confidence
-    });
-
     if (!book_id || !Number.isFinite(page_number) || page_number < 1) {
       return new Response(JSON.stringify({ error: 'Invalid payload' }), {
         status: 400,
@@ -51,14 +38,10 @@ serve(async (req) => {
       });
     }
 
-    const payload: Record<string, any> = { book_id, page_number };
-    if (ocr_text !== null) payload.ocr_text = ocr_text;
-    if (summary_md !== null) payload.summary_md = summary_md;
+    const payload: Record<string, any> = { book_id, page_number, ocr_text, summary_md };
     if (confidence !== null) payload.confidence = confidence;
     if (ocr_confidence !== null) payload.ocr_confidence = ocr_confidence;
     if (confidence_meta !== null) payload.confidence_meta = confidence_meta;
-
-    console.log('Final payload for upsert:', JSON.stringify(payload, null, 2));
 
     const { data, error } = await supabase
       .from('page_summaries')

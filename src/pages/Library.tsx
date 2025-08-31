@@ -11,10 +11,6 @@ import { cn } from "@/lib/utils";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Search, Filter, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import DynamicSEOHead from "@/components/seo/DynamicSEOHead";
-import StructuredDataSchemas from "@/components/seo/StructuredDataSchemas";
-import EnhancedSEOBreadcrumb from "@/components/seo/EnhancedSEOBreadcrumb";
-import SEOFAQSchema from "@/components/SEOFAQSchema";
 
 interface ContentHit { book_id: string; page_number: number; summary_md: string | null; ocr_text: string | null; }
 
@@ -36,6 +32,7 @@ export default function Library() {
     if (semester) next.set("semester", String(semester));
     if (subject) next.set("subject", subject);
     setParams(next, { replace: true });
+    document.title = "المكتبة — ابحث عن الكتب (الصفوف 10–12)";
   }, [q, grade, semester, subject, setParams]);
 
   const subjects = useMemo(() => {
@@ -56,7 +53,7 @@ export default function Library() {
     });
   }, [q, grade, semester, subject]);
 
-  // Debounced content search
+  // Debounced content search (Supabase)
   useEffect(() => {
     let t: any;
     const run = async () => {
@@ -137,32 +134,31 @@ export default function Library() {
     </Link>
   );
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Enhanced SEO Components */}
-      <DynamicSEOHead 
-        customTitle="مكتبة الكتب الرقمية - المنهج السعودي"
-        customDescription="اكتشف كتب المنهج السعودي للصف الثاني عشر مع البحث الذكي والتلخيص التلقائي. فيزياء، كيمياء، رياضيات بتقنية متقدمة"
-      />
-      <StructuredDataSchemas isLibraryPage={true} />
-      <EnhancedSEOBreadcrumb />
-      <SEOFAQSchema />
-      
-      <div className="container mx-auto px-4 py-6">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-3" dir="rtl">
-            مكتبة الكتب الرقمية
-          </h1>
-          <p className="text-xl text-muted-foreground" dir="rtl">
-            اكتشف كتب المنهج السعودي للصف الثاني عشر مع البحث الذكي والتلخيص التلقائي
-          </p>
-        </div>
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "مكتبة الكتب",
+    itemListElement: filtered.map((b, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      url: `${window.location.origin}/book/${b.id}`,
+      name: b.title,
+    })),
+  } as const;
 
-        <Tabs dir="rtl" value={tab} onValueChange={(v) => setTab(v as any)}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="library">تصفح المكتبة</TabsTrigger>
-            <TabsTrigger value="content">البحث في المحتوى</TabsTrigger>
-          </TabsList>
+  return (
+    <div className="container mx-auto py-6 px-3" dir="rtl">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <header className="mb-6 text-right">
+        <h1 className="text-2xl font-semibold">ابحث عن الكتب حسب الصف والفصل</h1>
+        <p className="text-muted-foreground mt-1">رشّح حسب الصف، الفصل، المادة، أو ابحث بالعنوان/الكلمات المفتاحية.</p>
+      </header>
+
+      <Tabs dir="rtl" value={tab} onValueChange={(v) => setTab(v as any)}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="library">تصفح المكتبة</TabsTrigger>
+          <TabsTrigger value="content">البحث في المحتوى</TabsTrigger>
+        </TabsList>
 
         {/* Tab: Library */}
         <TabsContent value="library" className="mt-4">
@@ -309,8 +305,7 @@ export default function Library() {
             </div>
           </section>
         </TabsContent>
-        </Tabs>
-      </div>
+      </Tabs>
     </div>
   );
 }

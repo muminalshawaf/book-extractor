@@ -16,112 +16,40 @@ export type Database = {
     Tables: {
       page_summaries: {
         Row: {
-          arabic_keywords: string[] | null
           book_id: string
-          chapter_number: number | null
           confidence: number | null
           confidence_meta: Json | null
-          content_type: string | null
           created_at: string
-          difficulty_level: string | null
-          english_keywords: string[] | null
-          estimated_read_time: number | null
           id: string
-          lesson_number: number | null
-          lesson_title: string | null
-          meta_description: string | null
           ocr_confidence: number | null
           ocr_text: string | null
           page_number: number
-          slug: string | null
           summary_md: string | null
-          title: string | null
-          unit_number: number | null
           updated_at: string
         }
         Insert: {
-          arabic_keywords?: string[] | null
           book_id: string
-          chapter_number?: number | null
           confidence?: number | null
           confidence_meta?: Json | null
-          content_type?: string | null
           created_at?: string
-          difficulty_level?: string | null
-          english_keywords?: string[] | null
-          estimated_read_time?: number | null
           id?: string
-          lesson_number?: number | null
-          lesson_title?: string | null
-          meta_description?: string | null
           ocr_confidence?: number | null
           ocr_text?: string | null
           page_number: number
-          slug?: string | null
           summary_md?: string | null
-          title?: string | null
-          unit_number?: number | null
           updated_at?: string
         }
         Update: {
-          arabic_keywords?: string[] | null
           book_id?: string
-          chapter_number?: number | null
           confidence?: number | null
           confidence_meta?: Json | null
-          content_type?: string | null
           created_at?: string
-          difficulty_level?: string | null
-          english_keywords?: string[] | null
-          estimated_read_time?: number | null
           id?: string
-          lesson_number?: number | null
-          lesson_title?: string | null
-          meta_description?: string | null
           ocr_confidence?: number | null
           ocr_text?: string | null
           page_number?: number
-          slug?: string | null
           summary_md?: string | null
-          title?: string | null
-          unit_number?: number | null
           updated_at?: string
-        }
-        Relationships: []
-      }
-      security_audit_logs: {
-        Row: {
-          action: string
-          created_at: string
-          details: Json | null
-          id: string
-          ip_address: string | null
-          resource_id: string | null
-          resource_type: string
-          user_agent: string | null
-          user_id: string | null
-        }
-        Insert: {
-          action: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          ip_address?: string | null
-          resource_id?: string | null
-          resource_type: string
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          action?: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          ip_address?: string | null
-          resource_id?: string | null
-          resource_type?: string
-          user_agent?: string | null
-          user_id?: string | null
         }
         Relationships: []
       }

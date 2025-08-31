@@ -12,7 +12,6 @@ serve(async (req: Request) => {
   }
 
   try {
-    console.log('Summarize-stream function started');
     // Support GET (EventSource) and POST (fetch streaming)
     let text = "";
     let lang = "en";
@@ -44,8 +43,6 @@ serve(async (req: Request) => {
       title = body?.title ?? "";
     }
 
-    console.log(`Processing streaming summary - Page: ${page}, Lang: ${lang}, Text length: ${text?.length}`);
-
     if (!text || typeof text !== "string") {
       return new Response(JSON.stringify({ error: "Missing text" }), {
         status: 400,
@@ -61,143 +58,49 @@ serve(async (req: Request) => {
       });
     }
 
-    // Extract numbered questions/problems from the text
-    const extractQuestionNumbers = (text: string): number[] => {
-      const matches = text.match(/(?:^|\s)(\d{1,3})[\u002E\u06D4]\s*[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z]/gm);
-      if (!matches) return [];
-      
-      const numbers = matches
-        .map(match => {
-          const num = match.trim().match(/(\d{1,3})/);
-          return num ? parseInt(num[1], 10) : 0;
-        })
-        .filter(num => num > 0 && num < 200) // Reasonable range for textbook questions
-        .sort((a, b) => a - b);
-      
-      // Remove duplicates
-      return [...new Set(numbers)];
-    };
-
-    const requiredQuestionIds = extractQuestionNumbers(text);
-    console.log(`Extracted question numbers: [${requiredQuestionIds.join(', ')}]`);
-
     const notStated = lang === "ar" ? "غير واضح في النص" : "Not stated in text";
 
-    const prompt = `لخص هذا النص بإيجاز وبطريقة مفيدة للطلاب (صفحة واحدة فقط):
-"""
-${text}
-"""
-
-${requiredQuestionIds.length > 0 ? 
-`**مهم جداً:** يجب أن تجيب على جميع الأسئلة المرقمة الموجودة في النص. الأرقام المطلوبة: [${requiredQuestionIds.join(', ')}]
-
-تأكد من تضمين كل رقم في قسم "حل المسائل" مع الإجابة الكاملة.` : ''}
-
-اكتب ملخصاً تفصيلياً وعملياً باللغة العربية باستخدام Markdown مع عناوين H3 (###).
-
-اتبع هذه القواعد:
-- اكتب فقط الأقسام المهمة من النص
-- كن واضحاً ومفصلاً
-- استخدم اللغة العربية البسيطة
-- احتفظ بالمعادلات والرموز كما هي باستخدام $$...$$ للمعادلات
-
-الأقسام المطلوبة:
-
-### نظرة عامة
-تتناول هذه الصفحة... (وصف شامل للمحتوى)
-
-### المفاهيم الأساسية  
-- نقاط مفصلة للمفاهيم المهمة مع الشرح
-
-### التعاريف والمصطلحات
-- **المصطلح** — تعريف واضح ومفصل
-
-${requiredQuestionIds.length > 0 ? `
-### حل المسائل
-**يجب حل جميع المسائل المرقمة [${requiredQuestionIds.join(', ')}]:**
-
-` + requiredQuestionIds.map(num => `**${num}. [اكتب السؤال كاملاً من النص]**
-- الحل: [خطوات مفصلة]
-- الجواب النهائي: [النتيجة مع الوحدات]`).join('\n\n') : ''}
-
-### أسئلة سريعة
-جدول بـ 3-5 أسئلة وأجوبة مهمة:
-
-| السؤال | الجواب |
-|---|---|
-| ... | ... |
-
-قيود:
-- لا تكرر المحتوى
-- كن واضحاً ومفصلاً
-- قدم كل التفاصيل المهمة
-- تأكد من حل جميع الأسئلة المرقمة`;
-
-    // Use Arabic prompt if language is Arabic
-    const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 
-      `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+    const prompt = `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 Text to summarize (single page, do not infer beyond it):
 """
 ${text}
 """
 
-Create a comprehensive student-focused summary in ${lang}. Use clean Markdown with H3 headings (###). 
+Task: Produce a comprehensive study summary in ${lang}, strictly from the text. Output as clean Markdown using H3 headings (###) with localized section titles. Sections and exact formats:
 
-**IMPORTANT**: If the text contains numbered questions or problems (like "31. Compare..." or "32. Explain..."), you MUST answer ALL of them in a dedicated section.
+### 1) ${lang === "ar" ? "نظرة عامة" : "Overview"}
+- 2–3 sentences covering the page's purpose and scope.
 
-Rules:
-- ONLY include sections that have actual content from the text
-- Do NOT write empty sections or "${notStated}"
-- Make the summary comprehensive enough that a student feels confident knowing the page content without reading it
-- Use ${lang} throughout with appropriate punctuation
-- Preserve equations/symbols as they appear
+### 2) ${lang === "ar" ? "المفاهيم الأساسية" : "Key Concepts"}
+- Exhaustive bullet list; each concept with a 1–2 sentence explanation. Do NOT bold the whole bullet; keep bold only for key terms if needed.
 
-Potential sections (include only if applicable):
+### 3) ${lang === "ar" ? "التعاريف والمصطلحات" : "Definitions & Terms"}
+- Exhaustive glossary in the format: **Term** — definition. Include symbols and units where relevant.
 
-### 1) Overview
-- 2–3 sentences covering the page's purpose and main content
+### 4) ${lang === "ar" ? "الصيغ والوحدات" : "Formulas & Units"}
+- Use LaTeX ($$...$$ for blocks). List variables with meanings and typical units.
 
-### 2) Key Concepts
-- Comprehensive bullet list; each concept with 1–2 sentence explanation
+### 5) ${lang === "ar" ? "الخطوات/الإجراءات" : "Procedures/Steps"}
+- Numbered list if applicable.
 
-### 3) Definitions & Terms
-- Complete glossary: **Term** — definition (include symbols/units)
+### 6) ${lang === "ar" ? "أمثلة وتطبيقات" : "Examples/Applications"}
+- Concrete examples from the text only.
 
-### 4) Formulas & Units
-- Use LaTeX ($$...$$ for blocks). List variables with meanings and units
+### 7) ${lang === "ar" ? "أخطاء شائعة/ملابسات" : "Misconceptions/Pitfalls"}
+- Bullets indicating common errors to avoid.
 
-### 5) Questions & Problems
-**ONLY include this section if there are numbered questions or problems in the text.**
-For each question or problem found:
-- Restate the question clearly
-- If conceptual question: provide comprehensive, detailed answer
-- If calculation problem: show step-by-step solution with calculations
-- Provide final answer with proper units (for calculation problems)
-- Use LaTeX for equations: $$...$$ for display math, $...$ for inline
+### 8) ${lang === "ar" ? "أسئلة سريعة" : "Quick Q&A"}
+Provide 3–5 question–answer pairs strictly from the text as a Markdown table:
 
-### 6) Procedures/Steps
-- Numbered list if applicable
-
-### 7) Examples/Applications
-- Concrete examples from the text only
-
-### 8) Misconceptions/Pitfalls
-- Common errors to avoid or important tips
-
-### 9) Quick Q&A
-If sufficient content exists, create 3–5 Q&A pairs from the text:
-
-| Question | Answer |
+| ${lang === "ar" ? "السؤال" : "Question"} | ${lang === "ar" ? "الجواب" : "Answer"} |
 |---|---|
-| ... | ... |
+| … | … |
 
 Constraints:
-- 300-600 words total (more if solving problems)
-- Avoid excessive formatting
-- Preserve equations/symbols from original text
-- When solving problems, show ALL calculation steps clearly`;
+- Use ${lang} throughout. Use Arabic punctuation if ${lang} = ar.
+- No external knowledge or hallucinations; if something is missing, write "${notStated}".
+- 250–450 words total. Prefer concise bullets. Preserve equations/symbols. Avoid decorative characters and excessive bolding.`;
 
-    console.log('Making streaming request to DeepSeek API...');
     const dsRes = await fetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -208,28 +111,23 @@ Constraints:
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: (lang === "ar" || lang === "arabic") ? 
-            "أنت خبير في تلخيص الكتب المدرسية. اكتب ملخصات تفصيلية ومفيدة للطلاب. قدم كل المعلومات المهمة والتفاصيل الضرورية. حل جميع المسائل بالتفصيل." : 
-            "You are a textbook summarizer. Write detailed, useful summaries for students. Provide all important information and necessary details. Solve all problems with full detail." },
-          { role: "user", content: finalPrompt },
+          { role: "system", content: "You are an expert textbook summarizer for a single page. Be accurate, comprehensive, and structured. Prioritize complete coverage of Definitions & Terms and Key Concepts. Only use the provided text. Preserve math in LaTeX. The 'Quick Q&A' section MUST be a Markdown table that includes both clear questions and their direct answers from the text." },
+          { role: "user", content: prompt },
         ],
         temperature: 0.2,
         top_p: 0.9,
-        max_tokens: 4000,
+        max_tokens: 1100,
         stream: true,
       }),
     });
 
     if (!dsRes.ok || !dsRes.body) {
       const t = await dsRes.text();
-      console.error('DeepSeek streaming API error:', dsRes.status, t);
       return new Response(
         JSON.stringify({ error: `DeepSeek error ${dsRes.status}`, details: t }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    console.log('DeepSeek streaming API connected successfully');
 
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
@@ -243,21 +141,11 @@ Constraints:
           try { controller.enqueue(encoder.encode(`:ping\n\n`)); } catch (_) {}
         }, 15000);
 
-        let chunkCount = 0;
-        let totalContentReceived = "";
         try {
           while (true) {
             const { value, done } = await reader.read();
-            if (done) {
-              console.log(`Stream completed after ${chunkCount} chunks. Total content length: ${totalContentReceived.length}`);
-              break;
-            }
-            
-            chunkCount++;
-            const chunk = decoder.decode(value, { stream: true });
-            console.log(`Received chunk ${chunkCount}, size: ${chunk.length}`);
-            
-            buffer += chunk;
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
 
             const parts = buffer.split(/\r?\n\r?\n/);
             buffer = parts.pop() || "";
@@ -268,7 +156,6 @@ Constraints:
               const dataStr = line.slice(5).trim();
 
               if (dataStr === "[DONE]") {
-                console.log('Received [DONE] signal from DeepSeek');
                 controller.enqueue(encoder.encode(`event: done\ndata: [DONE]\n\n`));
                 controller.close();
                 return;
@@ -278,20 +165,16 @@ Constraints:
                 const json = JSON.parse(dataStr);
                 const delta = json?.choices?.[0]?.delta?.content ?? "";
                 if (delta) {
-                  console.log(`Forwarding delta content: "${delta.substring(0, 50)}${delta.length > 50 ? '...' : ''}"`);
-                  totalContentReceived += delta;
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`));
                 }
-              } catch (parseErr) {
-                console.log('Failed to parse JSON data:', dataStr.substring(0, 100));
+              } catch (_) {
+                // ignore
               }
             }
           }
         } catch (err) {
-          console.error('Streaming error:', err);
           controller.enqueue(encoder.encode(`event: error\ndata: ${String(err)}\n\n`));
         } finally {
-          console.log('Stream cleanup: clearing ping interval and closing controller');
           clearInterval(ping);
           controller.enqueue(encoder.encode(`event: done\ndata: [DONE]\n\n`));
           controller.close();
@@ -303,17 +186,12 @@ Constraints:
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream; charset=utf-8",
-        "Cache-Control": "no-cache, no-store, must-revalidate, no-transform",
+        "Cache-Control": "no-cache, no-transform",
         "Connection": "keep-alive",
         "X-Accel-Buffering": "no",
-        "Transfer-Encoding": "chunked",
-        "Pragma": "no-cache",
-        "Expires": "0",
       },
     });
   } catch (e) {
-    console.error('Unexpected error in summarize-stream function:', e);
-    console.error('Error stack:', e.stack);
     return new Response(
       JSON.stringify({ error: "Unexpected error", details: String(e) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
