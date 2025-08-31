@@ -13,7 +13,7 @@ interface AutomateSectionProps {
   currentPage: number;
   rtl?: boolean;
   onNavigateToPage: (page: number) => void;
-  onExtractAndSummarize: () => Promise<void>;
+  onExtractAndSummarize: (pageNumber: number) => Promise<void>;
   checkIfPageProcessed: (page: number) => Promise<boolean>;
 }
 
@@ -104,7 +104,7 @@ export const AutomateSection: React.FC<AutomateSectionProps> = ({
 
         try {
           // Extract and summarize current page
-          await onExtractAndSummarize();
+          await onExtractAndSummarize(pageNum);
           
           setProgress(prev => ({ 
             ...prev, 

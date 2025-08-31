@@ -801,9 +801,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     jumpToPage(page);
   }, [jumpToPage]);
 
-  const handleExtractAndSummarize = useCallback(async () => {
-    console.log('Automation: Starting extraction and summarization for page', index + 1);
+  const handleExtractAndSummarize = useCallback(async (pageNumber: number) => {
+    console.log('Automation: Starting extraction and summarization for page', pageNumber);
     try {
+      // Ensure we're processing the correct page by using the dbBookId and pageNumber directly
+      const currentDbBookId = dbBookId;
+      
       // Force regeneration to ensure fresh extraction
       await extractTextFromPage(true);
       
@@ -815,30 +818,40 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         await new Promise(resolve => setTimeout(resolve, 1000));
         attempts++;
         
-        // Check if both OCR and summary are complete
-        if (!ocrLoading && !summLoading && extractedText.trim() && summary.trim()) {
-          console.log('Automation: Extraction and summarization completed successfully');
+        // Check the database directly for this specific page
+        const { data } = await supabase
+          .from('page_summaries')
+          .select('ocr_text, summary_md')
+          .eq('book_id', currentDbBookId)
+          .eq('page_number', pageNumber)
+          .maybeSingle();
+        
+        const hasText = data?.ocr_text?.trim();
+        const hasSummary = data?.summary_md?.trim();
+        
+        if (hasText && hasSummary) {
+          console.log(`Automation: Page ${pageNumber} processing completed successfully`);
           return;
         }
         
-        console.log(`Automation: Waiting for completion... Attempt ${attempts}/${maxAttempts}`);
+        console.log(`Automation: Waiting for page ${pageNumber} completion... Attempt ${attempts}/${maxAttempts}`);
         console.log('Automation: Status -', { 
           ocrLoading, 
           summLoading, 
-          hasText: !!extractedText.trim(), 
-          hasSummary: !!summary.trim() 
+          hasText: !!hasText, 
+          hasSummary: !!hasSummary 
         });
       }
       
       // If we reach here, the process didn't complete in time
-      console.warn('Automation: Extraction/summarization timed out');
-      throw new Error('Process timed out');
+      console.warn(`Automation: Extraction/summarization timed out for page ${pageNumber}`);
+      throw new Error(`Process timed out for page ${pageNumber}`);
       
     } catch (error) {
-      console.error('Automation: Error in extraction and summarization:', error);
+      console.error(`Automation: Error in extraction and summarization for page ${pageNumber}:`, error);
       throw error;
     }
-  }, [extractTextFromPage, ocrLoading, summLoading, extractedText, summary, index]);
+  }, [extractTextFromPage, ocrLoading, summLoading, dbBookId, supabase]);
 
   const checkIfPageProcessed = useCallback(async (pageNumber: number): Promise<boolean> => {
     try {
