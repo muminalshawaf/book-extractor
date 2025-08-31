@@ -736,8 +736,10 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         setSummary(trimmedSummary);
         setSummaryConfidence(0.8);
         
-        // Post-process: Check for missing numbered questions and complete them
-        await checkAndCompleteMissingQuestions(trimmedSummary, trimmedText);
+        // Post-process: Check for missing numbered questions and complete them (non-blocking)
+        checkAndCompleteMissingQuestions(trimmedSummary, trimmedText).catch(error => {
+          console.error('Post-processing failed:', error);
+        });
         
         toast.success(rtl ? "تم إنشاء الملخص بنجاح" : "Summary generated successfully");
         
