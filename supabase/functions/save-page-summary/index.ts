@@ -13,6 +13,9 @@ Deno.serve(async (req) => {
   try {
     console.log('Save page summary function started')
     
+    const requestBody = await req.json()
+    console.log('Request body received:', JSON.stringify(requestBody))
+    
     const { 
       book_id, 
       page_number, 
@@ -20,35 +23,70 @@ Deno.serve(async (req) => {
       summary_md, 
       ocr_confidence, 
       confidence 
-    } = await req.json()
+    } = requestBody
 
     console.log(`Saving summary for book ${book_id}, page ${page_number}`)
 
+    // Validate required fields
+    if (!book_id || !page_number) {
+      throw new Error('Missing required fields: book_id and page_number are required')
+    }
+
     // Create Supabase client with service role key for database writes
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    
+    console.log('Environment check:', {
+      hasUrl: !!supabaseUrl,
+      hasServiceKey: !!serviceRoleKey,
+      urlLength: supabaseUrl?.length,
+      keyLength: serviceRoleKey?.length
+    })
+
     const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      supabaseUrl ?? '',
+      serviceRoleKey ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        },
+        db: {
+          schema: 'public'
+        }
+      }
     )
+
+    const upsertData = {
+      book_id,
+      page_number,
+      ocr_text,
+      summary_md,
+      ocr_confidence: ocr_confidence || 0.8,
+      confidence: confidence || 0.8,
+      updated_at: new Date().toISOString()
+    }
+    
+    console.log('Attempting upsert with data:', JSON.stringify(upsertData))
 
     const { data, error } = await supabaseAdmin
       .from('page_summaries')
-      .upsert({
-        book_id,
-        page_number,
-        ocr_text,
-        summary_md,
-        ocr_confidence: ocr_confidence || 0.8,
-        confidence: confidence || 0.8,
-        updated_at: new Date().toISOString()
+      .upsert(upsertData, { 
+        onConflict: 'book_id,page_number'
       })
       .select()
 
     if (error) {
-      console.error('Database error:', error)
-      throw error
+      console.error('Database error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
+      throw new Error(`Database error: ${error.message}`)
     }
 
-    console.log(`Successfully saved page summary for page ${page_number}`)
+    console.log(`Successfully saved page summary for page ${page_number}`, data)
 
     return new Response(JSON.stringify({ success: true, data }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
