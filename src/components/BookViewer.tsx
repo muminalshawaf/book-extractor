@@ -195,39 +195,56 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   }, [total, updatePageInUrl]);
 
   // Zoom functions
-  const zoomIn = () => setZoom(prev => Math.min(Z.max, prev + Z.step));
-  const zoomOut = () => setZoom(prev => Math.max(Z.min, prev - Z.step));
-  const resetZoom = () => setZoom(1);
+  const zoomIn = useCallback(() => {
+    if (zoomApiRef.current) {
+      zoomApiRef.current.zoomIn(Z.step);
+    }
+  }, []);
+  
+  const zoomOut = useCallback(() => {
+    if (zoomApiRef.current) {
+      zoomApiRef.current.zoomOut(Z.step);
+    }
+  }, []);
+  
+  const resetZoom = useCallback(() => {
+    if (zoomApiRef.current) {
+      zoomApiRef.current.resetTransform();
+    }
+  }, []);
   
   // Advanced zoom functions for ZoomControls
-  const centerImage = () => {
-    zoomApiRef.current?.resetTransform();
-    setZoomMode("custom");
-  };
+  const centerImage = useCallback(() => {
+    if (zoomApiRef.current) {
+      zoomApiRef.current.resetTransform();
+      setZoomMode("custom");
+    }
+  }, []);
   
-  const fitToWidth = () => {
-    if (!containerRef.current) return;
+  const fitToWidth = useCallback(() => {
+    if (!containerRef.current || !zoomApiRef.current) return;
     const containerWidth = containerRef.current.clientWidth;
     const targetZoom = containerWidth / naturalSize.width;
-    setZoom(Math.max(Z.min, Math.min(Z.max, targetZoom)));
+    const clampedZoom = Math.max(Z.min, Math.min(Z.max, targetZoom));
+    zoomApiRef.current.setTransform(0, 0, clampedZoom);
     setZoomMode("fit-width");
-    zoomApiRef.current?.resetTransform();
-  };
+  }, [naturalSize.width]);
   
-  const fitToHeight = () => {
-    if (!containerRef.current) return;
+  const fitToHeight = useCallback(() => {
+    if (!containerRef.current || !zoomApiRef.current) return;
     const containerHeight = containerRef.current.clientHeight;
     const targetZoom = containerHeight / naturalSize.height;
-    setZoom(Math.max(Z.min, Math.min(Z.max, targetZoom)));
+    const clampedZoom = Math.max(Z.min, Math.min(Z.max, targetZoom));
+    zoomApiRef.current.setTransform(0, 0, clampedZoom);
     setZoomMode("fit-height");
-    zoomApiRef.current?.resetTransform();
-  };
+  }, [naturalSize.height]);
   
-  const actualSize = () => {
-    setZoom(1);
-    setZoomMode("actual-size");
-    zoomApiRef.current?.resetTransform();
-  };
+  const actualSize = useCallback(() => {
+    if (zoomApiRef.current) {
+      zoomApiRef.current.setTransform(0, 0, 1);
+      setZoomMode("actual-size");
+    }
+  }, []);
 
   // Image loading effect
   useEffect(() => {
