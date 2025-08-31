@@ -77,13 +77,16 @@ export const AutomateSection: React.FC<AutomateSectionProps> = ({
         setProgress(prev => ({ ...prev, currentPage: pageNum }));
 
         // Navigate to the page
+        console.log(`Automation: Navigating to page ${pageNum}`);
         onNavigateToPage(pageNum);
         
-        // Wait for navigation to complete
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait longer for navigation and page loading to complete
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
         // Check if page is already processed
+        console.log(`Automation: Checking if page ${pageNum} is processed`);
         const isProcessed = await checkIfPageProcessed(pageNum);
+        console.log(`Automation: Page ${pageNum} processed status:`, isProcessed);
         
         if (isProcessed) {
           console.log(`Page ${pageNum} already processed, skipping...`);

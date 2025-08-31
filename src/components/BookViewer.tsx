@@ -802,8 +802,43 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   }, [jumpToPage]);
 
   const handleExtractAndSummarize = useCallback(async () => {
-    await extractTextFromPage(true);
-  }, []);
+    console.log('Automation: Starting extraction and summarization for page', index + 1);
+    try {
+      // Force regeneration to ensure fresh extraction
+      await extractTextFromPage(true);
+      
+      // Wait a bit longer to ensure the process completes
+      let attempts = 0;
+      const maxAttempts = 30; // Wait up to 30 seconds
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        attempts++;
+        
+        // Check if both OCR and summary are complete
+        if (!ocrLoading && !summLoading && extractedText.trim() && summary.trim()) {
+          console.log('Automation: Extraction and summarization completed successfully');
+          return;
+        }
+        
+        console.log(`Automation: Waiting for completion... Attempt ${attempts}/${maxAttempts}`);
+        console.log('Automation: Status -', { 
+          ocrLoading, 
+          summLoading, 
+          hasText: !!extractedText.trim(), 
+          hasSummary: !!summary.trim() 
+        });
+      }
+      
+      // If we reach here, the process didn't complete in time
+      console.warn('Automation: Extraction/summarization timed out');
+      throw new Error('Process timed out');
+      
+    } catch (error) {
+      console.error('Automation: Error in extraction and summarization:', error);
+      throw error;
+    }
+  }, [extractTextFromPage, ocrLoading, summLoading, extractedText, summary, index]);
 
   const checkIfPageProcessed = useCallback(async (pageNumber: number): Promise<boolean> => {
     try {
