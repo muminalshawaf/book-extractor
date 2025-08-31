@@ -128,8 +128,8 @@ export const AutomateSection: React.FC<AutomateSectionProps> = ({
         console.log(`Automation: Navigating to page ${pageNum}`);
         onNavigateToPage(pageNum);
         
-        // Wait longer for navigation and page loading to complete
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Wait for navigation to complete - reduced initial wait since we have better sync in handleExtractAndSummarize
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         // Check if page is already processed (with retry for network issues)
         console.log(`Automation: Checking if page ${pageNum} is processed`);

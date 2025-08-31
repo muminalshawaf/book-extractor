@@ -802,17 +802,44 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   }, [jumpToPage]);
 
   const handleExtractAndSummarize = useCallback(async (pageNumber: number) => {
-    console.log('Automation: Starting extraction and summarization for page', pageNumber);
+    console.log(`Automation: Starting extraction and summarization for page ${pageNumber}`);
+    
     try {
-      // Ensure we're processing the correct page by using the dbBookId and pageNumber directly
-      const currentDbBookId = dbBookId;
+      // Ensure we're on the correct page first
+      console.log(`Automation: Current page index: ${index + 1}, target page: ${pageNumber}`);
       
-      // Force regeneration to ensure fresh extraction
+      if (index + 1 !== pageNumber) {
+        console.log(`Automation: Page mismatch! Navigating to page ${pageNumber}...`);
+        jumpToPage(pageNumber);
+        
+        // Wait for navigation and state update to complete
+        let navigationAttempts = 0;
+        const maxNavigationAttempts = 10;
+        
+        while (navigationAttempts < maxNavigationAttempts && index + 1 !== pageNumber) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          navigationAttempts++;
+          console.log(`Automation: Waiting for navigation... attempt ${navigationAttempts}, current index: ${index + 1}, target: ${pageNumber}`);
+        }
+        
+        if (index + 1 !== pageNumber) {
+          throw new Error(`Failed to navigate to page ${pageNumber}. Still on page ${index + 1} after ${maxNavigationAttempts} attempts`);
+        }
+        
+        // Additional wait for page to fully render
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      console.log(`Automation: Successfully on page ${pageNumber}, starting OCR extraction...`);
+      
+      // Force regeneration to ensure fresh extraction for the current page
       await extractTextFromPage(true);
       
-      // Wait a bit longer to ensure the process completes
+      // Wait for both OCR and summarization to complete
       let attempts = 0;
-      const maxAttempts = 30; // Wait up to 30 seconds
+      const maxAttempts = 45; // Increased to 45 seconds max wait
+      let lastHasText = false;
+      let lastHasSummary = false;
       
       while (attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -822,36 +849,59 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         const { data } = await supabase
           .from('page_summaries')
           .select('ocr_text, summary_md')
-          .eq('book_id', currentDbBookId)
+          .eq('book_id', dbBookId)
           .eq('page_number', pageNumber)
           .maybeSingle();
         
-        const hasText = data?.ocr_text?.trim();
-        const hasSummary = data?.summary_md?.trim();
+        const hasText = !!data?.ocr_text?.trim();
+        const hasSummary = !!data?.summary_md?.trim();
         
+        // Log progress when status changes
+        if (hasText !== lastHasText || hasSummary !== lastHasSummary) {
+          console.log(`Automation: Page ${pageNumber} progress - OCR: ${hasText ? 'COMPLETE' : 'PENDING'}, Summary: ${hasSummary ? 'COMPLETE' : 'PENDING'}`);
+          lastHasText = hasText;
+          lastHasSummary = hasSummary;
+        }
+        
+        // Success condition: both OCR text and summary are present
         if (hasText && hasSummary) {
-          console.log(`Automation: Page ${pageNumber} processing completed successfully`);
+          console.log(`Automation: Page ${pageNumber} processing completed successfully after ${attempts} seconds`);
           return;
         }
         
-        console.log(`Automation: Waiting for page ${pageNumber} completion... Attempt ${attempts}/${maxAttempts}`);
-        console.log('Automation: Status -', { 
-          ocrLoading, 
-          summLoading, 
-          hasText: !!hasText, 
-          hasSummary: !!hasSummary 
-        });
+        // If we have text but no summary, and summarization is not loading, something might be wrong
+        if (hasText && !hasSummary && !summLoading && attempts > 10) {
+          console.warn(`Automation: Page ${pageNumber} has OCR text but summarization seems stuck. Checking loading states...`);
+          console.log(`Automation: OCR Loading: ${ocrLoading}, Summary Loading: ${summLoading}`);
+        }
+        
+        // Periodic progress log
+        if (attempts % 5 === 0) {
+          console.log(`Automation: Page ${pageNumber} waiting... ${attempts}/${maxAttempts}s`);
+        }
       }
       
       // If we reach here, the process didn't complete in time
-      console.warn(`Automation: Extraction/summarization timed out for page ${pageNumber}`);
-      throw new Error(`Process timed out for page ${pageNumber}`);
+      const finalCheck = await supabase
+        .from('page_summaries')
+        .select('ocr_text, summary_md')
+        .eq('book_id', dbBookId)
+        .eq('page_number', pageNumber)
+        .maybeSingle();
+        
+      const finalHasText = !!finalCheck.data?.ocr_text?.trim();
+      const finalHasSummary = !!finalCheck.data?.summary_md?.trim();
+      
+      console.error(`Automation: Page ${pageNumber} processing timeout after ${maxAttempts} seconds`);
+      console.error(`Automation: Final status - OCR: ${finalHasText ? 'COMPLETE' : 'MISSING'}, Summary: ${finalHasSummary ? 'COMPLETE' : 'MISSING'}`);
+      
+      throw new Error(`Processing timeout: Page ${pageNumber} - OCR: ${finalHasText ? '✓' : '✗'}, Summary: ${finalHasSummary ? '✓' : '✗'}`);
       
     } catch (error) {
-      console.error(`Automation: Error in extraction and summarization for page ${pageNumber}:`, error);
+      console.error(`Automation: Error processing page ${pageNumber}:`, error);
       throw error;
     }
-  }, [extractTextFromPage, ocrLoading, summLoading, dbBookId, supabase]);
+  }, [extractTextFromPage, ocrLoading, summLoading, dbBookId, supabase, index, jumpToPage]);
 
   const checkIfPageProcessed = useCallback(async (pageNumber: number): Promise<boolean> => {
     try {
