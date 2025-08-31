@@ -34,9 +34,51 @@ serve(async (req: Request) => {
       });
     }
 
+    // Check if this is a content page that needs detailed structure
+    const isContentPage = (text: string): boolean => {
+      // Check for non-content page indicators
+      const nonContentKeywords = [
+        // Cover page indicators
+        "غلاف", "عنوان", "المؤلف", "الناشر", "الطبعة", "cover", "title page", "author", "publisher", "edition",
+        // Index/TOC indicators
+        "قائمة المحتويات", "فهرس", "المحتويات", "جدول المحتويات", "table of contents", "contents", "index",
+        // Reference page indicators
+        "المراجع", "الببليوجرافيا", "references", "bibliography", "الفهرس الأبجدي", "alphabetical index",
+        // Acknowledgments/preface
+        "شكر وتقدير", "تقدير", "مقدمة المؤلف", "acknowledgments", "preface", "foreword"
+      ];
+      
+      const hasNonContentKeywords = nonContentKeywords.some(keyword => 
+        text.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      if (hasNonContentKeywords) return false;
+      
+      // Check for content indicators
+      const contentIndicators = [
+        // Educational content
+        "تعريف", "مفهوم", "نظرية", "قانون", "معادلة", "مثال", "تمرين", "مسألة", "حل", "الحل",
+        "definition", "concept", "theory", "law", "equation", "example", "exercise", "problem", "solution",
+        // Chapter/lesson indicators
+        "الفصل", "الدرس", "الوحدة", "chapter", "lesson", "unit", "section",
+        // Scientific/mathematical content
+        "احسب", "اشرح", "قارن", "وضح", "برهن", "calculate", "explain", "compare", "demonstrate", "prove"
+      ];
+      
+      const hasContentIndicators = contentIndicators.some(keyword => 
+        text.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      return hasContentIndicators && text.length > 200; // Must have substantial content
+    };
+
+    const needsDetailedStructure = isContentPage(text);
+    console.log(`Page type: ${needsDetailedStructure ? 'Content page' : 'Non-content page'}`);
+    
     const notStated = lang === "ar" ? "غير واضح في النص" : "Not stated in text";
 
-    const prompt = `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+    const prompt = needsDetailedStructure ? 
+      `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 Text to summarize (single page, do not infer beyond it):
 """
 ${text}
@@ -88,7 +130,23 @@ Constraints:
 - Use ${lang} throughout. Use Arabic punctuation if ${lang} = ar.
 - No external knowledge or hallucinations; if something is missing, write "${notStated}".
 - 300–600 words total (more if solving problems). Prefer concise bullets. Preserve equations/symbols. Avoid decorative characters and excessive bolding.
-- When solving problems, show ALL calculation steps clearly.`;
+- When solving problems, show ALL calculation steps clearly.` :
+      `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+Text to summarize (non-educational page):
+"""
+${text}
+"""
+
+Task: Create a simple summary in ${lang} using clean Markdown with H3 headings (###).
+
+### ${lang === "ar" ? "نظرة عامة" : "Overview"}
+Brief description of the page content and purpose
+
+Constraints:
+- Use ${lang} throughout
+- 100-200 words only
+- Don't add unnecessary sections
+- Focus on simple description of content`;
 
     console.log('Making request to DeepSeek API...');
     const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {

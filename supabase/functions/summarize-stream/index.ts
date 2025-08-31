@@ -102,6 +102,44 @@ serve(async (req: Request) => {
     }
 
     // Extract numbered questions/problems from the text
+    // Check if this is a content page that needs detailed structure
+    const isContentPage = (text: string): boolean => {
+      // Check for non-content page indicators
+      const nonContentKeywords = [
+        // Cover page indicators
+        "غلاف", "عنوان", "المؤلف", "الناشر", "الطبعة", "cover", "title page", "author", "publisher", "edition",
+        // Index/TOC indicators (already handled above)
+        "قائمة المحتويات", "فهرس", "المحتويات", "جدول المحتويات", "table of contents", "contents", "index",
+        // Reference page indicators
+        "المراجع", "الببليوجرافيا", "references", "bibliography", "الفهرس الأبجدي", "alphabetical index",
+        // Acknowledgments/preface
+        "شكر وتقدير", "تقدير", "مقدمة المؤلف", "acknowledgments", "preface", "foreword"
+      ];
+      
+      const hasNonContentKeywords = nonContentKeywords.some(keyword => 
+        text.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      if (hasNonContentKeywords) return false;
+      
+      // Check for content indicators
+      const contentIndicators = [
+        // Educational content
+        "تعريف", "مفهوم", "نظرية", "قانون", "معادلة", "مثال", "تمرين", "مسألة", "حل", "الحل",
+        "definition", "concept", "theory", "law", "equation", "example", "exercise", "problem", "solution",
+        // Chapter/lesson indicators
+        "الفصل", "الدرس", "الوحدة", "chapter", "lesson", "unit", "section",
+        // Scientific/mathematical content
+        "احسب", "اشرح", "قارن", "وضح", "برهن", "calculate", "explain", "compare", "demonstrate", "prove"
+      ];
+      
+      const hasContentIndicators = contentIndicators.some(keyword => 
+        text.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      return hasContentIndicators && text.length > 200; // Must have substantial content
+    };
+
     const extractQuestionNumbers = (text: string): number[] => {
       const matches = text.match(/(?:^|\s)(\d{1,3})[\u002E\u06D4]\s*[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z]/gm);
       if (!matches) return [];
@@ -118,12 +156,15 @@ serve(async (req: Request) => {
       return [...new Set(numbers)];
     };
 
+    const needsDetailedStructure = isContentPage(text);
     const requiredQuestionIds = extractQuestionNumbers(text);
-    console.log(`Extracted question numbers: [${requiredQuestionIds.join(', ')}]`);
+    console.log(`Page type: ${needsDetailedStructure ? 'Content page' : 'Non-content page'}, Questions: [${requiredQuestionIds.join(', ')}]`);
 
     const notStated = lang === "ar" ? "غير واضح في النص" : "Not stated in text";
 
-    const prompt = `لخص هذا النص بإيجاز وبطريقة مفيدة للطلاب (صفحة واحدة فقط):
+    // Create appropriate prompt based on page type
+    const prompt = needsDetailedStructure ? 
+      `لخص هذا النص بإيجاز وبطريقة مفيدة للطلاب (صفحة واحدة فقط):
 """
 ${text}
 """
@@ -169,11 +210,26 @@ ${requiredQuestionIds.length > 0 ? `
 - لا تكرر المحتوى
 - كن واضحاً ومفصلاً
 - قدم كل التفاصيل المهمة
-- تأكد من حل جميع الأسئلة المرقمة`;
+- تأكد من حل جميع الأسئلة المرقمة` :
+      `لخص هذا النص بإيجاز (صفحة غير تعليمية):
+"""
+${text}
+"""
 
-    // Use Arabic prompt if language is Arabic
+اكتب ملخصاً بسيطاً وموجزاً باللغة العربية باستخدام Markdown مع عناوين H3 (###).
+
+### نظرة عامة
+وصف موجز لمحتوى الصفحة ووظيفتها
+
+قيود:
+- 100-200 كلمة فقط
+- لا تضيف أقسام غير ضرورية
+- ركز على الوصف البسيط للمحتوى`;
+
+    // Use Arabic prompt if language is Arabic, with appropriate structure
     const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 
-      `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+      needsDetailedStructure ? 
+        `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 Text to summarize (single page, do not infer beyond it):
 """
 ${text}
@@ -233,7 +289,22 @@ Constraints:
 - 300-600 words total (more if solving problems)
 - Avoid excessive formatting
 - Preserve equations/symbols from original text
-- When solving problems, show ALL calculation steps clearly`;
+- When solving problems, show ALL calculation steps clearly` :
+        `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+Text to summarize (non-educational page):
+"""
+${text}
+"""
+
+Create a simple summary in ${lang} using clean Markdown with H3 headings (###).
+
+### Overview
+Brief description of the page content and purpose
+
+Constraints:
+- 100-200 words only
+- Don't add unnecessary sections
+- Focus on simple description of content`;
 
     console.log('Making streaming request to DeepSeek API...');
     const dsRes = await fetch("https://api.deepseek.com/v1/chat/completions", {
