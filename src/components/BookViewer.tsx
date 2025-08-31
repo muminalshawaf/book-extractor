@@ -198,6 +198,36 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const zoomIn = () => setZoom(prev => Math.min(Z.max, prev + Z.step));
   const zoomOut = () => setZoom(prev => Math.max(Z.min, prev - Z.step));
   const resetZoom = () => setZoom(1);
+  
+  // Advanced zoom functions for ZoomControls
+  const centerImage = () => {
+    zoomApiRef.current?.resetTransform();
+    setZoomMode("custom");
+  };
+  
+  const fitToWidth = () => {
+    if (!containerRef.current) return;
+    const containerWidth = containerRef.current.clientWidth;
+    const targetZoom = containerWidth / naturalSize.width;
+    setZoom(Math.max(Z.min, Math.min(Z.max, targetZoom)));
+    setZoomMode("fit-width");
+    zoomApiRef.current?.resetTransform();
+  };
+  
+  const fitToHeight = () => {
+    if (!containerRef.current) return;
+    const containerHeight = containerRef.current.clientHeight;
+    const targetZoom = containerHeight / naturalSize.height;
+    setZoom(Math.max(Z.min, Math.min(Z.max, targetZoom)));
+    setZoomMode("fit-height");
+    zoomApiRef.current?.resetTransform();
+  };
+  
+  const actualSize = () => {
+    setZoom(1);
+    setZoomMode("actual-size");
+    zoomApiRef.current?.resetTransform();
+  };
 
   // Image loading effect
   useEffect(() => {
@@ -978,6 +1008,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             canNext={index < total - 1}
             onZoomIn={zoomIn}
             onZoomOut={zoomOut}
+            onCenter={centerImage}
+            onToggleFullscreen={toggleFullscreen}
             fullscreenButton={<FullscreenButton />}
           />
           
@@ -1197,15 +1229,26 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         </TransformComponent>
                       </TransformWrapper>
 
-                      {/* Zoom controls would go here */}
-                      <div className="absolute top-2 right-2 flex gap-2">
-                        <Button onClick={zoomOut} size="sm" variant="outline">
-                          <ZoomOut className="h-3 w-3" />
-                        </Button>
-                        <Button onClick={zoomIn} size="sm" variant="outline">
-                          <ZoomIn className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      {/* Advanced Zoom Controls */}
+                      <ZoomControls
+                        zoom={zoom}
+                        minZoom={Z.min}
+                        maxZoom={Z.max}
+                        zoomStep={Z.step}
+                        mode={zoomMode}
+                        onZoomIn={zoomIn}
+                        onZoomOut={zoomOut}
+                        onFitWidth={fitToWidth}
+                        onFitHeight={fitToHeight}
+                        onActualSize={actualSize}
+                        onCenter={centerImage}
+                        onToggleFullscreen={toggleFullscreen}
+                        onPrev={index > 0 ? goPrev : undefined}
+                        onNext={index < total - 1 ? goNext : undefined}
+                        rtl={rtl}
+                        side="right"
+                        className="opacity-60 hover:opacity-100 transition-opacity"
+                      />
                     </div>
                   </TouchGestureHandler>
 

@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Grid3X3, Sparkles, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Grid3X3, Sparkles, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 
 interface MobileReaderChromeProps {
   title: string;
@@ -15,6 +15,8 @@ interface MobileReaderChromeProps {
   canNext: boolean;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  onCenter?: () => void;
+  onToggleFullscreen?: () => void;
   fullscreenButton?: React.ReactNode;
 }
 
@@ -30,6 +32,8 @@ export function MobileReaderChrome({
   canNext,
   onZoomIn,
   onZoomOut,
+  onCenter,
+  onToggleFullscreen,
   fullscreenButton,
 }: MobileReaderChromeProps) {
   const PrevIcon = rtl ? ChevronRight : ChevronLeft;
@@ -60,17 +64,22 @@ export function MobileReaderChrome({
       {/* Bottom action bar */}
       <div className="fixed bottom-0 inset-x-0 z-30 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/75 border-t pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto max-w-screen-md px-3 py-2">
-          <div className={cn("grid grid-cols-5 items-center gap-2", rtl && "direction-rtl")}> 
+          <div className={cn("grid grid-cols-6 items-center gap-2", rtl && "direction-rtl")}> 
             <Button variant="secondary" className="h-10 md:h-12" onClick={onPrev} disabled={!canPrev} aria-label={rtl ? "السابق" : "Previous"}>
               <PrevIcon className="h-5 w-5" />
             </Button>
             <Button variant="secondary" className="h-10 md:h-12" onClick={onZoomOut} aria-label={rtl ? "تصغير" : "Zoom out"}>
               <ZoomOut className="h-5 w-5" />
             </Button>
+            {onCenter && (
+              <Button variant="secondary" className="h-10 md:h-12" onClick={onCenter} aria-label={rtl ? "توسيط" : "Center"}>
+                <Maximize2 className="h-5 w-5" />
+              </Button>
+            )}
 
-            <Button className="h-10 md:h-12" onClick={onOpenInsights} aria-label={rtl ? "لوحة الرؤى" : "Insights"}>
-              <Sparkles className="h-5 w-5 mr-2" />
-              <span className="text-sm">{rtl ? "الرؤى" : "Insights"}</span>
+            <Button className="h-10 md:h-12 col-span-1" onClick={onOpenInsights} aria-label={rtl ? "لوحة الرؤى" : "Insights"}>
+              <Sparkles className="h-5 w-5 mr-1" />
+              <span className="text-xs">{rtl ? "الرؤى" : "AI"}</span>
             </Button>
 
             <Button variant="secondary" className="h-10 md:h-12" onClick={onZoomIn} aria-label={rtl ? "تكبير" : "Zoom in"}>
