@@ -85,28 +85,31 @@ serve(async (req) => {
   ]
 }
 
-CRITICAL INSTRUCTIONS FOR SECTION RECOGNITION:
-1. IDENTIFY VISUAL SECTIONS: Recognize distinct content areas - sidebars, main content, headers, boxed sections, highlighted areas
-2. SECTION BOUNDARIES: Use visual cues (borders, background colors, spacing, fonts) to identify where one section ends and another begins
-3. PRESERVE SECTION STRUCTURE: **MANDATORY** - Add clear section breaks using EXACTLY "--- SECTION: [title] ---" markers between visually distinct areas
-4. HEADER RECOGNITION: Identify section headers like "مهن في الكيمياء", "مثال 2-1", "الكيمياء في واقع الحياة", etc. and mark them clearly
-5. SIDEBAR CONTENT: Treat sidebar content as separate sections from main content
-6. BOXED TEXT: Preserve content in colored boxes, highlighted areas, or bordered sections as distinct units
+CRITICAL INSTRUCTIONS FOR TEXT EXTRACTION:
+1. PAGE TITLE FIRST: **MANDATORY** - Start with any page title or main heading at the very top (like "قائمة المحتويات", "الفصل الأول", etc.)
+2. EXTRACT EVERYTHING: Include ALL text elements - page titles, headers, subheaders, main content, boxed text, highlighted sections, formulas, questions, captions
+3. VISUAL SECTIONS: Recognize distinct content areas - sidebars, main content, headers, boxed sections, highlighted areas
+4. SECTION BOUNDARIES: Use visual cues (borders, background colors, spacing, fonts) to identify where one section ends and another begins
+5. PRESERVE SECTION STRUCTURE: Add clear section breaks using "--- SECTION: [title] ---" markers between visually distinct areas
+6. HEADER RECOGNITION: Identify section headers like "مهن في الكيمياء", "مثال 2-1", "الكيمياء في واقع الحياة", etc. and mark them clearly
+7. SIDEBAR CONTENT: Treat sidebar content as separate sections from main content
+8. BOXED TEXT: Preserve content in colored boxes, highlighted areas, or bordered sections as distinct units
 
 TEXT EXTRACTION REQUIREMENTS:
-7. EXTRACT EVERYTHING: Include ALL text elements - headers, subheaders, main content, boxed text, highlighted sections, formulas, questions, captions
-8. Column Reading Order: For multiple columns, read them in correct Arabic order (rightmost column = order 1, then left)  
-9. Preserve Structure: Maintain exact formatting of mathematical formulas, equations, chemical symbols, and units (ml, L, %, etc.)
-10. Include All Sections: Capture section titles, highlighted formula boxes, "ماذا قرأت؟" questions, step-by-step solutions
-11. Maintain Numbering: Keep problem numbers, step numbers, and bullet points in exact sequence
-12. Formula Preservation: Copy mathematical expressions exactly as written, including fraction layouts and special formatting
-13. Complete Content: Do NOT ignore any visible text - extract everything including page numbers, watermarks, ministry stamps
-14. Exact Transcription: DO NOT summarize, paraphrase, or modify - extract exactly as written
-15. Layout Awareness: Use spacing and formatting to show relationships between elements
+9. Column Reading Order: For multiple columns, read them in correct Arabic order (rightmost column = order 1, then left)  
+10. Preserve Structure: Maintain exact formatting of mathematical formulas, equations, chemical symbols, and units (ml, L, %, etc.)
+11. Include All Sections: Capture section titles, highlighted formula boxes, "ماذا قرأت؟" questions, step-by-step solutions
+12. Maintain Numbering: Keep problem numbers, step numbers, and bullet points in exact sequence
+13. Formula Preservation: Copy mathematical expressions exactly as written, including fraction layouts and special formatting
+14. Complete Content: Do NOT ignore any visible text - extract everything including page numbers, watermarks, ministry stamps, PAGE TITLES
+15. Exact Transcription: DO NOT summarize, paraphrase, or modify - extract exactly as written
+16. Layout Awareness: Use spacing and formatting to show relationships between elements
 
-MANDATORY SECTION FORMATTING:
-- Every distinct section MUST start with "--- SECTION: [exact section title] ---"
+FORMAT GUIDELINES:
+- Start with the main page title if visible (e.g., "قائمة المحتويات")
+- Then use "--- SECTION: [exact section title] ---" for distinct sections
 - Examples:
+  * Main page title: "قائمة المحتويات"
   * "--- SECTION: الكيمياء في واقع الحياة ---"
   * "--- SECTION: مهن في الكيمياء ---" 
   * "--- SECTION: مثال 2-1 ---"
@@ -114,19 +117,15 @@ MANDATORY SECTION FORMATTING:
   * "--- SECTION: مسائل تدريبية ---"
 
 EXAMPLE OUTPUT FORMAT:
+قائمة المحتويات
+
 --- SECTION: الكيمياء في واقع الحياة ---
 النسبة المئوية بدلالة الحجم تصف عادة المحاليل...
 
 --- SECTION: مهن في الكيمياء ---
 فنيو الصيدلة يستعين الكثير من الصيادلة...
 
---- SECTION: مثال 2-1 ---
-حساب المولارية يحتوي 100.5...
-
---- SECTION: الديزل الحيوي ---
-يعد الديزل الحيوي وقوداً بديلاً نظيف الاحتراق...
-
-Focus on 100% completeness while preserving visual structure and section boundaries.`
+Focus on 100% completeness, especially capturing page titles and main headings.`
       : `Analyze this image and extract all text with high accuracy. Please return a JSON response with the following structure:
 
 {
