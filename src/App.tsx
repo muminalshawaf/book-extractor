@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import Library from "./pages/Library";
 import LessonPage from "./pages/LessonPage";
 import ChapterPage from "./pages/ChapterPage";
+import AdminProcessing from "./pages/AdminProcessing";
 import GlobalSearch from "./components/search/GlobalSearch";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/" element={<Navigate to={`/book/${books[0].id}`} replace />} />
           <Route path="/library" element={<Library />} />
           <Route path="/book/:bookId" element={<Index />} />
+          <Route path="/admin/processing" element={<AdminProcessing />} />
           
           {/* New SEO-optimized routes with Arabic slugs */}
           <Route path="/:bookSlug/الفصل-:chapterNumber" element={<ChapterPage />} />
