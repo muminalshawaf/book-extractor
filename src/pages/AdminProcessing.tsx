@@ -198,17 +198,22 @@ const AdminProcessing = () => {
           if ((ocrText && !existingData?.ocr_text) || 
               (summary && !existingData?.summary_md) || 
               !skipProcessed) {
-            await supabase.from('page_summaries').upsert({
-              book_id: selectedBookId,
-              page_number: pageNum,
-              ocr_text: ocrText,
-              summary_md: summary,
-              ocr_confidence: ocrConfidence,
-              confidence: summaryConfidence,
-              updated_at: new Date().toISOString()
-            });
+            
+            try {
+              await callFunction('save-page-summary', {
+                book_id: selectedBookId,
+                page_number: pageNum,
+                ocr_text: ocrText,
+                summary_md: summary,
+                ocr_confidence: ocrConfidence,
+                confidence: summaryConfidence
+              });
 
-            addLog(`Page ${pageNum}: Saved to database`);
+              addLog(`Page ${pageNum}: Saved to database`);
+            } catch (saveError) {
+              addLog(`Page ${pageNum}: Failed to save to database - ${saveError.message}`);
+              setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
+            }
           }
 
           setStatus(prev => ({ ...prev, processed: prev.processed + 1 }));

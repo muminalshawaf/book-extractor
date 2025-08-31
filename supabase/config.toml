@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.ocr-gemini]
 verify_jwt = false
+
+[functions.ocr-deepseek]
+verify_jwt = false

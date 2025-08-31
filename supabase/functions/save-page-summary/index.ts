@@ -1,87 +1,64 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-  console.error('Missing Supabase env vars');
 }
 
-const supabase = createClient(SUPABASE_URL!, SERVICE_ROLE_KEY!);
-
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const body = await req.json();
-    console.log('Raw request body:', JSON.stringify(body, null, 2));
+    console.log('Save page summary function started')
     
-    const book_id = String(body?.book_id || '').trim();
-    const page_number = Number(body?.page_number);
-    const ocr_text = typeof body?.ocr_text === 'string' ? body.ocr_text : null;
-    const summary_md = typeof body?.summary_md === 'string' ? body.summary_md : null;
-    const confidence = typeof body?.confidence === 'number' ? body.confidence : null;
-    const ocr_confidence = typeof body?.ocr_confidence === 'number' ? body.ocr_confidence : null;
-    const confidence_meta = body?.confidence_meta && typeof body.confidence_meta === 'object' ? body.confidence_meta : null;
+    const { 
+      book_id, 
+      page_number, 
+      ocr_text, 
+      summary_md, 
+      ocr_confidence, 
+      confidence 
+    } = await req.json()
 
-    console.log('Processed parameters:', {
-      book_id,
-      page_number,
-      ocr_text_type: typeof body?.ocr_text,
-      ocr_text_length: body?.ocr_text?.length,
-      ocr_text_preview: typeof body?.ocr_text === 'string' ? body.ocr_text.substring(0, 100) + '...' : 'NOT STRING',
-      summary_md_length: summary_md?.length,
-      confidence,
-      ocr_confidence
-    });
+    console.log(`Saving summary for book ${book_id}, page ${page_number}`)
 
-    if (!book_id || !Number.isFinite(page_number) || page_number < 1) {
-      return new Response(JSON.stringify({ error: 'Invalid payload' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // Create Supabase client with service role key for database writes
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
 
-    const payload: Record<string, any> = { book_id, page_number };
-    if (ocr_text !== null) payload.ocr_text = ocr_text;
-    if (summary_md !== null) payload.summary_md = summary_md;
-    if (confidence !== null) payload.confidence = confidence;
-    if (ocr_confidence !== null) payload.ocr_confidence = ocr_confidence;
-    if (confidence_meta !== null) payload.confidence_meta = confidence_meta;
-
-    console.log('Final payload for upsert:', JSON.stringify(payload, null, 2));
-
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('page_summaries')
-      .upsert(payload, { onConflict: 'book_id,page_number' })
+      .upsert({
+        book_id,
+        page_number,
+        ocr_text,
+        summary_md,
+        ocr_confidence: ocr_confidence || 0.8,
+        confidence: confidence || 0.8,
+        updated_at: new Date().toISOString()
+      })
       .select()
-      .single();
 
     if (error) {
-      console.error('Upsert error:', error);
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      console.error('Database error:', error)
+      throw error
     }
 
-    return new Response(JSON.stringify({ ok: true, record: data }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (e: any) {
-    console.error('save-page-summary failed:', e);
-    return new Response(JSON.stringify({ error: e?.message || 'Unknown error' }), {
+    console.log(`Successfully saved page summary for page ${page_number}`)
+
+    return new Response(JSON.stringify({ success: true, data }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+
+  } catch (error) {
+    console.error('Error in save-page-summary function:', error)
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
   }
-});
+})
