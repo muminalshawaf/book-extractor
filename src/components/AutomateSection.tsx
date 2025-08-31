@@ -276,7 +276,12 @@ export const AutomateSection: React.FC<AutomateSectionProps> = ({
               min={1}
               max={totalPages}
               value={startPage}
-              onChange={(e) => setStartPage(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={(e) => {
+                const newStartPage = Math.max(1, parseInt(e.target.value) || 1);
+                setStartPage(newStartPage);
+                // Auto-adjust end page to match start page for single page processing
+                setEndPage(Math.max(newStartPage, Math.min(newStartPage, totalPages)));
+              }}
               className="w-20"
               disabled={progress.isRunning}
             />
@@ -301,7 +306,10 @@ export const AutomateSection: React.FC<AutomateSectionProps> = ({
             {!progress.isRunning ? (
               <Button onClick={startAutomation} variant="default" size="sm">
                 <Play className="h-4 w-4 mr-2" />
-                {rtl ? `معالجة ${endPage - startPage + 1} صفحة` : `Process ${endPage - startPage + 1} pages`}
+                {rtl ? 
+                  (endPage === startPage ? `معالجة الصفحة ${startPage}` : `معالجة ${endPage - startPage + 1} صفحة`) : 
+                  (endPage === startPage ? `Process page ${startPage}` : `Process ${endPage - startPage + 1} pages`)
+                }
               </Button>
             ) : (
               <Button onClick={stopAutomation} variant="destructive" size="sm">
