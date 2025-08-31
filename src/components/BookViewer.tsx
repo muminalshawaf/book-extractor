@@ -35,6 +35,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { MobileControlsOverlay } from "@/components/reader/MobileControlsOverlay";
 import { MobileReaderChrome } from "@/components/reader/MobileReaderChrome";
 import { IndexableOCRContent } from "@/components/seo/IndexableOCRContent";
+import { AutomateSection } from "./AutomateSection";
 
 export type BookPage = {
   src: string;
@@ -795,6 +796,39 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }
   };
 
+  // Automation functions for batch processing
+  const handleNavigateToPage = useCallback((page: number) => {
+    jumpToPage(page);
+  }, [jumpToPage]);
+
+  const handleExtractAndSummarize = useCallback(async () => {
+    await extractTextFromPage(true);
+  }, []);
+
+  const checkIfPageProcessed = useCallback(async (pageNumber: number): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('page_summaries')
+        .select('ocr_text, summary_md')
+        .eq('book_id', dbBookId)
+        .eq('page_number', pageNumber)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('Error checking page processed status:', error);
+        return false;
+      }
+
+      const hasOcr = data?.ocr_text?.trim();
+      const hasSummary = data?.summary_md?.trim();
+      
+      return !!(hasOcr && hasSummary);
+    } catch (error) {
+      console.warn('Failed to check if page is processed:', error);
+      return false;
+    }
+  }, [dbBookId]);
+
   // Post-processing function to ensure all numbered questions are answered
   const checkAndCompleteMissingQuestions = async (generatedSummary: string, originalText: string) => {
     try {
@@ -1335,6 +1369,17 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 </CardContent>
               </Card>
             </div>
+
+            {/* Automate Processing Section */}
+            <AutomateSection
+              bookTitle={title}
+              totalPages={total}
+              currentPage={index + 1}
+              rtl={rtl}
+              onNavigateToPage={handleNavigateToPage}
+              onExtractAndSummarize={handleExtractAndSummarize}
+              checkIfPageProcessed={checkIfPageProcessed}
+            />
 
             {/* OCR Content - Now indexable */}
             <IndexableOCRContent
