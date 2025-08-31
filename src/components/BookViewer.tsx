@@ -1252,6 +1252,22 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                     </div>
                   </TouchGestureHandler>
 
+                  {/* Mobile Controls Overlay */}
+                  {isMobile && (
+                    <MobileControlsOverlay
+                      progressText={`${index + 1} / ${total}`}
+                      rtl={rtl}
+                      onPrev={goPrev}
+                      onNext={goNext}
+                      canPrev={index > 0}
+                      canNext={index < total - 1}
+                      onZoomIn={zoomIn}
+                      onZoomOut={zoomOut}
+                      onCenter={centerImage}
+                      onToggleFullscreen={toggleFullscreen}
+                    />
+                  )}
+
                   {/* Navigation Controls */}
                   <div className={cn("mt-4 grid grid-cols-3 items-center gap-2 px-4 pb-4", rtl && "[direction:rtl]")}>
                     <Button 
@@ -1280,8 +1296,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                           min={1}
                           max={total}
                           placeholder={rtl ? "إلى" : "Go to"}
-                          value=""
-                          onChange={e => setGotoInput("")}
+                          value={gotoInput}
+                          onChange={e => setGotoInput(e.target.value)}
                           className="w-20"
                         />
                         <Button type="submit" variant="outline" size="sm">
