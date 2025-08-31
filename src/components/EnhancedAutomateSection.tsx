@@ -108,11 +108,32 @@ export const EnhancedAutomateSection: React.FC<EnhancedAutomateSectionProps> = (
     }
 
     try {
-      const isValid = await validateCurrentPage(pageNumber);
+      // Add retry mechanism to handle image loading delays
+      let isValid = false;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (!isValid && attempts < maxAttempts) {
+        attempts++;
+        console.log(`[AUTOMATION ${new Date().toISOString()}] Validation attempt ${attempts}/${maxAttempts} for page ${pageNumber}`);
+        
+        // Wait a bit for the image to load if this isn't the first attempt
+        if (attempts > 1) {
+          console.log(`[AUTOMATION ${new Date().toISOString()}] Waiting for image to load before retry...`);
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+        
+        isValid = await validateCurrentPage(pageNumber);
+        
+        if (!isValid && attempts < maxAttempts) {
+          console.log(`[AUTOMATION ${new Date().toISOString()}] Page ${pageNumber} validation failed, retrying...`);
+        }
+      }
+      
       if (!isValid) {
         return { 
           valid: false, 
-          error: `Page ${pageNumber}: Displayed content doesn't match expected page` 
+          error: `Page ${pageNumber}: Displayed content doesn't match expected page after ${maxAttempts} attempts` 
         };
       }
       return { valid: true };
