@@ -136,7 +136,7 @@ const AdminProcessing = () => {
           let ocrText = (skipProcessed ? existingData?.ocr_text : '') || '';
           let ocrConfidence = 0.8;
 
-          if (!ocrText) {
+          if (!ocrText || !skipProcessed) {
             addLog(`Page ${pageNum}: Extracting text...`);
             
             try {
@@ -173,7 +173,7 @@ const AdminProcessing = () => {
           let summary = (skipProcessed ? existingData?.summary_md : '') || '';
           let summaryConfidence = 0.8;
 
-          if (!summary && ocrText) {
+          if ((!summary && ocrText) || (!skipProcessed && ocrText)) {
             addLog(`Page ${pageNum}: Generating summary...`);
             
             try {
