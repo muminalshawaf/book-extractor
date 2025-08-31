@@ -20,8 +20,6 @@ import { ZoomControls, ZoomMode } from "@/components/ZoomControls";
 import { MiniMap } from "@/components/MiniMap";
 import { useImagePreloader } from "@/hooks/useImagePreloader";
 import { EnhancedSummary } from "@/components/EnhancedSummary";
-import { EnhancedAutomateSection } from "./EnhancedAutomateSection";
-import { DebugHUD } from "./DebugHUD";
 import { ImprovedErrorHandler } from "@/components/ImprovedErrorHandler";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { TouchGestureHandler } from "@/components/TouchGestureHandler";
@@ -298,31 +296,31 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         }
         if (cancelled) return;
         
-        // Only update state if we have actual data from the database
-        if (data) {
-          const ocr = (data.ocr_text ?? '').trim();
-          const sum = (data.summary_md ?? '').trim();
-          
-          console.log('Setting extracted text from database:', { 
-            ocrLength: ocr.length, 
-            summaryLength: sum.length,
-            ocrPreview: ocr.substring(0, 100) + '...'
-          });
-          
-          setExtractedText(ocr);
-          setSummary(sum);
-          setSummaryConfidence(typeof data.confidence === 'number' ? data.confidence : undefined);
-          setOcrQuality(typeof data.ocr_confidence === 'number' ? data.ocr_confidence : undefined);
-          
-          try {
-            if (ocr) localStorage.setItem(ocrKey, ocr);
-            else localStorage.removeItem(ocrKey);
-            if (sum) localStorage.setItem(sumKey, sum);
-            else localStorage.removeItem(sumKey);
-          } catch {}
-        } else {
-          console.log('No database record found for page', index + 1, '- keeping existing cached content');
-        }
+        const ocr = (data?.ocr_text ?? '').trim();
+        const sum = (data?.summary_md ?? '').trim();
+        
+        console.log('Setting extracted text from database:', { 
+          ocrLength: ocr.length, 
+          summaryLength: sum.length,
+          ocrPreview: ocr.substring(0, 100) + '...'
+        });
+        
+        console.log('DEBUG: Before setting state - current extractedText length:', extractedText.length);
+        console.log('DEBUG: Before setting state - current summary length:', summary.length);
+        
+        setExtractedText(ocr);
+        setSummary(sum);
+        
+        console.log('DEBUG: State update called with OCR length:', ocr.length, 'Summary length:', sum.length);
+        setSummaryConfidence(typeof data?.confidence === 'number' ? data.confidence : undefined);
+        setOcrQuality(typeof data?.ocr_confidence === 'number' ? data.ocr_confidence : undefined);
+        
+        try {
+          if (ocr) localStorage.setItem(ocrKey, ocr);
+          else localStorage.removeItem(ocrKey);
+          if (sum) localStorage.setItem(sumKey, sum);
+          else localStorage.removeItem(sumKey);
+        } catch {}
       } catch (e) {
         console.warn('Failed to fetch page from DB:', e);
       }
@@ -796,225 +794,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       toast.error(rtl ? "فشل في إعادة التوليد" : "Failed to regenerate content");
     }
   };
-
-  // Automation functions for batch processing
-  // Page validation function for automation
-  const validateCurrentPage = async (expectedPage: number): Promise<boolean> => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const currentUrlPage = parseInt(urlParams.get('page') || '1');
-    
-    console.log('VALIDATION:', {
-      expectedPage,
-      currentUrlPage,
-      currentDisplayPage: index + 1,
-      displaySrc,
-      expectedSrc: pages[expectedPage - 1]?.src
-    });
-    
-    // Primary check: URL should match expected page (most reliable)
-    if (currentUrlPage !== expectedPage) {
-      console.warn(`URL page mismatch: expected ${expectedPage}, got ${currentUrlPage}`);
-      return false;
-    }
-    
-    // Secondary check: Wait for React state to catch up (with timeout)
-    let stateCheckAttempts = 0;
-    const maxStateChecks = 5;
-    
-    while (stateCheckAttempts < maxStateChecks) {
-      const currentDisplayPage = index + 1;
-      
-      if (currentDisplayPage === expectedPage) {
-        // State is synchronized, now check image source if available
-        const expectedSrc = pages[expectedPage - 1]?.src;
-        
-        // If we have both sources, check they match
-        if (displaySrc && expectedSrc) {
-          if (displaySrc === expectedSrc) {
-            console.log(`Validation successful for page ${expectedPage}`);
-            return true;
-          } else {
-            // Image source mismatch - this might be okay if image is still loading
-            console.log(`Image source mismatch (may be loading): expected ${expectedSrc}, got ${displaySrc}`);
-            // Allow a brief moment for image to update
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // Check once more
-            if (displaySrc === expectedSrc) {
-              return true;
-            }
-          }
-        } else {
-          // If displaySrc is not available yet, that's okay - state is correct
-          console.log(`State matches, image source not yet available - considering valid`);
-          return true;
-        }
-        
-        break;
-      }
-      
-      // Wait for state to update
-      stateCheckAttempts++;
-      if (stateCheckAttempts < maxStateChecks) {
-        console.log(`Waiting for state to update (attempt ${stateCheckAttempts}/${maxStateChecks})`);
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-    }
-    
-    // Final check - if URL is correct but state hasn't caught up, be more lenient
-    if (currentUrlPage === expectedPage) {
-      console.log(`URL is correct (${expectedPage}), accepting despite state lag`);
-      return true;
-    }
-    
-    console.warn(`Final validation failed for page ${expectedPage}`);
-    return false;
-  };
-
-  const handleNavigateToPage = useCallback((page: number) => {
-    jumpToPage(page);
-  }, [jumpToPage]);
-
-  const handleExtractAndSummarize = useCallback(async (pageNumber: number) => {
-    console.log(`Automation: Starting extraction and summarization for page ${pageNumber}`);
-    
-    try {
-      // Ensure we're on the correct page first
-      console.log(`Automation: Current page index: ${index + 1}, target page: ${pageNumber}`);
-      
-      if (index + 1 !== pageNumber) {
-        console.log(`Automation: Page mismatch! Navigating to page ${pageNumber}...`);
-        jumpToPage(pageNumber);
-        
-        // Wait for navigation and state update to complete with longer intervals
-        let navigationAttempts = 0;
-        const maxNavigationAttempts = 15;
-        
-        // Wait for React state to update - give it some initial time
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Check navigation success by getting current URL page parameter
-        while (navigationAttempts < maxNavigationAttempts) {
-          const urlParams = new URLSearchParams(window.location.search);
-          const currentUrlPage = parseInt(urlParams.get('page') || '1');
-          
-          console.log(`Automation: Waiting for navigation... attempt ${navigationAttempts + 1}, URL page: ${currentUrlPage}, target: ${pageNumber}`);
-          
-          if (currentUrlPage === pageNumber) {
-            console.log(`Automation: Navigation successful! URL shows page ${currentUrlPage}`);
-            break;
-          }
-          
-          await new Promise(resolve => setTimeout(resolve, 800));
-          navigationAttempts++;
-        }
-        
-        if (navigationAttempts >= maxNavigationAttempts) {
-          const urlParams = new URLSearchParams(window.location.search);
-          const currentUrlPage = parseInt(urlParams.get('page') || '1');
-          throw new Error(`Failed to navigate to page ${pageNumber}. Current URL page: ${currentUrlPage} after ${maxNavigationAttempts} attempts`);
-        }
-        
-        // Additional wait for page to fully render
-        await new Promise(resolve => setTimeout(resolve, 1500));
-      }
-      
-      console.log(`Automation: Successfully on page ${pageNumber}, starting OCR extraction...`);
-      
-      // Force regeneration to ensure fresh extraction for the current page
-      await extractTextFromPage(true);
-      
-      // Wait for both OCR and summarization to complete
-      let attempts = 0;
-      const maxAttempts = 45; // Increased to 45 seconds max wait
-      let lastHasText = false;
-      let lastHasSummary = false;
-      
-      while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        attempts++;
-        
-        // Check the database directly for this specific page
-        const { data } = await supabase
-          .from('page_summaries')
-          .select('ocr_text, summary_md')
-          .eq('book_id', dbBookId)
-          .eq('page_number', pageNumber)
-          .maybeSingle();
-        
-        const hasText = !!data?.ocr_text?.trim();
-        const hasSummary = !!data?.summary_md?.trim();
-        
-        // Log progress when status changes
-        if (hasText !== lastHasText || hasSummary !== lastHasSummary) {
-          console.log(`Automation: Page ${pageNumber} progress - OCR: ${hasText ? 'COMPLETE' : 'PENDING'}, Summary: ${hasSummary ? 'COMPLETE' : 'PENDING'}`);
-          lastHasText = hasText;
-          lastHasSummary = hasSummary;
-        }
-        
-        // Success condition: both OCR text and summary are present
-        if (hasText && hasSummary) {
-          console.log(`Automation: Page ${pageNumber} processing completed successfully after ${attempts} seconds`);
-          return;
-        }
-        
-        // If we have text but no summary, and summarization is not loading, something might be wrong
-        if (hasText && !hasSummary && !summLoading && attempts > 10) {
-          console.warn(`Automation: Page ${pageNumber} has OCR text but summarization seems stuck. Checking loading states...`);
-          console.log(`Automation: OCR Loading: ${ocrLoading}, Summary Loading: ${summLoading}`);
-        }
-        
-        // Periodic progress log
-        if (attempts % 5 === 0) {
-          console.log(`Automation: Page ${pageNumber} waiting... ${attempts}/${maxAttempts}s`);
-        }
-      }
-      
-      // If we reach here, the process didn't complete in time
-      const finalCheck = await supabase
-        .from('page_summaries')
-        .select('ocr_text, summary_md')
-        .eq('book_id', dbBookId)
-        .eq('page_number', pageNumber)
-        .maybeSingle();
-        
-      const finalHasText = !!finalCheck.data?.ocr_text?.trim();
-      const finalHasSummary = !!finalCheck.data?.summary_md?.trim();
-      
-      console.error(`Automation: Page ${pageNumber} processing timeout after ${maxAttempts} seconds`);
-      console.error(`Automation: Final status - OCR: ${finalHasText ? 'COMPLETE' : 'MISSING'}, Summary: ${finalHasSummary ? 'COMPLETE' : 'MISSING'}`);
-      
-      throw new Error(`Processing timeout: Page ${pageNumber} - OCR: ${finalHasText ? '✓' : '✗'}, Summary: ${finalHasSummary ? '✓' : '✗'}`);
-      
-    } catch (error) {
-      console.error(`Automation: Error processing page ${pageNumber}:`, error);
-      throw error;
-    }
-  }, [extractTextFromPage, ocrLoading, summLoading, dbBookId, supabase, index, jumpToPage]);
-
-  const checkIfPageProcessed = useCallback(async (pageNumber: number): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase
-        .from('page_summaries')
-        .select('ocr_text, summary_md')
-        .eq('book_id', dbBookId)
-        .eq('page_number', pageNumber)
-        .maybeSingle();
-
-      if (error) {
-        console.warn('Error checking page processed status:', error);
-        return false;
-      }
-
-      const hasOcr = data?.ocr_text?.trim();
-      const hasSummary = data?.summary_md?.trim();
-      
-      return !!(hasOcr && hasSummary);
-    } catch (error) {
-      console.warn('Failed to check if page is processed:', error);
-      return false;
-    }
-  }, [dbBookId]);
 
   // Post-processing function to ensure all numbered questions are answered
   const checkAndCompleteMissingQuestions = async (generatedSummary: string, originalText: string) => {
@@ -1556,37 +1335,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                 </CardContent>
               </Card>
             </div>
-
-            {/* Enhanced Automate Processing Section with Debug Features */}
-            <EnhancedAutomateSection
-              bookTitle={title}
-              totalPages={total}
-              currentPage={index + 1}
-              rtl={rtl}
-              onNavigateToPage={handleNavigateToPage}
-              onExtractAndSummarize={handleExtractAndSummarize}
-              checkIfPageProcessed={checkIfPageProcessed}
-              validateCurrentPage={validateCurrentPage}
-            />
-
-            {/* Debug HUD */}
-            <DebugHUD
-              debugInfo={{
-                currentPage: index + 1,
-                displayedImageSrc: displaySrc,
-                expectedImageSrc: pages[index]?.src || '',
-                imageMatches: displaySrc === pages[index]?.src,
-                extractedTextLength: extractedText.length,
-                summaryLength: summary.length,
-                isProcessing: ocrLoading || summLoading,
-                lastError: lastError?.toString() || null,
-                ocrQuality,
-                summaryConfidence
-              }}
-              rtl={rtl}
-              onValidateImage={async () => await validateCurrentPage(index + 1)}
-              onRefreshPage={() => window.location.reload()}
-            />
 
             {/* OCR Content - Now indexable */}
             <IndexableOCRContent

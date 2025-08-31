@@ -12,18 +12,13 @@ serve(async (req) => {
   }
 
   try {
-    const { imageUrl, language = 'en' } = await req.json();
+    console.log('OCR Gemini function started')
     
-    console.log(`[OCR-GEMINI ${new Date().toISOString()}] Function started`);
-    console.log(`[OCR-GEMINI ${new Date().toISOString()}] Request:`, { 
-      imageUrl: imageUrl?.substring(0, 100) + '...', 
-      language,
-      hasImageUrl: !!imageUrl,
-      timestamp: new Date().toISOString()
-    });
+    const { imageUrl, language = 'en' } = await req.json()
+    console.log('Request parsed successfully:', { imageUrl: imageUrl?.substring(0, 100) + '...', language })
     
     if (!imageUrl) {
-      console.error(`[OCR-GEMINI ${new Date().toISOString()}] ERROR: Missing imageUrl parameter`)
+      console.error('Missing imageUrl parameter')
       return new Response(
         JSON.stringify({ error: 'Missing imageUrl parameter' }), 
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -32,17 +27,17 @@ serve(async (req) => {
 
     const apiKey = Deno.env.get('GOOGLE_API_KEY')
     if (!apiKey) {
-      console.error(`[OCR-GEMINI ${new Date().toISOString()}] ERROR: GOOGLE_API_KEY not found in environment`)
+      console.error('GOOGLE_API_KEY not found in environment')
       return new Response(
         JSON.stringify({ error: 'Google API key not configured' }), 
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
     
-    console.log(`[OCR-GEMINI ${new Date().toISOString()}] Google API key found, length:`, apiKey.length);
+    console.log('Google API key found, length:', apiKey.length)
 
-    console.log(`[OCR-GEMINI ${new Date().toISOString()}] Processing OCR request for image: ${imageUrl.substring(0, 100)}...`);
-    console.log(`[OCR-GEMINI ${new Date().toISOString()}] Language: ${language}`);
+    console.log(`Processing OCR request for image: ${imageUrl.substring(0, 100)}...`)
+    console.log(`Language: ${language}`)
 
     // Fetch the image
     let imageResponse

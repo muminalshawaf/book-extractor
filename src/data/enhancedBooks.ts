@@ -49,7 +49,7 @@ export const enhancedBooks: EnhancedBookDef[] = [
     buildPages: () => {
       const baseUrl = "https://ksa.idros.ai/books/chem12-1-3/";
       return Array.from({ length: 178 }, (_, i) => ({
-        src: `${baseUrl}kitab-alkimya-3-${i + 1}.webp`,
+        src: `${baseUrl}kitab-alkimya-3-${i + 2}.webp`,
         alt: `صفحة كتاب الكيمياء ${i + 1}`,
       }));
     },
