@@ -298,31 +298,31 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         }
         if (cancelled) return;
         
-        const ocr = (data?.ocr_text ?? '').trim();
-        const sum = (data?.summary_md ?? '').trim();
-        
-        console.log('Setting extracted text from database:', { 
-          ocrLength: ocr.length, 
-          summaryLength: sum.length,
-          ocrPreview: ocr.substring(0, 100) + '...'
-        });
-        
-        console.log('DEBUG: Before setting state - current extractedText length:', extractedText.length);
-        console.log('DEBUG: Before setting state - current summary length:', summary.length);
-        
-        setExtractedText(ocr);
-        setSummary(sum);
-        
-        console.log('DEBUG: State update called with OCR length:', ocr.length, 'Summary length:', sum.length);
-        setSummaryConfidence(typeof data?.confidence === 'number' ? data.confidence : undefined);
-        setOcrQuality(typeof data?.ocr_confidence === 'number' ? data.ocr_confidence : undefined);
-        
-        try {
-          if (ocr) localStorage.setItem(ocrKey, ocr);
-          else localStorage.removeItem(ocrKey);
-          if (sum) localStorage.setItem(sumKey, sum);
-          else localStorage.removeItem(sumKey);
-        } catch {}
+        // Only update state if we have actual data from the database
+        if (data) {
+          const ocr = (data.ocr_text ?? '').trim();
+          const sum = (data.summary_md ?? '').trim();
+          
+          console.log('Setting extracted text from database:', { 
+            ocrLength: ocr.length, 
+            summaryLength: sum.length,
+            ocrPreview: ocr.substring(0, 100) + '...'
+          });
+          
+          setExtractedText(ocr);
+          setSummary(sum);
+          setSummaryConfidence(typeof data.confidence === 'number' ? data.confidence : undefined);
+          setOcrQuality(typeof data.ocr_confidence === 'number' ? data.ocr_confidence : undefined);
+          
+          try {
+            if (ocr) localStorage.setItem(ocrKey, ocr);
+            else localStorage.removeItem(ocrKey);
+            if (sum) localStorage.setItem(sumKey, sum);
+            else localStorage.removeItem(sumKey);
+          } catch {}
+        } else {
+          console.log('No database record found for page', index + 1, '- keeping existing cached content');
+        }
       } catch (e) {
         console.warn('Failed to fetch page from DB:', e);
       }
