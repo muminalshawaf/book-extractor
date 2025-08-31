@@ -812,22 +812,37 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         console.log(`Automation: Page mismatch! Navigating to page ${pageNumber}...`);
         jumpToPage(pageNumber);
         
-        // Wait for navigation and state update to complete
+        // Wait for navigation and state update to complete with longer intervals
         let navigationAttempts = 0;
-        const maxNavigationAttempts = 10;
+        const maxNavigationAttempts = 15;
         
-        while (navigationAttempts < maxNavigationAttempts && index + 1 !== pageNumber) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+        // Wait for React state to update - give it some initial time
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Check navigation success by getting current URL page parameter
+        while (navigationAttempts < maxNavigationAttempts) {
+          const urlParams = new URLSearchParams(window.location.search);
+          const currentUrlPage = parseInt(urlParams.get('page') || '1');
+          
+          console.log(`Automation: Waiting for navigation... attempt ${navigationAttempts + 1}, URL page: ${currentUrlPage}, target: ${pageNumber}`);
+          
+          if (currentUrlPage === pageNumber) {
+            console.log(`Automation: Navigation successful! URL shows page ${currentUrlPage}`);
+            break;
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 800));
           navigationAttempts++;
-          console.log(`Automation: Waiting for navigation... attempt ${navigationAttempts}, current index: ${index + 1}, target: ${pageNumber}`);
         }
         
-        if (index + 1 !== pageNumber) {
-          throw new Error(`Failed to navigate to page ${pageNumber}. Still on page ${index + 1} after ${maxNavigationAttempts} attempts`);
+        if (navigationAttempts >= maxNavigationAttempts) {
+          const urlParams = new URLSearchParams(window.location.search);
+          const currentUrlPage = parseInt(urlParams.get('page') || '1');
+          throw new Error(`Failed to navigate to page ${pageNumber}. Current URL page: ${currentUrlPage} after ${maxNavigationAttempts} attempts`);
         }
         
         // Additional wait for page to fully render
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
       }
       
       console.log(`Automation: Successfully on page ${pageNumber}, starting OCR extraction...`);
