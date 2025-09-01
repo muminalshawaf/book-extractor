@@ -566,9 +566,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           book_id: dbBookId,
           page_number: index + 1,
           ocr_text: cleanText,
-          ocr_confidence: result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8,
-          // Clear any existing summary when force regenerating
-          ...(force && { summary_md: null, confidence: null })
+          ocr_confidence: result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8
         });
         console.log('OCR text saved successfully for page', index + 1, 'Result:', saveResult);
         
@@ -658,9 +656,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       } catch (dbError) {
         console.warn('Failed to check existing summary:', dbError);
       }
-    } else {
-      console.log('FORCE REGENERATION: Skipping database check, generating fresh summary...');
-      toast.info(rtl ? "إجبار توليد ملخص جديد..." : "Force generating fresh summary...");
     }
     
     setSummLoading(true);
