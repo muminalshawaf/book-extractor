@@ -146,73 +146,66 @@ ocrData.rawStructuredData.visual_elements.map((ve, i) => {
 }).join('\n\n') : 'No visual elements detected'}`
 : 'No OCR context available'}
 
-**🚨 ABSOLUTE CONTENT RESTRICTIONS:**
-- ONLY process content explicitly present in the OCR text below
-- NEVER add questions, answers, or examples not in the source
-- NEVER use external chemistry knowledge beyond what's written
-- NEVER continue numbering beyond what exists in OCR
-- STOP immediately when OCR content ends
+You are an expert professor and content analyst. Your mission is to provide a perfectly accurate, structured, and comprehensive answer based only on the provided OCR text. Your response must be in Arabic and follow all formatting and content rules precisely.
 
-**⚠️ CRITICAL VERIFICATION PROTOCOL:**
+**1. المحتوى الأساسي (Core Content)**
+Provide a concise, 2-3 sentence overview of the page's content, focusing on the main chemistry concepts discussed.
 
-**ASSUMPTION: ALL EXISTING ANSWERS ARE INCORRECT UNTIL PROVEN OTHERWISE**
-- Treat every solution as potentially wrong
-- Re-verify ALL calculations from scratch step by step
-- Double-check ALL numerical comparisons and logic
-- Cross-reference ALL formulas with provided visual data
-- Validate ALL units, conversions, and measurements
-- Question EVERY mathematical conclusion
+Identify and list any key facts, definitions, or equations explicitly mentioned in the text.
 
-**🔬 MANDATORY ANALYSIS REQUIREMENTS:**
+**2. الأسئلة والإجابات (Questions & Answers)**
+Address every question from the OCR text, maintaining the original numbering (e.g., ٩٣, ٩٤, ٩٥).
 
-1. **EXHAUSTIVE OCR TEXT COVERAGE**: Process EVERY single character, number, symbol, and word from the OCR text - NOTHING MORE, NOTHING LESS
-2. **VISUAL ELEMENT INTEGRATION**: Incorporate ALL visual data (graphs, tables, diagrams) into calculations
-3. **ZERO OMISSION/ADDITION POLICY**: Include EVERY question mentioned in OCR, but NEVER add content not present
-4. **ACCURACY VERIFICATION**: Re-solve ALL problems using step-by-step verification
-5. **COMPLETE FORMATTING FIDELITY**: Maintain exact numbering, spacing, and structure from source
+For each question, provide a complete, step-by-step solution.
 
-**🎯 ENHANCED VERIFICATION CHECKLIST:**
-✅ Every OCR text segment accounted for (and only OCR content)
-✅ All visual elements incorporated into analysis
-✅ Every question number preserved exactly as in OCR
-✅ All calculations verified step-by-step from first principles
-✅ Complete cross-reference with structured OCR
-✅ Perfect formatting and student readability
-✅ Zero content gaps or additions beyond OCR
+For numerical problems:
+- Show every step of the calculation.
+- State all formulas used in LaTeX.
+- Verify all units and conversions.
+- Clearly reference any data from tables or charts mentioned in the source.
 
-**📋 SYSTEMATIC CONTENT VERIFICATION:**
-1. **TEXT PARSING**: Read EVERY word from OCR - missing nothing, adding nothing
-2. **VISUAL ANALYSIS**: Extract ALL data from charts, graphs, tables described in OCR
-3. **CALCULATION VERIFICATION**: Re-solve using step-by-step mathematical verification
-4. **CROSS-REFERENCE**: Validate against structured OCR context  
-5. **COMPLETENESS CHECK**: Ensure 100% coverage of source material (no more, no less)
-6. **ACCURACY VALIDATION**: Verify all answers using rigorous chemistry and math
-7. **FORMAT PERFECTION**: Student-optimized layout and presentation
-8. **BOUNDARY CHECK**: Confirm no content added beyond OCR source
+For conceptual questions:
+- Provide a direct, clear, and concise answer.
+- Use correct chemistry terminology and explain the underlying principle.
 
-**🚨 CRITICAL QUALITY STANDARDS:**
-- NEVER skip or summarize content - include EVERYTHING from OCR
-- ALWAYS verify calculations using step-by-step mathematical analysis
-- NEVER trust existing answers - recalculate from scratch with full verification
-- ALWAYS cross-reference with OCR structured data for completeness
-- NEVER add external knowledge not present in source material
-- ALWAYS maintain exact question numbering from source
-- IMMEDIATELY STOP when OCR content ends - no continuation beyond source
+For questions referencing visual data:
+- Use the provided OCR visual context to extract necessary information.
+- Do not invent data.
 
-**📐 FORMATTING EXCELLENCE REQUIREMENTS:**
-- Use proper Arabic numbering exactly as in OCR (٩٣، ٩٤، ٩٥، etc.)
-- Bold ALL section titles and question numbers
-- Double spacing between question-answer pairs
-- LaTeX formatting for ALL mathematical expressions
-- Markdown tables for ALL tabular OCR data
-- Clear visual hierarchy for student comprehension
+**3. الصيغ والمعادلات (Formulas & Equations)**
+List all chemical formulas and mathematical equations found in the text.
 
-Content requiring COMPLETE analysis:
+Format them using LaTeX ($formula$).
 
-${title ?? "Textbook"} - Page ${page ?? "?"} (${lang})
-"""
+**4. تنسيق الإجابة (Answer Formatting)**
+- Use proper Arabic numbering exactly as in the OCR text.
+- Use bold headings for sections and bold question numbers.
+- Add double line spacing between each question-answer pair.
+- Use Markdown tables to represent any tabular data mentioned in the OCR. The table headers must be in Arabic.
+- Use the <imagegen> tag to generate an image when it is directly referenced by a question and adds significant value (e.g., "الشكل 26-1"). The image description must be concise and in English.
+
+The final response must not contain any content or questions not present in the provided OCR text. Stop immediately when the OCR content ends.
+
+**Data Block:**
+${ocrData && ocrData.rawStructuredData ? `🔍 **بيانات التحقق من OCR:**
+${ocrData.rawStructuredData.page_context ? JSON.stringify(ocrData.rawStructuredData.page_context, null, 2) : 'Not available'}
+📊 **البيانات المرئية:**
+${ocrData.rawStructuredData.visual_elements && ocrData.rawStructuredData.visual_elements.length > 0 ? ocrData.rawStructuredData.visual_elements.map((ve, i) => {
+  let output = `${i+1}. ${ve.type}: ${ve.title || 'Untitled'}\n   ${ve.description || 'No description'}`;
+  if (ve.numeric_data && ve.numeric_data.series) {
+    output += `\n📈 **بيانات رقمية دقيقة:**`;
+    ve.numeric_data.series.forEach(series => {
+      output += `\n- السلسلة "${series.label}": ${series.points.length} نقاط بيانات`;
+      output += `\nالنقاط: ${series.points.map(p => `(${p.x} ${p.units?.x || ''}, ${p.y} ${p.units?.y || ''})`).join(', ')}`;
+    });
+  }
+  if (ve.key_values && ve.key_values.length > 0) {
+    output += `\n🔑 القيم الرئيسية: ${ve.key_values.join(', ')}`;
+  }
+  return output;
+}).join('\n\n') : 'No visual elements detected'}` : 'No OCR context available'}
+
 ${text}
-"""
 
 ${needsDetailedStructure ? `
 Create a concise educational summary in ${lang} with these sections:
@@ -291,7 +284,7 @@ Constraints:
               {
                 parts: [
                   {
-                    text: `You are an expert chemistry teacher. Create concise but complete summaries in ${lang}. Answer all questions using your expertise. Use LaTeX for formulas.\n\n${prompt}`
+                    text: prompt
                   }
                 ]
               }
