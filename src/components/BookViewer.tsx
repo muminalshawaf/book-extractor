@@ -613,6 +613,10 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       return;
     }
     
+    // Check for mathematical content markers in OCR text
+    const hasMathMarkers = /[∫∑∏√∂∇∆λπθΩαβγδεζηκμνξρστφχψω]|[=+\-×÷<>≤≥≠]|\d+\s*[×÷]\s*\d+|[a-zA-Z]\s*=\s*[a-zA-Z0-9]/.test(text);
+    console.log('Math markers detected in OCR:', hasMathMarkers);
+    
     // Skip database check if force is true
     if (!force) {
       // First check if summary already exists in database
@@ -653,7 +657,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           lang: rtl ? 'ar' : 'en',
           page: index + 1,
           title: title,
-          ocrData: null // Add OCR context data if available
+          ocrData: {
+            pageContext: {
+              page_title: title || 'Unknown',
+              page_type: 'content',
+              has_formulas: hasMathMarkers,
+              has_questions: /\d+\.\s/.test(text),
+              has_examples: /مثال|example/i.test(text)
+            }
+          }
         }
       });
 
@@ -670,10 +682,18 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       const fullSummary = summaryResult.summary;
 
       if (fullSummary.trim()) {
+        // Client-side guard: Remove "Formulas & Equations" section if no math markers detected
+        let cleanSummary = fullSummary;
+        if (!hasMathMarkers) {
+          cleanSummary = cleanSummary.replace(/### \d+\)\s*(الصيغ والوحدات|Formulas & Units)[\s\S]*?(?=###|$)/gi, '');
+          cleanSummary = cleanSummary.replace(/###\s*(الصيغ والوحدات|Formulas & Units)[\s\S]*?(?=###|$)/gi, '');
+          console.log('Removed formulas section due to lack of math markers');
+        }
+        
         // Remove duplicate content and limit summary size
-        const cleanSummary = fullSummary.split('### نظرة عامة')[0] + 
-                           (fullSummary.includes('### نظرة عامة') ? '### نظرة عامة' + fullSummary.split('### نظرة عامة')[1] : '');
-        const trimmedSummary = cleanSummary.substring(0, 8000); // Limit to 8KB
+        const finalSummary = cleanSummary.split('### نظرة عامة')[0] + 
+                           (cleanSummary.includes('### نظرة عامة') ? '### نظرة عامة' + cleanSummary.split('### نظرة عامة')[1] : '');
+        const trimmedSummary = finalSummary.substring(0, 8000); // Limit to 8KB
         
         localStorage.setItem(sumKey, trimmedSummary);
         setSummary(trimmedSummary);
