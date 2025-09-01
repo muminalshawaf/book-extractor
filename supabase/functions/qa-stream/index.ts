@@ -60,7 +60,28 @@ serve(async (req: Request) => {
       );
     }
 
-    const systemPrompt = `You are an expert teacher helping students understand topics. CRITICAL RULES:
+    // Extract subject and grade from book title for dynamic prompt
+    let subject = "science";
+    let grade = "12";
+    
+    if (title) {
+      const titleLower = title.toLowerCase();
+      if (titleLower.includes("chemistry") || titleLower.includes("كيمياء")) {
+        subject = "Chemistry";
+      } else if (titleLower.includes("physics") || titleLower.includes("فيزياء")) {
+        subject = "Physics";
+      } else if (titleLower.includes("math") || titleLower.includes("رياضيات")) {
+        subject = "Mathematics";
+      }
+      
+      // Extract grade number from title
+      const gradeMatch = title.match(/(\d+)/);
+      if (gradeMatch) {
+        grade = gradeMatch[1];
+      }
+    }
+
+    const systemPrompt = `You are an educator that is teaching ${subject} to students grade ${grade}. CRITICAL RULES:
 - Answer ALL questions using your full educational knowledge and expertise
 - NEVER say "لم يتم تحديد" or "not mentioned in text" - always provide complete educational answers
 - When page context is provided, use it as reference but supplement with your expertise
