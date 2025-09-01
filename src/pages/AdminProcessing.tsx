@@ -144,7 +144,7 @@ const AdminProcessing = () => {
               const ocrResult = await callFunction('ocr-gemini', {
                 imageUrl: pageImage.src,
                 language: 'ar' // Arabic language for Saudi books
-              });
+              }, { timeout: 60000, retries: 1 }); // 1 minute timeout for OCR
               
               ocrText = ocrResult.text || '';
               ocrConfidence = ocrResult.confidence || 0.8;
@@ -156,7 +156,7 @@ const AdminProcessing = () => {
                 const fallbackResult = await callFunction('ocr-deepseek', {
                   imageUrl: pageImage.src,
                   language: 'ar'
-                });
+                }, { timeout: 60000, retries: 1 }); // 1 minute timeout for OCR
                 
                 ocrText = fallbackResult.text || '';
                 ocrConfidence = fallbackResult.confidence || 0.6;
@@ -182,7 +182,7 @@ const AdminProcessing = () => {
                 lang: 'ar',
                 page: pageNum,
                 title: selectedBook.title
-              });
+              }, { timeout: 180000, retries: 1 }); // 3 minute timeout, 1 retry for summarization
               
               summary = summaryResult.summary || '';
               summaryConfidence = 0.8; // Set default confidence since summarize function doesn't return it
