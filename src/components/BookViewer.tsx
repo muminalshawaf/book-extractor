@@ -582,10 +582,18 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       
       setOcrProgress(90);
       
-      // Generate summary
-      await summarizeExtractedText(cleanText, force);
-      
+      // Complete OCR progress immediately and generate summary in background
       setOcrProgress(100);
+      toast.success(rtl ? "تم استخراج النص بنجاح" : "Text extracted successfully");
+      
+      // Generate summary asynchronously without blocking
+      setTimeout(() => {
+        toast.info(rtl ? "جاري توليد الملخص في الخلفية..." : "Generating summary in background...");
+        summarizeExtractedText(cleanText, force).catch(error => {
+          console.error('Background summary generation failed:', error);
+          toast.error(rtl ? "فشل في توليد الملخص" : "Summary generation failed");
+        });
+      }, 100);
     } catch (error) {
       console.error('OCR Error:', error);
       setLastError(error instanceof Error ? error : String(error));
