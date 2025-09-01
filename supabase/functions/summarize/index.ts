@@ -99,44 +99,57 @@ Use this context to understand the page structure and provide detailed, contextu
       `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 ${contextPrompt}
 
-**CRITICAL ANTI-REPETITION RULES:**
-1. NEVER repeat the same problem or question type multiple times
-2. If the same question appears in different sections, include it only ONCE
-3. Group similar problems and show only ONE representative example per type
-4. Focus on teaching concepts, not solving every individual problem
-5. Prioritize unique information over repetitive content
+**CRITICAL INSTRUCTIONS:**
+1. Use your full educational knowledge to provide comprehensive answers to all questions
+2. Answer ALL numbered questions that exist in the text using your expertise as an educator
+3. Include relevant examples, applications, and references using your teaching knowledge
+4. When mathematical formulas or equations are present, explain them fully with your expertise
+5. Be a complete educational resource - teach comprehensively
 
 Text to summarize:
 """
 ${text}
 """
 
-**PRIMARY TASK:** Create a concise educational summary in ${lang} that teaches key concepts without repetition.
+**PRIMARY TASK:** Create a comprehensive educational summary in ${lang} that teaches all concepts and answers all questions fully using your expertise as an educator.
 
-**SECTIONS (only include if content actually exists):**
+**MANDATORY SECTIONS (only include if content actually exists in the text):**
 
 ### ${lang === "ar" ? "المحتوى التفصيلي" : "Detailed Content"}
-- Key information, measurements, and examples from the text
-- Important notes and applications mentioned
+- Extract ONLY the key information explicitly mentioned (names, dates, measurements, examples)
+- Include ONLY historical context, scientists' names if they are specifically mentioned in the text
+- Preserve ONLY real-world applications mentioned in the text
+- Include ONLY special notes, boxes, or highlighted information that appear in the text
 
 ### ${lang === "ar" ? "المفاهيم والتعاريف" : "Concepts & Definitions"}
-- Scientific terms and definitions from the text
-- Units, symbols, and notation systems
+- List ONLY scientific terms that are explicitly defined in the text
+- Include ONLY symbols, units, or notation systems mentioned in the text
+- ONLY explain relationships between concepts if they are explained in the text
 
-### ${lang === "ar" ? "نماذج الأسئلة والحلول" : "Sample Questions & Solutions"}
-**CRITICAL: Group similar problems. Solve only ONE example per problem type.**
-- If multiple similar questions exist, pick the most representative one
-- Show the solution method that applies to all similar problems
-- NEVER solve the same type of problem twice
+### ${lang === "ar" ? "الأسئلة والإجابات الكاملة" : "Complete Questions & Answers"}
+**CRITICAL: This section is MANDATORY if ANY questions exist in the text**
+For EVERY question found in the text:
+- **Question ${lang === "ar" ? "السؤال" : ""}:** [Restate the exact question from the text]
+- **Answer ${lang === "ar" ? "الإجابة" : ""}:** [Answer comprehensively using your full educational knowledge and expertise]
+- For sub-questions: Answer each thoroughly using your teaching expertise
+- Use comprehensive reasoning and explanations from your knowledge as an educator
+
+### ${lang === "ar" ? "الأمثلة والتطبيقات" : "Examples & Applications"}
+- Include ONLY specific examples explicitly mentioned in the text
+- Preserve ONLY details that are actually written (company names, product names, measurements)
+- ONLY include applications that are specifically discussed in the text
 
 ### ${lang === "ar" ? "الصيغ والمعادلات" : "Formulas & Equations"}
-- Mathematical formulas from the text using LaTeX
-- Variable definitions and units
+**ONLY include this section if mathematical formulas or equations are explicitly written in the source text**
+- Write ONLY formulas that appear in the text using LaTeX: $$formula$$ for display, $formula$ for inline  
+- Explain ONLY variables that are defined in the text
+- Include ONLY units and conditions mentioned in the text
 
 **QUALITY REQUIREMENTS:**
-- Eliminate all repetition and redundancy
-- Focus on teaching methodology over individual problem solutions
-- Group similar content together efficiently` :
+- Use your full expertise as an educator to teach comprehensively
+- Answer all questions completely using your knowledge and experience
+- Provide comprehensive explanations that help students understand fully
+- Use your teaching expertise to elaborate and explain concepts thoroughly` :
       `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 ${contextPrompt}
 Text to summarize (non-educational page):
@@ -163,7 +176,7 @@ Constraints:
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "You are an educational content analyzer. CRITICAL RULES: Be concise and focused. Avoid repetition at all costs. Don't solve the same problem multiple times. Group similar concepts together. Answer questions directly without over-explaining. Quality over quantity." },
+          { role: "system", content: "You are an expert educational teacher and content analyzer. CRITICAL: Answer ALL questions using your full educational knowledge. NEVER say content is 'not mentioned' - always provide complete educational answers. When text content is provided, use it as reference but supplement with your teaching expertise to give comprehensive answers to all questions." },
           { role: "user", content: prompt },
         ],
         temperature: 0.3,
