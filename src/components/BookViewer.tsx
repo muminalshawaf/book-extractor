@@ -654,32 +654,26 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       console.log('Calling summarize function...');
       setSummaryProgress(10);
       
-      const { data: summaryResult, error: summaryError } = await supabase.functions.invoke('summarize', {
-        body: { 
-          text: trimmedText,
-          lang: 'ar',  // Force Arabic for comprehensive educational answers
-          page: index + 1,
-          title: title,
-          ocrData: {
-            pageContext: {
-              page_title: title || 'Unknown',
-              page_type: 'content',
-              has_formulas: hasMathMarkers,
-              has_questions: /\d+\.\s/.test(text) || /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(text),
-              has_examples: /مثال|example/i.test(text)
-            }
+      const summaryResult = await callFunction('summarize', {
+        text: trimmedText,
+        lang: 'ar',  // Force Arabic for comprehensive educational answers
+        page: index + 1,
+        title: title,
+        ocrData: {
+          pageContext: {
+            page_title: title || 'Unknown',
+            page_type: 'content',
+            has_formulas: hasMathMarkers,
+            has_questions: /\d+\.\s/.test(text) || /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(text),
+            has_examples: /مثال|example/i.test(text)
           }
         }
-      });
+      }, { timeout: 120000, retries: 3 });
       
       console.log('Summary result:', summaryResult);
 
       setSummaryProgress(90);
 
-      if (summaryError) {
-        throw new Error(`Summary generation failed: ${summaryError.message || summaryError}`);
-      }
-      
       if (!summaryResult?.summary || summaryResult.summary.trim().length <= 3) {
         throw new Error('Summary function returned empty or insufficient content');
       }
