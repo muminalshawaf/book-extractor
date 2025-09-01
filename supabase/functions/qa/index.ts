@@ -52,7 +52,7 @@ You can answer any question the student asks. If page context is provided, use i
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "deepseek-reasoner",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
