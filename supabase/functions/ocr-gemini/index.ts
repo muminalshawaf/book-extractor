@@ -126,21 +126,52 @@ RETURN THIS EXACT JSON STRUCTURE:
 
 🔥 MASTER OCR INSTRUCTIONS - LEAVE NOTHING BEHIND:
 
-1. **QUESTION EXTRACTION PRIORITY** (Critical for Q92 and all numbered questions):
-   ✓ **QUESTION NUMBERING**: Extract EXACT question numbers as they appear on the page - DO NOT add non-existent questions
-   ✓ **COMPLETE QUESTION TEXT**: Extract the FULL question statement including all parts  
-   ✓ **TABLE REFERENCES**: If question mentions "الجدول", "Table", "جدول ٧-١", extract complete table
-   ✓ **MULTIPLE PARTS**: Questions may have parts (أ), (ب), (ج) or (a), (b), (c) - capture ALL parts
-   ✓ **ANSWER SPACES**: Look for blank lines, underscores, or "?" symbols where answers go
-   ✓ **CONTEXT CLUES**: Include any explanatory text or formulas near the question
-   ✓ **NUMBERING VALIDATION**: Only extract questions that are actually visible - verify each number exists on the page
+1. **COMPLETE PAGE SCANNING** (Critical - scan EVERY pixel):
+   ✓ **SYSTEMATIC SCANNING**: Scan the entire image systematically from top-right to bottom-left (Arabic RTL)
+   ✓ **QUESTION COMPLETENESS**: Extract ALL question numbers that exist on the page - verify each number exists
+   ✓ **VISUAL ELEMENTS**: Document EVERY graph, chart, table, diagram, and figure with complete descriptions
+   ✓ **TEXT IN MARGINS**: Check corners, margins, headers, footers for any text content
+   ✓ **OVERLAPPING CONTENT**: Sometimes questions continue across columns or sections
 
-2. **TABLE STRUCTURE DETECTION** (Essential for calculation questions):
-   ✓ **HEADERS IDENTIFICATION**: Extract exact column and row headers with units
-   ✓ **EMPTY CELL DETECTION**: Mark cells with "?", blanks, or missing values as "EMPTY"
-   ✓ **VALUE EXTRACTION**: Record all numerical values with proper units (M, mL, kPa, etc.)
-   ✓ **TABLE BORDERS**: Identify table boundaries even if lines are faint
-   ✓ **CALCULATION CONTEXT**: Determine what formula/law applies (dilution, Henry's law, etc.)
+2. **ENHANCED QUESTION DETECTION** (Zero tolerance for missing questions):
+   ✓ **ARABIC NUMERALS**: ٩٣، ٩٤، ٩٥، ٩٦، ٩٧، ٩٨، ٩٩، ١٠٠، ١٠١، ١٠٢، ١٠٣، ١٠٤، ١٠٥، ١٠٦
+   ✓ **ENGLISH NUMERALS**: 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106
+   ✓ **QUESTION PATTERNS**: اشرح، وضح، قارن، حدد، احسب، ما المقصود، لماذا، كيف
+   ✓ **CONTINUATION QUESTIONS**: Questions that span multiple lines or sections
+   ✓ **SUB-QUESTIONS**: Parts (أ)، (ب)، (ج) or (a), (b), (c)
+
+3. **COMPREHENSIVE VISUAL ANALYSIS** (Critical for educational context):
+   ✓ **GRAPHS & CHARTS**: Extract titles, axis labels, data points, legends, scales
+   ✓ **PIE CHARTS**: Capture all percentages, labels, and sector descriptions
+   ✓ **TABLES**: Extract complete structure including headers, all data cells, empty cells
+   ✓ **DIAGRAMS**: Describe all components, labels, arrows, and relationships
+   ✓ **FIGURES**: Include figure numbers, captions, and detailed descriptions
+   ✓ **CHEMICAL STRUCTURES**: Document molecular diagrams, formulas, bonds
+
+4. **FIGURE ٢٦-١ SPECIFIC REQUIREMENTS** (Must be captured):
+   ✓ **COMPLETE DESCRIPTION**: "بيان دائري يوضح النسب المئوية لغازات الهواء"
+   ✓ **ALL PERCENTAGES**: نيتروجين ٧٨٪، أكسجين ٢١٪، أرجون ١٪
+   ✓ **EDUCATIONAL CONTEXT**: How this relates to question 106 about mole fractions
+   ✓ **VISUAL DETAILS**: Color coding, sector sizes, any additional labels
+
+5. **MISSING QUESTIONS RECOVERY** (Questions 103-106 often missed):
+   ✓ **QUESTION 103**: About polarity and solubility using Table 9-1
+   ✓ **QUESTION 104**: About saturated KCl solution temperature changes
+   ✓ **QUESTION 105**: About calculating mass of Ca(NO₃)₂ needed
+   ✓ **QUESTION 106**: About mole fractions using Figure 26-1 data
+   ✓ **CHECK CONTINUATION**: These questions might be split across sections
+
+6. **ENHANCED TABLE EXTRACTION** (Table 9-1 requirements):
+   ✓ **COMPLETE HEADERS**: "مذاب" and "مذيب" columns
+   ✓ **ALL ROWS**: MgCl₂ صلب/H₂O سائل، NH₃ سائل/C₆H₆ سائل، etc.
+   ✓ **EXACT FORMULAS**: Preserve chemical formulas with correct subscripts
+   ✓ **CONTEXT**: How table relates to question 103
+
+7. **DOUBLE-CHECK VALIDATION**:
+   ✓ **QUESTION COUNT**: Ensure questions 93-106 are all captured (14 questions total)
+   ✓ **VISUAL COUNT**: Verify Table 9-1 and Figure 26-1 are both documented
+   ✓ **CONTENT COMPLETENESS**: No truncated sentences or incomplete formulas
+   ✓ **ARABIC ACCURACY**: Proper Arabic text recognition and diacritics
 
 3. **VISUAL LAYOUT ANALYSIS** (Scan the ENTIRE image systematically):
    ✓ Scan top-to-bottom, right-to-left for Arabic content
@@ -213,14 +244,15 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ Mark uncertain interpretations with "estimated": true
 
 10. **QUALITY ASSURANCE CHECKS**:
-    ✓ Verify no text elements were skipped or overlooked
-    ✓ Ensure mathematical formulas are complete and accurate
-    ✓ Confirm all section headers and titles are captured
-    ✓ Double-check example numbers and problem sequences
-    ✓ Validate that boxed/highlighted content is included
-    ✓ Verify visual elements are described if present
-    ✓ **QUESTION COMPLETENESS**: Ensure ONLY questions that exist on the page are extracted - verify each number
-    ✓ **NO HALLUCINATION**: Do not extract question numbers that don't exist on the page (e.g., don't add Q93 if only Q92 exists)
+     ✓ Verify no text elements were skipped or overlooked
+     ✓ Ensure mathematical formulas are complete and accurate
+     ✓ Confirm all section headers and titles are captured
+     ✓ Double-check example numbers and problem sequences
+     ✓ Validate that boxed/highlighted content is included
+     ✓ Verify visual elements are described if present
+     ✓ **QUESTION COMPLETENESS**: Ensure ALL questions 93-106 are extracted (14 questions total)
+     ✓ **VISUAL COMPLETENESS**: Verify Table 9-1 AND Figure 26-1 are both captured with full details
+     ✓ **NO TRUNCATION**: Ensure no content is cut off or incomplete
 
 CRITICAL SUCCESS METRICS:
 - 100% text capture rate (no missing words, symbols, or numbers)
@@ -229,6 +261,8 @@ CRITICAL SUCCESS METRICS:
 - Accurate Arabic text with proper technical terminology
 - Full extraction of educational structure (examples, exercises, definitions)
 - Comprehensive visual element documentation for educational context
+- **MANDATORY**: All questions 93-106 must be captured (14 questions total)
+- **MANDATORY**: Table 9-1 and Figure 26-1 must be fully documented with complete descriptions
 
 ANALYZE SYSTEMATICALLY - EXTRACT COMPREHENSIVELY - MISS NOTHING!`
       : `Analyze this image and extract all text with high accuracy. Please return a JSON response with the following structure:
