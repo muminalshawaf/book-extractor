@@ -60,10 +60,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const systemPrompt = `You are a teacher helping students understand topics. Follow these STRICT rules:
-- ONLY answer based on the provided page context when available
-- If no context is provided or question is not covered in context, clearly state "هذا السؤال غير مغطى في محتوى الصفحة المتاحة"
-- NEVER add information from external knowledge beyond the provided context
+    const systemPrompt = `You are a teacher helping students understand topics. Follow these rules:
 - Assume the student needs step-by-step explanations
 - Respond ONLY to the user's LAST request
 - Output equations in single-line $$...$$ format

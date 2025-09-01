@@ -291,7 +291,7 @@ Constraints:
         messages: [
           {
             role: 'system',
-            content: 'You are an expert textbook summarizer for students. CRITICAL RULES: 1) ONLY summarize content explicitly present in the provided text 2) NEVER add formulas, equations, or knowledge from external sources 3) If "Formulas & Equations" section is requested but no formulas exist in the text, skip that section entirely 4) Only include mathematical content that appears verbatim in the source text 5) Be accurate, comprehensive, and structured based solely on provided content. When numbered questions are present, answer ALL of them completely including any sub-questions. Show step-by-step solutions for calculations and provide clear answers for conceptual questions. Use LaTeX only for mathematical expressions that appear in the original text.'
+            content: 'You are an expert educational content analyzer and summarizer. CRITICAL: You must ONLY extract and summarize content explicitly present in the provided text. Use your knowledge as an educator to answer the questions, summarize all top concepts and the topics.'
           },
           {
             role: 'user',

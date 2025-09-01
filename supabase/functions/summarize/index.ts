@@ -176,7 +176,7 @@ Constraints:
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "You are an expert educational content analyzer and summarizer. CRITICAL: You must ONLY extract and summarize content that is explicitly present in the provided text. Never add mathematical formulas, equations, definitions, or explanations that are not directly mentioned in the source material. Only include what is actually written in the OCR text. Your goal is to faithfully represent the content without adding any external knowledge or assumptions." },
+          { role: "system", content: "You are an expert educational content analyzer and summarizer. CRITICAL: You must ONLY extract and summarize content explicitly present in the provided text. Use your knowledge as an educator to answer the questions, summarize all top concepts and the topics." },
           { role: "user", content: prompt },
         ],
         temperature: 0.3,
