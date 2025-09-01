@@ -84,7 +84,7 @@ serve(async (req) => {
 - Contains Formulas: ${ctx.has_formulas ? 'Yes' : 'No'}  
 - Contains Examples: ${ctx.has_examples ? 'Yes' : 'No'}
 
-Use this context to better understand the page content and provide accurate, contextual summaries.
+Use this context to understand the page structure and provide detailed, contextual summaries that preserve all educational content.
 `
       console.log('OCR Context available:', ctx.page_type, 'Questions:', ctx.has_questions, 'Formulas:', ctx.has_formulas)
     }
@@ -92,53 +92,62 @@ Use this context to better understand the page content and provide accurate, con
     const prompt = needsDetailedStructure ? 
       `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 ${contextPrompt}
-Text to summarize (single page, do not infer beyond it):
+
+**CRITICAL INSTRUCTIONS:**
+1. Extract and preserve ALL specific details: names, dates, exact numbers, scientific terms, historical references
+2. Answer EVERY numbered question found in the text with complete, detailed responses
+3. Include ALL real examples, applications, and practical references mentioned
+4. Preserve the educational richness - don't simplify or generalize
+5. Use the OCR context to understand the page structure and content type
+
+Text to summarize:
 """
 ${text}
 """
 
-Task: Create a comprehensive student-focused summary in ${lang} that helps students understand all important points and answer all questions from the page. Output as clean Markdown using H3 headings (###) with bilingual section titles.
+**PRIMARY TASK:** Create a comprehensive, detail-rich summary in ${lang} that captures ALL educational content from this page. Students should be able to learn everything important just from your summary.
 
-**CRITICAL**: Answer ALL numbered questions and sub-questions found in the text. This is the most important requirement.
+**MANDATORY SECTIONS (only include if content exists):**
 
-**ONLY include sections that have actual content from the text. Do NOT include empty sections.**
+### ${lang === "ar" ? "المحتوى التفصيلي" : "Detailed Content"}
+- Extract ALL key information with specific details (names, dates, measurements, examples)
+- Include historical context, scientists' names with dates if mentioned
+- Preserve all real-world applications and practical examples
+- Maintain scientific precision and technical terminology
+- Include any special notes, boxes, or highlighted information
 
-### 1) ${lang === "ar" ? "نظرة عامة" : "Overview"}
-2–3 sentences covering the page's main content and purpose.
+### ${lang === "ar" ? "المفاهيم والتعاريف" : "Concepts & Definitions"}
+- List ALL scientific terms with their complete definitions
+- Include any symbols, units, or notation systems
+- Explain the relationship between different concepts
+- Preserve exact wording for important definitions
 
-### 2) ${lang === "ar" ? "المفاهيم الأساسية" : "Key Concepts"}
-Bullet list with short explanations. Include only if present in the text.
+### ${lang === "ar" ? "الأسئلة والإجابات الكاملة" : "Complete Questions & Answers"}
+**CRITICAL: This section is MANDATORY if ANY questions exist in the text**
+For EVERY question found:
+- **Question ${lang === "ar" ? "السؤال" : ""}:** [Restate the exact question]
+- **Answer ${lang === "ar" ? "الإجابة" : ""}:** [Provide complete, detailed answer based on the text content]
+- For sub-questions (أ، ب، ج or a, b, c): Answer each one separately and thoroughly
+- Use step-by-step explanations when needed
+- Include reasoning and scientific explanations, not just facts
 
-### 3) ${lang === "ar" ? "التعاريف والمصطلحات" : "Definitions & Terms"}
-Glossary format: **Term** — definition (include symbols/units). Include only if present.
+### ${lang === "ar" ? "الأمثلة والتطبيقات" : "Examples & Applications"}
+- Include ALL specific examples mentioned in the text
+- Preserve exact details (company names, product names, measurements)
+- Explain how concepts apply to real life
+- Include any historical or contemporary references
 
-### 4) ${lang === "ar" ? "الصيغ والوحدات" : "Formulas & Units"}
-Use LaTeX ($$..$$). List variables with meanings/units. Include only if present.
+### ${lang === "ar" ? "الصيغ والمعادلات" : "Formulas & Equations"}
+- Write all formulas using LaTeX: $$formula$$ for display, $formula$ for inline
+- Explain what each variable represents
+- Include units and conditions for use
 
-### 5) ${lang === "ar" ? "حلول الأسئلة" : "Questions & Solutions"}
-**Include this section only if there are numbered questions (conceptual or calculation).**
-For each numbered question:
-- Restate the question clearly
-- If it has sub-questions (a/b/c, أ/ب/ج, i/ii/iii…), answer each sub-question separately
-- If calculation: show step-by-step solution with equations in LaTeX and final numeric answer with units
-- If conceptual: provide clear, direct answer from the text
-- Use LaTeX for equations: $$...$$ for display, $...$ for inline
-
-### 6) ${lang === "ar" ? "الخطوات/الإجراءات" : "Procedures/Steps"}
-Numbered list. Include only if present.
-
-### 7) ${lang === "ar" ? "أمثلة وتطبيقات" : "Examples/Applications"}
-Include only if present.
-
-### 8) ${lang === "ar" ? "أخطاء شائعة/ملابسات" : "Misconceptions/Pitfalls"}
-Include only if present.
-
-Constraints:
-- Use ${lang} throughout with proper punctuation
-- Focus on helping students get all important points and answer all questions
-- Preserve equations/symbols from original text
-- Show ALL calculation steps clearly when solving problems
-- Be comprehensive enough that students feel confident about the page content` :
+**QUALITY REQUIREMENTS:**
+- Be comprehensive and detailed, not brief or generic
+- Preserve the educational value and richness of the original text
+- Use specific examples, names, dates, and numbers from the text
+- Answer questions completely based on the page content
+- Write as if tutoring a student who needs to fully understand this topic` :
       `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 ${contextPrompt}
 Text to summarize (non-educational page):
@@ -165,12 +174,12 @@ Constraints:
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "You are an expert textbook summarizer for students. Be accurate, comprehensive, and structured. Only include sections that have actual content from the text. When numbered questions are present, answer ALL of them completely including any sub-questions. Show step-by-step solutions for calculations and provide clear answers for conceptual questions. Use LaTeX for mathematical expressions." },
+          { role: "system", content: "You are an expert educational content analyzer and summarizer. Your primary goal is to preserve ALL educational content from the source text with maximum precision and detail. Never generalize or simplify - extract every specific detail including names, dates, examples, and technical terms. When questions exist in the text, you MUST answer all of them completely using the information provided. Focus on creating comprehensive, tutorial-style content that teaches students everything from the page." },
           { role: "user", content: prompt },
         ],
-        temperature: 0.2,
+        temperature: 0.3,
         top_p: 0.9,
-        max_tokens: 2000,
+        max_tokens: 3000,
       }),
     });
 
