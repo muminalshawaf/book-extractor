@@ -273,7 +273,7 @@ Constraints:
             ],
             generationConfig: {
               temperature: 0.3,
-              maxOutputTokens: 2000,
+              maxOutputTokens: 4000,
             }
           }),
         });
@@ -281,9 +281,70 @@ Constraints:
         if (geminiResp.ok) {
           const geminiData = await geminiResp.json();
           summary = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+          const finishReason = geminiData.candidates?.[0]?.finishReason;
           
           if (summary.trim()) {
-            console.log(`Gemini API responded successfully - Length: ${summary.length}`);
+            console.log(`Gemini API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}`);
+            
+            // Check if Gemini response was truncated due to token limit
+            if (finishReason === "MAX_TOKENS" && summary.length > 0) {
+              console.log('Gemini summary was truncated, attempting to continue...');
+              
+              // Try up to 2 continuation rounds for Gemini
+              for (let attempt = 1; attempt <= 2; attempt++) {
+                console.log(`Gemini continuation attempt ${attempt}...`);
+                
+                const continuationPrompt = `Continue the summary from where it left off. Here's what was generated so far:
+
+${summary}
+
+Please continue and complete the summary, ensuring all sections are included and complete. Pick up exactly where the previous response ended. Remember: ONLY include content that is explicitly written in the original source text.`;
+
+                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    contents: [
+                      {
+                        parts: [
+                          {
+                            text: `You are continuing a summary that was previously cut off. Complete it with all remaining content and sections. CRITICAL: Only include content that is explicitly present in the original source text. Do not add any external knowledge.\n\n${continuationPrompt}`
+                          }
+                        ]
+                      }
+                    ],
+                    generationConfig: {
+                      temperature: 0.3,
+                      maxOutputTokens: 4000,
+                    }
+                  }),
+                });
+
+                if (contResp.ok) {
+                  const contData = await contResp.json();
+                  const continuation = contData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+                  const contFinishReason = contData.candidates?.[0]?.finishReason;
+                  
+                  if (continuation.trim()) {
+                    summary += "\n" + continuation;
+                    console.log(`Gemini continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
+                    
+                    // If this continuation completed normally, stop trying
+                    if (contFinishReason !== "MAX_TOKENS") {
+                      break;
+                    }
+                  } else {
+                    console.log(`Gemini continuation ${attempt} returned empty content`);
+                    break;
+                  }
+                } else {
+                  console.error(`Gemini continuation attempt ${attempt} failed:`, await contResp.text());
+                  break;
+                }
+              }
+            }
           } else {
             throw new Error("Gemini returned empty content");
           }
