@@ -127,12 +127,13 @@ RETURN THIS EXACT JSON STRUCTURE:
 🔥 MASTER OCR INSTRUCTIONS - LEAVE NOTHING BEHIND:
 
 1. **QUESTION EXTRACTION PRIORITY** (Critical for Q92 and all numbered questions):
-   ✓ **QUESTION NUMBERING**: Look for "سؤال ٩٢", "Question 92", "٩٢", "92." etc.
-   ✓ **COMPLETE QUESTION TEXT**: Extract the FULL question statement including all parts
+   ✓ **QUESTION NUMBERING**: Extract EXACT question numbers as they appear on the page - DO NOT add non-existent questions
+   ✓ **COMPLETE QUESTION TEXT**: Extract the FULL question statement including all parts  
    ✓ **TABLE REFERENCES**: If question mentions "الجدول", "Table", "جدول ٧-١", extract complete table
    ✓ **MULTIPLE PARTS**: Questions may have parts (أ), (ب), (ج) or (a), (b), (c) - capture ALL parts
    ✓ **ANSWER SPACES**: Look for blank lines, underscores, or "?" symbols where answers go
    ✓ **CONTEXT CLUES**: Include any explanatory text or formulas near the question
+   ✓ **NUMBERING VALIDATION**: Only extract questions that are actually visible - verify each number exists on the page
 
 2. **TABLE STRUCTURE DETECTION** (Essential for calculation questions):
    ✓ **HEADERS IDENTIFICATION**: Extract exact column and row headers with units
@@ -218,7 +219,8 @@ RETURN THIS EXACT JSON STRUCTURE:
     ✓ Double-check example numbers and problem sequences
     ✓ Validate that boxed/highlighted content is included
     ✓ Verify visual elements are described if present
-    ✓ **QUESTION COMPLETENESS**: Ensure Q92 and all questions are fully extracted
+    ✓ **QUESTION COMPLETENESS**: Ensure ONLY questions that exist on the page are extracted - verify each number
+    ✓ **NO HALLUCINATION**: Do not extract question numbers that don't exist on the page (e.g., don't add Q93 if only Q92 exists)
 
 CRITICAL SUCCESS METRICS:
 - 100% text capture rate (no missing words, symbols, or numbers)

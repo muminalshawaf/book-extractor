@@ -34,6 +34,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { MobileControlsOverlay } from "@/components/reader/MobileControlsOverlay";
 import { MobileReaderChrome } from "@/components/reader/MobileReaderChrome";
+import { HenryLawCalculator } from "@/components/HenryLawCalculator";
 import { IndexableOCRContent } from "@/components/seo/IndexableOCRContent";
 
 export type BookPage = {
@@ -1334,6 +1335,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                             rtl={rtl}
                             title={title}
                           />
+                          
+                          {/* Henry's Law Calculator for Question 92 */}
+                          {(extractedText.includes("قانون هنري") || extractedText.includes("henry") || 
+                            extractedText.includes("92") || extractedText.includes("٩٢")) && 
+                           (extractedText.includes("جدول") || extractedText.includes("table")) && (
+                            <div className="mt-4">
+                              <HenryLawCalculator />
+                            </div>
+                          )}
                         </div>
                       )}
                     </TabsContent>
