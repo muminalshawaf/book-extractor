@@ -146,48 +146,58 @@ ocrData.rawStructuredData.visual_elements.map((ve, i) => {
 }).join('\n\n') : 'No visual elements detected'}`
 : 'No OCR context available'}
 
+**🚨 ABSOLUTE CONTENT RESTRICTIONS:**
+- ONLY process content explicitly present in the OCR text below
+- NEVER add questions, answers, or examples not in the source
+- NEVER use external chemistry knowledge beyond what's written
+- NEVER continue numbering beyond what exists in OCR
+- STOP immediately when OCR content ends
+
 **⚠️ CRITICAL VERIFICATION PROTOCOL:**
 
 **ASSUMPTION: ALL EXISTING ANSWERS ARE INCORRECT UNTIL PROVEN OTHERWISE**
 - Treat every solution as potentially wrong
-- Re-verify ALL calculations from scratch using visual data
-- Double-check ALL numerical values against OCR visual elements
-- Cross-reference ALL formulas with provided chart data
+- Re-verify ALL calculations from scratch step by step
+- Double-check ALL numerical comparisons and logic
+- Cross-reference ALL formulas with provided visual data
 - Validate ALL units, conversions, and measurements
+- Question EVERY mathematical conclusion
 
 **🔬 MANDATORY ANALYSIS REQUIREMENTS:**
 
-1. **EXHAUSTIVE OCR TEXT COVERAGE**: Process EVERY single character, number, symbol, and word from the OCR text
+1. **EXHAUSTIVE OCR TEXT COVERAGE**: Process EVERY single character, number, symbol, and word from the OCR text - NOTHING MORE, NOTHING LESS
 2. **VISUAL ELEMENT INTEGRATION**: Incorporate ALL visual data (graphs, tables, diagrams) into calculations
-3. **ZERO OMISSION POLICY**: Include EVERY question, formula, example, and concept mentioned
-4. **ACCURACY VERIFICATION**: Re-solve ALL problems using provided visual data and OCR context
+3. **ZERO OMISSION/ADDITION POLICY**: Include EVERY question mentioned in OCR, but NEVER add content not present
+4. **ACCURACY VERIFICATION**: Re-solve ALL problems using step-by-step verification
 5. **COMPLETE FORMATTING FIDELITY**: Maintain exact numbering, spacing, and structure from source
 
 **🎯 ENHANCED VERIFICATION CHECKLIST:**
-✅ Every OCR text segment accounted for
+✅ Every OCR text segment accounted for (and only OCR content)
 ✅ All visual elements incorporated into analysis
-✅ Every question number preserved exactly
-✅ All calculations verified against visual data
+✅ Every question number preserved exactly as in OCR
+✅ All calculations verified step-by-step from first principles
 ✅ Complete cross-reference with structured OCR
 ✅ Perfect formatting and student readability
-✅ Zero content gaps or omissions
+✅ Zero content gaps or additions beyond OCR
 
 **📋 SYSTEMATIC CONTENT VERIFICATION:**
-1. **TEXT PARSING**: Read EVERY word from OCR - missing nothing
-2. **VISUAL ANALYSIS**: Extract ALL data from charts, graphs, tables
-3. **CALCULATION VERIFICATION**: Re-solve using visual element data
+1. **TEXT PARSING**: Read EVERY word from OCR - missing nothing, adding nothing
+2. **VISUAL ANALYSIS**: Extract ALL data from charts, graphs, tables described in OCR
+3. **CALCULATION VERIFICATION**: Re-solve using step-by-step mathematical verification
 4. **CROSS-REFERENCE**: Validate against structured OCR context  
-5. **COMPLETENESS CHECK**: Ensure 100% coverage of source material
-6. **ACCURACY VALIDATION**: Verify all answers using chemistry expertise
+5. **COMPLETENESS CHECK**: Ensure 100% coverage of source material (no more, no less)
+6. **ACCURACY VALIDATION**: Verify all answers using rigorous chemistry and math
 7. **FORMAT PERFECTION**: Student-optimized layout and presentation
+8. **BOUNDARY CHECK**: Confirm no content added beyond OCR source
 
 **🚨 CRITICAL QUALITY STANDARDS:**
-- NEVER skip or summarize content - include EVERYTHING
-- ALWAYS verify calculations using provided visual data
-- NEVER trust existing answers - recalculate from scratch
+- NEVER skip or summarize content - include EVERYTHING from OCR
+- ALWAYS verify calculations using step-by-step mathematical analysis
+- NEVER trust existing answers - recalculate from scratch with full verification
 - ALWAYS cross-reference with OCR structured data for completeness
 - NEVER add external knowledge not present in source material
 - ALWAYS maintain exact question numbering from source
+- IMMEDIATELY STOP when OCR content ends - no continuation beyond source
 
 **📐 FORMATTING EXCELLENCE REQUIREMENTS:**
 - Use proper Arabic numbering exactly as in OCR (٩٣، ٩٤، ٩٥، etc.)
