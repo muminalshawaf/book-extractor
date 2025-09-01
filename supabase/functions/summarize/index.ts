@@ -254,9 +254,9 @@ Constraints:
     let useDeepSeek = false;
 
     if (googleApiKey) {
-      console.log('Attempting to use Gemini for summarization...');
+      console.log('Attempting to use Gemini 2.5 Pro for summarization...');
       try {
-        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
+        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -284,7 +284,7 @@ Constraints:
           const finishReason = geminiData.candidates?.[0]?.finishReason;
           
           if (summary.trim()) {
-            console.log(`Gemini API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}`);
+            console.log(`Gemini 2.5 Pro API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: gemini-2.5-pro`);
             
             // Check if Gemini response was truncated due to token limit
             if (finishReason === "MAX_TOKENS" && summary.length > 0) {
@@ -300,7 +300,7 @@ ${summary}
 
 Please continue and complete the summary, ensuring all sections are included and complete. Pick up exactly where the previous response ended. Remember: ONLY include content that is explicitly written in the original source text.`;
 
-                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
+                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
