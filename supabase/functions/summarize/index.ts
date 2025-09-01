@@ -131,14 +131,22 @@ Create a concise educational summary in ${lang} with these sections (only if con
 ### ${lang === "ar" ? "الأسئلة والإجابات" : "Questions & Answers"}  
 For each question found (Arabic numerals ١٠٢, ١٠٦ or regular numbers 102, 106):
 - **${lang === "ar" ? "س" : "Q"}:** [exact question]
-- **${lang === "ar" ? "ج" : "A"}:** [complete answer using your chemistry expertise]
+- **${lang === "ar" ? "ج" : "A"}:** [complete answer using your chemistry expertise and visual data]
+
+**CRITICAL FOR GRAPH-BASED QUESTIONS:** When a question references a specific figure/graph (like "الشكل 27-1"), you MUST:
+1. Use the provided visual element data to extract numerical relationships and data points
+2. Apply the graph's axes labels, key values, and data descriptions to solve calculations
+3. Reference specific values from the graph description to perform mathematical operations
+4. Show step-by-step calculations using the graph data
 
 ### ${lang === "ar" ? "الصيغ والمعادلات" : "Formulas & Equations"}
 - Include formulas using LaTeX: $$formula$$ or $formula$
 - Explain variables and conditions
 
 ### ${lang === "ar" ? "العناصر البصرية" : "Visual Elements"}
-- Describe charts/diagrams and their educational significance` :
+- Describe charts/diagrams and their educational significance
+- Extract and use numerical data points from graphs when referenced in questions
+- Include axis labels, scales, and key values for problem-solving` :
       `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 ${contextPrompt}
 Text to summarize (non-educational page):
