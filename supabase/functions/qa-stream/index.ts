@@ -93,11 +93,15 @@ serve(async (req: Request) => {
   1. Show the complete table with all original data AND your calculated answers
   2. Use proper Arabic table formatting with | separators
   3. Include units in headers if specified
-  4. For dilution problems (M₁V₁ = M₂V₂), show formula and calculations
-  5. Example format: 
-     | المولارية | الحجم المطلوب (mL) |
-     |---------|------------------|
-     | 0.50 M  | 41.7 mL         |
+  4. Replace "?" or "EMPTY" cells with calculated values
+  5. For dilution problems (M₁V₁ = M₂V₂), show formula and calculations
+  6. For Henry's Law problems (P₁/C₁ = P₂/C₂), show step-by-step calculation
+  7. Example format: 
+     | الضغط (kPa) | الذائبية (g/L) |
+     |-------------|---------------|
+     | 25.4        | 2.9          |
+     | 32          | 3.7          |
+     | 39          | 4.4          |
 - Use tabular format for tables when appropriate
 Your job is to teach, not just extract from text. Answer comprehensively. Language: ${lang}.`;
 

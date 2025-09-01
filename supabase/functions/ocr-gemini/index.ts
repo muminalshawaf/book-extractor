@@ -184,10 +184,11 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ Detect graphs, charts, diagrams, figures, images, and TABLES with educational content
    ✓ Identify axis labels, units, scales, legends for graphs/charts
    ✓ **TABLE EXTRACTION**: For tables, extract complete structure:
-     - Column headers (exactly as written)
-     - Row data (all filled cells)
-     - Empty/missing cells (mark as "EMPTY" or describe what's missing)
-     - Units or context for calculations needed
+     - Column headers (exactly as written) 
+     - Row data (all filled cells with exact values)
+     - Empty/missing cells: Mark cells with "?" symbols or blank spaces as "EMPTY"
+     - For question marks (?): Record as "EMPTY - needs calculation"
+     - Units or context for calculations needed (e.g., Henry's law, dilution formula)
    ✓ Describe data trends, patterns, relationships shown visually
    ✓ Extract key values, measurements, ranges from visual data
    ✓ Note figure captions, titles, or reference numbers (Figure 1, شكل ٢، جدول ٧-١، etc.)
@@ -389,26 +390,46 @@ Focus on accuracy and structured context metadata.`
             return sectionText
           }).join('\n\n')
           
-          // Append visual context if visual elements exist
-          if (parsedData.visual_elements && Array.isArray(parsedData.visual_elements) && parsedData.visual_elements.length > 0) {
-            const visualContext = parsedData.visual_elements.map(element => {
-              let desc = `**${element.type.toUpperCase()}**: ${element.title || 'Untitled'}\n`
-              desc += `Description: ${element.description || 'No description'}\n`
-              if (element.axes_labels) {
-                if (element.axes_labels.x_axis) desc += `X-axis: ${element.axes_labels.x_axis}\n`
-                if (element.axes_labels.y_axis) desc += `Y-axis: ${element.axes_labels.y_axis}\n`
-              }
-              if (element.data_description) desc += `Data: ${element.data_description}\n`
-              if (element.key_values && element.key_values.length > 0) {
-                desc += `Key Values: ${element.key_values.join(', ')}\n`
-              }
-              if (element.educational_context) desc += `Context: ${element.educational_context}\n`
-              if (element.estimated) desc += `(Note: Some details are estimated)\n`
-              return desc
-            }).join('\n')
-            
-            extractedText += `\n\n--- VISUAL CONTEXT ---\n${visualContext}`
-          }
+           // Append visual context if visual elements exist
+           if (parsedData.visual_elements && Array.isArray(parsedData.visual_elements) && parsedData.visual_elements.length > 0) {
+             const visualContext = parsedData.visual_elements.map(element => {
+               let desc = `**${element.type.toUpperCase()}**: ${element.title || 'Untitled'}\n`
+               desc += `Description: ${element.description || 'No description'}\n`
+               
+               // Handle table structure
+               if (element.table_structure) {
+                 desc += `Table Structure:\n`
+                 desc += `Headers: ${element.table_structure.headers?.join(' | ') || 'N/A'}\n`
+                 if (element.table_structure.rows) {
+                   desc += `Rows:\n`
+                   element.table_structure.rows.forEach((row, i) => {
+                     desc += `Row ${i + 1}: ${row.join(' | ')}\n`
+                   })
+                 }
+                 if (element.table_structure.empty_cells?.length > 0) {
+                   desc += `Empty cells: ${element.table_structure.empty_cells.join(', ')}\n`
+                 }
+                 if (element.table_structure.calculation_context) {
+                   desc += `Calculation needed: ${element.table_structure.calculation_context}\n`
+                 }
+               }
+               
+               // Handle chart/graph elements  
+               if (element.axes_labels) {
+                 if (element.axes_labels.x_axis) desc += `X-axis: ${element.axes_labels.x_axis}\n`
+                 if (element.axes_labels.y_axis) desc += `Y-axis: ${element.axes_labels.y_axis}\n`
+               }
+               if (element.data_description) desc += `Data: ${element.data_description}\n`
+               if (element.key_values && element.key_values.length > 0) {
+                 desc += `Key Values: ${element.key_values.join(', ')}\n`
+               }
+               if (element.educational_context) desc += `Context: ${element.educational_context}\n`
+               if (element.estimated) desc += `(Note: Some details are estimated)\n`
+               return desc
+             }).join('\n')
+             
+             extractedText += `\n\n--- VISUAL CONTEXT ---\n${visualContext}`
+           }
           
           console.log(`Structured layout detected: ${columnsDetected} sections, page type: ${pageContext?.page_type || 'unknown'}`)
         } 
