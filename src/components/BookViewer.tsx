@@ -660,12 +660,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       const trimmedText = text.trim();
       
       // Use the working summarize function directly
-      console.log('Calling summarize function...');
+      console.log('Calling summarize function with thorough verification...');
       setSummaryProgress(10);
+      toast.info(rtl ? "جاري التوليد مع التحقق الشامل - قد يستغرق عدة دقائق..." : "Generating with thorough verification - this may take several minutes...");
       
       const summaryResult = await callFunction('summarize', {
         text: trimmedText,
-        lang: 'ar',  // Force Arabic for comprehensive educational answers
+        lang: 'ar',
         page: index + 1,
         title: title,
         ocrData: {
@@ -677,7 +678,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             has_examples: /مثال|example/i.test(text)
           }
         }
-      }, { timeout: 120000, retries: 3 });
+      }, { timeout: 300000, retries: 2 }); // Increased timeout to 5 minutes for thorough processing
       
       console.log('Summary result:', summaryResult);
 
