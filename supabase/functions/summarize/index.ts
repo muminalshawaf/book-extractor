@@ -113,76 +113,42 @@ When summarizing, include a "Visual Context" section describing these elements a
       }
     }
 
-    const prompt = `You are an expert chemistry professor. Process the ENTIRE OCR text completely and provide comprehensive analysis in Arabic.
+    const prompt = `**EXPERT CHEMISTRY PROFESSOR - COMPLETE OCR ANALYSIS**
 
-## MANDATORY COMPLETION REQUIREMENT:
-⚠️ PROCESS EVERY SINGLE QUESTION AND PIECE OF CONTENT FROM THE OCR TEXT. DO NOT STOP EARLY.
-⚠️ Continue until you have addressed ALL content, including questions 93-106 and beyond if present.
+CRITICAL: Process EVERY question (93-106) from the OCR text with perfect formatting.
 
-## STRUCTURE:
+## OUTPUT STRUCTURE:
 
 ### **المحتوى الأساسي**
-Write a 2-3 sentence overview of the page's main chemistry concepts.
-List key facts, definitions, and equations from the text.
+Brief overview of chemistry concepts and key formulas from the text.
 
 ### **الأسئلة والإجابات**
-Process EVERY question with original numbering (٩٣, ٩٤, ٩٥, ٩٦, ٩٧, ٩٨, ٩٩, ١٠٠, ١٠١, ١٠٢, ١٠٣, ١٠٤, ١٠٥, ١٠٦):
 
-Format EXACTLY as:
-**س: ٩٣- [question text]**
+**س: ٩٣- [question text from OCR]**
+**ج:** [complete step-by-step solution]
 
-**ج:** [complete answer with all steps]
+**س: ٩٤- [question text from OCR]**
+**ج:** [complete step-by-step solution]
 
+[Continue for ALL questions: ٩٥, ٩٦, ٩٧, ٩٨, ٩ى, ١٠٠, ١٠١, ١٠٢, ١٠٣, ١٠٤, ١٠٥, ١٠٦]
 
-For calculations:
-- Show ALL mathematical steps
-- Use LaTeX format: $$\\Delta T_f = K_f \\cdot m$$
-- Use proper multiplication symbol: ×  (NOT \\cdot or \\cdotp)
-- Reference visual data when mentioned
+## FORMATTING REQUIREMENTS:
+- **Bold question numbers and section headers**
+- Use $$\\text{formula}$$ for math expressions
+- Use × for multiplication (NOT \\cdot or \\cdotp)
+- Show ALL calculation steps
+- Reference visual data when mentioned in questions
 
-### **الصيغ والمعادلات** 
-List all formulas using LaTeX: $$formula$$
+${ocrData && ocrData.rawStructuredData?.visual_elements ? 
+`## VISUAL DATA AVAILABLE:
+${ocrData.rawStructuredData.visual_elements.map((ve, i) => 
+`${i+1}. ${ve.type}: ${ve.title || 'Untitled'} - ${ve.description || ''}${ve.key_values ? '\n   Values: ' + ve.key_values.join(', ') : ''}`
+).join('\n')}` : ''}
 
-## FORMATTING RULES:
-- **Bold ALL question numbers and section headers using double asterisks**
-- Use $$formula$$ for math expressions
-- Use × for multiplication (never \\cdot or \\cdotp)
-- Double spacing between questions  
-- Process content until OCR text COMPLETELY ends
-- Arabic numbering exactly as in OCR
-
-## VISUAL DATA:
-When questions reference charts/tables, use OCR visual context. Do not invent data.
-
-${ocrData && ocrData.rawStructuredData ? 
-`**VISUAL CONTEXT:**
-${ocrData.rawStructuredData.visual_elements && ocrData.rawStructuredData.visual_elements.length > 0 ? 
-ocrData.rawStructuredData.visual_elements.map((ve, i) => `${i+1}. ${ve.type}: ${ve.title || 'Untitled'} - ${ve.description || 'No description'}${ve.key_values ? '\nKey Values: ' + ve.key_values.join(', ') : ''}`).join('\n') 
-: 'No visual elements'}` 
-: ''}
-
-REMEMBER: Process ALL questions from start to finish. Do not truncate or stop early.
-
-**Data Block:**
-${ocrData && ocrData.rawStructuredData ? `🔍 **بيانات التحقق من OCR:**
-${ocrData.rawStructuredData.page_context ? JSON.stringify(ocrData.rawStructuredData.page_context, null, 2) : 'Not available'}
-📊 **البيانات المرئية:**
-${ocrData.rawStructuredData.visual_elements && ocrData.rawStructuredData.visual_elements.length > 0 ? ocrData.rawStructuredData.visual_elements.map((ve, i) => {
-  let output = `${i+1}. ${ve.type}: ${ve.title || 'Untitled'}\n   ${ve.description || 'No description'}`;
-  if (ve.numeric_data && ve.numeric_data.series) {
-    output += `\n📈 **بيانات رقمية دقيقة:**`;
-    ve.numeric_data.series.forEach(series => {
-      output += `\n- السلسلة "${series.label}": ${series.points.length} نقاط بيانات`;
-      output += `\nالنقاط: ${series.points.map(p => `(${p.x} ${p.units?.x || ''}, ${p.y} ${p.units?.y || ''})`).join(', ')}`;
-    });
-  }
-  if (ve.key_values && ve.key_values.length > 0) {
-    output += `\n🔑 القيم الرئيسية: ${ve.key_values.join(', ')}`;
-  }
-  return output;
-}).join('\n\n') : 'No visual elements detected'}` : 'No OCR context available'}
-
+## OCR TEXT TO PROCESS:
 ${text}
+
+REMEMBER: Process EVERY question completely. Do not skip any questions or stop early.
 
 ${needsDetailedStructure ? `
 Create a concise educational summary in ${lang} with these sections:
@@ -268,7 +234,7 @@ Constraints:
             ],
             generationConfig: {
               temperature: 0.3,
-              maxOutputTokens: 4000,
+              maxOutputTokens: 8000,
             }
           }),
         });
@@ -321,7 +287,7 @@ Continue from where you left off and finish processing the entire OCR text.`;
                     ],
                     generationConfig: {
                       temperature: 0.3,
-                      maxOutputTokens: 4000,
+                      maxOutputTokens: 8000,
                     }
                   }),
                 });
@@ -384,7 +350,7 @@ Continue from where you left off and finish processing the entire OCR text.`;
             ],
             temperature: 0.3,
             top_p: 0.9,
-            max_tokens: 2000,
+            max_tokens: 6000,
           }),
         });
 
@@ -441,7 +407,7 @@ Continue from where you left off and finish processing the entire OCR text.`;
                 ],
                 temperature: 0.3,
                 top_p: 0.9,
-                max_tokens: 4000,
+                max_tokens: 6000,
               }),
             });
 
