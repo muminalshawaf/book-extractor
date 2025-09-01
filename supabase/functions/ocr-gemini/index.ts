@@ -74,16 +74,17 @@ serve(async (req) => {
     // Prepare the prompt based on language
     const isArabic = language === 'ar'
     const prompt = isArabic 
-      ? `Analyze this image and extract ALL text content with maximum accuracy. This image contains Arabic educational content with distinct visual sections. Please return a JSON response with the following structure:
+      ? `You are an expert OCR analyst specializing in Arabic educational textbooks. Analyze this chemistry textbook page with MAXIMUM precision and extract EVERY visible text element without exception.
 
+RETURN THIS EXACT JSON STRUCTURE:
 {
   "language": "ar",
-  "direction": "rtl",
+  "direction": "rtl", 
   "page_context": {
-    "page_title": "main page title or chapter name",
-    "page_type": "table_of_contents|chapter_intro|lesson_content|exercises|examples|summary",
-    "main_topics": ["topic1", "topic2", "topic3"],
-    "headers": ["header1", "header2", "header3"],
+    "page_title": "exact main page title or chapter name",
+    "page_type": "table_of_contents|chapter_intro|lesson_content|exercises|examples|summary|career_info",
+    "main_topics": ["topic1", "topic2"],
+    "headers": ["all headers found"],
     "has_questions": true/false,
     "has_formulas": true/false,
     "has_examples": true/false
@@ -91,55 +92,84 @@ serve(async (req) => {
   "sections": [
     {
       "order": 1,
-      "type": "main_content|sidebar|header|title|example|exercise|formula|definition",
-      "title": "section title if present",
-      "content": "full text content of this section"
+      "type": "title|header|main_content|sidebar|example|exercise|formula|definition|career_box|highlight_box",
+      "title": "section title if present", 
+      "content": "complete text content"
     }
   ]
 }
 
-CRITICAL INSTRUCTIONS FOR CONTENT ANALYSIS AND EXTRACTION:
+🔥 MASTER OCR INSTRUCTIONS - LEAVE NOTHING BEHIND:
 
-1. **PAGE CONTEXT ANALYSIS** (Required for page_context):
-   - Identify the main page title or chapter name (e.g., "قائمة المحتويات", "الفصل الأول: المخاليط والمحاليل")
-   - Determine page type: table_of_contents, chapter_intro, lesson_content, exercises, examples, summary
-   - Extract main topics/concepts discussed on the page
-   - List all section headers and subheaders found
-   - Detect presence of questions (numbered problems, "ماذا قرأت؟", exercises)
-   - Detect presence of formulas (mathematical equations, chemical formulas)
-   - Detect presence of examples ("مثال", worked problems)
+1. **VISUAL LAYOUT ANALYSIS** (Scan the ENTIRE image systematically):
+   ✓ Scan top-to-bottom, right-to-left for Arabic content
+   ✓ Identify EVERY text element by visual prominence: titles, headers, body text, captions
+   ✓ Detect text formatting: bold, italic, underlined, colored text, different font sizes
+   ✓ Map visual hierarchy: main title → section headers → subheaders → body content
+   ✓ Locate bordered boxes, highlighted areas, margin notes, sidebars
+   ✓ Find text in corners, margins, footers, page numbers
 
-2. **SECTION IDENTIFICATION** (Required for sections array):
-   - Classify each distinct visual section by type:
-     * "title" - main page titles and chapter headings
-     * "header" - section headers and subheaders  
-     * "main_content" - primary educational content, paragraphs
-     * "sidebar" - boxed content, highlighted areas, supplementary info
-     * "example" - worked examples, "مثال" sections
-     * "exercise" - practice problems, "مسائل تدريبية"
-     * "formula" - mathematical formulas, equations
-     * "definition" - vocabulary, key terms, definitions
-   - Extract section title if present (header text, example number, etc.)
-   - Include complete content for each section
+2. **ARABIC TEXTBOOK STRUCTURE RECOGNITION**:
+   ✓ Page titles: "مهن في الكيمياء", "الفصل الأول", chapter names
+   ✓ Career sections: "فنيو الصيدلة", professional roles, job descriptions  
+   ✓ Examples: "مثال ٢-١", "مثال ١-٢", with numbers in Arabic or English
+   ✓ Calculations: "حساب المولارية", "الحل", step-by-step solutions
+   ✓ Questions: "ماذا قرأت؟", numbered problems, exercise sections
+   ✓ Definitions: key terms in bold, vocabulary boxes
+   ✓ Formulas: mathematical equations, chemical formulas, units
 
-3. **TEXT EXTRACTION REQUIREMENTS**:
-   - Preserve exact Arabic text and mathematical formulas
-   - Maintain problem numbering and step sequences  
-   - Include ALL visible text: titles, headers, content, formulas, questions
-   - Use visual cues (fonts, colors, borders, spacing) to identify sections
-   - Read multiple columns in correct Arabic order (right to left)
-   - Keep mathematical expressions and chemical formulas exactly as written
+3. **TYPOGRAPHY & FORMATTING PRESERVATION**:
+   ✓ Distinguish between different text weights (bold vs regular)
+   ✓ Preserve mathematical notation: subscripts, superscripts, fractions
+   ✓ Maintain chemical formulas exactly: H₂O, CO₂, NaCl, etc.
+   ✓ Keep equation formatting: = signs, division bars, parentheses
+   ✓ Preserve Arabic numbers vs English numbers in context
+   ✓ Maintain units and symbols: mol/L, °C, %, etc.
 
-4. **CONTENT COMPLETENESS**:
-   - Extract page titles, chapter names, section headers
-   - Capture main educational content and explanations
-   - Include all numbered questions and sub-questions
-   - Preserve worked examples with step-by-step solutions
-   - Extract formulas, equations, and chemical symbols
-   - Include boxed text, highlighted content, sidebars
-   - Capture vocabulary terms and definitions
+4. **SECTION CLASSIFICATION** (Critical - identify each visual block):
+   • "title" → Page headers, chapter titles (large bold text at top)
+   • "header" → Section headers, subsection titles (medium bold text)
+   • "main_content" → Primary educational paragraphs and explanations
+   • "sidebar" → Boxed content, highlighted info panels, margin notes
+   • "example" → "مثال" sections with worked problems and solutions
+   • "exercise" → Practice problems, "مسائل تدريبية", questions
+   • "formula" → Mathematical equations, chemical formulas (standalone)
+   • "definition" → Key terms, vocabulary, bolded concepts
+   • "career_box" → Professional information, job descriptions
+   • "highlight_box" → Important notes, tips, warnings in colored boxes
 
-Focus on providing rich context metadata while maintaining 100% text accuracy.`
+5. **CONTENT COMPLETENESS VERIFICATION** (Zero tolerance for missing text):
+   ✓ Every Arabic word and phrase visible in the image
+   ✓ All English text, numbers, and symbols
+   ✓ Mathematical expressions with proper formatting
+   ✓ Chemical formulas with correct subscripts/superscripts  
+   ✓ Units, measurements, and scientific notation
+   ✓ Page numbers, section numbers, example numbers
+   ✓ Text in boxes, sidebars, margins, and corners
+   ✓ Captions for figures, diagrams, or images
+
+6. **ARABIC TEXT HANDLING**:
+   ✓ Preserve exact Arabic spelling and diacritics
+   ✓ Maintain proper Arabic sentence structure and punctuation
+   ✓ Keep Arabic-English mixed text in correct order
+   ✓ Preserve technical Arabic chemistry terminology
+   ✓ Maintain number formatting (Arabic numerals vs English numerals)
+
+7. **QUALITY ASSURANCE CHECKS**:
+   ✓ Verify no text elements were skipped or overlooked
+   ✓ Ensure mathematical formulas are complete and accurate
+   ✓ Confirm all section headers and titles are captured
+   ✓ Double-check example numbers and problem sequences
+   ✓ Validate that boxed/highlighted content is included
+
+CRITICAL SUCCESS METRICS:
+- 100% text capture rate (no missing words, symbols, or numbers)
+- Perfect preservation of mathematical and chemical notation  
+- Complete section identification and classification
+- Accurate Arabic text with proper technical terminology
+- Full extraction of educational structure (examples, exercises, definitions)
+
+ANALYZE SYSTEMATICALLY - EXTRACT COMPREHENSIVELY - MISS NOTHING!`
       : `Analyze this image and extract all text with high accuracy. Please return a JSON response with the following structure:
 
 {
