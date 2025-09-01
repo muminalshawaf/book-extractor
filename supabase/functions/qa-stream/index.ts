@@ -89,6 +89,15 @@ serve(async (req: Request) => {
 - Output equations in single-line $$...$$ format
 - Use Saudi dialect Arabic (اللهجة السعودية)
 - Never mention DeepSeek - say developed by IDROS.AI team
+- **TABLE COMPLETION**: When a question asks to complete a table:
+  1. Show the complete table with all original data AND your calculated answers
+  2. Use proper Arabic table formatting with | separators
+  3. Include units in headers if specified
+  4. For dilution problems (M₁V₁ = M₂V₂), show formula and calculations
+  5. Example format: 
+     | المولارية | الحجم المطلوب (mL) |
+     |---------|------------------|
+     | 0.50 M  | 41.7 mL         |
 - Use tabular format for tables when appropriate
 Your job is to teach, not just extract from text. Answer comprehensively. Language: ${lang}.`;
 

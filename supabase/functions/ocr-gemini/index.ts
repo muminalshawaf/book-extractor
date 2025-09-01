@@ -109,6 +109,15 @@ RETURN THIS EXACT JSON STRUCTURE:
       },
       "data_description": "description of data points, trends, patterns",
       "key_values": ["important values, ranges, or measurements shown"],
+      "table_structure": {
+        "headers": ["column 1 header", "column 2 header"],
+        "rows": [
+          ["cell 1,1", "cell 1,2"],
+          ["cell 2,1", "EMPTY or missing value"]
+        ],
+        "empty_cells": ["description of which cells need to be filled"],
+        "calculation_context": "what type of calculation is needed to fill empty cells"
+      },
       "educational_context": "how this visual relates to the lesson/question",
       "estimated": true/false
     }
@@ -171,14 +180,19 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ Preserve technical Arabic chemistry terminology
    ✓ Maintain number formatting (Arabic numerals vs English numerals)
 
-7. **VISUAL ELEMENTS ANALYSIS** (Critical - analyze ALL graphs, charts, figures):
-   ✓ Detect graphs, charts, diagrams, figures, images with educational content
+7. **VISUAL ELEMENTS ANALYSIS** (Critical - analyze ALL graphs, charts, figures, tables):
+   ✓ Detect graphs, charts, diagrams, figures, images, and TABLES with educational content
    ✓ Identify axis labels, units, scales, legends for graphs/charts
+   ✓ **TABLE EXTRACTION**: For tables, extract complete structure:
+     - Column headers (exactly as written)
+     - Row data (all filled cells)
+     - Empty/missing cells (mark as "EMPTY" or describe what's missing)
+     - Units or context for calculations needed
    ✓ Describe data trends, patterns, relationships shown visually
    ✓ Extract key values, measurements, ranges from visual data
-   ✓ Note figure captions, titles, or reference numbers (Figure 1, شكل ٢، etc.)
+   ✓ Note figure captions, titles, or reference numbers (Figure 1, شكل ٢، جدول ٧-١، etc.)
    ✓ Describe the educational purpose of each visual element
-   ✓ For questions referencing "الشكل" or "Figure", ensure visual is documented
+   ✓ For questions referencing "الشكل", "الجدول", "Table", or "Figure", ensure visual is documented
    ✓ Mark uncertain interpretations with "estimated": true
 
 8. **QUALITY ASSURANCE CHECKS**:
