@@ -126,7 +126,22 @@ RETURN THIS EXACT JSON STRUCTURE:
 
 🔥 MASTER OCR INSTRUCTIONS - LEAVE NOTHING BEHIND:
 
-1. **VISUAL LAYOUT ANALYSIS** (Scan the ENTIRE image systematically):
+1. **QUESTION EXTRACTION PRIORITY** (Critical for Q92 and all numbered questions):
+   ✓ **QUESTION NUMBERING**: Look for "سؤال ٩٢", "Question 92", "٩٢", "92." etc.
+   ✓ **COMPLETE QUESTION TEXT**: Extract the FULL question statement including all parts
+   ✓ **TABLE REFERENCES**: If question mentions "الجدول", "Table", "جدول ٧-١", extract complete table
+   ✓ **MULTIPLE PARTS**: Questions may have parts (أ), (ب), (ج) or (a), (b), (c) - capture ALL parts
+   ✓ **ANSWER SPACES**: Look for blank lines, underscores, or "?" symbols where answers go
+   ✓ **CONTEXT CLUES**: Include any explanatory text or formulas near the question
+
+2. **TABLE STRUCTURE DETECTION** (Essential for calculation questions):
+   ✓ **HEADERS IDENTIFICATION**: Extract exact column and row headers with units
+   ✓ **EMPTY CELL DETECTION**: Mark cells with "?", blanks, or missing values as "EMPTY"
+   ✓ **VALUE EXTRACTION**: Record all numerical values with proper units (M, mL, kPa, etc.)
+   ✓ **TABLE BORDERS**: Identify table boundaries even if lines are faint
+   ✓ **CALCULATION CONTEXT**: Determine what formula/law applies (dilution, Henry's law, etc.)
+
+3. **VISUAL LAYOUT ANALYSIS** (Scan the ENTIRE image systematically):
    ✓ Scan top-to-bottom, right-to-left for Arabic content
    ✓ Identify EVERY text element by visual prominence: titles, headers, body text, captions
    ✓ Detect text formatting: bold, italic, underlined, colored text, different font sizes
@@ -134,7 +149,7 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ Locate bordered boxes, highlighted areas, margin notes, sidebars
    ✓ Find text in corners, margins, footers, page numbers
 
-2. **ARABIC TEXTBOOK STRUCTURE RECOGNITION**:
+4. **ARABIC TEXTBOOK STRUCTURE RECOGNITION**:
    ✓ Page titles: "مهن في الكيمياء", "الفصل الأول", chapter names
    ✓ Career sections: "فنيو الصيدلة", professional roles, job descriptions  
    ✓ Examples: "مثال ٢-١", "مثال ١-٢", with numbers in Arabic or English
@@ -143,7 +158,7 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ Definitions: key terms in bold, vocabulary boxes
    ✓ Formulas: mathematical equations, chemical formulas, units
 
-3. **TYPOGRAPHY & FORMATTING PRESERVATION**:
+5. **TYPOGRAPHY & FORMATTING PRESERVATION**:
    ✓ Distinguish between different text weights (bold vs regular)
    ✓ Preserve mathematical notation: subscripts, superscripts, fractions
    ✓ Maintain chemical formulas exactly: H₂O, CO₂, NaCl, etc.
@@ -151,7 +166,7 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ Preserve Arabic numbers vs English numbers in context
    ✓ Maintain units and symbols: mol/L, °C, %, etc.
 
-4. **SECTION CLASSIFICATION** (Critical - identify each visual block):
+6. **SECTION CLASSIFICATION** (Critical - identify each visual block):
    • "title" → Page headers, chapter titles (large bold text at top)
    • "header" → Section headers, subsection titles (medium bold text)
    • "main_content" → Primary educational paragraphs and explanations
@@ -163,7 +178,7 @@ RETURN THIS EXACT JSON STRUCTURE:
    • "career_box" → Professional information, job descriptions
    • "highlight_box" → Important notes, tips, warnings in colored boxes
 
-5. **CONTENT COMPLETENESS VERIFICATION** (Zero tolerance for missing text):
+7. **CONTENT COMPLETENESS VERIFICATION** (Zero tolerance for missing text):
    ✓ Every Arabic word and phrase visible in the image
    ✓ All English text, numbers, and symbols
    ✓ Mathematical expressions with proper formatting
@@ -173,14 +188,14 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ Text in boxes, sidebars, margins, and corners
    ✓ Captions for figures, diagrams, or images
 
-6. **ARABIC TEXT HANDLING**:
+8. **ARABIC TEXT HANDLING**:
    ✓ Preserve exact Arabic spelling and diacritics
    ✓ Maintain proper Arabic sentence structure and punctuation
    ✓ Keep Arabic-English mixed text in correct order
    ✓ Preserve technical Arabic chemistry terminology
    ✓ Maintain number formatting (Arabic numerals vs English numerals)
 
-7. **VISUAL ELEMENTS ANALYSIS** (Critical - analyze ALL graphs, charts, figures, tables):
+9. **VISUAL ELEMENTS ANALYSIS** (Critical - analyze ALL graphs, charts, figures, tables):
    ✓ Detect graphs, charts, diagrams, figures, images, and TABLES with educational content
    ✓ Identify axis labels, units, scales, legends for graphs/charts
    ✓ **TABLE EXTRACTION**: For tables, extract complete structure:
@@ -196,13 +211,14 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ For questions referencing "الشكل", "الجدول", "Table", or "Figure", ensure visual is documented
    ✓ Mark uncertain interpretations with "estimated": true
 
-8. **QUALITY ASSURANCE CHECKS**:
-   ✓ Verify no text elements were skipped or overlooked
-   ✓ Ensure mathematical formulas are complete and accurate
-   ✓ Confirm all section headers and titles are captured
-   ✓ Double-check example numbers and problem sequences
-   ✓ Validate that boxed/highlighted content is included
-   ✓ Verify visual elements are described if present
+10. **QUALITY ASSURANCE CHECKS**:
+    ✓ Verify no text elements were skipped or overlooked
+    ✓ Ensure mathematical formulas are complete and accurate
+    ✓ Confirm all section headers and titles are captured
+    ✓ Double-check example numbers and problem sequences
+    ✓ Validate that boxed/highlighted content is included
+    ✓ Verify visual elements are described if present
+    ✓ **QUESTION COMPLETENESS**: Ensure Q92 and all questions are fully extracted
 
 CRITICAL SUCCESS METRICS:
 - 100% text capture rate (no missing words, symbols, or numbers)
@@ -289,10 +305,10 @@ Focus on accuracy and structured context metadata.`
               ]
             }],
             generationConfig: {
-              temperature: 0.1,
-              topK: 32,
-              topP: 1,
-              maxOutputTokens: 8192,
+              temperature: 0.05,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 16384,
               response_mime_type: "application/json"
             },
             safetySettings: [
