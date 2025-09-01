@@ -47,7 +47,12 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
 
   // Sort messages by question number, keeping conversation pairs together
   const sortedMessages = useMemo(() => {
-    const messagePairs: Array<{ questionNum: number | null, originalIndex: number, userMsg: ChatMsg, assistantMsg?: ChatMsg }> = [];
+    const messagePairs: Array<{ 
+      questionNum: number | null, 
+      originalIndex: number, 
+      userMsg: ChatMsg, 
+      assistantMsg?: ChatMsg 
+    }> = [];
     
     for (let i = 0; i < messages.length; i++) {
       if (messages[i].role === 'user') {
@@ -71,12 +76,12 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
       return a.questionNum - b.questionNum;
     });
 
-    // Flatten back to message array with original indices preserved for actions
-    const sortedMsgs: Array<ChatMsg & { originalIndex: number }> = [];
+    // Flatten back to message array
+    const sortedMsgs: ChatMsg[] = [];
     messagePairs.forEach(pair => {
-      sortedMsgs.push({ ...pair.userMsg, originalIndex: pair.originalIndex });
+      sortedMsgs.push(pair.userMsg);
       if (pair.assistantMsg) {
-        sortedMsgs.push({ ...pair.assistantMsg, originalIndex: pair.originalIndex + 1 });
+        sortedMsgs.push(pair.assistantMsg);
       }
     });
 
