@@ -15,3 +15,35 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// Add error logging for Supabase operations
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log('Supabase auth state change:', { event, session });
+  if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+    console.log('Auth event details:', event);
+  }
+});
+
+// Log any errors from Supabase operations
+const originalFrom = supabase.from;
+supabase.from = function(table: any) {
+  const query = originalFrom.call(this, table);
+  const originalThen = query.then;
+  if (originalThen) {
+    query.then = function(onFulfilled?: any, onRejected?: any) {
+      return originalThen.call(this, 
+        (result: any) => {
+          if (result.error) {
+            console.error('Supabase query error:', result.error);
+            if (result.error.message?.includes('6815499131d56c71687ed8a3f50e2056')) {
+              console.error('Found specific error hash in Supabase query:', result.error);
+            }
+          }
+          return onFulfilled ? onFulfilled(result) : result;
+        },
+        onRejected
+      );
+    };
+  }
+  return query;
+};
