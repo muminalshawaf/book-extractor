@@ -78,6 +78,7 @@ serve(async (req) => {
 
     // Extract page context if available from OCR data
     let contextPrompt = ''
+    let visualContext = ''
     if (ocrData && ocrData.pageContext) {
       const ctx = ocrData.pageContext
       contextPrompt = `
@@ -89,22 +90,38 @@ serve(async (req) => {
 - Contains Questions: ${ctx.has_questions ? 'Yes' : 'No'}
 - Contains Formulas: ${ctx.has_formulas ? 'Yes' : 'No'}  
 - Contains Examples: ${ctx.has_examples ? 'Yes' : 'No'}
+- Contains Visual Elements: ${ctx.has_visual_elements ? 'Yes' : 'No'}
 
 Use this context to understand the page structure and provide detailed, contextual summaries that preserve all educational content.
 `
-      console.log('OCR Context available:', ctx.page_type, 'Questions:', ctx.has_questions, 'Formulas:', ctx.has_formulas)
+      console.log('OCR Context available:', ctx.page_type, 'Questions:', ctx.has_questions, 'Formulas:', ctx.has_formulas, 'Visuals:', ctx.has_visual_elements)
+    }
+    
+    // Extract visual elements if available
+    if (ocrData && ocrData.rawStructuredData && ocrData.rawStructuredData.visual_elements) {
+      const visuals = ocrData.rawStructuredData.visual_elements
+      if (Array.isArray(visuals) && visuals.length > 0) {
+        visualContext = `
+**VISUAL ELEMENTS DETECTED:**
+${visuals.map((v, i) => `${i+1}. ${v.type}: ${v.title || 'Untitled'} - ${v.description || 'No description'}`).join('\n')}
+
+When summarizing, include a "Visual Context" section describing these elements and their educational significance.
+`
+        console.log('Visual elements found:', visuals.length)
+      }
     }
 
     const prompt = needsDetailedStructure ? 
       `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
-${contextPrompt}
+${contextPrompt}${visualContext}
 
 **CRITICAL INSTRUCTIONS:**
 1. Use your full educational knowledge to provide comprehensive answers to all questions
 2. Answer ALL numbered questions that exist in the text using your expertise as an educator
 3. Include relevant examples, applications, and references using your teaching knowledge
 4. When mathematical formulas or equations are present, explain them fully with your expertise
-5. Be a complete educational resource - teach comprehensively
+5. When graphs/charts/visual elements are present, include them in a "Visual Context" section with educational explanations
+6. Be a complete educational resource - teach comprehensively
 
 Text to summarize:
 """
@@ -145,11 +162,19 @@ For EVERY question found in the text:
 - Explain ONLY variables that are defined in the text
 - Include ONLY units and conditions mentioned in the text
 
+### ${lang === "ar" ? "السياق البصري" : "Visual Context"}
+**ONLY include this section if graphs, charts, or visual elements are detected in the page**
+- Describe each visual element and its educational purpose
+- Explain how graphs/charts support the lesson concepts  
+- Include key data points, trends, or patterns shown
+- Connect visual information to questions that reference them
+
 **QUALITY REQUIREMENTS:**
 - Use your full expertise as an educator to teach comprehensively
 - Answer all questions completely using your knowledge and experience
 - Provide comprehensive explanations that help students understand fully
-- Use your teaching expertise to elaborate and explain concepts thoroughly` :
+- Use your teaching expertise to elaborate and explain concepts thoroughly
+- When visual elements exist, incorporate their educational context` :
       `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 ${contextPrompt}
 Text to summarize (non-educational page):

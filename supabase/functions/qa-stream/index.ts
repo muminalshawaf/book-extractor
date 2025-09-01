@@ -94,7 +94,20 @@ Your job is to teach, not just extract from text. Answer comprehensively. Langua
 
     let userPrompt = `Question: ${question}`;
     if (summary && String(summary).trim()) {
-      userPrompt = `Book Title: ${title ?? "Untitled"}\nPage: ${page ?? "?"}\n\nPage Context:\n${summary}\n\nQuestion: ${question}`;
+      let contextText = summary;
+      
+      // Check if question references visual elements (شكل, Figure, graph, chart)
+      const referencesVisual = /شكل|figure|graph|chart|رسم|مخطط/i.test(question);
+      if (referencesVisual && summary.includes('--- VISUAL CONTEXT ---')) {
+        // Extract and prioritize visual context for questions about figures
+        const visualSectionMatch = summary.match(/--- VISUAL CONTEXT ---([\s\S]*?)(?=---|$)/);
+        if (visualSectionMatch) {
+          const visualInfo = visualSectionMatch[1].trim();
+          contextText = `**VISUAL CONTEXT (Referenced in Question):**\n${visualInfo}\n\n**Full Page Context:**\n${summary}`;
+        }
+      }
+      
+      userPrompt = `Book Title: ${title ?? "Untitled"}\nPage: ${page ?? "?"}\n\nPage Context:\n${contextText}\n\nQuestion: ${question}${referencesVisual ? '\n\n**Note: This question references a visual element (graph/figure). Use the visual context above to answer accurately.**' : ''}`;
     }
 
     const dsRes = await fetch("https://api.deepseek.com/v1/chat/completions", {

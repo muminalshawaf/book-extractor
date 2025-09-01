@@ -130,10 +130,23 @@ serve(async (req: Request) => {
 - يحتوي على أسئلة: ${ctx.has_questions ? 'نعم' : 'لا'}
 - يحتوي على صيغ: ${ctx.has_formulas ? 'نعم' : 'لا'}  
 - يحتوي على أمثلة: ${ctx.has_examples ? 'نعم' : 'لا'}
+- يحتوي على عناصر بصرية: ${ctx.has_visual_elements ? 'نعم' : 'لا'}
 
 استخدم هذا السياق لفهم محتوى الصفحة بشكل أفضل وتقديم ملخصات دقيقة ومناسبة للسياق.
 `
-      console.log('OCR Context available:', ctx.page_type, 'Questions:', ctx.has_questions, 'Formulas:', ctx.has_formulas)
+      console.log('OCR Context available:', ctx.page_type, 'Questions:', ctx.has_questions, 'Formulas:', ctx.has_formulas, 'Visuals:', ctx.has_visual_elements)
+    }
+    
+    // Check for visual elements to include in summary
+    let visualPromptAddition = '';
+    if (ocrData && ocrData.rawStructuredData && ocrData.rawStructuredData.visual_elements) {
+      const visuals = ocrData.rawStructuredData.visual_elements;
+      if (Array.isArray(visuals) && visuals.length > 0) {
+        visualPromptAddition = `
+
+**مهم:** تم اكتشاف عناصر بصرية (رسوم بيانية/مخططات/أشكال) في هذه الصفحة. يجب تضمين قسم "السياق البصري / Visual Context" في الملخص لوصف هذه العناصر وأهميتها التعليمية.`;
+        console.log('Visual elements found for summarization:', visuals.length);
+      }
     }
 
     // Create appropriate prompt based on page type
@@ -181,12 +194,19 @@ ${text}
 ### 8) أخطاء شائعة/ملابسات / Misconceptions/Pitfalls
 اكتب فقط إذا كانت موجودة.
 
+### 9) السياق البصري / Visual Context
+**اكتب هذا القسم فقط إذا تم اكتشاف رسوم بيانية أو مخططات أو أشكال في الصفحة.**
+- وصف كل عنصر بصري وغرضه التعليمي
+- شرح كيف تدعم الرسوم البيانية/المخططات مفاهيم الدرس
+- تضمين النقاط الرئيسية أو الاتجاهات أو الأنماط المعروضة
+- ربط المعلومات البصرية بالأسئلة التي تشير إليها
+
 القيود:
 - استخدم العربية مع علامات الترقيم المناسبة
 - ركز على مساعدة الطلاب للحصول على جميع النقاط المهمة والإجابة على جميع الأسئلة
 - احتفظ بالمعادلات/الرموز من النص الأصلي
 - اعرض جميع خطوات الحساب بوضوح عند حل المسائل
-- كن شاملاً بما يكفي ليشعر الطلاب بالثقة حول محتوى الصفحة` :
+- كن شاملاً بما يكفي ليشعر الطلاب بالثقة حول محتوى الصفحة${visualPromptAddition}` :
       `الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
 ${contextPrompt}
 النص المطلوب تلخيصه (صفحة غير تعليمية):
@@ -256,6 +276,13 @@ Concrete examples from the text only
 
 ### 8) Misconceptions/Pitfalls
 Common errors to avoid or important tips
+
+### 9) Visual Context
+**ONLY include this section if graphs, charts, diagrams, or figures are detected in the page.**
+- Describe each visual element and its educational purpose
+- Explain how graphs/charts support the lesson concepts
+- Include key data points, trends, or patterns shown
+- Connect visual information to questions that reference them
 
 Constraints:
 - Avoid excessive formatting

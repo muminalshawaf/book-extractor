@@ -87,7 +87,8 @@ RETURN THIS EXACT JSON STRUCTURE:
     "headers": ["all headers found"],
     "has_questions": true/false,
     "has_formulas": true/false,
-    "has_examples": true/false
+    "has_examples": true/false,
+    "has_visual_elements": true/false
   },
   "sections": [
     {
@@ -95,6 +96,21 @@ RETURN THIS EXACT JSON STRUCTURE:
       "type": "title|header|main_content|sidebar|example|exercise|formula|definition|career_box|highlight_box",
       "title": "section title if present", 
       "content": "complete text content"
+    }
+  ],
+  "visual_elements": [
+    {
+      "type": "graph|chart|diagram|figure|image|table",
+      "title": "figure title or caption if visible",
+      "description": "detailed description of visual content",
+      "axes_labels": {
+        "x_axis": "x-axis label and units if applicable",
+        "y_axis": "y-axis label and units if applicable"
+      },
+      "data_description": "description of data points, trends, patterns",
+      "key_values": ["important values, ranges, or measurements shown"],
+      "educational_context": "how this visual relates to the lesson/question",
+      "estimated": true/false
     }
   ]
 }
@@ -155,12 +171,23 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ Preserve technical Arabic chemistry terminology
    ✓ Maintain number formatting (Arabic numerals vs English numerals)
 
-7. **QUALITY ASSURANCE CHECKS**:
+7. **VISUAL ELEMENTS ANALYSIS** (Critical - analyze ALL graphs, charts, figures):
+   ✓ Detect graphs, charts, diagrams, figures, images with educational content
+   ✓ Identify axis labels, units, scales, legends for graphs/charts
+   ✓ Describe data trends, patterns, relationships shown visually
+   ✓ Extract key values, measurements, ranges from visual data
+   ✓ Note figure captions, titles, or reference numbers (Figure 1, شكل ٢، etc.)
+   ✓ Describe the educational purpose of each visual element
+   ✓ For questions referencing "الشكل" or "Figure", ensure visual is documented
+   ✓ Mark uncertain interpretations with "estimated": true
+
+8. **QUALITY ASSURANCE CHECKS**:
    ✓ Verify no text elements were skipped or overlooked
    ✓ Ensure mathematical formulas are complete and accurate
    ✓ Confirm all section headers and titles are captured
    ✓ Double-check example numbers and problem sequences
    ✓ Validate that boxed/highlighted content is included
+   ✓ Verify visual elements are described if present
 
 CRITICAL SUCCESS METRICS:
 - 100% text capture rate (no missing words, symbols, or numbers)
@@ -168,6 +195,7 @@ CRITICAL SUCCESS METRICS:
 - Complete section identification and classification
 - Accurate Arabic text with proper technical terminology
 - Full extraction of educational structure (examples, exercises, definitions)
+- Comprehensive visual element documentation for educational context
 
 ANALYZE SYSTEMATICALLY - EXTRACT COMPREHENSIVELY - MISS NOTHING!`
       : `Analyze this image and extract all text with high accuracy. Please return a JSON response with the following structure:
@@ -182,7 +210,8 @@ ANALYZE SYSTEMATICALLY - EXTRACT COMPREHENSIVELY - MISS NOTHING!`
     "headers": ["header1", "header2", "header3"],
     "has_questions": true/false,
     "has_formulas": true/false,
-    "has_examples": true/false
+    "has_examples": true/false,
+    "has_visual_elements": true/false
   },
   "sections": [
     {
@@ -191,19 +220,35 @@ ANALYZE SYSTEMATICALLY - EXTRACT COMPREHENSIVELY - MISS NOTHING!`
       "title": "section title if present",
       "content": "full text content of this section"
     }
+  ],
+  "visual_elements": [
+    {
+      "type": "graph|chart|diagram|figure|image|table",
+      "title": "figure title or caption if visible",
+      "description": "detailed description of visual content",
+      "axes_labels": {
+        "x_axis": "x-axis label and units if applicable",
+        "y_axis": "y-axis label and units if applicable"
+      },
+      "data_description": "description of data points, trends, patterns",
+      "key_values": ["important values, ranges, or measurements shown"],
+      "educational_context": "how this visual relates to the lesson/question",
+      "estimated": true/false
+    }
   ]
 }
 
 Instructions:
 1. Identify main page title and page type
 2. Extract main topics and all headers
-3. Detect questions, formulas, and examples
+3. Detect questions, formulas, examples, and visual elements
 4. Classify each visual section by type
 5. If the page has multiple columns, read them in left-to-right order
 6. Preserve mathematical formulas, equations, and symbols exactly as they appear
 7. Keep problem numbers and maintain their sequence
 8. Include any Arabic or other non-English text that appears
-9. DO NOT summarize or modify the content - extract exactly as written
+9. For graphs/charts/visual elements: describe axes, data points, trends, and educational purpose
+10. DO NOT summarize or modify the content - extract exactly as written
 
 Focus on accuracy and structured context metadata.`
 
@@ -329,6 +374,27 @@ Focus on accuracy and structured context metadata.`
             sectionText += section.content
             return sectionText
           }).join('\n\n')
+          
+          // Append visual context if visual elements exist
+          if (parsedData.visual_elements && Array.isArray(parsedData.visual_elements) && parsedData.visual_elements.length > 0) {
+            const visualContext = parsedData.visual_elements.map(element => {
+              let desc = `**${element.type.toUpperCase()}**: ${element.title || 'Untitled'}\n`
+              desc += `Description: ${element.description || 'No description'}\n`
+              if (element.axes_labels) {
+                if (element.axes_labels.x_axis) desc += `X-axis: ${element.axes_labels.x_axis}\n`
+                if (element.axes_labels.y_axis) desc += `Y-axis: ${element.axes_labels.y_axis}\n`
+              }
+              if (element.data_description) desc += `Data: ${element.data_description}\n`
+              if (element.key_values && element.key_values.length > 0) {
+                desc += `Key Values: ${element.key_values.join(', ')}\n`
+              }
+              if (element.educational_context) desc += `Context: ${element.educational_context}\n`
+              if (element.estimated) desc += `(Note: Some details are estimated)\n`
+              return desc
+            }).join('\n')
+            
+            extractedText += `\n\n--- VISUAL CONTEXT ---\n${visualContext}`
+          }
           
           console.log(`Structured layout detected: ${columnsDetected} sections, page type: ${pageContext?.page_type || 'unknown'}`)
         } 
