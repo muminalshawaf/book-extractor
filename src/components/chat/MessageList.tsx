@@ -39,6 +39,50 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
   const [draft, setDraft] = useState("");
   const [reactions, setReactions] = useState<Record<number, 'up' | 'down' | null>>({});
 
+  // Function to extract question number from text
+  const extractQuestionNumber = (text: string): number | null => {
+    const match = text.match(/(?:question|q|سؤال)\s*(\d+)/i);
+    return match ? parseInt(match[1], 10) : null;
+  };
+
+  // Sort messages by question number, keeping conversation pairs together
+  const sortedMessages = useMemo(() => {
+    const messagePairs: Array<{ questionNum: number | null, originalIndex: number, userMsg: ChatMsg, assistantMsg?: ChatMsg }> = [];
+    
+    for (let i = 0; i < messages.length; i++) {
+      if (messages[i].role === 'user') {
+        const questionNum = extractQuestionNumber(messages[i].content);
+        const pair = {
+          questionNum,
+          originalIndex: i,
+          userMsg: messages[i],
+          assistantMsg: (i + 1 < messages.length && messages[i + 1].role === 'assistant') ? messages[i + 1] : undefined
+        };
+        messagePairs.push(pair);
+        if (pair.assistantMsg) i++; // Skip the assistant message as it's already paired
+      }
+    }
+
+    // Sort pairs by question number (nulls at the end)
+    messagePairs.sort((a, b) => {
+      if (a.questionNum === null && b.questionNum === null) return a.originalIndex - b.originalIndex;
+      if (a.questionNum === null) return 1;
+      if (b.questionNum === null) return -1;
+      return a.questionNum - b.questionNum;
+    });
+
+    // Flatten back to message array with original indices preserved for actions
+    const sortedMsgs: Array<ChatMsg & { originalIndex: number }> = [];
+    messagePairs.forEach(pair => {
+      sortedMsgs.push({ ...pair.userMsg, originalIndex: pair.originalIndex });
+      if (pair.assistantMsg) {
+        sortedMsgs.push({ ...pair.assistantMsg, originalIndex: pair.originalIndex + 1 });
+      }
+    });
+
+    return sortedMsgs;
+  }, [messages]);
+
   const lastIndex = useMemo(() => messages.length - 1, [messages.length]);
   const lastAssistantIndex = useMemo(() => {
     for (let idx = messages.length - 1; idx >= 0; idx--) {
@@ -97,7 +141,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
         </div>
       ) : (
         <div className="space-y-3">
-          {messages.map((m, i) => {
+          {sortedMessages.map((m, i) => {
             const isAssistant = m.role === "assistant";
             const isStreaming = loading && i === lastIndex && isAssistant;
             return (
