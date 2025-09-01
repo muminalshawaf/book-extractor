@@ -307,10 +307,10 @@ Focus on accuracy and structured context metadata.`
               ]
             }],
             generationConfig: {
-              temperature: 0.05,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 16384,
+              temperature: 0.01,
+              topK: 1,
+              topP: 0.85,
+              maxOutputTokens: 20480,
               response_mime_type: "application/json"
             },
             safetySettings: [
