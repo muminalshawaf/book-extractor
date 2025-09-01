@@ -169,14 +169,17 @@ ${text}
 """
 
 ${needsDetailedStructure ? `
-Create a concise educational summary in ${lang} with these sections (only if content exists):
+Create a concise educational summary in ${lang} with these sections:
 
 ### ${lang === "ar" ? "المحتوى الأساسي" : "Key Content"}
 - Main concepts and definitions from the text
 - Important facts, measurements, and examples mentioned
 
+**CONDITIONAL SECTIONS (only include if content exists):**
+
+If the text contains questions (Arabic numerals ١٠٢, ١٠٦ or regular numbers 102, 106), include:
 ### ${lang === "ar" ? "الأسئلة والإجابات" : "Questions & Answers"}  
-For each question found (Arabic numerals ١٠٢, ١٠٦ or regular numbers 102, 106):
+For each question found:
 - **${lang === "ar" ? "س" : "Q"}:** [exact question]
 - **${lang === "ar" ? "ج" : "A"}:** [complete answer using your chemistry expertise and visual data]
 
@@ -186,14 +189,10 @@ For each question found (Arabic numerals ١٠٢, ١٠٦ or regular numbers 102, 
 3. Reference specific values from the graph description to perform mathematical operations
 4. Show step-by-step calculations using the graph data
 
+If the text contains formulas or equations, include:
 ### ${lang === "ar" ? "الصيغ والمعادلات" : "Formulas & Equations"}
 - Include formulas using LaTeX: $$formula$$ or $formula$
-- Explain variables and conditions
-
-### ${lang === "ar" ? "العناصر البصرية" : "Visual Elements"}
-- Describe charts/diagrams and their educational significance
-- Extract and use numerical data points from graphs when referenced in questions
-- Include axis labels, scales, and key values for problem-solving` : `
+- Explain variables and conditions` : `
 Create a simple summary in ${lang} using clean Markdown with H3 headings (###).
 
 ### ${lang === "ar" ? "نظرة عامة" : "Overview"}
