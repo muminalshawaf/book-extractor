@@ -102,20 +102,8 @@ serve(async (req: Request) => {
       return keywordCount >= 2 && hasSubstantialContent;
     }
 
-    // Helper function to extract question numbers from text
-    function extractQuestionNumbers(text: string): number[] {
-      const matches = text.match(/(\d+)\.\s/g);
-      if (!matches) return [];
-      
-      return matches.map(match => {
-        const num = parseInt(match.replace('.', '').trim());
-        return num;
-      }).filter(num => num > 0 && num < 100).sort((a, b) => a - b);
-    }
-
     const needsDetailedStructure = isContentPage(text);
-    const requiredQuestionIds = extractQuestionNumbers(text);
-    console.log(`Page type: ${needsDetailedStructure ? 'Content page' : 'Non-content page'}, Questions: [${requiredQuestionIds.join(', ')}]`);
+    console.log(`Page type: ${needsDetailedStructure ? 'Content page' : 'Non-content page'}`);
 
     // Extract page context if available from OCR data
     let contextPrompt = ''
@@ -140,53 +128,45 @@ serve(async (req: Request) => {
     const prompt = needsDetailedStructure ? 
       `الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"} • اللغة: ${lang}
 ${contextPrompt}
-النص المطلوب تلخيصه (صفحة واحدة فقط):
+
+**قواعد منع التكرار الصارمة:**
+1. لا تكرر أبداً نفس المسألة أو نوع السؤال أكثر من مرة
+2. إذا ظهر نفس السؤال في أقسام مختلفة، ضعه مرة واحدة فقط
+3. اجمع المسائل المتشابهة واعرض مثالاً تمثيلياً واحداً لكل نوع
+4. ركز على تعليم المفاهيم وليس حل كل مسألة فردية
+5. أعط الأولوية للمعلومات الفريدة على المحتوى المتكرر
+
+النص المطلوب تلخيصه:
 """
 ${text}
 """
 
-المهمة: إنشاء ملخص مفيد ومركز باللغة العربية بدون تكرار. استخدم Markdown نظيف مع عناوين H3 (###).
+المهمة: إنشاء ملخص تعليمي مركز باللغة العربية بدون أي تكرار.
 
-**مهم جداً:** تجنب التكرار تماماً. لا تحل نفس النوع من المسائل أكثر من مرة.
+**الأقسام (فقط إذا وُجد محتوى فعلي):**
 
-**اكتب فقط الأقسام التي تحتوي على محتوى فعلي من النص. لا تكتب أقسام فارغة.**
+### المحتوى التفصيلي
+- المعلومات الأساسية والقياسات والأمثلة من النص
+- الملاحظات المهمة والتطبيقات المذكورة
 
-### 1) نظرة عامة / Overview
-2-3 جمل تغطي المحتوى الرئيسي والغرض من الصفحة.
+### المفاهيم والتعاريف
+- المصطلحات العلمية والتعاريف من النص
+- الوحدات والرموز وأنظمة الترميز
 
-### 2) المفاهيم الأساسية / Key Concepts
-قائمة نقاط مع توضيحات مختصرة. اكتب فقط إذا كانت موجودة في النص.
+### نماذج الأسئلة والحلول
+**هام جداً: اجمع المسائل المتشابهة. احلل مثالاً واحداً فقط لكل نوع مسألة.**
+- إذا وُجدت أسئلة متشابهة متعددة، اختر الأكثر تمثيلاً
+- اعرض طريقة الحل التي تنطبق على جميع المسائل المشابهة
+- لا تحل أبداً نفس نوع المسألة مرتين
 
-### 3) التعاريف والمصطلحات / Definitions & Terms
-نموذج المسرد: **المصطلح** — التعريف (اشمل الرموز/الوحدات). اكتب فقط إذا كانت موجودة.
+### الصيغ والمعادلات
+- الصيغ الرياضية من النص باستخدام LaTeX
+- تعاريف المتغيرات والوحدات
 
-### 4) الصيغ والوحدات / Formulas & Units
-استخدم LaTeX ($$..$$). اكتب المتغيرات مع معانيها/وحداتها. اكتب فقط إذا كانت موجودة.
-
-### 5) حلول الأسئلة / Questions & Solutions
-**اكتب هذا القسم فقط إذا كانت هناك أسئلة مرقمة (مفاهيمية أو حسابية).**
-لكل سؤال مرقم:
-- أعد كتابة السؤال بوضوح
-- إذا كان له أسئلة فرعية (أ/ب/ج، a/b/c، i/ii/iii...)، أجب على كل سؤال فرعي منفصلاً
-- إذا كان حسابياً: اعرض الحل خطوة بخطوة مع المعادلات في LaTeX والجواب النهائي الرقمي مع الوحدات
-- إذا كان مفاهيمياً: قدم إجابة واضحة ومباشرة من النص
-- استخدم LaTeX للمعادلات: $$...$$ للعرض، $...$ للسطر
-
-### 6) الخطوات/الإجراءات / Procedures/Steps
-قائمة مرقمة. اكتب فقط إذا كانت موجودة.
-
-### 7) أمثلة وتطبيقات / Examples/Applications
-اكتب فقط إذا كانت موجودة.
-
-### 8) أخطاء شائعة/ملابسات / Misconceptions/Pitfalls
-اكتب فقط إذا كانت موجودة.
-
-القيود:
-- استخدم العربية مع علامات الترقيم المناسبة
-- ركز على مساعدة الطلاب للحصول على جميع النقاط المهمة والإجابة على جميع الأسئلة
-- احتفظ بالمعادلات/الرموز من النص الأصلي
-- اعرض جميع خطوات الحساب بوضوح عند حل المسائل
-- كن شاملاً بما يكفي ليشعر الطلاب بالثقة حول محتوى الصفحة` :
+**متطلبات الجودة:**
+- احذف كل تكرار وتداخل
+- ركز على تعليم المنهجية وليس حلول المسائل الفردية
+- اجمع المحتوى المشابه بكفاءة` :
       `الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
 ${contextPrompt}
 النص المطلوب تلخيصه (صفحة غير تعليمية):
@@ -202,80 +182,6 @@ ${text}
 القيود:
 - استخدم العربية
 - ركز على وصف بسيط للمحتوى`;
-
-    // Use Arabic prompt if language preference is Arabic or use appropriate English structure
-    const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 
-      needsDetailedStructure ? 
-        `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
-${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
-Text to summarize (single page, do not infer beyond it):
-"""
-${text}
-"""
-
-Create a comprehensive student-focused summary in ${lang}. Use clean Markdown with H3 headings (###). 
-
-**IMPORTANT**: If the text contains numbered questions or problems, you MUST answer ALL of them in a dedicated section.
-
-Rules:
-- ONLY include sections that have actual content from the text
-- Do NOT write empty sections
-- Make the summary comprehensive enough that a student feels confident knowing the page content without reading it
-- Use ${lang} throughout with appropriate punctuation
-- Preserve equations/symbols as they appear
-
-Potential sections (include only if applicable):
-
-### 1) Overview
-2–3 sentences covering the page's purpose and main content
-
-### 2) Key Concepts
-Comprehensive bullet list; each concept with 1–2 sentence explanation
-
-### 3) Definitions & Terms
-Complete glossary: **Term** — definition (include symbols/units)
-
-### 4) Formulas & Units
-Use LaTeX ($$...$$ for blocks). List variables with meanings and units
-
-### 5) Questions & Solutions
-**ONLY include this section if there are numbered questions or problems in the text.**
-For each question or problem found:
-- Restate the question clearly
-- If it has sub-questions (a/b/c, i/ii/iii...), answer each sub-question separately
-- If conceptual question: provide comprehensive, detailed answer
-- If calculation problem: show step-by-step solution with calculations
-- Provide final answer with proper units (for calculation problems)
-- Use LaTeX for equations: $$...$$ for display math, $...$ for inline
-
-### 6) Procedures/Steps
-Numbered list if applicable
-
-### 7) Examples/Applications
-Concrete examples from the text only
-
-### 8) Misconceptions/Pitfalls
-Common errors to avoid or important tips
-
-Constraints:
-- Avoid excessive formatting
-- Preserve equations/symbols from original text
-- When solving problems, show ALL calculation steps clearly` :
-        `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
-${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
-Text to summarize (non-educational page):
-"""
-${text}
-"""
-
-Create a simple summary in ${lang} using clean Markdown with H3 headings (###).
-
-### Overview
-Brief description of the page content and purpose
-
-Constraints:
-- Don't add unnecessary sections
-- Focus on simple description of content`;
 
     console.log('Making streaming request to DeepSeek API...');
 
@@ -295,7 +201,7 @@ Constraints:
           },
           {
             role: 'user',
-            content: finalPrompt
+            content: prompt
           }
         ],
         stream: true,
