@@ -100,60 +100,56 @@ Use this context to understand the page structure and provide detailed, contextu
 ${contextPrompt}
 
 **CRITICAL INSTRUCTIONS:**
-1. Extract and preserve ALL specific details: names, dates, exact numbers, scientific terms, historical references
-2. Answer EVERY numbered question found in the text with complete, detailed responses
-3. Include ALL real examples, applications, and practical references mentioned
-4. Preserve the educational richness - don't simplify or generalize
-5. Use the OCR context to understand the page structure and content type
+1. ONLY extract content that is explicitly written in the provided text - DO NOT ADD anything from external knowledge
+2. Answer ONLY the numbered questions that exist in the text, using ONLY information provided in the text
+3. Include ONLY examples, applications, and references that are specifically mentioned in the text
+4. If mathematical formulas or equations are not explicitly written in the text, DO NOT include a formulas section
+5. Stay faithful to the source material - do not elaborate beyond what is written
 
 Text to summarize:
 """
 ${text}
 """
 
-**PRIMARY TASK:** Create a comprehensive, detail-rich summary in ${lang} that captures ALL educational content from this page. Students should be able to learn everything important just from your summary.
+**PRIMARY TASK:** Create a faithful summary in ${lang} that captures ONLY the educational content explicitly present in this text. Do not add any external knowledge or assumptions.
 
-**MANDATORY SECTIONS (only include if content exists):**
+**MANDATORY SECTIONS (only include if content actually exists in the text):**
 
 ### ${lang === "ar" ? "المحتوى التفصيلي" : "Detailed Content"}
-- Extract ALL key information with specific details (names, dates, measurements, examples)
-- Include historical context, scientists' names with dates if mentioned
-- Preserve all real-world applications and practical examples
-- Maintain scientific precision and technical terminology
-- Include any special notes, boxes, or highlighted information
+- Extract ONLY the key information explicitly mentioned (names, dates, measurements, examples)
+- Include ONLY historical context, scientists' names if they are specifically mentioned in the text
+- Preserve ONLY real-world applications mentioned in the text
+- Include ONLY special notes, boxes, or highlighted information that appear in the text
 
 ### ${lang === "ar" ? "المفاهيم والتعاريف" : "Concepts & Definitions"}
-- List ALL scientific terms with their complete definitions
-- Include any symbols, units, or notation systems
-- Explain the relationship between different concepts
-- Preserve exact wording for important definitions
+- List ONLY scientific terms that are explicitly defined in the text
+- Include ONLY symbols, units, or notation systems mentioned in the text
+- ONLY explain relationships between concepts if they are explained in the text
 
 ### ${lang === "ar" ? "الأسئلة والإجابات الكاملة" : "Complete Questions & Answers"}
 **CRITICAL: This section is MANDATORY if ANY questions exist in the text**
-For EVERY question found:
-- **Question ${lang === "ar" ? "السؤال" : ""}:** [Restate the exact question]
-- **Answer ${lang === "ar" ? "الإجابة" : ""}:** [Provide complete, detailed answer based on the text content]
-- For sub-questions (أ، ب، ج or a, b, c): Answer each one separately and thoroughly
-- Use step-by-step explanations when needed
-- Include reasoning and scientific explanations, not just facts
+For EVERY question found in the text:
+- **Question ${lang === "ar" ? "السؤال" : ""}:** [Restate the exact question from the text]
+- **Answer ${lang === "ar" ? "الإجابة" : ""}:** [Answer using ONLY information provided in the text]
+- For sub-questions: Answer ONLY based on what's written in the text
+- Use ONLY reasoning and explanations that come from the text itself
 
 ### ${lang === "ar" ? "الأمثلة والتطبيقات" : "Examples & Applications"}
-- Include ALL specific examples mentioned in the text
-- Preserve exact details (company names, product names, measurements)
-- Explain how concepts apply to real life
-- Include any historical or contemporary references
+- Include ONLY specific examples explicitly mentioned in the text
+- Preserve ONLY details that are actually written (company names, product names, measurements)
+- ONLY include applications that are specifically discussed in the text
 
 ### ${lang === "ar" ? "الصيغ والمعادلات" : "Formulas & Equations"}
-- Write all formulas using LaTeX: $$formula$$ for display, $formula$ for inline
-- Explain what each variable represents
-- Include units and conditions for use
+**ONLY include this section if mathematical formulas or equations are explicitly written in the source text**
+- Write ONLY formulas that appear in the text using LaTeX: $$formula$$ for display, $formula$ for inline  
+- Explain ONLY variables that are defined in the text
+- Include ONLY units and conditions mentioned in the text
 
 **QUALITY REQUIREMENTS:**
-- Be comprehensive and detailed, not brief or generic
-- Preserve the educational value and richness of the original text
-- Use specific examples, names, dates, and numbers from the text
-- Answer questions completely based on the page content
-- Write as if tutoring a student who needs to fully understand this topic` :
+- Be faithful to the source text - do not add external knowledge
+- Extract ONLY what is explicitly written in the provided text  
+- Answer questions ONLY using information from the page content
+- Do not elaborate beyond what is written in the source material` :
       `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 ${contextPrompt}
 Text to summarize (non-educational page):
@@ -180,7 +176,7 @@ Constraints:
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "You are an expert educational content analyzer and summarizer. Your primary goal is to preserve ALL educational content from the source text with maximum precision and detail. Never generalize or simplify - extract every specific detail including names, dates, examples, and technical terms. When questions exist in the text, you MUST answer all of them completely using the information provided. Focus on creating comprehensive, tutorial-style content that teaches students everything from the page." },
+          { role: "system", content: "You are an expert educational content analyzer and summarizer. CRITICAL: You must ONLY extract and summarize content that is explicitly present in the provided text. Never add mathematical formulas, equations, definitions, or explanations that are not directly mentioned in the source material. Only include what is actually written in the OCR text. Your goal is to faithfully represent the content without adding any external knowledge or assumptions." },
           { role: "user", content: prompt },
         ],
         temperature: 0.3,
@@ -217,7 +213,7 @@ Constraints:
 
 ${summary}
 
-Please continue and complete the summary, ensuring all sections are included and complete. Pick up exactly where the previous response ended.`;
+Please continue and complete the summary, ensuring all sections are included and complete. Pick up exactly where the previous response ended. Remember: ONLY include content that is explicitly written in the original source text.`;
 
         const contResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
@@ -228,7 +224,7 @@ Please continue and complete the summary, ensuring all sections are included and
           body: JSON.stringify({
             model: "deepseek-chat",
             messages: [
-              { role: "system", content: "You are continuing a summary that was previously cut off. Complete it with all remaining content and sections." },
+              { role: "system", content: "You are continuing a summary that was previously cut off. Complete it with all remaining content and sections. CRITICAL: Only include content that is explicitly present in the original source text. Do not add any external knowledge." },
               { role: "user", content: continuationPrompt },
             ],
             temperature: 0.3,
