@@ -192,20 +192,20 @@ ${text}
 ${needsDetailedStructure ? `
 Create a concise educational summary in ${lang} with these sections:
 
-### ${lang === "ar" ? "المحتوى الأساسي" : "Key Content"}
+### **${lang === "ar" ? "المحتوى الأساسي" : "Key Content"}**
 - Main concepts and definitions from the text
 - Important facts, measurements, and examples mentioned
 
 **IMPORTANT:** Only include additional sections if they actually exist in the content. Do NOT mention missing sections or explain why they are not included.
 
 If questions exist, add:
-### ${lang === "ar" ? "الأسئلة والإجابات" : "Questions & Answers"}  
+### **${lang === "ar" ? "الأسئلة والإجابات" : "Questions & Answers"}**
 
 **CRITICAL NUMBERING RULE:** Use the EXACT question numbers as they appear in the OCR text. Do NOT renumber them.
 
 For each question found (maintain original numbering like ٩٣, ٩٤, ٩٥, ٩٦, ٩٧, ٩٨, ٩٩, ١٠٠, ١٠١, ١٠٢, ١٠٣, ١٠٤, ١٠٥, ١٠٦):
 
-**${lang === "ar" ? "س" : "Q"}:** [Question number as in source]- [exact question text]
+**${lang === "ar" ? "س" : "Q"}:** **[Question number as in source]- [exact question text]**
 
 **${lang === "ar" ? "ج" : "A"}:** [complete detailed answer using chemistry expertise and visual data]
 
@@ -216,6 +216,19 @@ For each question found (maintain original numbering like ٩٣, ٩٤, ٩٥, ٩٦
 - Include all mathematical formulas in LaTeX format
 - Show complete step-by-step calculations for numerical problems
 - Reference visual elements (tables, graphs) with exact data when mentioned in questions
+- **Make all section titles bold using double asterisks**
+- **Make all questions bold for better readability**
+- **Create markdown tables when OCR data contains tabular information**
+
+**TABLE CREATION INSTRUCTIONS:**
+When the OCR data contains table information (like "جدول 9-1"), create proper markdown tables:
+
+| ${lang === "ar" ? "العمود الأول" : "Column 1"} | ${lang === "ar" ? "العمود الثاني" : "Column 2"} |
+|---|---|
+| Data 1 | Data 2 |
+| Data 3 | Data 4 |
+
+Include table titles as bold headings: **${lang === "ar" ? "جدول" : "Table"} [Number]: [Title]**
 
 **CRITICAL FOR GRAPH-BASED QUESTIONS:** When a question references a specific figure/graph (like "الشكل 27-1"), you MUST:
 1. Use the provided visual element data to extract numerical relationships and data points
@@ -224,7 +237,7 @@ For each question found (maintain original numbering like ٩٣, ٩٤, ٩٥, ٩٦
 4. Show step-by-step calculations using the graph data
 
 If formulas or equations exist, add:
-### ${lang === "ar" ? "الصيغ والمعادلات" : "Formulas & Equations"}
+### **${lang === "ar" ? "الصيغ والمعادلات" : "Formulas & Equations"}**
 - Include formulas using LaTeX: $$formula$$ or $formula$
 - Explain variables and conditions` : `
 Create a simple summary in ${lang} using clean Markdown with H3 headings (###).
