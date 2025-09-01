@@ -17,6 +17,7 @@ serve(async (req: Request) => {
     let lang = 'ar';
     let page: number | undefined;
     let title = '';
+    let ocrData = null;
 
     // Handle both GET and POST requests
     if (req.method === 'GET') {
@@ -27,12 +28,14 @@ serve(async (req: Request) => {
       const pageParam = url.searchParams.get('page');
       page = pageParam ? parseInt(pageParam) : undefined;
       title = url.searchParams.get('title') || '';
+      // Note: ocrData not supported via GET for now
     } else {
       const body = await req.json();
       text = body.text || '';
       lang = body.lang || 'ar';
       page = body.page;
       title = body.title || '';
+      ocrData = body.ocrData || null;
     }
 
     console.log(`Processing text: ${text.length} characters, lang: ${lang}, page: ${page}, title: ${title}`);
@@ -114,9 +117,29 @@ serve(async (req: Request) => {
     const requiredQuestionIds = extractQuestionNumbers(text);
     console.log(`Page type: ${needsDetailedStructure ? 'Content page' : 'Non-content page'}, Questions: [${requiredQuestionIds.join(', ')}]`);
 
+    // Extract page context if available from OCR data
+    let contextPrompt = ''
+    if (ocrData && ocrData.pageContext) {
+      const ctx = ocrData.pageContext
+      contextPrompt = `
+**السياق من تحليل OCR:**
+- عنوان الصفحة: ${ctx.page_title || 'غير محدد'}
+- نوع الصفحة: ${ctx.page_type || 'غير محدد'}
+- المواضيع الرئيسية: ${ctx.main_topics ? ctx.main_topics.join('، ') : 'غير محددة'}
+- العناوين الموجودة: ${ctx.headers ? ctx.headers.join('، ') : 'غير محددة'}
+- يحتوي على أسئلة: ${ctx.has_questions ? 'نعم' : 'لا'}
+- يحتوي على صيغ: ${ctx.has_formulas ? 'نعم' : 'لا'}  
+- يحتوي على أمثلة: ${ctx.has_examples ? 'نعم' : 'لا'}
+
+استخدم هذا السياق لفهم محتوى الصفحة بشكل أفضل وتقديم ملخصات دقيقة ومناسبة للسياق.
+`
+      console.log('OCR Context available:', ctx.page_type, 'Questions:', ctx.has_questions, 'Formulas:', ctx.has_formulas)
+    }
+
     // Create appropriate prompt based on page type
     const prompt = needsDetailedStructure ? 
       `الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"} • اللغة: ${lang}
+${contextPrompt}
 النص المطلوب تلخيصه (صفحة واحدة فقط):
 """
 ${text}
@@ -165,6 +188,7 @@ ${text}
 - اعرض جميع خطوات الحساب بوضوح عند حل المسائل
 - كن شاملاً بما يكفي ليشعر الطلاب بالثقة حول محتوى الصفحة` :
       `الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
+${contextPrompt}
 النص المطلوب تلخيصه (صفحة غير تعليمية):
 """
 ${text}
@@ -183,6 +207,7 @@ ${text}
     const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 
       needsDetailedStructure ? 
         `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
 Text to summarize (single page, do not infer beyond it):
 """
 ${text}
@@ -237,6 +262,7 @@ Constraints:
 - Preserve equations/symbols from original text
 - When solving problems, show ALL calculation steps clearly` :
         `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
 Text to summarize (non-educational page):
 """
 ${text}

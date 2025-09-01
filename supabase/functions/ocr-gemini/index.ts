@@ -79,75 +79,103 @@ serve(async (req) => {
 {
   "language": "ar",
   "direction": "rtl",
-  "columns": [
-    {"order": 1, "text": "content of first column/section to read"},
-    {"order": 2, "text": "content of second column/section to read"}
+  "page_context": {
+    "page_title": "main page title or chapter name",
+    "page_type": "table_of_contents|chapter_intro|lesson_content|exercises|examples|summary",
+    "main_topics": ["topic1", "topic2", "topic3"],
+    "headers": ["header1", "header2", "header3"],
+    "has_questions": true/false,
+    "has_formulas": true/false,
+    "has_examples": true/false
+  },
+  "sections": [
+    {
+      "order": 1,
+      "type": "main_content|sidebar|header|title|example|exercise|formula|definition",
+      "title": "section title if present",
+      "content": "full text content of this section"
+    }
   ]
 }
 
-CRITICAL INSTRUCTIONS FOR TEXT EXTRACTION:
-1. PAGE TITLE FIRST: **MANDATORY** - Start with any page title or main heading at the very top (like "قائمة المحتويات", "الفصل الأول", etc.)
-2. EXTRACT EVERYTHING: Include ALL text elements - page titles, headers, subheaders, main content, boxed text, highlighted sections, formulas, questions, captions
-3. VISUAL SECTIONS: Recognize distinct content areas - sidebars, main content, headers, boxed sections, highlighted areas
-4. SECTION BOUNDARIES: Use visual cues (borders, background colors, spacing, fonts) to identify where one section ends and another begins
-5. PRESERVE SECTION STRUCTURE: Add clear section breaks using "--- SECTION: [title] ---" markers between visually distinct areas
-6. HEADER RECOGNITION: Identify section headers like "مهن في الكيمياء", "مثال 2-1", "الكيمياء في واقع الحياة", etc. and mark them clearly
-7. SIDEBAR CONTENT: Treat sidebar content as separate sections from main content
-8. BOXED TEXT: Preserve content in colored boxes, highlighted areas, or bordered sections as distinct units
+CRITICAL INSTRUCTIONS FOR CONTENT ANALYSIS AND EXTRACTION:
 
-TEXT EXTRACTION REQUIREMENTS:
-9. Column Reading Order: For multiple columns, read them in correct Arabic order (rightmost column = order 1, then left)  
-10. Preserve Structure: Maintain exact formatting of mathematical formulas, equations, chemical symbols, and units (ml, L, %, etc.)
-11. Include All Sections: Capture section titles, highlighted formula boxes, "ماذا قرأت؟" questions, step-by-step solutions
-12. Maintain Numbering: Keep problem numbers, step numbers, and bullet points in exact sequence
-13. Formula Preservation: Copy mathematical expressions exactly as written, including fraction layouts and special formatting
-14. Complete Content: Do NOT ignore any visible text - extract everything including page numbers, watermarks, ministry stamps, PAGE TITLES
-15. Exact Transcription: DO NOT summarize, paraphrase, or modify - extract exactly as written
-16. Layout Awareness: Use spacing and formatting to show relationships between elements
+1. **PAGE CONTEXT ANALYSIS** (Required for page_context):
+   - Identify the main page title or chapter name (e.g., "قائمة المحتويات", "الفصل الأول: المخاليط والمحاليل")
+   - Determine page type: table_of_contents, chapter_intro, lesson_content, exercises, examples, summary
+   - Extract main topics/concepts discussed on the page
+   - List all section headers and subheaders found
+   - Detect presence of questions (numbered problems, "ماذا قرأت؟", exercises)
+   - Detect presence of formulas (mathematical equations, chemical formulas)
+   - Detect presence of examples ("مثال", worked problems)
 
-FORMAT GUIDELINES:
-- Start with the main page title if visible (e.g., "قائمة المحتويات")
-- Then use "--- SECTION: [exact section title] ---" for distinct sections
-- Examples:
-  * Main page title: "قائمة المحتويات"
-  * "--- SECTION: الكيمياء في واقع الحياة ---"
-  * "--- SECTION: مهن في الكيمياء ---" 
-  * "--- SECTION: مثال 2-1 ---"
-  * "--- SECTION: الديزل الحيوي ---"
-  * "--- SECTION: مسائل تدريبية ---"
+2. **SECTION IDENTIFICATION** (Required for sections array):
+   - Classify each distinct visual section by type:
+     * "title" - main page titles and chapter headings
+     * "header" - section headers and subheaders  
+     * "main_content" - primary educational content, paragraphs
+     * "sidebar" - boxed content, highlighted areas, supplementary info
+     * "example" - worked examples, "مثال" sections
+     * "exercise" - practice problems, "مسائل تدريبية"
+     * "formula" - mathematical formulas, equations
+     * "definition" - vocabulary, key terms, definitions
+   - Extract section title if present (header text, example number, etc.)
+   - Include complete content for each section
 
-EXAMPLE OUTPUT FORMAT:
-قائمة المحتويات
+3. **TEXT EXTRACTION REQUIREMENTS**:
+   - Preserve exact Arabic text and mathematical formulas
+   - Maintain problem numbering and step sequences  
+   - Include ALL visible text: titles, headers, content, formulas, questions
+   - Use visual cues (fonts, colors, borders, spacing) to identify sections
+   - Read multiple columns in correct Arabic order (right to left)
+   - Keep mathematical expressions and chemical formulas exactly as written
 
---- SECTION: الكيمياء في واقع الحياة ---
-النسبة المئوية بدلالة الحجم تصف عادة المحاليل...
+4. **CONTENT COMPLETENESS**:
+   - Extract page titles, chapter names, section headers
+   - Capture main educational content and explanations
+   - Include all numbered questions and sub-questions
+   - Preserve worked examples with step-by-step solutions
+   - Extract formulas, equations, and chemical symbols
+   - Include boxed text, highlighted content, sidebars
+   - Capture vocabulary terms and definitions
 
---- SECTION: مهن في الكيمياء ---
-فنيو الصيدلة يستعين الكثير من الصيادلة...
-
-Focus on 100% completeness, especially capturing page titles and main headings.`
+Focus on providing rich context metadata while maintaining 100% text accuracy.`
       : `Analyze this image and extract all text with high accuracy. Please return a JSON response with the following structure:
 
 {
   "language": "en",
   "direction": "ltr",
-  "columns": [
-    {"order": 1, "text": "content of first column to read"},
-    {"order": 2, "text": "content of second column to read"}
+  "page_context": {
+    "page_title": "main page title or chapter name",
+    "page_type": "table_of_contents|chapter_intro|lesson_content|exercises|examples|summary",
+    "main_topics": ["topic1", "topic2", "topic3"],
+    "headers": ["header1", "header2", "header3"],
+    "has_questions": true/false,
+    "has_formulas": true/false,
+    "has_examples": true/false
+  },
+  "sections": [
+    {
+      "order": 1,
+      "type": "main_content|sidebar|header|title|example|exercise|formula|definition",
+      "title": "section title if present",
+      "content": "full text content of this section"
+    }
   ]
 }
 
 Instructions:
-1. If the page has multiple columns, read them in left-to-right order
-2. For single column pages, still use the JSON format with one column
-3. Preserve mathematical formulas, equations, and symbols exactly as they appear
-4. Keep problem numbers and maintain their sequence
-5. Ignore headers, footers, page numbers, and navigation elements
-6. Maintain paragraph breaks within each column
-7. Include any Arabic or other non-English text that appears
-8. DO NOT summarize or modify the content - extract exactly as written
+1. Identify main page title and page type
+2. Extract main topics and all headers
+3. Detect questions, formulas, and examples
+4. Classify each visual section by type
+5. If the page has multiple columns, read them in left-to-right order
+6. Preserve mathematical formulas, equations, and symbols exactly as they appear
+7. Keep problem numbers and maintain their sequence
+8. Include any Arabic or other non-English text that appears
+9. DO NOT summarize or modify the content - extract exactly as written
 
-Focus on accuracy and completeness.`
+Focus on accuracy and structured context metadata.`
 
     // Call Google Gemini API
     try {
@@ -248,12 +276,34 @@ Focus on accuracy and completeness.`
       let extractedText = ''
       let columnsDetected = 0
       let direction = isArabic ? 'rtl' : 'ltr'
+      let pageContext = null
       
       try {
         parsedData = JSON.parse(rawResponse)
         console.log('Successfully parsed JSON response:', parsedData)
         
-        if (parsedData.columns && Array.isArray(parsedData.columns)) {
+        // Handle new structured format with sections and page_context
+        if (parsedData.sections && Array.isArray(parsedData.sections)) {
+          // Sort sections by order
+          const sortedSections = parsedData.sections.sort((a, b) => a.order - b.order)
+          columnsDetected = sortedSections.length
+          direction = parsedData.direction || direction
+          pageContext = parsedData.page_context || null
+          
+          // Join section contents with section headers
+          extractedText = sortedSections.map(section => {
+            let sectionText = ''
+            if (section.title && section.type !== 'title') {
+              sectionText += `--- SECTION: ${section.title} ---\n`
+            }
+            sectionText += section.content
+            return sectionText
+          }).join('\n\n')
+          
+          console.log(`Structured layout detected: ${columnsDetected} sections, page type: ${pageContext?.page_type || 'unknown'}`)
+        } 
+        // Handle legacy format with columns
+        else if (parsedData.columns && Array.isArray(parsedData.columns)) {
           // Sort columns by order
           const sortedColumns = parsedData.columns.sort((a, b) => a.order - b.order)
           columnsDetected = sortedColumns.length
@@ -301,7 +351,9 @@ Focus on accuracy and completeness.`
           source: 'gemini',
           language: language,
           columnsDetected: columnsDetected,
-          direction: direction
+          direction: direction,
+          pageContext: pageContext, // Include structured page context
+          rawStructuredData: parsedData // Include full structured data for debugging
         }),
         { 
           status: 200, 

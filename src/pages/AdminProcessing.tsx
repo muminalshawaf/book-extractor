@@ -135,13 +135,14 @@ const AdminProcessing = () => {
           // OCR the page if no text exists or if we're not skipping processed pages
           let ocrText = (skipProcessed ? existingData?.ocr_text : '') || '';
           let ocrConfidence = 0.8;
+          let ocrResult = null; // Store full OCR result for summary context
 
           if (!ocrText || !skipProcessed) {
             addLog(`Page ${pageNum}: Extracting text...`);
             
             try {
               // Try Gemini OCR first
-              const ocrResult = await callFunction('ocr-gemini', {
+              ocrResult = await callFunction('ocr-gemini', {
                 imageUrl: pageImage.src,
                 language: 'ar' // Arabic language for Saudi books
               }, { timeout: 60000, retries: 1 }); // 1 minute timeout for OCR
@@ -160,6 +161,7 @@ const AdminProcessing = () => {
                 
                 ocrText = fallbackResult.text || '';
                 ocrConfidence = fallbackResult.confidence || 0.6;
+                ocrResult = fallbackResult; // Store fallback result
                 addLog(`Page ${pageNum}: DeepSeek OCR completed (confidence: ${(ocrConfidence * 100).toFixed(1)}%)`);
               } catch (fallbackError) {
                 addLog(`Page ${pageNum}: OCR failed - ${fallbackError.message || fallbackError}`);
@@ -181,7 +183,8 @@ const AdminProcessing = () => {
                 text: ocrText,
                 lang: 'ar',
                 page: pageNum,
-                title: selectedBook.title
+                title: selectedBook.title,
+                ocrData: ocrResult // Pass the full OCR result with page context
               }, { timeout: 180000, retries: 1 }); // 3 minute timeout, 1 retry for summarization
               
               summary = summaryResult.summary || '';

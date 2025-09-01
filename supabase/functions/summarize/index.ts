@@ -32,7 +32,7 @@ serve(async (req) => {
   try {
     console.log('Summarize function started');
     
-    const { text, lang = "ar", page, title } = await req.json();
+    const { text, lang = "ar", page, title, ocrData = null } = await req.json();
     console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title} }`);
 
     if (!text || typeof text !== "string") {
@@ -70,8 +70,28 @@ serve(async (req) => {
     const needsDetailedStructure = isContentPage(text);
     console.log(`Page type: ${needsDetailedStructure ? 'Content page' : 'Non-content page'}`);
 
+    // Extract page context if available from OCR data
+    let contextPrompt = ''
+    if (ocrData && ocrData.pageContext) {
+      const ctx = ocrData.pageContext
+      contextPrompt = `
+**PAGE CONTEXT (from OCR analysis):**
+- Page Title: ${ctx.page_title || 'Unknown'}
+- Page Type: ${ctx.page_type || 'Unknown'}
+- Main Topics: ${ctx.main_topics ? ctx.main_topics.join(', ') : 'None identified'}
+- Headers Found: ${ctx.headers ? ctx.headers.join(', ') : 'None identified'}
+- Contains Questions: ${ctx.has_questions ? 'Yes' : 'No'}
+- Contains Formulas: ${ctx.has_formulas ? 'Yes' : 'No'}  
+- Contains Examples: ${ctx.has_examples ? 'Yes' : 'No'}
+
+Use this context to better understand the page content and provide accurate, contextual summaries.
+`
+      console.log('OCR Context available:', ctx.page_type, 'Questions:', ctx.has_questions, 'Formulas:', ctx.has_formulas)
+    }
+
     const prompt = needsDetailedStructure ? 
       `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+${contextPrompt}
 Text to summarize (single page, do not infer beyond it):
 """
 ${text}
@@ -120,6 +140,7 @@ Constraints:
 - Show ALL calculation steps clearly when solving problems
 - Be comprehensive enough that students feel confident about the page content` :
       `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+${contextPrompt}
 Text to summarize (non-educational page):
 """
 ${text}
