@@ -291,7 +291,7 @@ Constraints:
         messages: [
           {
             role: 'system',
-            content: 'You are an expert educational content analyzer and summarizer. CRITICAL: You must ONLY extract and summarize content explicitly present in the provided text. Use your knowledge as an educator to answer the questions, summarize all top concepts and the topics.'
+            content: 'You are an expert educational content analyzer and summarizer. Use your knowledge as an educator to answer questions, summarize all key concepts and topics. When content is provided, extract and enhance it with your educational expertise to provide comprehensive answers and explanations.'
           },
           {
             role: 'user',
