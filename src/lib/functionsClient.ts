@@ -28,7 +28,12 @@ export async function callFunction<T = any>(
         });
         
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+          // Handle 504 Gateway Timeout specifically
+          if (response.status === 504) {
+            throw new Error('TIMEOUT_ERROR: Content too large for processing. Try reducing page range or content size.');
+          }
+          const errorText = await response.text().catch(() => 'Unknown error');
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
         
         const data = await response.json();
@@ -57,6 +62,11 @@ export async function callFunction<T = any>(
       throw new Error(`Function ${name} returned null data`);
     } catch (err: any) {
       console.error(`Failed to call function ${name} (attempt ${attempt + 1}):`, err);
+      
+      // Don't retry timeout errors for summarize function
+      if (name === 'summarize' && (err.message?.includes('TIMEOUT_ERROR') || err.message?.includes('504'))) {
+        throw err;
+      }
       
       if (attempt === retries) {
         throw new Error(err.message || `Failed to call function ${name} after ${retries + 1} attempts`);

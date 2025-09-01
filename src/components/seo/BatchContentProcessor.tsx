@@ -94,6 +94,18 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
 
         } catch (error) {
           console.error(`Error processing page ${pageNum}:`, error);
+          
+          // Handle timeout errors specifically
+          if (error instanceof Error && error.message.includes('TIMEOUT_ERROR')) {
+            toast.error(
+              rtl 
+                ? `الصفحة ${pageNum}: المحتوى كبير جداً للمعالجة` 
+                : `Page ${pageNum}: Content too large for processing`
+            );
+            // Continue with next page instead of stopping
+            continue;
+          }
+          
           toast.error(
             rtl 
               ? `خطأ في معالجة الصفحة ${pageNum}` 
