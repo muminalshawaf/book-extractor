@@ -210,7 +210,7 @@ Constraints:
     if (googleApiKey) {
       console.log('Attempting to use Gemini for summarization...');
       try {
-        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
+        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
