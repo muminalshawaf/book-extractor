@@ -686,7 +686,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             has_examples: /مثال|example/i.test(text)
           }
         }
-      }, { timeout: 300000, retries: 2 }); // Increased timeout to 5 minutes for thorough processing
+      }, { timeout: 240000, retries: 3 }); // 4 minutes timeout, 3 retries with direct fetch
       
       console.log('Summary result:', summaryResult);
 

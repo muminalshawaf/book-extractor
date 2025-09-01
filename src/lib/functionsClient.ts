@@ -6,23 +6,38 @@ export async function callFunction<T = any>(
   body: Record<string, any>, 
   options: { timeout?: number; retries?: number } = {}
 ): Promise<T> {
-  const { timeout = 120000, retries = 2 } = options; // 2 minute timeout, 2 retries
+  const { timeout = 180000, retries = 3 } = options; // 3 minute timeout, 3 retries
   
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       console.log(`Calling function ${name} (attempt ${attempt + 1}/${retries + 1})`);
       
-      // Create timeout promise
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error(`Function ${name} timed out after ${timeout}ms`)), timeout);
-      });
+      // Use a more reliable direct fetch approach for long-running functions
+      if (name === 'summarize' && timeout > 120000) {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        const response = await fetch(`https://ukznsekygmipnucpouoy.supabase.co/functions/v1/${name}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token || 'anon-key'}`,
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrem5zZWt5Z21pcG51Y3BvdW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjY4NzMsImV4cCI6MjA3MDIwMjg3M30.5gvy46gGEU-B9O3cutLNmLoX62dmEvKLC236yeaQ6So'
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(timeout)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+        
+        const data = await response.json();
+        console.log(`Function ${name} succeeded on attempt ${attempt + 1}`);
+        return data as T;
+      }
       
-      // Create function call promise
-      const functionPromise = supabase.functions.invoke(name, { body });
-      
-      // Race between timeout and function call
-      const result = await Promise.race([functionPromise, timeoutPromise]) as any;
-      const { data, error } = result;
+      // Standard Supabase client approach for other functions
+      const { data, error } = await supabase.functions.invoke(name, { body });
       
       if (error) {
         console.error(`Function ${name} error (attempt ${attempt + 1}):`, error);
