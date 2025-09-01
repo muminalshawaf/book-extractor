@@ -144,22 +144,32 @@ ocrData.rawStructuredData.visual_elements.map((ve, i) => {
 }).join('\n\n') : 'No visual elements detected'}`
 : 'No OCR context available'}
 
-Analyze the following educational content and create a comprehensive summary that includes:
+**CRITICAL INSTRUCTION: COMPREHENSIVE COVERAGE REQUIRED**
+You MUST analyze ALL content extracted from the OCR with ZERO omissions. This is a high-precision extraction task.
 
-1. **CONTENT OVERVIEW**: Brief description of the page type and main educational objectives
-2. **KEY TOPICS**: List the main concepts, theories, or subjects covered  
-3. **STRUCTURED CONTENT**: Organize content into logical sections (definitions, examples, exercises, etc.)
-4. **VISUAL ELEMENTS**: Describe any graphs, diagrams, tables, or figures and their educational purpose
-5. **NUMERICAL DATA**: When figures contain graphs or charts, include the precise numeric data points and units for calculations
-6. **ASSESSMENT ELEMENTS**: Note any questions, problems, or exercises with their complexity level
-7. **EDUCATIONAL CONNECTIONS**: How this content relates to broader chemistry concepts
+**MANDATORY REQUIREMENTS:**
+1. **EXHAUSTIVE QUESTION COVERAGE**: Include EVERY single question found in the OCR data, numbered or unnumbered
+2. **COMPLETE CONTENT ANALYSIS**: Cover ALL sections, headers, formulas, and text content 
+3. **VISUAL DATA PRECISION**: Extract ALL numerical data from charts, graphs, and tables with exact values
+4. **CROSS-REFERENCE VERIFICATION**: Use the structured OCR data to verify nothing is missed
 
-**CALCULATION-FRIENDLY INSTRUCTIONS**: 
-- When visual elements contain numeric data (graphs, charts, tables), include the exact data points and units.
-- For figure-based questions, provide all numeric values needed for calculations.
-- Use the structured visual data above when available to ensure precision.
+**ANALYSIS FRAMEWORK:**
+1. **CONTENT OVERVIEW**: Complete description of page type and ALL educational objectives
+2. **EXHAUSTIVE TOPIC COVERAGE**: List EVERY concept, theory, and subject mentioned
+3. **COMPLETE SECTION MAPPING**: Include ALL sections from the OCR structured data
+4. **COMPREHENSIVE VISUAL ANALYSIS**: Detail ALL graphs, diagrams, tables with complete data extraction
+5. **NUMERICAL PRECISION**: Include ALL data points, units, percentages, and measurements
+6. **COMPLETE ASSESSMENT INVENTORY**: Document EVERY question, problem, and exercise found
+7. **TOTAL EDUCATIONAL CONTEXT**: Connect ALL content to broader chemistry concepts
 
-For ${lang === 'ar' ? 'Arabic' : 'English'} educational content, maintain proper academic terminology and structure.
+**HIGH-PRECISION INSTRUCTIONS**: 
+- Process EVERY section from the OCR structured data systematically
+- Include ALL numeric values, chemical formulas, and measurements
+- Cover ALL visual elements with complete data extraction
+- Ensure NO question or content piece is overlooked
+- Cross-reference against the provided OCR structure to guarantee completeness
+
+For ${lang === 'ar' ? 'Arabic' : 'English'} educational content, maintain complete academic precision and terminology.
 
 Content to analyze:
 
