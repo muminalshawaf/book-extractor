@@ -249,115 +249,12 @@ Constraints:
 - Use ${lang} throughout
 - Focus on simple description of content`}`;
 
-    // Try DeepSeek first, then Gemini as fallback
+    // Try Gemini first, then DeepSeek as fallback
     let summary = "";
-    let useGemini = false;
+    let useDeepSeek = false;
 
-    if (deepSeekApiKey) {
-      console.log('Attempting to use DeepSeek for summarization...');
-      try {
-        const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${deepSeekApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "deepseek-chat",
-            messages: [
-              { role: "system", content: "You are an expert chemistry teacher. Create concise but complete summaries. Answer all questions using your expertise. Use LaTeX for formulas." },
-              { role: "user", content: prompt },
-            ],
-            temperature: 0.3,
-            top_p: 0.9,
-            max_tokens: 4000,
-          }),
-        });
-
-        if (!resp.ok) {
-          const txt = await resp.text();
-          console.error('DeepSeek API error:', resp.status, txt);
-          throw new Error(`DeepSeek API error: ${resp.status}`);
-        }
-
-        console.log('DeepSeek API responded successfully');
-        const data = await resp.json();
-        summary = data.choices?.[0]?.message?.content ?? "";
-        const finishReason = data.choices?.[0]?.finish_reason;
-        
-        console.log(`DeepSeek summary generated - Length: ${summary.length}, Finish reason: ${finishReason}`);
-
-        // If summary was cut off due to token limit, continue generating
-        if (finishReason === "length" && summary.length > 0) {
-          console.log('DeepSeek summary was truncated, attempting to continue...');
-          
-          // Try up to 2 continuation rounds
-          for (let attempt = 1; attempt <= 2; attempt++) {
-            console.log(`DeepSeek continuation attempt ${attempt}...`);
-            
-            const continuationPrompt = `Continue the summary from where it left off. Here's what was generated so far:
-
-${summary}
-
-Please continue and complete the summary, ensuring all sections are included and complete. Pick up exactly where the previous response ended. Remember: ONLY include content that is explicitly written in the original source text.`;
-
-            const contResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${deepSeekApiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "deepseek-chat",
-                messages: [
-                  { role: "system", content: "You are continuing a summary that was previously cut off. Complete it with all remaining content and sections. CRITICAL: Only include content that is explicitly present in the original source text. Do not add any external knowledge." },
-                  { role: "user", content: continuationPrompt },
-                ],
-                temperature: 0.3,
-                top_p: 0.9,
-                max_tokens: 4000,
-              }),
-            });
-
-            if (contResp.ok) {
-              const contData = await contResp.json();
-              const continuation = contData.choices?.[0]?.message?.content ?? "";
-              const contFinishReason = contData.choices?.[0]?.finish_reason;
-              
-              if (continuation.trim()) {
-                summary += "\n" + continuation;
-                console.log(`DeepSeek continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
-                
-                // If this continuation completed normally, stop trying
-                if (contFinishReason !== "length") {
-                  break;
-                }
-              } else {
-                console.log(`DeepSeek continuation ${attempt} returned empty content`);
-                break;
-              }
-            } else {
-              console.error(`DeepSeek continuation attempt ${attempt} failed:`, await contResp.text());
-              break;
-            }
-          }
-        }
-        
-        if (!summary.trim()) {
-          throw new Error("DeepSeek returned empty content");
-        }
-      } catch (deepSeekError) {
-        console.error('DeepSeek failed, falling back to Gemini:', deepSeekError);
-        useGemini = true;
-      }
-    } else {
-      console.log('No DeepSeek API key found, using Gemini');
-      useGemini = true;
-    }
-
-    // Gemini fallback
-    if (useGemini && googleApiKey) {
-      console.log('Using Gemini for summarization...');
+    if (googleApiKey) {
+      console.log('Attempting to use Gemini for summarization...');
       try {
         const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
           method: "POST",
@@ -457,8 +354,110 @@ Please continue and complete the summary, ensuring all sections are included and
           throw new Error(`Gemini API error: ${geminiResp.status}`);
         }
       } catch (geminiError) {
-        console.error('Gemini API failed:', geminiError);
-        return new Response(JSON.stringify({ error: "Both DeepSeek and Gemini failed", details: String(geminiError) }), {
+        console.error('Gemini failed, falling back to DeepSeek:', geminiError);
+        useDeepSeek = true;
+      }
+    } else {
+      console.log('No Google API key found, using DeepSeek');
+      useDeepSeek = true;
+    }
+
+    // DeepSeek fallback
+    if (useDeepSeek && deepSeekApiKey) {
+      console.log('Using DeepSeek for summarization...');
+      try {
+        const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${deepSeekApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "deepseek-chat",
+            messages: [
+              { role: "system", content: "You are an expert chemistry teacher. Create concise but complete summaries. Answer all questions using your expertise. Use LaTeX for formulas." },
+              { role: "user", content: prompt },
+            ],
+            temperature: 0.3,
+            top_p: 0.9,
+            max_tokens: 2000,
+          }),
+        });
+
+        if (!resp.ok) {
+          const txt = await resp.text();
+          console.error('DeepSeek API error:', resp.status, txt);
+          return new Response(JSON.stringify({ error: "DeepSeek error", details: txt }), {
+            status: 500,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        }
+
+        console.log('DeepSeek API responded successfully');
+        const data = await resp.json();
+        summary = data.choices?.[0]?.message?.content ?? "";
+        const finishReason = data.choices?.[0]?.finish_reason;
+        
+        console.log(`DeepSeek summary generated - Length: ${summary.length}, Finish reason: ${finishReason}`);
+
+        // If summary was cut off due to token limit, continue generating
+        if (finishReason === "length" && summary.length > 0) {
+          console.log('Summary was truncated, attempting to continue...');
+          
+          // Try up to 2 continuation rounds
+          for (let attempt = 1; attempt <= 2; attempt++) {
+            console.log(`Continuation attempt ${attempt}...`);
+            
+            const continuationPrompt = `Continue the summary from where it left off. Here's what was generated so far:
+
+${summary}
+
+Please continue and complete the summary, ensuring all sections are included and complete. Pick up exactly where the previous response ended. Remember: ONLY include content that is explicitly written in the original source text.`;
+
+            const contResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${deepSeekApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "deepseek-chat",
+                messages: [
+                  { role: "system", content: "You are continuing a summary that was previously cut off. Complete it with all remaining content and sections. CRITICAL: Only include content that is explicitly present in the original source text. Do not add any external knowledge." },
+                  { role: "user", content: continuationPrompt },
+                ],
+                temperature: 0.3,
+                top_p: 0.9,
+                max_tokens: 4000,
+              }),
+            });
+
+            if (contResp.ok) {
+              const contData = await contResp.json();
+              const continuation = contData.choices?.[0]?.message?.content ?? "";
+              const contFinishReason = contData.choices?.[0]?.finish_reason;
+              
+              if (continuation.trim()) {
+                summary += "\n" + continuation;
+                console.log(`Continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
+                
+                // If this continuation completed normally, stop trying
+                if (contFinishReason !== "length") {
+                  break;
+                }
+              } else {
+                console.log(`Continuation ${attempt} returned empty content`);
+                break;
+              }
+            } else {
+              console.error(`Continuation attempt ${attempt} failed:`, await contResp.text());
+              break;
+            }
+          }
+        }
+      } catch (deepSeekError) {
+        console.error('DeepSeek API failed:', deepSeekError);
+        return new Response(JSON.stringify({ error: "Both Gemini and DeepSeek failed", details: String(deepSeekError) }), {
           status: 500,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
