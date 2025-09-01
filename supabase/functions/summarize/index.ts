@@ -1,26 +1,43 @@
-// Supabase Edge Function: summarize
-// Summarizes given text using DeepSeek API
-// Deployed at: /functions/v1/summarize
-
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req: Request) => {
+function isContentPage(text: string): boolean {
+  const keywords = [
+    'مثال', 'تعريف', 'قانون', 'معادلة', 'حل', 'مسألة', 'نظرية', 'خاصية',
+    'example', 'definition', 'law', 'equation', 'solution', 'problem', 'theorem', 'property',
+    'الأهداف', 'المفاهيم', 'التعاريف', 'الصيغ', 'الخطوات',
+    'objectives', 'concepts', 'definitions', 'formulas', 'steps'
+  ];
+  
+  const keywordCount = keywords.filter(keyword => 
+    text.toLowerCase().includes(keyword.toLowerCase())
+  ).length;
+  
+  const hasNumberedQuestions = /\d+\.\s/.test(text);
+  const hasSubstantialContent = text.length > 300;
+  
+  return keywordCount >= 2 && hasSubstantialContent;
+}
+
+serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: { ...corsHeaders } });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
     console.log('Summarize function started');
-    const { text, lang = "en", page, title } = await req.json();
-    console.log(`Processing summary request - Page: ${page}, Lang: ${lang}, Text length: ${text?.length}`);
+    
+    const { text, lang = "ar", page, title } = await req.json();
+    console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title} }`);
 
     if (!text || typeof text !== "string") {
-      return new Response(JSON.stringify({ error: "Missing text" }), {
+      console.error('No text provided or text is not a string');
+      return new Response(JSON.stringify({ error: "Text is required" }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -28,54 +45,30 @@ serve(async (req: Request) => {
 
     const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "Missing DEEPSEEK_API_KEY secret" }), {
+      console.error('DEEPSEEK_API_KEY not found in environment variables');
+      return new Response(JSON.stringify({ error: "API key not configured" }), {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    // Check if this is a content page that needs detailed structure
-    const isContentPage = (text: string): boolean => {
-      // Check for non-content page indicators
-      const nonContentKeywords = [
-        // Cover page indicators
-        "غلاف", "عنوان", "المؤلف", "الناشر", "الطبعة", "cover", "title page", "author", "publisher", "edition",
-        // Index/TOC indicators
-        "قائمة المحتويات", "فهرس", "المحتويات", "جدول المحتويات", "table of contents", "contents", "index",
-        // Reference page indicators
-        "المراجع", "الببليوجرافيا", "references", "bibliography", "الفهرس الأبجدي", "alphabetical index",
-        // Acknowledgments/preface
-        "شكر وتقدير", "تقدير", "مقدمة المؤلف", "acknowledgments", "preface", "foreword"
-      ];
-      
-      const hasNonContentKeywords = nonContentKeywords.some(keyword => 
-        text.toLowerCase().includes(keyword.toLowerCase())
-      );
-      
-      if (hasNonContentKeywords) return false;
-      
-      // Check for content indicators
-      const contentIndicators = [
-        // Educational content
-        "تعريف", "مفهوم", "نظرية", "قانون", "معادلة", "مثال", "تمرين", "مسألة", "حل", "الحل",
-        "definition", "concept", "theory", "law", "equation", "example", "exercise", "problem", "solution",
-        // Chapter/lesson indicators
-        "الفصل", "الدرس", "الوحدة", "chapter", "lesson", "unit", "section",
-        // Scientific/mathematical content
-        "احسب", "اشرح", "قارن", "وضح", "برهن", "calculate", "explain", "compare", "demonstrate", "prove"
-      ];
-      
-      const hasContentIndicators = contentIndicators.some(keyword => 
-        text.toLowerCase().includes(keyword.toLowerCase())
-      );
-      
-      return hasContentIndicators && text.length > 200; // Must have substantial content
-    };
+    // Check if this is a table of contents page
+    const isTableOfContents = text.toLowerCase().includes('فهرس') || 
+                               text.toLowerCase().includes('contents') ||
+                               text.toLowerCase().includes('جدول المحتويات');
+    
+    if (isTableOfContents) {
+      console.log('Detected table of contents page, returning simple message');
+      return new Response(JSON.stringify({ 
+        summary: "### نظرة عامة\nهذه صفحة فهرس المحتويات التي تعرض تنظيم الكتاب وأقسامه الرئيسية." 
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
     const needsDetailedStructure = isContentPage(text);
     console.log(`Page type: ${needsDetailedStructure ? 'Content page' : 'Non-content page'}`);
-    
-    const notStated = lang === "ar" ? "غير واضح في النص" : "Not stated in text";
 
     const prompt = needsDetailedStructure ? 
       `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
@@ -84,68 +77,61 @@ Text to summarize (single page, do not infer beyond it):
 ${text}
 """
 
-Task: Produce a comprehensive study summary in ${lang}, strictly from the text. Output as clean Markdown using H3 headings (###) with localized section titles. 
+Task: Create a comprehensive student-focused summary in ${lang} that helps students understand all important points and answer all questions from the page. Output as clean Markdown using H3 headings (###) with bilingual section titles.
 
-**IMPORTANT**: If the text contains numbered mathematical/scientific problems (like "13. ما النسبة المئوية..." or "14. احسب..."), you MUST solve them step-by-step in a dedicated section.
+**CRITICAL**: Answer ALL numbered questions and sub-questions found in the text. This is the most important requirement.
 
-Sections and exact formats:
+**ONLY include sections that have actual content from the text. Do NOT include empty sections.**
 
 ### 1) ${lang === "ar" ? "نظرة عامة" : "Overview"}
-- 2–3 sentences covering the page's purpose and scope.
+2–3 sentences covering the page's main content and purpose.
 
 ### 2) ${lang === "ar" ? "المفاهيم الأساسية" : "Key Concepts"}
-- Exhaustive bullet list; each concept with a 1–2 sentence explanation. Do NOT bold the whole bullet; keep bold only for key terms if needed.
+Bullet list with short explanations. Include only if present in the text.
 
 ### 3) ${lang === "ar" ? "التعاريف والمصطلحات" : "Definitions & Terms"}
-- Exhaustive glossary in the format: **Term** — definition. Include symbols and units where relevant.
+Glossary format: **Term** — definition (include symbols/units). Include only if present.
 
 ### 4) ${lang === "ar" ? "الصيغ والوحدات" : "Formulas & Units"}
-- Use LaTeX ($$...$$ for blocks). List variables with meanings and typical units.
+Use LaTeX ($$..$$). List variables with meanings/units. Include only if present.
 
-### 5) ${lang === "ar" ? "حلول المسائل" : "Problem Solutions"}
-**ONLY include this section if there are numbered mathematical problems in the text.**
-For each problem found:
-- Restate the problem clearly
-- Show step-by-step solution with calculations
-- Provide final answer with proper units
-- Use LaTeX for equations: $$...$$ for display math, $...$ for inline
+### 5) ${lang === "ar" ? "حلول الأسئلة" : "Questions & Solutions"}
+**Include this section only if there are numbered questions (conceptual or calculation).**
+For each numbered question:
+- Restate the question clearly
+- If it has sub-questions (a/b/c, أ/ب/ج, i/ii/iii…), answer each sub-question separately
+- If calculation: show step-by-step solution with equations in LaTeX and final numeric answer with units
+- If conceptual: provide clear, direct answer from the text
+- Use LaTeX for equations: $$...$$ for display, $...$ for inline
 
 ### 6) ${lang === "ar" ? "الخطوات/الإجراءات" : "Procedures/Steps"}
-- Numbered list if applicable.
+Numbered list. Include only if present.
 
 ### 7) ${lang === "ar" ? "أمثلة وتطبيقات" : "Examples/Applications"}
-- Concrete examples from the text only.
+Include only if present.
 
 ### 8) ${lang === "ar" ? "أخطاء شائعة/ملابسات" : "Misconceptions/Pitfalls"}
-- Bullets indicating common errors to avoid.
-
-### 9) ${lang === "ar" ? "أسئلة سريعة" : "Quick Q&A"}
-Provide 3–5 question–answer pairs strictly from the text as a Markdown table:
-
-| ${lang === "ar" ? "السؤال" : "Question"} | ${lang === "ar" ? "الجواب" : "Answer"} |
-|---|---|
-| … | … |
+Include only if present.
 
 Constraints:
-- Use ${lang} throughout. Use Arabic punctuation if ${lang} = ar.
-- No external knowledge or hallucinations; if something is missing, write "${notStated}".
-- 300–600 words total (more if solving problems). Prefer concise bullets. Preserve equations/symbols. Avoid decorative characters and excessive bolding.
-- When solving problems, show ALL calculation steps clearly.` :
+- Use ${lang} throughout with proper punctuation
+- Focus on helping students get all important points and answer all questions
+- Preserve equations/symbols from original text
+- Show ALL calculation steps clearly when solving problems
+- Be comprehensive enough that students feel confident about the page content` :
       `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 Text to summarize (non-educational page):
 """
 ${text}
 """
 
-Task: Create a simple summary in ${lang} using clean Markdown with H3 headings (###).
+Create a simple summary in ${lang} using clean Markdown with H3 headings (###).
 
 ### ${lang === "ar" ? "نظرة عامة" : "Overview"}
-Brief description of the page content and purpose
+2-3 sentences describing the page content and purpose.
 
 Constraints:
 - Use ${lang} throughout
-- 100-200 words only
-- Don't add unnecessary sections
 - Focus on simple description of content`;
 
     console.log('Making request to DeepSeek API...');
@@ -158,7 +144,7 @@ Constraints:
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "You are an expert textbook summarizer for a single page. Be accurate, comprehensive, and structured. Prioritize complete coverage of Definitions & Terms and Key Concepts. Only use the provided text. Preserve math in LaTeX. When mathematical problems are present, solve them step-by-step showing all work. The 'Quick Q&A' section MUST be a Markdown table that includes both clear questions and their direct answers from the text." },
+          { role: "system", content: "You are an expert textbook summarizer for students. Be accurate, comprehensive, and structured. Only include sections that have actual content from the text. When numbered questions are present, answer ALL of them completely including any sub-questions. Show step-by-step solutions for calculations and provide clear answers for conceptual questions. Use LaTeX for mathematical expressions." },
           { role: "user", content: prompt },
         ],
         temperature: 0.2,

@@ -2,231 +2,184 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
+// Handle CORS preflight requests
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Summarize-stream function started');
-    // Support GET (EventSource) and POST (fetch streaming)
-    let text = "";
-    let lang = "en";
-    let page: number | undefined = undefined;
-    let title = "";
+    let text = '';
+    let lang = 'ar';
+    let page: number | undefined;
+    let title = '';
 
-    if (req.method === "GET") {
+    // Handle both GET and POST requests
+    if (req.method === 'GET') {
       const url = new URL(req.url);
-      const b64 = url.searchParams.get("text_b64");
-      if (b64) {
-        try {
-          const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-          text = new TextDecoder().decode(bytes);
-        } catch (_) {
-          text = "";
-        }
-      } else {
-        text = url.searchParams.get("text") ?? "";
-      }
-      lang = url.searchParams.get("lang") ?? "en";
-      const pg = url.searchParams.get("page");
-      page = pg ? Number(pg) : undefined;
-      title = url.searchParams.get("title") ?? "";
+      const encodedText = url.searchParams.get('text');
+      text = encodedText ? atob(encodedText) : '';
+      lang = url.searchParams.get('lang') || 'ar';
+      const pageParam = url.searchParams.get('page');
+      page = pageParam ? parseInt(pageParam) : undefined;
+      title = url.searchParams.get('title') || '';
     } else {
       const body = await req.json();
-      text = body?.text ?? "";
-      lang = body?.lang ?? "en";
-      page = body?.page;
-      title = body?.title ?? "";
+      text = body.text || '';
+      lang = body.lang || 'ar';
+      page = body.page;
+      title = body.title || '';
     }
 
-    console.log(`Processing streaming summary - Page: ${page}, Lang: ${lang}, Text length: ${text?.length}`);
+    console.log(`Processing text: ${text.length} characters, lang: ${lang}, page: ${page}, title: ${title}`);
 
-    if (!text || typeof text !== "string") {
-      return new Response(JSON.stringify({ error: "Missing text" }), {
+    if (!text) {
+      return new Response(JSON.stringify({ error: 'Text is required' }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
 
     // Check if this is a table of contents page
-    const tableOfContentsKeywords = [
-      "قائمة المحتويات", "فهرس", "المحتويات", "جدول المحتويات",
-      "table of contents", "contents", "index", "table des matières"
-    ];
+    const isTableOfContents = text.toLowerCase().includes('فهرس') || 
+                               text.toLowerCase().includes('contents') ||
+                               text.toLowerCase().includes('جدول المحتويات');
     
-    const isTableOfContents = tableOfContentsKeywords.some(keyword => 
-      text.toLowerCase().includes(keyword.toLowerCase())
-    );
-
     if (isTableOfContents) {
-      console.log('Detected table of contents page - returning simple response');
-      const tocResponse = lang === "ar" || lang === "arabic" 
-        ? "### قائمة المحتويات\n\nهذه الصفحة تحتوي على فهرس الكتاب وقائمة بالفصول والمواضيع. لا تحتاج إلى تلخيص - يمكنك استخدامها للتنقل إلى الصفحات المطلوبة."
-        : "### Table of Contents\n\nThis page contains the book's index and list of chapters and topics. No summarization needed - use it to navigate to the desired pages.";
+      console.log('Detected table of contents page, returning simple message');
+      const simpleMessage = "### نظرة عامة\nهذه صفحة فهرس المحتويات التي تعرض تنظيم الكتاب وأقسامه الرئيسية.";
       
       const encoder = new TextEncoder();
-      const stream = new ReadableStream<Uint8Array>({
+      const stream = new ReadableStream({
         start(controller) {
-          controller.enqueue(encoder.encode(`event: open\ndata: ok\n\n`));
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: tocResponse })}\n\n`));
-          controller.enqueue(encoder.encode(`event: done\ndata: [DONE]\n\n`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: { content: simpleMessage } })}\n\n`));
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
         }
       });
 
       return new Response(stream, {
         headers: {
-          ...corsHeaders,
-          "Content-Type": "text/event-stream; charset=utf-8",
-          "Cache-Control": "no-cache, no-store, must-revalidate, no-transform",
-          "Connection": "keep-alive",
-          "X-Accel-Buffering": "no",
-          "Transfer-Encoding": "chunked",
-          "Pragma": "no-cache",
-          "Expires": "0",
-        },
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          ...corsHeaders
+        }
       });
     }
 
-    const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
+    const apiKey = Deno.env.get('DEEPSEEK_API_KEY');
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "Missing DEEPSEEK_API_KEY" }), {
+      return new Response(JSON.stringify({ error: 'DeepSeek API key not found' }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
 
-    // Extract numbered questions/problems from the text
-    // Check if this is a content page that needs detailed structure
-    const isContentPage = (text: string): boolean => {
-      // Check for non-content page indicators
-      const nonContentKeywords = [
-        // Cover page indicators
-        "غلاف", "عنوان", "المؤلف", "الناشر", "الطبعة", "cover", "title page", "author", "publisher", "edition",
-        // Index/TOC indicators (already handled above)
-        "قائمة المحتويات", "فهرس", "المحتويات", "جدول المحتويات", "table of contents", "contents", "index",
-        // Reference page indicators
-        "المراجع", "الببليوجرافيا", "references", "bibliography", "الفهرس الأبجدي", "alphabetical index",
-        // Acknowledgments/preface
-        "شكر وتقدير", "تقدير", "مقدمة المؤلف", "acknowledgments", "preface", "foreword"
+    // Helper function to determine if content is educational
+    function isContentPage(text: string): boolean {
+      const keywords = [
+        'مثال', 'تعريف', 'قانون', 'معادلة', 'حل', 'مسألة', 'نظرية', 'خاصية',
+        'example', 'definition', 'law', 'equation', 'solution', 'problem', 'theorem', 'property',
+        'الأهداف', 'المفاهيم', 'التعاريف', 'الصيغ', 'الخطوات',
+        'objectives', 'concepts', 'definitions', 'formulas', 'steps'
       ];
       
-      const hasNonContentKeywords = nonContentKeywords.some(keyword => 
+      const keywordCount = keywords.filter(keyword => 
         text.toLowerCase().includes(keyword.toLowerCase())
-      );
+      ).length;
       
-      if (hasNonContentKeywords) return false;
+      const hasNumberedQuestions = /\d+\.\s/.test(text);
+      const hasSubstantialContent = text.length > 300;
       
-      // Check for content indicators
-      const contentIndicators = [
-        // Educational content
-        "تعريف", "مفهوم", "نظرية", "قانون", "معادلة", "مثال", "تمرين", "مسألة", "حل", "الحل",
-        "definition", "concept", "theory", "law", "equation", "example", "exercise", "problem", "solution",
-        // Chapter/lesson indicators
-        "الفصل", "الدرس", "الوحدة", "chapter", "lesson", "unit", "section",
-        // Scientific/mathematical content
-        "احسب", "اشرح", "قارن", "وضح", "برهن", "calculate", "explain", "compare", "demonstrate", "prove"
-      ];
-      
-      const hasContentIndicators = contentIndicators.some(keyword => 
-        text.toLowerCase().includes(keyword.toLowerCase())
-      );
-      
-      return hasContentIndicators && text.length > 200; // Must have substantial content
-    };
+      return keywordCount >= 2 && hasSubstantialContent;
+    }
 
-    const extractQuestionNumbers = (text: string): number[] => {
-      const matches = text.match(/(?:^|\s)(\d{1,3})[\u002E\u06D4]\s*[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z]/gm);
+    // Helper function to extract question numbers from text
+    function extractQuestionNumbers(text: string): number[] {
+      const matches = text.match(/(\d+)\.\s/g);
       if (!matches) return [];
       
-      const numbers = matches
-        .map(match => {
-          const num = match.trim().match(/(\d{1,3})/);
-          return num ? parseInt(num[1], 10) : 0;
-        })
-        .filter(num => num > 0 && num < 200) // Reasonable range for textbook questions
-        .sort((a, b) => a - b);
-      
-      // Remove duplicates
-      return [...new Set(numbers)];
-    };
+      return matches.map(match => {
+        const num = parseInt(match.replace('.', '').trim());
+        return num;
+      }).filter(num => num > 0 && num < 100).sort((a, b) => a - b);
+    }
 
     const needsDetailedStructure = isContentPage(text);
     const requiredQuestionIds = extractQuestionNumbers(text);
     console.log(`Page type: ${needsDetailedStructure ? 'Content page' : 'Non-content page'}, Questions: [${requiredQuestionIds.join(', ')}]`);
 
-    const notStated = lang === "ar" ? "غير واضح في النص" : "Not stated in text";
-
     // Create appropriate prompt based on page type
     const prompt = needsDetailedStructure ? 
-      `لخص هذا النص بإيجاز وبطريقة مفيدة للطلاب (صفحة واحدة فقط):
+      `الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"} • اللغة: ${lang}
+النص المطلوب تلخيصه (صفحة واحدة فقط):
 """
 ${text}
 """
 
-${requiredQuestionIds.length > 0 ? 
-`**مهم جداً:** يجب أن تجيب على جميع الأسئلة المرقمة الموجودة في النص. الأرقام المطلوبة: [${requiredQuestionIds.join(', ')}]
+المهمة: إنشاء ملخص شامل مفيد للطلاب باللغة العربية يساعدهم على فهم جميع النقاط المهمة والإجابة على جميع الأسئلة في الصفحة. استخدم Markdown نظيف مع عناوين H3 (###) بعناوين الأقسام ثنائية اللغة.
 
-تأكد من تضمين كل رقم في قسم "حل المسائل" مع الإجابة الكاملة.` : ''}
+**مهم جداً:** يجب الإجابة على جميع الأسئلة المرقمة والأسئلة الفرعية الموجودة في النص. هذا هو المطلب الأهم.
 
-اكتب ملخصاً مفيداً وموجزاً باللغة العربية باستخدام Markdown مع عناوين H3 (###).
+**اكتب فقط الأقسام التي تحتوي على محتوى فعلي من النص. لا تكتب أقسام فارغة.**
 
-اتبع هذه القواعد:
-- اكتب فقط الأقسام المهمة من النص (300-500 كلمة)
-- كن واضحاً وموجزاً
-- استخدم اللغة العربية البسيطة
-- احتفظ بالمعادلات والرموز كما هي باستخدام $$...$$ للمعادلات
+### 1) نظرة عامة / Overview
+2-3 جمل تغطي المحتوى الرئيسي والغرض من الصفحة.
 
-### نظرة عامة
-ملخص موجز للصفحة
+### 2) المفاهيم الأساسية / Key Concepts
+قائمة نقاط مع توضيحات مختصرة. اكتب فقط إذا كانت موجودة في النص.
 
-### المفاهيم الأساسية  
-- النقاط المهمة فقط
+### 3) التعاريف والمصطلحات / Definitions & Terms
+نموذج المسرد: **المصطلح** — التعريف (اشمل الرموز/الوحدات). اكتب فقط إذا كانت موجودة.
 
-### التعاريف الرئيسية
-- **المصطلح الأهم** — تعريف مختصر
+### 4) الصيغ والوحدات / Formulas & Units
+استخدم LaTeX ($$..$$). اكتب المتغيرات مع معانيها/وحداتها. اكتب فقط إذا كانت موجودة.
 
-${requiredQuestionIds.length > 0 ? `
-### حل المسائل
-**يجب حل جميع المسائل المرقمة [${requiredQuestionIds.join(', ')}]:**
+### 5) حلول الأسئلة / Questions & Solutions
+**اكتب هذا القسم فقط إذا كانت هناك أسئلة مرقمة (مفاهيمية أو حسابية).**
+لكل سؤال مرقم:
+- أعد كتابة السؤال بوضوح
+- إذا كان له أسئلة فرعية (أ/ب/ج، a/b/c، i/ii/iii...)، أجب على كل سؤال فرعي منفصلاً
+- إذا كان حسابياً: اعرض الحل خطوة بخطوة مع المعادلات في LaTeX والجواب النهائي الرقمي مع الوحدات
+- إذا كان مفاهيمياً: قدم إجابة واضحة ومباشرة من النص
+- استخدم LaTeX للمعادلات: $$...$$ للعرض، $...$ للسطر
 
-` + requiredQuestionIds.map(num => `**${num}. [اكتب السؤال كاملاً من النص]**
-- الحل: [خطوات مفصلة]
-- الجواب النهائي: [النتيجة مع الوحدات]`).join('\n\n') : ''}
+### 6) الخطوات/الإجراءات / Procedures/Steps
+قائمة مرقمة. اكتب فقط إذا كانت موجودة.
 
-### أسئلة سريعة
-جدول بـ 3-5 أسئلة وأجوبة مهمة:
+### 7) أمثلة وتطبيقات / Examples/Applications
+اكتب فقط إذا كانت موجودة.
 
-| السؤال | الجواب |
-|---|---|
-| ... | ... |
+### 8) أخطاء شائعة/ملابسات / Misconceptions/Pitfalls
+اكتب فقط إذا كانت موجودة.
 
-قيود:
-- لا تكرر المحتوى
-- كن واضحاً ومفصلاً
-- قدم كل التفاصيل المهمة
-- تأكد من حل جميع الأسئلة المرقمة` :
-      `لخص هذا النص بإيجاز (صفحة غير تعليمية):
+القيود:
+- استخدم العربية مع علامات الترقيم المناسبة
+- ركز على مساعدة الطلاب للحصول على جميع النقاط المهمة والإجابة على جميع الأسئلة
+- احتفظ بالمعادلات/الرموز من النص الأصلي
+- اعرض جميع خطوات الحساب بوضوح عند حل المسائل
+- كن شاملاً بما يكفي ليشعر الطلاب بالثقة حول محتوى الصفحة` :
+      `الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
+النص المطلوب تلخيصه (صفحة غير تعليمية):
 """
 ${text}
 """
 
-اكتب ملخصاً بسيطاً وموجزاً باللغة العربية باستخدام Markdown مع عناوين H3 (###).
+المهمة: إنشاء ملخص بسيط باللغة العربية باستخدام Markdown نظيف مع عناوين H3 (###).
 
-### نظرة عامة
-وصف موجز لمحتوى الصفحة ووظيفتها
+### نظرة عامة / Overview
+2-3 جمل تصف محتوى الصفحة والغرض منها.
 
-قيود:
-- 100-200 كلمة فقط
-- لا تضيف أقسام غير ضرورية
-- ركز على الوصف البسيط للمحتوى`;
+القيود:
+- استخدم العربية
+- ركز على وصف بسيط للمحتوى`;
 
-    // Use Arabic prompt if language is Arabic, with appropriate structure
+    // Use Arabic prompt if language preference is Arabic or use appropriate English structure
     const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 
       needsDetailedStructure ? 
         `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
@@ -237,11 +190,11 @@ ${text}
 
 Create a comprehensive student-focused summary in ${lang}. Use clean Markdown with H3 headings (###). 
 
-**IMPORTANT**: If the text contains numbered questions or problems (like "31. Compare..." or "32. Explain..."), you MUST answer ALL of them in a dedicated section.
+**IMPORTANT**: If the text contains numbered questions or problems, you MUST answer ALL of them in a dedicated section.
 
 Rules:
 - ONLY include sections that have actual content from the text
-- Do NOT write empty sections or "${notStated}"
+- Do NOT write empty sections
 - Make the summary comprehensive enough that a student feels confident knowing the page content without reading it
 - Use ${lang} throughout with appropriate punctuation
 - Preserve equations/symbols as they appear
@@ -249,44 +202,37 @@ Rules:
 Potential sections (include only if applicable):
 
 ### 1) Overview
-- 2–3 sentences covering the page's purpose and main content
+2–3 sentences covering the page's purpose and main content
 
 ### 2) Key Concepts
-- Comprehensive bullet list; each concept with 1–2 sentence explanation
+Comprehensive bullet list; each concept with 1–2 sentence explanation
 
 ### 3) Definitions & Terms
-- Complete glossary: **Term** — definition (include symbols/units)
+Complete glossary: **Term** — definition (include symbols/units)
 
 ### 4) Formulas & Units
-- Use LaTeX ($$...$$ for blocks). List variables with meanings and units
+Use LaTeX ($$...$$ for blocks). List variables with meanings and units
 
-### 5) Questions & Problems
+### 5) Questions & Solutions
 **ONLY include this section if there are numbered questions or problems in the text.**
 For each question or problem found:
 - Restate the question clearly
+- If it has sub-questions (a/b/c, i/ii/iii...), answer each sub-question separately
 - If conceptual question: provide comprehensive, detailed answer
 - If calculation problem: show step-by-step solution with calculations
 - Provide final answer with proper units (for calculation problems)
 - Use LaTeX for equations: $$...$$ for display math, $...$ for inline
 
 ### 6) Procedures/Steps
-- Numbered list if applicable
+Numbered list if applicable
 
 ### 7) Examples/Applications
-- Concrete examples from the text only
+Concrete examples from the text only
 
 ### 8) Misconceptions/Pitfalls
-- Common errors to avoid or important tips
-
-### 9) Quick Q&A
-If sufficient content exists, create 3–5 Q&A pairs from the text:
-
-| Question | Answer |
-|---|---|
-| ... | ... |
+Common errors to avoid or important tips
 
 Constraints:
-- 300-600 words total (more if solving problems)
 - Avoid excessive formatting
 - Preserve equations/symbols from original text
 - When solving problems, show ALL calculation steps clearly` :
@@ -302,136 +248,109 @@ Create a simple summary in ${lang} using clean Markdown with H3 headings (###).
 Brief description of the page content and purpose
 
 Constraints:
-- 100-200 words only
 - Don't add unnecessary sections
 - Focus on simple description of content`;
 
     console.log('Making streaming request to DeepSeek API...');
-    const dsRes = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
+
+    // Make the streaming request to DeepSeek
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "Accept": "text/event-stream",
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: 'deepseek-chat',
         messages: [
-          { role: "system", content: (lang === "ar" || lang === "arabic") ? 
-            "أنت خبير في تلخيص الكتب المدرسية. اكتب ملخصات تفصيلية ومفيدة للطلاب. قدم كل المعلومات المهمة والتفاصيل الضرورية. حل جميع المسائل بالتفصيل." : 
-            "You are a textbook summarizer. Write detailed, useful summaries for students. Provide all important information and necessary details. Solve all problems with full detail." },
-          { role: "user", content: finalPrompt },
+          {
+            role: 'system',
+            content: 'You are an expert textbook summarizer for students. Be accurate, comprehensive, and structured. Only include sections that have actual content from the text. When numbered questions are present, answer ALL of them completely including any sub-questions. Show step-by-step solutions for calculations and provide clear answers for conceptual questions. Use LaTeX for mathematical expressions.'
+          },
+          {
+            role: 'user',
+            content: finalPrompt
+          }
         ],
+        stream: true,
         temperature: 0.2,
         top_p: 0.9,
-        max_tokens: 4000,
-        stream: true,
+        max_tokens: 2000,
       }),
     });
 
-    if (!dsRes.ok || !dsRes.body) {
-      const t = await dsRes.text();
-      console.error('DeepSeek streaming API error:', dsRes.status, t);
-      return new Response(
-        JSON.stringify({ error: `DeepSeek error ${dsRes.status}`, details: t }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('DeepSeek API error:', response.status, errorText);
+      return new Response(JSON.stringify({ error: 'DeepSeek API error', details: errorText }), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
     }
 
-    console.log('DeepSeek streaming API connected successfully');
-
-    const stream = new ReadableStream<Uint8Array>({
+    // Create a readable stream to handle the SSE response
+    const stream = new ReadableStream({
       async start(controller) {
-        const encoder = new TextEncoder();
+        const reader = response.body?.getReader();
+        if (!reader) {
+          controller.error(new Error('No response body'));
+          return;
+        }
+
         const decoder = new TextDecoder();
-        const reader = dsRes.body!.getReader();
-        let buffer = "";
+        let buffer = '';
 
-        controller.enqueue(encoder.encode(`event: open\ndata: ok\n\n`));
-        const ping = setInterval(() => {
-          try { controller.enqueue(encoder.encode(`:ping\n\n`)); } catch (_) {}
-        }, 15000);
-
-        let chunkCount = 0;
-        let totalContentReceived = "";
         try {
           while (true) {
-            const { value, done } = await reader.read();
-            if (done) {
-              console.log(`Stream completed after ${chunkCount} chunks. Total content length: ${totalContentReceived.length}`);
-              break;
-            }
-            
-            chunkCount++;
-            const chunk = decoder.decode(value, { stream: true });
-            // Reduced logging for better performance - only log every 10th chunk
-            if (chunkCount % 10 === 0) {
-              console.log(`Received chunk ${chunkCount}, size: ${chunk.length}`);
-            }
-            
-            buffer += chunk;
+            const { done, value } = await reader.read();
+            if (done) break;
 
-            const parts = buffer.split(/\r?\n\r?\n/);
-            buffer = parts.pop() || "";
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
 
-            for (const part of parts) {
-              const line = part.trim();
-              if (!line.startsWith("data:")) continue;
-              const dataStr = line.slice(5).trim();
-
-              if (dataStr === "[DONE]") {
-                console.log('Received [DONE] signal from DeepSeek');
-                controller.enqueue(encoder.encode(`event: done\ndata: [DONE]\n\n`));
-                controller.close();
-                return;
-              }
-
-              try {
-                const json = JSON.parse(dataStr);
-                const delta = json?.choices?.[0]?.delta?.content ?? "";
-                if (delta) {
-                  // Reduced delta logging - only log significant chunks
-                  if (delta.length > 20) {
-                    console.log(`Forwarding delta content: "${delta.substring(0, 50)}${delta.length > 50 ? '...' : ''}"`);
-                  }
-                  totalContentReceived += delta;
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`));
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') {
+                  controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+                  controller.close();
+                  return;
                 }
-              } catch (parseErr) {
-                console.log('Failed to parse JSON data:', dataStr.substring(0, 100));
+                
+                try {
+                  const parsed = JSON.parse(data);
+                  controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(parsed)}\n\n`));
+                } catch (e) {
+                  console.error('Error parsing SSE data:', e);
+                }
               }
             }
+
+            // Send a ping to keep the connection alive
+            controller.enqueue(new TextEncoder().encode(': ping\n\n'));
           }
-        } catch (err) {
-          console.error('Streaming error:', err);
-          controller.enqueue(encoder.encode(`event: error\ndata: ${String(err)}\n\n`));
-        } finally {
-          console.log('Stream cleanup: clearing ping interval and closing controller');
-          clearInterval(ping);
-          controller.enqueue(encoder.encode(`event: done\ndata: [DONE]\n\n`));
-          controller.close();
+        } catch (error) {
+          console.error('Stream processing error:', error);
+          controller.error(error);
         }
-      },
+      }
     });
 
     return new Response(stream, {
       headers: {
-        ...corsHeaders,
-        "Content-Type": "text/event-stream; charset=utf-8",
-        "Cache-Control": "no-cache, no-store, must-revalidate, no-transform",
-        "Connection": "keep-alive",
-        "X-Accel-Buffering": "no",
-        "Transfer-Encoding": "chunked",
-        "Pragma": "no-cache",
-        "Expires": "0",
-      },
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        ...corsHeaders
+      }
     });
-  } catch (e) {
-    console.error('Unexpected error in summarize-stream function:', e);
-    console.error('Error stack:', e.stack);
-    return new Response(
-      JSON.stringify({ error: "Unexpected error", details: String(e) }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+
+  } catch (error) {
+    console.error('Error in summarize-stream function:', error);
+    return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
   }
 });
