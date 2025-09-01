@@ -145,9 +145,9 @@ ${contextPrompt}
 ${text}
 """
 
-المهمة: إنشاء ملخص شامل مفيد للطلاب باللغة العربية يساعدهم على فهم جميع النقاط المهمة والإجابة على جميع الأسئلة في الصفحة. استخدم Markdown نظيف مع عناوين H3 (###) بعناوين الأقسام ثنائية اللغة.
+المهمة: إنشاء ملخص مفيد ومركز باللغة العربية بدون تكرار. استخدم Markdown نظيف مع عناوين H3 (###).
 
-**مهم جداً:** يجب الإجابة على جميع الأسئلة المرقمة والأسئلة الفرعية الموجودة في النص. هذا هو المطلب الأهم.
+**مهم جداً:** تجنب التكرار تماماً. لا تحل نفس النوع من المسائل أكثر من مرة.
 
 **اكتب فقط الأقسام التي تحتوي على محتوى فعلي من النص. لا تكتب أقسام فارغة.**
 
@@ -291,7 +291,7 @@ Constraints:
         messages: [
           {
             role: 'system',
-            content: 'You are an expert educational teacher and content analyzer. CRITICAL: Answer ALL questions using your full educational knowledge. NEVER say content is "not mentioned" - always provide complete educational answers. When text content is provided, use it as reference but supplement with your teaching expertise to give comprehensive answers to all questions.'
+            content: 'You are an educational content analyzer. CRITICAL RULES: Be concise and focused. Avoid all repetition. Don\'t solve the same problem type multiple times. Group similar content together. Answer questions directly without over-explaining. Prioritize unique, essential information only. Quality over quantity always.'
           },
           {
             role: 'user',

@@ -176,7 +176,7 @@ Constraints:
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "You are an expert educational teacher and content analyzer. CRITICAL: Answer ALL questions using your full educational knowledge. NEVER say content is 'not mentioned' - always provide complete educational answers. When text content is provided, use it as reference but supplement with your teaching expertise to give comprehensive answers to all questions." },
+          { role: "system", content: "You are an educational content analyzer. CRITICAL RULES: Be concise and focused. Avoid repetition at all costs. Don't solve the same problem multiple times. Group similar concepts together. Answer questions directly without over-explaining. Quality over quantity." },
           { role: "user", content: prompt },
         ],
         temperature: 0.3,
