@@ -859,6 +859,23 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       localStorage.removeItem(ocrKey);
       localStorage.removeItem(sumKey);
       
+      // Clear database cached data by deleting the record
+      try {
+        const { error: deleteError } = await supabase
+          .from('page_summaries')
+          .delete()
+          .eq('book_id', dbBookId)
+          .eq('page_number', index + 1);
+          
+        if (deleteError) {
+          console.warn('Failed to delete cached data:', deleteError);
+        } else {
+          console.log('Cleared cached data for force regeneration');
+        }
+      } catch (deleteErr) {
+        console.warn('Failed to clear database cache:', deleteErr);
+      }
+      
       // Force regenerate OCR and summary
       await extractTextFromPage(true);
       
