@@ -11,17 +11,23 @@ function isContentPage(text: string): boolean {
     'مثال', 'تعريف', 'قانون', 'معادلة', 'حل', 'مسألة', 'نظرية', 'خاصية',
     'example', 'definition', 'law', 'equation', 'solution', 'problem', 'theorem', 'property',
     'الأهداف', 'المفاهيم', 'التعاريف', 'الصيغ', 'الخطوات',
-    'objectives', 'concepts', 'definitions', 'formulas', 'steps'
+    'objectives', 'concepts', 'definitions', 'formulas', 'steps',
+    'الحركة', 'تأثير', 'ظاهرة', 'جسيمات', 'مخلوط', 'محلول', 'ذائبة', 'براونية', 'تندال',
+    'اشرح', 'وضح', 'قارن', 'حدد', 'لماذا', 'كيف', 'ماذا', 'أين', 'متى'
   ];
   
   const keywordCount = keywords.filter(keyword => 
     text.toLowerCase().includes(keyword.toLowerCase())
   ).length;
   
+  // Check for various question patterns including Arabic questions
   const hasNumberedQuestions = /\d+\.\s/.test(text);
+  const hasArabicQuestions = /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(text);
+  const hasSectionHeaders = /---\s*SECTION:/.test(text);
   const hasSubstantialContent = text.length > 300;
   
-  return keywordCount >= 2 && hasSubstantialContent;
+  // More inclusive detection - any scientific content with questions or structured sections
+  return (keywordCount >= 2 || hasArabicQuestions || hasSectionHeaders) && hasSubstantialContent;
 }
 
 serve(async (req) => {
