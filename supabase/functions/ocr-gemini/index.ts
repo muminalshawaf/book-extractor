@@ -310,7 +310,7 @@ Focus on accuracy and structured context metadata.`
               temperature: 0.01,
               topK: 1,
               topP: 0.85,
-              maxOutputTokens: 20480,
+              maxOutputTokens: 32768, // Increased from 20480 for full page extraction
               response_mime_type: "application/json"
             },
             safetySettings: [
@@ -367,6 +367,12 @@ Focus on accuracy and structured context metadata.`
           }), 
           { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
+      }
+      
+      // Check if response was truncated due to token limits
+      if (candidate.finishReason === 'MAX_TOKENS') {
+        console.warn('OCR response was truncated due to token limit. Consider splitting the image or using a higher token limit.')
+        // Continue processing but flag as potentially incomplete
       }
       
       if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
@@ -492,6 +498,12 @@ Focus on accuracy and structured context metadata.`
       confidence = Math.min(confidence, 0.95)
 
       console.log(`OCR completed successfully. Text length: ${textLength}, Confidence: ${confidence}, Columns: ${columnsDetected}`)
+      
+      // Check if extraction might be incomplete
+      const wasIncomplete = candidate.finishReason === 'MAX_TOKENS'
+      if (wasIncomplete) {
+        console.warn('Warning: OCR extraction may be incomplete due to token limit truncation')
+      }
 
       return new Response(
         JSON.stringify({
@@ -502,7 +514,8 @@ Focus on accuracy and structured context metadata.`
           columnsDetected: columnsDetected,
           direction: direction,
           pageContext: pageContext, // Include structured page context
-          rawStructuredData: parsedData // Include full structured data for debugging
+          rawStructuredData: parsedData, // Include full structured data for debugging
+          incomplete: wasIncomplete // Flag if extraction was truncated
         }),
         { 
           status: 200, 
