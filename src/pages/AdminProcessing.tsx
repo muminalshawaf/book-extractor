@@ -22,6 +22,7 @@ interface ProcessingStatus {
   skipped: number;
   errors: number;
   startTime?: Date;
+  lastActivity?: Date;
   logs: string[];
 }
 
@@ -46,6 +47,16 @@ const AdminProcessing = () => {
 
   // Use ref to track running state for the processing loop
   const isRunningRef = React.useRef(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every second for activity monitoring
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const selectedBook = enhancedBooks.find(b => b.id === selectedBookId);
 
@@ -58,8 +69,10 @@ const AdminProcessing = () => {
 
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
+    const now = new Date();
     setStatus(prev => ({
       ...prev,
+      lastActivity: now,
       logs: [...prev.logs.slice(-49), `[${timestamp}] ${message}`] // Keep last 50 logs
     }));
   };
@@ -253,6 +266,25 @@ const AdminProcessing = () => {
   };
 
   const progress = status.totalPages > 0 ? (status.currentPage / status.totalPages) * 100 : 0;
+  
+  // Calculate activity status
+  const getActivityStatus = () => {
+    if (!status.isRunning) return 'idle';
+    if (!status.lastActivity) return 'starting';
+    
+    const timeSinceActivity = currentTime.getTime() - status.lastActivity.getTime();
+    const inactiveThreshold = 30000; // 30 seconds
+    const frozenThreshold = 120000; // 2 minutes
+    
+    if (timeSinceActivity > frozenThreshold) return 'frozen';
+    if (timeSinceActivity > inactiveThreshold) return 'inactive';
+    return 'active';
+  };
+  
+  const activityStatus = getActivityStatus();
+  const timeSinceActivity = status.lastActivity 
+    ? Math.floor((currentTime.getTime() - status.lastActivity.getTime()) / 1000)
+    : 0;
 
   return (
     <>
@@ -446,6 +478,36 @@ const AdminProcessing = () => {
                   </div>
                   <Progress value={progress} />
                 </div>
+
+                {/* Activity Status Indicator */}
+                {status.isRunning && (
+                  <div className={`flex items-center justify-between p-3 rounded-lg border ${
+                    activityStatus === 'active' ? 'bg-green-50 border-green-200' :
+                    activityStatus === 'inactive' ? 'bg-yellow-50 border-yellow-200' :
+                    activityStatus === 'frozen' ? 'bg-red-50 border-red-200' :
+                    'bg-blue-50 border-blue-200'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        activityStatus === 'active' ? 'bg-green-500 animate-pulse' :
+                        activityStatus === 'inactive' ? 'bg-yellow-500' :
+                        activityStatus === 'frozen' ? 'bg-red-500' :
+                        'bg-blue-500'
+                      }`}></div>
+                      <span className="text-sm font-medium">
+                        {activityStatus === 'active' ? 'Processing Active' :
+                         activityStatus === 'inactive' ? 'Processing (Inactive)' :
+                         activityStatus === 'frozen' ? 'Processing Frozen' :
+                         'Starting...'}
+                      </span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {status.lastActivity ? 
+                        `Last activity: ${timeSinceActivity}s ago` : 
+                        'Initializing...'}
+                    </span>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center p-3 bg-green-50 rounded-lg">
