@@ -144,32 +144,43 @@ ocrData.rawStructuredData.visual_elements.map((ve, i) => {
 }).join('\n\n') : 'No visual elements detected'}`
 : 'No OCR context available'}
 
-**CRITICAL INSTRUCTION: COMPREHENSIVE COVERAGE REQUIRED**
-You MUST analyze ALL content extracted from the OCR with ZERO omissions. This is a high-precision extraction task.
+**CRITICAL INSTRUCTION: COMPREHENSIVE COVERAGE WITH EXACT FORMATTING**
+You MUST analyze ALL content extracted from the OCR with ZERO omissions and PERFECT formatting fidelity.
 
 **MANDATORY REQUIREMENTS:**
-1. **EXHAUSTIVE QUESTION COVERAGE**: Include EVERY single question found in the OCR data, numbered or unnumbered
-2. **COMPLETE CONTENT ANALYSIS**: Cover ALL sections, headers, formulas, and text content 
-3. **VISUAL DATA PRECISION**: Extract ALL numerical data from charts, graphs, and tables with exact values
-4. **CROSS-REFERENCE VERIFICATION**: Use the structured OCR data to verify nothing is missed
+1. **EXACT QUESTION NUMBERING**: Use the EXACT question numbers as they appear in the OCR text (93, 94, 95, etc.) - NEVER renumber them
+2. **EXHAUSTIVE QUESTION COVERAGE**: Include EVERY single question found in the OCR data with their original numbers
+3. **ENHANCED FORMATTING**: Use proper markdown formatting with clear spacing and structure
+4. **COMPLETE CONTENT ANALYSIS**: Cover ALL sections, headers, formulas, and text content 
+5. **VISUAL DATA PRECISION**: Extract ALL numerical data from charts, graphs, and tables with exact values
+6. **CROSS-REFERENCE VERIFICATION**: Use the structured OCR data to verify nothing is missed
+
+**FORMATTING STANDARDS:**
+- Use proper Arabic numbering as found in source (٩٣، ٩٤، ٩٥، etc.)
+- Add clear section breaks with double line spacing
+- Use consistent **س:** and **ج:** formatting
+- Include proper LaTeX formatting for all mathematical expressions
+- Add clear visual separation between different question types
 
 **ANALYSIS FRAMEWORK:**
 1. **CONTENT OVERVIEW**: Complete description of page type and ALL educational objectives
 2. **EXHAUSTIVE TOPIC COVERAGE**: List EVERY concept, theory, and subject mentioned
-3. **COMPLETE SECTION MAPPING**: Include ALL sections from the OCR structured data
+3. **COMPLETE SECTION MAPPING**: Include ALL sections from the OCR structured data with proper headers
 4. **COMPREHENSIVE VISUAL ANALYSIS**: Detail ALL graphs, diagrams, tables with complete data extraction
 5. **NUMERICAL PRECISION**: Include ALL data points, units, percentages, and measurements
-6. **COMPLETE ASSESSMENT INVENTORY**: Document EVERY question, problem, and exercise found
+6. **COMPLETE ASSESSMENT INVENTORY**: Document EVERY question, problem, and exercise with EXACT numbering
 7. **TOTAL EDUCATIONAL CONTEXT**: Connect ALL content to broader chemistry concepts
 
-**HIGH-PRECISION INSTRUCTIONS**: 
+**CRITICAL FORMATTING RULES**: 
 - Process EVERY section from the OCR structured data systematically
-- Include ALL numeric values, chemical formulas, and measurements
-- Cover ALL visual elements with complete data extraction
-- Ensure NO question or content piece is overlooked
+- Maintain original question numbering from source material
+- Use enhanced markdown with proper spacing and visual hierarchy
+- Include ALL numeric values, chemical formulas, and measurements with proper formatting
+- Cover ALL visual elements with complete data extraction and clear presentation
+- Ensure NO question or content piece is overlooked with consistent formatting
 - Cross-reference against the provided OCR structure to guarantee completeness
 
-For ${lang === 'ar' ? 'Arabic' : 'English'} educational content, maintain complete academic precision and terminology.
+For Arabic educational content, maintain complete academic precision, proper terminology, and enhanced visual presentation.
 
 Content to analyze:
 
@@ -187,11 +198,24 @@ Create a concise educational summary in ${lang} with these sections:
 
 **IMPORTANT:** Only include additional sections if they actually exist in the content. Do NOT mention missing sections or explain why they are not included.
 
-If questions exist (Arabic numerals ١٠٢, ١٠٦ or regular numbers 102, 106), add:
+If questions exist, add:
 ### ${lang === "ar" ? "الأسئلة والإجابات" : "Questions & Answers"}  
-For each question found:
-- **${lang === "ar" ? "س" : "Q"}:** [exact question]
-- **${lang === "ar" ? "ج" : "A"}:** [complete answer using your chemistry expertise and visual data]
+
+**CRITICAL NUMBERING RULE:** Use the EXACT question numbers as they appear in the OCR text. Do NOT renumber them.
+
+For each question found (maintain original numbering like ٩٣, ٩٤, ٩٥, ٩٦, ٩٧, ٩٨, ٩٩, ١٠٠, ١٠١, ١٠٢, ١٠٣, ١٠٤, ١٠٥, ١٠٦):
+
+**${lang === "ar" ? "س" : "Q"}:** [Question number as in source]- [exact question text]
+
+**${lang === "ar" ? "ج" : "A"}:** [complete detailed answer using chemistry expertise and visual data]
+
+
+**ENHANCED FORMATTING REQUIREMENTS:**
+- Add double line spacing between each question-answer pair
+- Use proper Arabic numerals as they appear in the source material
+- Include all mathematical formulas in LaTeX format
+- Show complete step-by-step calculations for numerical problems
+- Reference visual elements (tables, graphs) with exact data when mentioned in questions
 
 **CRITICAL FOR GRAPH-BASED QUESTIONS:** When a question references a specific figure/graph (like "الشكل 27-1"), you MUST:
 1. Use the provided visual element data to extract numerical relationships and data points
