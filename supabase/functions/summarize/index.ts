@@ -175,9 +175,9 @@ Create a concise educational summary in ${lang} with these sections:
 - Main concepts and definitions from the text
 - Important facts, measurements, and examples mentioned
 
-**CONDITIONAL SECTIONS (only include if content exists):**
+**IMPORTANT:** Only include additional sections if they actually exist in the content. Do NOT mention missing sections or explain why they are not included.
 
-If the text contains questions (Arabic numerals ١٠٢, ١٠٦ or regular numbers 102, 106), include:
+If questions exist (Arabic numerals ١٠٢, ١٠٦ or regular numbers 102, 106), add:
 ### ${lang === "ar" ? "الأسئلة والإجابات" : "Questions & Answers"}  
 For each question found:
 - **${lang === "ar" ? "س" : "Q"}:** [exact question]
@@ -189,7 +189,7 @@ For each question found:
 3. Reference specific values from the graph description to perform mathematical operations
 4. Show step-by-step calculations using the graph data
 
-If the text contains formulas or equations, include:
+If formulas or equations exist, add:
 ### ${lang === "ar" ? "الصيغ والمعادلات" : "Formulas & Equations"}
 - Include formulas using LaTeX: $$formula$$ or $formula$
 - Explain variables and conditions` : `
