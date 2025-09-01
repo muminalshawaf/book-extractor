@@ -144,12 +144,15 @@ ${text}
 - ONLY explain relationships between concepts if they are explained in the text
 
 ### ${lang === "ar" ? "الأسئلة والإجابات الكاملة" : "Complete Questions & Answers"}
-**CRITICAL: This section is MANDATORY if ANY questions exist in the text**
-For EVERY question found in the text:
-- **Question ${lang === "ar" ? "السؤال" : ""}:** [Restate the exact question from the text]
-- **Answer ${lang === "ar" ? "الإجابة" : ""}:** [Answer comprehensively using your full educational knowledge and expertise]
-- For sub-questions: Answer each thoroughly using your teaching expertise
-- Use comprehensive reasoning and explanations from your knowledge as an educator
+**CRITICAL: This section is MANDATORY. Scan the text for ALL question numbers including:**
+- Arabic numerals: ١٠٢, ١٠٦, etc.
+- Regular numbers: 102, 106, etc.  
+- Question patterns: سؤال, اشرح, وضح, قارن, حدد, لماذا, كيف
+**For EVERY question found:**
+- **Question ${lang === "ar" ? "السؤال" : ""}:** [Extract the exact question from OCR text]
+- **Answer ${lang === "ar" ? "الإجابة" : ""}:** [Provide complete, accurate answer using your chemistry expertise]
+- Include chemical formulas, reactions, and scientific explanations as needed
+- DO NOT say "not mentioned in text" - use your educational knowledge to answer completely
 
 ### ${lang === "ar" ? "الأمثلة والتطبيقات" : "Examples & Applications"}
 - Include ONLY specific examples explicitly mentioned in the text
@@ -201,12 +204,12 @@ Constraints:
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "You are an expert educational teacher and content analyzer. CRITICAL: Answer ALL questions using your full educational knowledge. NEVER say content is 'not mentioned' - always provide complete educational answers. When text content is provided, use it as reference but supplement with your teaching expertise to give comprehensive answers to all questions." },
+          { role: "system", content: "You are an expert chemistry teacher with comprehensive knowledge. Your task is to:\n1. Extract ALL questions from the OCR text, including Arabic numerals (١٠٢, ١٠٦) and regular numbers (102, 106)\n2. Answer each question with your full educational expertise and knowledge\n3. Use the OCR text as context but provide complete, accurate answers from your chemistry knowledge\n4. NEVER skip questions - if you see a question number, answer it completely\n5. For chemical formulas and reactions, use your chemistry expertise to provide accurate information" },
           { role: "user", content: prompt },
         ],
         temperature: 0.3,
         top_p: 0.9,
-        max_tokens: 3000,
+        max_tokens: 4000,
       }),
     });
 
@@ -254,7 +257,7 @@ Please continue and complete the summary, ensuring all sections are included and
             ],
             temperature: 0.3,
             top_p: 0.9,
-            max_tokens: 3000,
+            max_tokens: 4000,
           }),
         });
 
