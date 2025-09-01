@@ -204,6 +204,13 @@ const AdminProcessing = () => {
           if ((!summary && ocrText) || (!skipProcessed && ocrText)) {
             addLog(`Page ${pageNum}: Generating summary...`);
             
+            // Start activity tracker for long-running summarize call
+            const activityInterval = setInterval(() => {
+              if (isRunningRef.current) {
+                setStatus(prev => ({ ...prev, lastActivity: new Date() }));
+              }
+            }, 15000); // Update activity every 15 seconds
+            
             try {
               const summaryResult = await callFunction('summarize', {
                 text: ocrText,
@@ -212,6 +219,8 @@ const AdminProcessing = () => {
                 title: selectedBook.title,
                 ocrData: ocrResult // Pass the full OCR result with page context
               }, { timeout: 180000, retries: 1 }); // 3 minute timeout, 1 retry for summarization
+              
+              clearInterval(activityInterval);
               
               // Check if processing was stopped during summary generation
               if (!isRunningRef.current) {
@@ -223,6 +232,7 @@ const AdminProcessing = () => {
               summaryConfidence = 0.8; // Set default confidence since summarize function doesn't return it
               addLog(`Page ${pageNum}: Summary generated successfully`);
             } catch (summaryError) {
+              clearInterval(activityInterval);
               addLog(`Page ${pageNum}: Summary generation failed - ${summaryError.message || summaryError}`);
               setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
               continue;
