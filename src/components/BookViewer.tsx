@@ -514,9 +514,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       const { data: geminiResult, error: geminiError } = await supabase.functions.invoke('ocr-gemini', {
         body: { 
           imageUrl: imageSrc,
-          language: rtl ? 'ar' : 'en'
+          language: 'ar'  // Force Arabic for enhanced OCR prompt with comprehensive extraction
         }
       });
+      
+      console.log('OCR Gemini result:', geminiResult);
 
       setOcrProgress(60);
 
@@ -654,7 +656,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       const { data: summaryResult, error: summaryError } = await supabase.functions.invoke('summarize', {
         body: { 
           text: trimmedText,
-          lang: rtl ? 'ar' : 'en',
+          lang: 'ar',  // Force Arabic for comprehensive educational answers
           page: index + 1,
           title: title,
           ocrData: {
@@ -662,12 +664,14 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               page_title: title || 'Unknown',
               page_type: 'content',
               has_formulas: hasMathMarkers,
-              has_questions: /\d+\.\s/.test(text),
+              has_questions: /\d+\.\s/.test(text) || /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(text),
               has_examples: /مثال|example/i.test(text)
             }
           }
         }
       });
+      
+      console.log('Summary result:', summaryResult);
 
       setSummaryProgress(90);
 

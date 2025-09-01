@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { callFunction } from "@/lib/functionsClient";
 import { enhancedBooks } from "@/data/enhancedBooks";
 import DynamicSEOHead from "@/components/seo/DynamicSEOHead";
+import { ProcessingVerification } from "@/components/ProcessingVerification";
 
 interface ProcessingStatus {
   isRunning: boolean;
@@ -324,6 +325,9 @@ const AdminProcessing = () => {
         </div>
 
         <div className="space-y-6">
+          {/* Verification Tests */}
+          <ProcessingVerification />
+
           {/* Book Selection */}
           <Card>
             <CardHeader>
