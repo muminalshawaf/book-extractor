@@ -350,18 +350,27 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         console.log('Setting extracted text from database:', { 
           ocrLength: ocr.length, 
           summaryLength: sum.length,
-          ocrPreview: ocr.substring(0, 100) + '...'
+          ocrPreview: ocr.substring(0, 100) + '...',
+          summaryPreview: sum.substring(0, 100) + '...'
         });
         
-        // Only update state if we have actual content to prevent clearing existing data
+        // Ensure we set the states properly - force update even if existing data
         if (ocr && ocr.length > 0) {
+          console.log('Setting extracted text state...');
           setExtractedText(ocr);
         }
         if (sum && sum.length > 0) {
+          console.log('Setting summary state with content:', sum.substring(0, 200) + '...');
           setSummary(sum);
+          // Also stream it for better UX if the summary is substantial
+          if (sum.length > 100) {
+            setTimeout(() => {
+              streamExistingSummary(sum).catch(err => console.warn('Stream failed:', err));
+            }, 100);
+          }
         }
         
-        console.log('DEBUG: State update called with OCR length:', ocr.length, 'Summary length:', sum.length);
+        console.log('DEBUG: State update completed - OCR:', ocr.length, 'Summary:', sum.length);
         setSummaryConfidence(typeof data?.confidence === 'number' ? data.confidence : undefined);
         setOcrQuality(typeof data?.ocr_confidence === 'number' ? data.ocr_confidence : undefined);
         
