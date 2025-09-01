@@ -200,8 +200,68 @@ Constraints:
 
     console.log('DeepSeek API responded successfully');
     const data = await resp.json();
-    const summary = data.choices?.[0]?.message?.content ?? "";
-    console.log(`Summary generated successfully - Length: ${summary.length}`);
+    let summary = data.choices?.[0]?.message?.content ?? "";
+    const finishReason = data.choices?.[0]?.finish_reason;
+    
+    console.log(`Initial summary generated - Length: ${summary.length}, Finish reason: ${finishReason}`);
+
+    // If summary was cut off due to token limit, continue generating
+    if (finishReason === "length" && summary.length > 0) {
+      console.log('Summary was truncated, attempting to continue...');
+      
+      // Try up to 2 continuation rounds
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        console.log(`Continuation attempt ${attempt}...`);
+        
+        const continuationPrompt = `Continue the summary from where it left off. Here's what was generated so far:
+
+${summary}
+
+Please continue and complete the summary, ensuring all sections are included and complete. Pick up exactly where the previous response ended.`;
+
+        const contResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "deepseek-chat",
+            messages: [
+              { role: "system", content: "You are continuing a summary that was previously cut off. Complete it with all remaining content and sections." },
+              { role: "user", content: continuationPrompt },
+            ],
+            temperature: 0.3,
+            top_p: 0.9,
+            max_tokens: 3000,
+          }),
+        });
+
+        if (contResp.ok) {
+          const contData = await contResp.json();
+          const continuation = contData.choices?.[0]?.message?.content ?? "";
+          const contFinishReason = contData.choices?.[0]?.finish_reason;
+          
+          if (continuation.trim()) {
+            summary += "\n" + continuation;
+            console.log(`Continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
+            
+            // If this continuation completed normally, stop trying
+            if (contFinishReason !== "length") {
+              break;
+            }
+          } else {
+            console.log(`Continuation ${attempt} returned empty content`);
+            break;
+          }
+        } else {
+          console.error(`Continuation attempt ${attempt} failed:`, await contResp.text());
+          break;
+        }
+      }
+    }
+
+    console.log(`Final summary length: ${summary.length}`);
 
     return new Response(JSON.stringify({ summary }), {
       status: 200,
