@@ -112,72 +112,31 @@ When summarizing, include a "Visual Context" section describing these elements a
     }
 
     const prompt = needsDetailedStructure ? 
-      `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+      `${title ?? "Textbook"} - Page ${page ?? "?"} (${lang})
 ${contextPrompt}${visualContext}
-
-**CRITICAL INSTRUCTIONS:**
-1. Use your full educational knowledge to provide comprehensive answers to all questions
-2. Answer ALL numbered questions that exist in the text using your expertise as an educator
-3. Include relevant examples, applications, and references using your teaching knowledge
-4. When mathematical formulas or equations are present, explain them fully with your expertise
-5. When graphs/charts/visual elements are present, include them in a "Visual Context" section with educational explanations
-6. Be a complete educational resource - teach comprehensively
 
 Text to summarize:
 """
 ${text}
 """
 
-**PRIMARY TASK:** Create a comprehensive educational summary in ${lang} that teaches all concepts and answers all questions fully using your expertise as an educator.
+Create a concise educational summary in ${lang} with these sections (only if content exists):
 
-**MANDATORY SECTIONS (only include if content actually exists in the text):**
+### ${lang === "ar" ? "المحتوى الأساسي" : "Key Content"}
+- Main concepts and definitions from the text
+- Important facts, measurements, and examples mentioned
 
-### ${lang === "ar" ? "المحتوى التفصيلي" : "Detailed Content"}
-- Extract ONLY the key information explicitly mentioned (names, dates, measurements, examples)
-- Include ONLY historical context, scientists' names if they are specifically mentioned in the text
-- Preserve ONLY real-world applications mentioned in the text
-- Include ONLY special notes, boxes, or highlighted information that appear in the text
-
-### ${lang === "ar" ? "المفاهيم والتعاريف" : "Concepts & Definitions"}
-- List ONLY scientific terms that are explicitly defined in the text
-- Include ONLY symbols, units, or notation systems mentioned in the text
-- ONLY explain relationships between concepts if they are explained in the text
-
-### ${lang === "ar" ? "الأسئلة والإجابات الكاملة" : "Complete Questions & Answers"}
-**CRITICAL: This section is MANDATORY. Scan the text for ALL question numbers including:**
-- Arabic numerals: ١٠٢, ١٠٦, etc.
-- Regular numbers: 102, 106, etc.  
-- Question patterns: سؤال, اشرح, وضح, قارن, حدد, لماذا, كيف
-**For EVERY question found:**
-- **Question ${lang === "ar" ? "السؤال" : ""}:** [Extract the exact question from OCR text]
-- **Answer ${lang === "ar" ? "الإجابة" : ""}:** [Provide complete, accurate answer using your chemistry expertise]
-- Include chemical formulas, reactions, and scientific explanations as needed
-- DO NOT say "not mentioned in text" - use your educational knowledge to answer completely
-
-### ${lang === "ar" ? "الأمثلة والتطبيقات" : "Examples & Applications"}
-- Include ONLY specific examples explicitly mentioned in the text
-- Preserve ONLY details that are actually written (company names, product names, measurements)
-- ONLY include applications that are specifically discussed in the text
+### ${lang === "ar" ? "الأسئلة والإجابات" : "Questions & Answers"}  
+For each question found (Arabic numerals ١٠٢, ١٠٦ or regular numbers 102, 106):
+- **${lang === "ar" ? "س" : "Q"}:** [exact question]
+- **${lang === "ar" ? "ج" : "A"}:** [complete answer using your chemistry expertise]
 
 ### ${lang === "ar" ? "الصيغ والمعادلات" : "Formulas & Equations"}
-**ONLY include this section if mathematical formulas or equations are explicitly written in the source text**
-- Write ONLY formulas that appear in the text using LaTeX: $$formula$$ for display, $formula$ for inline  
-- Explain ONLY variables that are defined in the text
-- Include ONLY units and conditions mentioned in the text
+- Include formulas using LaTeX: $$formula$$ or $formula$
+- Explain variables and conditions
 
-### ${lang === "ar" ? "السياق البصري" : "Visual Context"}
-**ONLY include this section if graphs, charts, or visual elements are detected in the page**
-- Describe each visual element and its educational purpose
-- Explain how graphs/charts support the lesson concepts  
-- Include key data points, trends, or patterns shown
-- Connect visual information to questions that reference them
-
-**QUALITY REQUIREMENTS:**
-- Use your full expertise as an educator to teach comprehensively
-- Answer all questions completely using your knowledge and experience
-- Provide comprehensive explanations that help students understand fully
-- Use your teaching expertise to elaborate and explain concepts thoroughly
-- When visual elements exist, incorporate their educational context` :
+### ${lang === "ar" ? "العناصر البصرية" : "Visual Elements"}
+- Describe charts/diagrams and their educational significance` :
       `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
 ${contextPrompt}
 Text to summarize (non-educational page):
@@ -204,12 +163,12 @@ Constraints:
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "You are an expert chemistry teacher with comprehensive knowledge. Your task is to:\n1. Extract ALL questions from the OCR text, including Arabic numerals (١٠٢, ١٠٦) and regular numbers (102, 106)\n2. Answer each question with your full educational expertise and knowledge\n3. Use the OCR text as context but provide complete, accurate answers from your chemistry knowledge\n4. NEVER skip questions - if you see a question number, answer it completely\n5. For chemical formulas and reactions, use your chemistry expertise to provide accurate information" },
+          { role: "system", content: "You are an expert chemistry teacher. Create concise but complete summaries. Answer all questions using your expertise. Use LaTeX for formulas." },
           { role: "user", content: prompt },
         ],
         temperature: 0.3,
         top_p: 0.9,
-        max_tokens: 4000,
+        max_tokens: 2000,
       }),
     });
 
