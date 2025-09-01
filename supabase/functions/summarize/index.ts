@@ -113,19 +113,21 @@ When summarizing, include a "Visual Context" section describing these elements a
       }
     }
 
-    const prompt = `You are an expert educational content analyst specializing in ${lang === 'ar' ? 'Arabic' : 'English'} chemistry textbooks.
+    const prompt = `🎯 **CRITICAL MISSION: COMPREHENSIVE OCR TEXT ANALYSIS & VERIFICATION**
+
+You are an expert educational content analyst and chemistry professor with ZERO TOLERANCE for incomplete or inaccurate content analysis. This is a HIGH-PRIORITY educational mission requiring PERFECT accuracy.
 
 ${ocrData && ocrData.rawStructuredData ? 
-`**OCR VISUAL CONTEXT:**
-Page Structure: ${ocrData.rawStructuredData.page_context ? JSON.stringify(ocrData.rawStructuredData.page_context, null, 2) : 'Not available'}
+`**🔍 COMPLETE OCR VISUAL CONTEXT FOR VERIFICATION:**
+Page Structure Analysis: ${ocrData.rawStructuredData.page_context ? JSON.stringify(ocrData.rawStructuredData.page_context, null, 2) : 'Not available'}
 
-**VISUAL DATA FOR CALCULATIONS:**
+**📊 COMPREHENSIVE VISUAL DATA & CALCULATIONS:**
 ${ocrData.rawStructuredData.visual_elements && ocrData.rawStructuredData.visual_elements.length > 0 ? 
 ocrData.rawStructuredData.visual_elements.map((ve, i) => {
   let output = `${i+1}. ${ve.type}: ${ve.title || 'Untitled'}\n   Description: ${ve.description || 'No description'}`;
   
   if (ve.numeric_data && ve.numeric_data.series) {
-    output += `\n   NUMERIC DATA:`;
+    output += `\n   📈 PRECISE NUMERIC DATA:`;
     ve.numeric_data.series.forEach(series => {
       output += `\n   - Series "${series.label}": ${series.points.length} data points`;
       output += `\n     Points: ${series.points.map(p => `(${p.x} ${p.units?.x || ''}, ${p.y} ${p.units?.y || ''})`).join(', ')}`;
@@ -136,53 +138,66 @@ ocrData.rawStructuredData.visual_elements.map((ve, i) => {
   }
   
   if (ve.key_values && ve.key_values.length > 0) {
-    output += `\n   Key Values: ${ve.key_values.join(', ')}`;
+    output += `\n   🔑 Key Values: ${ve.key_values.join(', ')}`;
   }
   
-  output += `\n   Educational Context: ${ve.educational_context || 'Not specified'}`;
+  output += `\n   📚 Educational Context: ${ve.educational_context || 'Not specified'}`;
   return output;
 }).join('\n\n') : 'No visual elements detected'}`
 : 'No OCR context available'}
 
-**CRITICAL INSTRUCTION: COMPREHENSIVE COVERAGE WITH EXACT FORMATTING**
-You MUST analyze ALL content extracted from the OCR with ZERO omissions and PERFECT formatting fidelity.
+**⚠️ CRITICAL VERIFICATION PROTOCOL:**
 
-**MANDATORY REQUIREMENTS:**
-1. **EXACT QUESTION NUMBERING**: Use the EXACT question numbers as they appear in the OCR text (93, 94, 95, etc.) - NEVER renumber them
-2. **EXHAUSTIVE QUESTION COVERAGE**: Include EVERY single question found in the OCR data with their original numbers
-3. **ENHANCED FORMATTING**: Use proper markdown formatting with clear spacing and structure
-4. **COMPLETE CONTENT ANALYSIS**: Cover ALL sections, headers, formulas, and text content 
-5. **VISUAL DATA PRECISION**: Extract ALL numerical data from charts, graphs, and tables with exact values
-6. **CROSS-REFERENCE VERIFICATION**: Use the structured OCR data to verify nothing is missed
+**ASSUMPTION: ALL EXISTING ANSWERS ARE INCORRECT UNTIL PROVEN OTHERWISE**
+- Treat every solution as potentially wrong
+- Re-verify ALL calculations from scratch using visual data
+- Double-check ALL numerical values against OCR visual elements
+- Cross-reference ALL formulas with provided chart data
+- Validate ALL units, conversions, and measurements
 
-**FORMATTING STANDARDS:**
-- Use proper Arabic numbering as found in source (٩٣، ٩٤، ٩٥، etc.)
-- Add clear section breaks with double line spacing
-- Use consistent **س:** and **ج:** formatting
-- Include proper LaTeX formatting for all mathematical expressions
-- Add clear visual separation between different question types
+**🔬 MANDATORY ANALYSIS REQUIREMENTS:**
 
-**ANALYSIS FRAMEWORK:**
-1. **CONTENT OVERVIEW**: Complete description of page type and ALL educational objectives
-2. **EXHAUSTIVE TOPIC COVERAGE**: List EVERY concept, theory, and subject mentioned
-3. **COMPLETE SECTION MAPPING**: Include ALL sections from the OCR structured data with proper headers
-4. **COMPREHENSIVE VISUAL ANALYSIS**: Detail ALL graphs, diagrams, tables with complete data extraction
-5. **NUMERICAL PRECISION**: Include ALL data points, units, percentages, and measurements
-6. **COMPLETE ASSESSMENT INVENTORY**: Document EVERY question, problem, and exercise with EXACT numbering
-7. **TOTAL EDUCATIONAL CONTEXT**: Connect ALL content to broader chemistry concepts
+1. **EXHAUSTIVE OCR TEXT COVERAGE**: Process EVERY single character, number, symbol, and word from the OCR text
+2. **VISUAL ELEMENT INTEGRATION**: Incorporate ALL visual data (graphs, tables, diagrams) into calculations
+3. **ZERO OMISSION POLICY**: Include EVERY question, formula, example, and concept mentioned
+4. **ACCURACY VERIFICATION**: Re-solve ALL problems using provided visual data and OCR context
+5. **COMPLETE FORMATTING FIDELITY**: Maintain exact numbering, spacing, and structure from source
 
-**CRITICAL FORMATTING RULES**: 
-- Process EVERY section from the OCR structured data systematically
-- Maintain original question numbering from source material
-- Use enhanced markdown with proper spacing and visual hierarchy
-- Include ALL numeric values, chemical formulas, and measurements with proper formatting
-- Cover ALL visual elements with complete data extraction and clear presentation
-- Ensure NO question or content piece is overlooked with consistent formatting
-- Cross-reference against the provided OCR structure to guarantee completeness
+**🎯 ENHANCED VERIFICATION CHECKLIST:**
+✅ Every OCR text segment accounted for
+✅ All visual elements incorporated into analysis
+✅ Every question number preserved exactly
+✅ All calculations verified against visual data
+✅ Complete cross-reference with structured OCR
+✅ Perfect formatting and student readability
+✅ Zero content gaps or omissions
 
-For Arabic educational content, maintain complete academic precision, proper terminology, and enhanced visual presentation.
+**📋 SYSTEMATIC CONTENT VERIFICATION:**
+1. **TEXT PARSING**: Read EVERY word from OCR - missing nothing
+2. **VISUAL ANALYSIS**: Extract ALL data from charts, graphs, tables
+3. **CALCULATION VERIFICATION**: Re-solve using visual element data
+4. **CROSS-REFERENCE**: Validate against structured OCR context  
+5. **COMPLETENESS CHECK**: Ensure 100% coverage of source material
+6. **ACCURACY VALIDATION**: Verify all answers using chemistry expertise
+7. **FORMAT PERFECTION**: Student-optimized layout and presentation
 
-Content to analyze:
+**🚨 CRITICAL QUALITY STANDARDS:**
+- NEVER skip or summarize content - include EVERYTHING
+- ALWAYS verify calculations using provided visual data
+- NEVER trust existing answers - recalculate from scratch
+- ALWAYS cross-reference with OCR structured data for completeness
+- NEVER add external knowledge not present in source material
+- ALWAYS maintain exact question numbering from source
+
+**📐 FORMATTING EXCELLENCE REQUIREMENTS:**
+- Use proper Arabic numbering exactly as in OCR (٩٣، ٩٤، ٩٥، etc.)
+- Bold ALL section titles and question numbers
+- Double spacing between question-answer pairs
+- LaTeX formatting for ALL mathematical expressions
+- Markdown tables for ALL tabular OCR data
+- Clear visual hierarchy for student comprehension
+
+Content requiring COMPLETE analysis:
 
 ${title ?? "Textbook"} - Page ${page ?? "?"} (${lang})
 """
