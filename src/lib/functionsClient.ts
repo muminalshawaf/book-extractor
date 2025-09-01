@@ -12,36 +12,7 @@ export async function callFunction<T = any>(
     try {
       console.log(`Calling function ${name} (attempt ${attempt + 1}/${retries + 1})`);
       
-      // Use a more reliable direct fetch approach for long-running functions
-      if (name === 'summarize' && timeout > 120000) {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        const response = await fetch(`https://ukznsekygmipnucpouoy.supabase.co/functions/v1/${name}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token || 'anon-key'}`,
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrem5zZWt5Z21pcG51Y3BvdW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjY4NzMsImV4cCI6MjA3MDIwMjg3M30.5gvy46gGEU-B9O3cutLNmLoX62dmEvKLC236yeaQ6So'
-          },
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(timeout)
-        });
-        
-        if (!response.ok) {
-          // Handle 504 Gateway Timeout specifically
-          if (response.status === 504) {
-            throw new Error('TIMEOUT_ERROR: Content too large for processing. Try reducing page range or content size.');
-          }
-          const errorText = await response.text().catch(() => 'Unknown error');
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-        
-        const data = await response.json();
-        console.log(`Function ${name} succeeded on attempt ${attempt + 1}`);
-        return data as T;
-      }
-      
-      // Standard Supabase client approach for other functions
+      // Use standard Supabase client approach for all functions
       const { data, error } = await supabase.functions.invoke(name, { body });
       
       if (error) {
