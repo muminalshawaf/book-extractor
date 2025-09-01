@@ -642,174 +642,32 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       console.log('Starting summary generation for text:', text.substring(0, 100));
       
       const trimmedText = text.trim();
-      let fullSummary = '';
-      let useEventSource = trimmedText.length <= 7500; // Increased threshold for better EventSource usage
       
-      if (useEventSource) {
-        console.log('Using EventSource for smaller text');
-        
-        try {
-          const textB64 = btoa(unescape(encodeURIComponent(trimmedText)));
-          const eventSource = new EventSource(
-            `https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream?` +
-            `text_b64=${encodeURIComponent(textB64)}&` +
-            `book_id=${encodeURIComponent(dbBookId)}&` +
-            `page=${index + 1}&` + // Fixed parameter name to match server
-            `lang=${rtl ? 'arabic' : 'english'}`
-          );
-
-          await new Promise<void>((resolve, reject) => {
-            let timeoutId: NodeJS.Timeout;
-            
-            eventSource.onopen = () => {
-              console.log('EventSource opened');
-              timeoutId = setTimeout(() => {
-                eventSource.close();
-                reject(new Error('EventSource timeout'));
-              }, 120000);
-            };
-
-            let lastUpdate = 0;
-            eventSource.onmessage = (event) => {
-              try {
-                if (event.data === 'ok') {
-                  // Skip the initial "ok" message
-                  return;
-                }
-                
-                if (event.data === '[DONE]') {
-                  console.log('EventSource stream completed');
-                  clearTimeout(timeoutId);
-                  eventSource.close();
-                  resolve();
-                  return;
-                }
-                
-                const parsed = JSON.parse(event.data);
-                if (parsed.text) {
-                  fullSummary += parsed.text;
-                  
-                  // Throttled UI updates for better performance (250ms)
-                  const now = Date.now();
-                  if (now - lastUpdate > 250) {
-                    setSummary(fullSummary);
-                    setSummaryProgress(Math.min(95, fullSummary.length / 10));
-                    lastUpdate = now;
-                  }
-                }
-              } catch (e) {
-                console.log('Failed to parse EventSource data:', event.data);
-              }
-            };
-
-            eventSource.onerror = (error) => {
-              console.error('EventSource error:', error);
-              clearTimeout(timeoutId);
-              eventSource.close();
-              reject(new Error('EventSource connection failed'));
-            };
-          });
-        } catch (eventSourceError) {
-          console.warn('EventSource failed, falling back to fetch:', eventSourceError);
-          // If EventSource got partial content, save it and try to complete with fetch
-          if (fullSummary.trim()) {
-            console.log('EventSource got partial content, keeping it and trying fetch:', fullSummary.length, 'characters');
-            // Keep the partial summary visible while we try fetch
-            setSummary(fullSummary);
-            setSummaryProgress(50);
-          }
-          // Always try fetch as fallback
-          useEventSource = false;
+      // Use the working summarize function directly
+      console.log('Calling summarize function...');
+      setSummaryProgress(10);
+      
+      const { data: summaryResult, error: summaryError } = await supabase.functions.invoke('summarize', {
+        body: { 
+          text: trimmedText,
+          lang: rtl ? 'ar' : 'en',
+          page: index + 1,
+          title: title,
+          ocrData: null // Add OCR context data if available
         }
+      });
+
+      setSummaryProgress(90);
+
+      if (summaryError) {
+        throw new Error(`Summary generation failed: ${summaryError.message || summaryError}`);
       }
       
-      if (!useEventSource) {
-        console.log('Using fetch POST method');
-        
-        // Reset fullSummary when using fetch fallback to avoid duplication
-        if (fullSummary.trim()) {
-          console.log('Resetting existing partial summary for fresh fetch attempt');
-          fullSummary = '';
-          setSummary('');
-        }
-        
-        const response = await fetch(`https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize-stream`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'text/event-stream' // Better streaming support
-            // No Authorization header to prevent buffering
-          },
-          body: JSON.stringify({
-            text: trimmedText,
-            book_id: dbBookId,
-            page: index + 1, // Fixed parameter name to match server
-            lang: rtl ? 'arabic' : 'english'
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        if (!response.body) {
-          throw new Error('No response body');
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let lastUpdate = 0;
-
-        console.log('Starting to read streaming response...');
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          
-          // Split on double newlines for more robust frame parsing
-          const frames = buffer.split('\n\n');
-          buffer = frames.pop() || '';
-
-          for (const frame of frames) {
-            const lines = frame.split('\n');
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const data = line.slice(6);
-                  if (data === '[DONE]') {
-                    console.log('Stream completed');
-                    break;
-                  }
-                  
-                  const parsed = JSON.parse(data);
-                  if (parsed.text) {
-                    fullSummary += parsed.text;
-                    
-                    // Throttled UI updates for better performance (250ms)
-                    const now = Date.now();
-                    if (now - lastUpdate > 250) {
-                      setSummary(fullSummary);
-                      setSummaryProgress(Math.min(95, fullSummary.length / 10));
-                      lastUpdate = now;
-                    }
-                  }
-                } catch (e) {
-                  console.log('Failed to parse streaming data:', line.slice(6));
-                }
-              }
-            }
-          }
-        }
-        
-        // Final update to ensure we show all content
-        if (fullSummary !== '') {
-          setSummary(fullSummary);
-          setSummaryProgress(Math.min(95, fullSummary.length / 10));
-        }
+      if (!summaryResult?.summary || summaryResult.summary.trim().length <= 3) {
+        throw new Error('Summary function returned empty or insufficient content');
       }
+
+      const fullSummary = summaryResult.summary;
 
       if (fullSummary.trim()) {
         // Remove duplicate content and limit summary size
