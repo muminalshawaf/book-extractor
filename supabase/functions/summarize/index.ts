@@ -113,78 +113,55 @@ When summarizing, include a "Visual Context" section describing these elements a
       }
     }
 
-    const prompt = `🎯 **CRITICAL MISSION: COMPREHENSIVE OCR TEXT ANALYSIS & VERIFICATION**
+    const prompt = `You are an expert chemistry professor. Process the ENTIRE OCR text completely and provide comprehensive analysis in Arabic.
 
-You are an expert educational content analyst and chemistry professor with ZERO TOLERANCE for incomplete or inaccurate content analysis. This is a HIGH-PRIORITY educational mission requiring PERFECT accuracy.
+## MANDATORY COMPLETION REQUIREMENT:
+⚠️ PROCESS EVERY SINGLE QUESTION AND PIECE OF CONTENT FROM THE OCR TEXT. DO NOT STOP EARLY.
+⚠️ Continue until you have addressed ALL content, including questions 93-106 and beyond if present.
+
+## STRUCTURE:
+
+### **المحتوى الأساسي**
+Write a 2-3 sentence overview of the page's main chemistry concepts.
+List key facts, definitions, and equations from the text.
+
+### **الأسئلة والإجابات**
+Process EVERY question with original numbering (٩٣, ٩٤, ٩٥, ٩٦, ٩٧, ٩٨, ٩٩, ١٠٠, ١٠١, ١٠٢, ١٠٣, ١٠٤, ١٠٥, ١٠٦):
+
+Format EXACTLY as:
+**س: ٩٣- [question text]**
+
+**ج:** [complete answer with all steps]
+
+
+For calculations:
+- Show ALL mathematical steps
+- Use LaTeX format: $$\\Delta T_f = K_f \\cdot m$$
+- Use proper multiplication symbol: ×  (NOT \\cdot or \\cdotp)
+- Reference visual data when mentioned
+
+### **الصيغ والمعادلات** 
+List all formulas using LaTeX: $$formula$$
+
+## FORMATTING RULES:
+- **Bold ALL question numbers and section headers using double asterisks**
+- Use $$formula$$ for math expressions
+- Use × for multiplication (never \\cdot or \\cdotp)
+- Double spacing between questions  
+- Process content until OCR text COMPLETELY ends
+- Arabic numbering exactly as in OCR
+
+## VISUAL DATA:
+When questions reference charts/tables, use OCR visual context. Do not invent data.
 
 ${ocrData && ocrData.rawStructuredData ? 
-`**🔍 COMPLETE OCR VISUAL CONTEXT FOR VERIFICATION:**
-Page Structure Analysis: ${ocrData.rawStructuredData.page_context ? JSON.stringify(ocrData.rawStructuredData.page_context, null, 2) : 'Not available'}
-
-**📊 COMPREHENSIVE VISUAL DATA & CALCULATIONS:**
+`**VISUAL CONTEXT:**
 ${ocrData.rawStructuredData.visual_elements && ocrData.rawStructuredData.visual_elements.length > 0 ? 
-ocrData.rawStructuredData.visual_elements.map((ve, i) => {
-  let output = `${i+1}. ${ve.type}: ${ve.title || 'Untitled'}\n   Description: ${ve.description || 'No description'}`;
-  
-  if (ve.numeric_data && ve.numeric_data.series) {
-    output += `\n   📈 PRECISE NUMERIC DATA:`;
-    ve.numeric_data.series.forEach(series => {
-      output += `\n   - Series "${series.label}": ${series.points.length} data points`;
-      output += `\n     Points: ${series.points.map(p => `(${p.x} ${p.units?.x || ''}, ${p.y} ${p.units?.y || ''})`).join(', ')}`;
-      if (series.slope !== undefined) output += `\n     Linear relationship: slope=${series.slope}, intercept=${series.intercept}`;
-    });
-    output += `\n   - Axis ranges: X: ${ve.numeric_data.axis_ranges?.x_min}-${ve.numeric_data.axis_ranges?.x_max} ${ve.numeric_data.axis_ranges?.x_unit || ''}`;
-    output += `\n                  Y: ${ve.numeric_data.axis_ranges?.y_min}-${ve.numeric_data.axis_ranges?.y_max} ${ve.numeric_data.axis_ranges?.y_unit || ''}`;
-  }
-  
-  if (ve.key_values && ve.key_values.length > 0) {
-    output += `\n   🔑 Key Values: ${ve.key_values.join(', ')}`;
-  }
-  
-  output += `\n   📚 Educational Context: ${ve.educational_context || 'Not specified'}`;
-  return output;
-}).join('\n\n') : 'No visual elements detected'}`
-: 'No OCR context available'}
+ocrData.rawStructuredData.visual_elements.map((ve, i) => `${i+1}. ${ve.type}: ${ve.title || 'Untitled'} - ${ve.description || 'No description'}${ve.key_values ? '\nKey Values: ' + ve.key_values.join(', ') : ''}`).join('\n') 
+: 'No visual elements'}` 
+: ''}
 
-You are an expert professor and content analyst. Your mission is to provide a perfectly accurate, structured, and comprehensive answer based only on the provided OCR text. Your response must be in Arabic and follow all formatting and content rules precisely.
-
-**1. المحتوى الأساسي (Core Content)**
-Provide a concise, 2-3 sentence overview of the page's content, focusing on the main chemistry concepts discussed.
-
-Identify and list any key facts, definitions, or equations explicitly mentioned in the text.
-
-**2. الأسئلة والإجابات (Questions & Answers)**
-Address every question from the OCR text, maintaining the original numbering (e.g., ٩٣, ٩٤, ٩٥).
-
-For each question, provide a complete, step-by-step solution.
-
-For numerical problems:
-- Show every step of the calculation.
-- State all formulas used in LaTeX.
-- Verify all units and conversions.
-- Clearly reference any data from tables or charts mentioned in the source.
-
-For conceptual questions:
-- Provide a direct, clear, and concise answer.
-- Use correct chemistry terminology and explain the underlying principle.
-
-For questions referencing visual data:
-- Use the provided OCR visual context to extract necessary information.
-- Do not invent data.
-
-**3. الصيغ والمعادلات (Formulas & Equations)**
-List all chemical formulas and mathematical equations found in the text.
-
-Format them using LaTeX ($formula$).
-
-**4. تنسيق الإجابة (Answer Formatting)**
-- Use proper Arabic numbering exactly as in the OCR text.
-- Use bold headings for sections and bold question numbers.
-- Add double line spacing between each question-answer pair.
-- Use Markdown tables to represent any tabular data mentioned in the OCR. The table headers must be in Arabic.
-- Use the <imagegen> tag to generate an image when it is directly referenced by a question and adds significant value (e.g., "الشكل 26-1"). The image description must be concise and in English.
-
-The final response must not contain any content or questions not present in the provided OCR text. Stop immediately when the OCR content ends.
+REMEMBER: Process ALL questions from start to finish. Do not truncate or stop early.
 
 **Data Block:**
 ${ocrData && ocrData.rawStructuredData ? `🔍 **بيانات التحقق من OCR:**
@@ -312,11 +289,20 @@ Constraints:
               for (let attempt = 1; attempt <= 2; attempt++) {
                 console.log(`Gemini continuation attempt ${attempt}...`);
                 
-                const continuationPrompt = `Continue the summary from where it left off. Here's what was generated so far:
+                const continuationPrompt = `CONTINUE THE SUMMARY - Process all remaining OCR content with perfect formatting.
 
+Current summary so far:
 ${summary}
 
-Please continue and complete the summary, ensuring all sections are included and complete. Pick up exactly where the previous response ended. Remember: ONLY include content that is explicitly written in the original source text.`;
+CRITICAL REQUIREMENTS:
+- Continue exactly where previous response ended
+- Process ALL remaining questions (including 93-106 if not covered)
+- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
+- Use $$formula$$ for math (never \\cdot or \\cdotp - use × for multiplication)
+- Bold all section headers and question numbers
+- Complete ALL content until OCR text ends
+
+Continue from where you left off and finish processing the entire OCR text.`;
 
                 const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
                   method: "POST",
@@ -393,7 +379,7 @@ Please continue and complete the summary, ensuring all sections are included and
           body: JSON.stringify({
             model: "deepseek-chat",
             messages: [
-              { role: "system", content: "You are an expert chemistry teacher. Create concise but complete summaries. Answer all questions using your expertise. Use LaTeX for formulas." },
+              { role: "system", content: "You are an expert chemistry professor. Process EVERY question and content piece completely. Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]. Use $$formula$$ for math (× for multiplication, never \\cdot). Bold all headers and question numbers. Complete ALL content until OCR ends." },
               { role: "user", content: prompt },
             ],
             temperature: 0.3,
@@ -426,11 +412,20 @@ Please continue and complete the summary, ensuring all sections are included and
           for (let attempt = 1; attempt <= 2; attempt++) {
             console.log(`Continuation attempt ${attempt}...`);
             
-            const continuationPrompt = `Continue the summary from where it left off. Here's what was generated so far:
+            const continuationPrompt = `CONTINUE THE SUMMARY - Process all remaining OCR content with perfect formatting.
 
+Current summary so far:
 ${summary}
 
-Please continue and complete the summary, ensuring all sections are included and complete. Pick up exactly where the previous response ended. Remember: ONLY include content that is explicitly written in the original source text.`;
+CRITICAL REQUIREMENTS:
+- Continue exactly where previous response ended
+- Process ALL remaining questions (including 93-106 if not covered)
+- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
+- Use $$formula$$ for math (never \\cdot or \\cdotp - use × for multiplication)
+- Bold all section headers and question numbers
+- Complete ALL content until OCR text ends
+
+Continue from where you left off and finish processing the entire OCR text.`;
 
             const contResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
               method: "POST",
