@@ -16,11 +16,12 @@ interface QAChatProps {
   rtl?: boolean;
   title: string;
   page: number;
+  ocrData?: any; // OCR data for better context
 }
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) => {
+const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page, ocrData }) => {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
@@ -161,6 +162,9 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
           params.set("lang", lang);
           params.set("page", String(page));
           params.set("title", title);
+          if (ocrData) {
+            params.set("ocrData", JSON.stringify(ocrData));
+          }
 
           const es = new EventSource(`${streamUrl}?${params.toString()}`);
           esRef.current = es;
@@ -199,7 +203,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
         const res = await fetch(streamUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-          body: JSON.stringify({ question: trimmed, summary, lang, page, title }),
+          body: JSON.stringify({ question: trimmed, summary, lang, page, title, ocrData }),
           signal: controller.signal,
         });
 
@@ -251,7 +255,7 @@ const QAChat: React.FC<QAChatProps> = ({ summary, rtl = false, title, page }) =>
     } catch (e) {
       console.warn("Streaming failed, falling back to non-streaming:", e);
       try {
-        const data = await callFunction<{ answer?: string }>("qa", { question: trimmed, summary, lang, page, title });
+        const data = await callFunction<{ answer?: string }>("qa", { question: trimmed, summary, lang, page, title, ocrData });
         const answer = data?.answer || (rtl ? "تعذّر الحصول على إجابة" : "Failed to get answer");
         setMessages((m) => {
           const copy = [...m];

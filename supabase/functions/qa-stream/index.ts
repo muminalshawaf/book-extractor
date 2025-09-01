@@ -18,6 +18,8 @@ serve(async (req: Request) => {
     let page: number | undefined = undefined;
     let title = "";
 
+    let ocrData;
+    
     if (req.method === "GET") {
       const url = new URL(req.url);
       question = url.searchParams.get("question") ?? url.searchParams.get("q") ?? "";
@@ -36,6 +38,16 @@ serve(async (req: Request) => {
       const pg = url.searchParams.get("page");
       page = pg ? Number(pg) : undefined;
       title = url.searchParams.get("title") ?? "";
+      
+      // Parse ocrData from query params if available
+      const ocrDataParam = url.searchParams.get("ocrData");
+      if (ocrDataParam) {
+        try {
+          ocrData = JSON.parse(ocrDataParam);
+        } catch (_) {
+          ocrData = null;
+        }
+      }
     } else {
       const body = await req.json();
       question = body?.question ?? "";
@@ -43,6 +55,7 @@ serve(async (req: Request) => {
       lang = body?.lang ?? "ar";
       page = body?.page;
       title = body?.title ?? "";
+      ocrData = body?.ocrData;
     }
 
     if (!question) {
@@ -109,6 +122,9 @@ For chemistry problems:
 - Show proper unit conversions
 - Use significant figures correctly
 - For tables: show complete table with original data AND your calculated answers
+- If a question references a figure with numeric data, use ONLY the provided data points for calculations
+- If units are missing or inconsistent in the provided data, state "insufficient data" instead of guessing
+- For graph-based questions, show step-by-step calculations using the exact coordinates provided
 
 Use Saudi Arabic. Output math in $$...$$ format. Language: ${lang}.`;
 
@@ -116,18 +132,59 @@ Use Saudi Arabic. Output math in $$...$$ format. Language: ${lang}.`;
     if (summary && String(summary).trim()) {
       let contextText = summary;
       
-      // Check if question references visual elements (شكل, Figure, graph, chart)
-      const referencesVisual = /شكل|figure|graph|chart|رسم|مخطط/i.test(question);
-      if (referencesVisual && summary.includes('--- VISUAL CONTEXT ---')) {
-        // Extract and prioritize visual context for questions about figures
-        const visualSectionMatch = summary.match(/--- VISUAL CONTEXT ---([\s\S]*?)(?=---|$)/);
-        if (visualSectionMatch) {
-          const visualInfo = visualSectionMatch[1].trim();
-          contextText = `**VISUAL CONTEXT (Referenced in Question):**\n${visualInfo}\n\n**Full Page Context:**\n${summary}`;
+      // Add structured visual data if available and relevant to the question
+      if (ocrData && ocrData.rawStructuredData && ocrData.rawStructuredData.visual_elements) {
+        const referencesVisual = /شكل|figure|graph|chart|رسم|مخطط|جدول|table/i.test(question);
+        
+        if (referencesVisual) {
+          // Extract figure number from question (e.g., "الشكل 27-1" or "Figure 27-1")
+          const figureMatch = question.match(/(?:الشكل|figure)\s*(\d+-?\d*)/i);
+          const figureNumber = figureMatch ? figureMatch[1] : null;
+          
+          const relevantVisuals = ocrData.rawStructuredData.visual_elements.filter(ve => {
+            if (figureNumber && ve.title) {
+              return ve.title.includes(figureNumber);
+            }
+            return ve.type === 'graph' || ve.type === 'chart' || ve.type === 'table';
+          });
+          
+          if (relevantVisuals.length > 0) {
+            let visualDataText = "\n\n**STRUCTURED DATA FOR CALCULATION:**\n";
+            
+            relevantVisuals.forEach(ve => {
+              visualDataText += `\nFigure: ${ve.title || 'Untitled'}\n`;
+              visualDataText += `Description: ${ve.description || 'No description'}\n`;
+              
+              if (ve.numeric_data && ve.numeric_data.series) {
+                visualDataText += `NUMERIC DATA POINTS:\n`;
+                ve.numeric_data.series.forEach(series => {
+                  visualDataText += `- ${series.label}: `;
+                  const points = series.points.map(p => 
+                    `(${p.x} ${p.units?.x || ''}, ${p.y} ${p.units?.y || ''})`
+                  ).join(', ');
+                  visualDataText += `${points}\n`;
+                  if (series.slope !== undefined) {
+                    visualDataText += `  Linear relationship: y = ${series.slope}x + ${series.intercept}\n`;
+                  }
+                });
+                
+                if (ve.numeric_data.axis_ranges) {
+                  const ar = ve.numeric_data.axis_ranges;
+                  visualDataText += `Axis ranges: X(${ar.x_min}-${ar.x_max} ${ar.x_unit}), Y(${ar.y_min}-${ar.y_max} ${ar.y_unit})\n`;
+                }
+              }
+              
+              if (ve.key_values && ve.key_values.length > 0) {
+                visualDataText += `Key values: ${ve.key_values.join(', ')}\n`;
+              }
+            });
+            
+            contextText += visualDataText;
+          }
         }
       }
       
-      userPrompt = `Book Title: ${title ?? "Untitled"}\nPage: ${page ?? "?"}\n\nPage Context:\n${contextText}\n\nQuestion: ${question}${referencesVisual ? '\n\n**Note: This question references a visual element (graph/figure). Use the visual context above to answer accurately.**' : ''}`;
+      userPrompt = `Book Title: ${title ?? "Untitled"}\nPage: ${page ?? "?"}\n\nPage Context:\n${contextText}\n\nQuestion: ${question}`;
     }
 
     const dsRes = await fetch("https://api.deepseek.com/v1/chat/completions", {

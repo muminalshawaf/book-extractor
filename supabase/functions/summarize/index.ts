@@ -113,15 +113,62 @@ When summarizing, include a "Visual Context" section describing these elements a
       }
     }
 
-    const prompt = needsDetailedStructure ? 
-      `${title ?? "Textbook"} - Page ${page ?? "?"} (${lang})
-${contextPrompt}${visualContext}
+    const prompt = `You are an expert educational content analyst specializing in ${lang === 'ar' ? 'Arabic' : 'English'} chemistry textbooks.
 
-Text to summarize:
+${ocrData && ocrData.rawStructuredData ? 
+`**OCR VISUAL CONTEXT:**
+Page Structure: ${ocrData.rawStructuredData.page_context ? JSON.stringify(ocrData.rawStructuredData.page_context, null, 2) : 'Not available'}
+
+**VISUAL DATA FOR CALCULATIONS:**
+${ocrData.rawStructuredData.visual_elements && ocrData.rawStructuredData.visual_elements.length > 0 ? 
+ocrData.rawStructuredData.visual_elements.map((ve, i) => {
+  let output = `${i+1}. ${ve.type}: ${ve.title || 'Untitled'}\n   Description: ${ve.description || 'No description'}`;
+  
+  if (ve.numeric_data && ve.numeric_data.series) {
+    output += `\n   NUMERIC DATA:`;
+    ve.numeric_data.series.forEach(series => {
+      output += `\n   - Series "${series.label}": ${series.points.length} data points`;
+      output += `\n     Points: ${series.points.map(p => `(${p.x} ${p.units?.x || ''}, ${p.y} ${p.units?.y || ''})`).join(', ')}`;
+      if (series.slope !== undefined) output += `\n     Linear relationship: slope=${series.slope}, intercept=${series.intercept}`;
+    });
+    output += `\n   - Axis ranges: X: ${ve.numeric_data.axis_ranges?.x_min}-${ve.numeric_data.axis_ranges?.x_max} ${ve.numeric_data.axis_ranges?.x_unit || ''}`;
+    output += `\n                  Y: ${ve.numeric_data.axis_ranges?.y_min}-${ve.numeric_data.axis_ranges?.y_max} ${ve.numeric_data.axis_ranges?.y_unit || ''}`;
+  }
+  
+  if (ve.key_values && ve.key_values.length > 0) {
+    output += `\n   Key Values: ${ve.key_values.join(', ')}`;
+  }
+  
+  output += `\n   Educational Context: ${ve.educational_context || 'Not specified'}`;
+  return output;
+}).join('\n\n') : 'No visual elements detected'}`
+: 'No OCR context available'}
+
+Analyze the following educational content and create a comprehensive summary that includes:
+
+1. **CONTENT OVERVIEW**: Brief description of the page type and main educational objectives
+2. **KEY TOPICS**: List the main concepts, theories, or subjects covered  
+3. **STRUCTURED CONTENT**: Organize content into logical sections (definitions, examples, exercises, etc.)
+4. **VISUAL ELEMENTS**: Describe any graphs, diagrams, tables, or figures and their educational purpose
+5. **NUMERICAL DATA**: When figures contain graphs or charts, include the precise numeric data points and units for calculations
+6. **ASSESSMENT ELEMENTS**: Note any questions, problems, or exercises with their complexity level
+7. **EDUCATIONAL CONNECTIONS**: How this content relates to broader chemistry concepts
+
+**CALCULATION-FRIENDLY INSTRUCTIONS**: 
+- When visual elements contain numeric data (graphs, charts, tables), include the exact data points and units.
+- For figure-based questions, provide all numeric values needed for calculations.
+- Use the structured visual data above when available to ensure precision.
+
+For ${lang === 'ar' ? 'Arabic' : 'English'} educational content, maintain proper academic terminology and structure.
+
+Content to analyze:
+
+${title ?? "Textbook"} - Page ${page ?? "?"} (${lang})
 """
 ${text}
 """
 
+${needsDetailedStructure ? `
 Create a concise educational summary in ${lang} with these sections (only if content exists):
 
 ### ${lang === "ar" ? "المحتوى الأساسي" : "Key Content"}
@@ -146,14 +193,7 @@ For each question found (Arabic numerals ١٠٢, ١٠٦ or regular numbers 102, 
 ### ${lang === "ar" ? "العناصر البصرية" : "Visual Elements"}
 - Describe charts/diagrams and their educational significance
 - Extract and use numerical data points from graphs when referenced in questions
-- Include axis labels, scales, and key values for problem-solving` :
-      `Book: ${title ?? "the book"} • Page: ${page ?? "?"} • Language: ${lang}
-${contextPrompt}
-Text to summarize (non-educational page):
-"""
-${text}
-"""
-
+- Include axis labels, scales, and key values for problem-solving` : `
 Create a simple summary in ${lang} using clean Markdown with H3 headings (###).
 
 ### ${lang === "ar" ? "نظرة عامة" : "Overview"}
@@ -161,7 +201,7 @@ Create a simple summary in ${lang} using clean Markdown with H3 headings (###).
 
 Constraints:
 - Use ${lang} throughout
-- Focus on simple description of content`;
+- Focus on simple description of content`}`;
 
     // Try Gemini first, then DeepSeek as fallback
     let summary = "";

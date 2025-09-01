@@ -1023,6 +1023,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       rtl={rtl} 
                       title={title} 
                       page={index + 1} 
+                      ocrData={{
+                        pageContext: {
+                          page_title: title || 'Unknown',
+                          page_type: 'content',
+                          has_formulas: /\$|\[|\]|\\/.test(summary || extractedText),
+                          has_questions: /\d+\.\s/.test(summary || extractedText) || /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(summary || extractedText),
+                          has_examples: /مثال|example/i.test(summary || extractedText)
+                        }
+                      }}
                     />
                   </TabsContent>
                 </Tabs>
@@ -1366,6 +1375,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                         rtl={rtl} 
                         title={title} 
                         page={index + 1} 
+                        ocrData={{
+                          pageContext: {
+                            page_title: title || 'Unknown',
+                            page_type: 'content',
+                            has_formulas: /\$|\[|\]|\\/.test(summary || extractedText),
+                            has_questions: /\d+\.\s/.test(summary || extractedText) || /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(summary || extractedText),
+                            has_examples: /مثال|example/i.test(summary || extractedText)
+                          }
+                        }}
                       />
                     </TabsContent>
                   </Tabs>

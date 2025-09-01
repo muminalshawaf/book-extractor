@@ -98,30 +98,51 @@ RETURN THIS EXACT JSON STRUCTURE:
       "content": "complete text content"
     }
   ],
-  "visual_elements": [
-    {
-      "type": "graph|chart|diagram|figure|image|table",
-      "title": "figure title or caption if visible",
-      "description": "detailed description of visual content",
-      "axes_labels": {
-        "x_axis": "x-axis label and units if applicable",
-        "y_axis": "y-axis label and units if applicable"
-      },
-      "data_description": "description of data points, trends, patterns",
-      "key_values": ["important values, ranges, or measurements shown"],
-      "table_structure": {
-        "headers": ["column 1 header", "column 2 header"],
-        "rows": [
-          ["cell 1,1", "cell 1,2"],
-          ["cell 2,1", "EMPTY or missing value"]
-        ],
-        "empty_cells": ["description of which cells need to be filled"],
-        "calculation_context": "what type of calculation is needed to fill empty cells"
-      },
-      "educational_context": "how this visual relates to the lesson/question",
-      "estimated": true/false
-    }
-  ]
+   "visual_elements": [
+     {
+       "type": "graph|chart|diagram|figure|image|table",
+       "title": "figure title or caption if visible",
+       "description": "detailed description of visual content",
+       "axes_labels": {
+         "x_axis": "x-axis label and units if applicable",
+         "y_axis": "y-axis label and units if applicable"
+       },
+       "data_description": "description of data points, trends, patterns",
+       "key_values": ["important values, ranges, or measurements shown"],
+       "numeric_data": {
+         "series": [
+           {
+             "label": "series name (e.g., Ar, O2, NO)",
+             "points": [
+               {"x": 5, "y": 0.7, "units": {"x": "atm", "y": "mg/100g"}},
+               {"x": 10, "y": 1.4, "units": {"x": "atm", "y": "mg/100g"}},
+               {"x": 15, "y": 2.1, "units": {"x": "atm", "y": "mg/100g"}}
+             ],
+             "slope": 0.14,
+             "intercept": 0,
+             "relationship": "linear"
+           }
+         ],
+         "axis_ranges": {
+           "x_min": 0, "x_max": 20, "x_unit": "atm",
+           "y_min": 0, "y_max": 3, "y_unit": "mg/100g"
+         },
+         "confidence": 0.95,
+         "extraction_method": "visual_analysis"
+       },
+       "table_structure": {
+         "headers": ["column 1 header", "column 2 header"],
+         "rows": [
+           ["cell 1,1", "cell 1,2"],
+           ["cell 2,1", "EMPTY or missing value"]
+         ],
+         "empty_cells": ["description of which cells need to be filled"],
+         "calculation_context": "what type of calculation is needed to fill empty cells"
+       },
+       "educational_context": "how this visual relates to the lesson/question",
+       "estimated": true/false
+     }
+   ]
 }
 
 🔥 MASTER OCR INSTRUCTIONS - LEAVE NOTHING BEHIND:
@@ -227,21 +248,25 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ Preserve technical Arabic chemistry terminology
    ✓ Maintain number formatting (Arabic numerals vs English numerals)
 
-9. **VISUAL ELEMENTS ANALYSIS** (Critical - analyze ALL graphs, charts, figures, tables):
-   ✓ Detect graphs, charts, diagrams, figures, images, and TABLES with educational content
-   ✓ Identify axis labels, units, scales, legends for graphs/charts
-   ✓ **TABLE EXTRACTION**: For tables, extract complete structure:
-     - Column headers (exactly as written) 
-     - Row data (all filled cells with exact values)
-     - Empty/missing cells: Mark cells with "?" symbols or blank spaces as "EMPTY"
-     - For question marks (?): Record as "EMPTY - needs calculation"
-     - Units or context for calculations needed (e.g., Henry's law, dilution formula)
-   ✓ Describe data trends, patterns, relationships shown visually
-   ✓ Extract key values, measurements, ranges from visual data
-   ✓ Note figure captions, titles, or reference numbers (Figure 1, شكل ٢، جدول ٧-١، etc.)
-   ✓ Describe the educational purpose of each visual element
-   ✓ For questions referencing "الشكل", "الجدول", "Table", or "Figure", ensure visual is documented
-   ✓ Mark uncertain interpretations with "estimated": true
+9. **PRECISION NUMERIC EXTRACTION** (Critical for calculation questions):
+    ✓ **GRAPHS**: For each graph/chart, extract EXACT numeric data points:
+      - Read axis tick values precisely (0, 5, 10, 15, 20 atm)
+      - Extract 3-5 reference points per data series/line
+      - Record units for both axes explicitly (atm, mg/100g, %, etc.)
+      - Calculate slopes and intercepts for linear relationships
+      - Map figure titles (الشكل 27-1) to numeric_data arrays
+    ✓ **TABLES**: Extract complete structure with precise values:
+      - Column headers (exactly as written) 
+      - Row data (all filled cells with exact values and units)
+      - Empty/missing cells: Mark cells with "?" symbols or blank spaces as "EMPTY"
+      - For question marks (?): Record as "EMPTY - needs calculation"
+      - Units or context for calculations needed (e.g., Henry's law, dilution formula)
+    ✓ **PIE CHARTS**: Extract exact percentages and labels
+    ✓ **DATA VALIDATION**: Verify extracted numbers make mathematical sense
+    ✓ Note figure captions, titles, or reference numbers (Figure 1, شكل ٢، جدول ٧-١، etc.)
+    ✓ Describe the educational purpose of each visual element
+    ✓ For questions referencing "الشكل", "الجدول", "Table", or "Figure", ensure visual is documented
+    ✓ Mark uncertain interpretations with "estimated": true
 
 10. **QUALITY ASSURANCE CHECKS**:
      ✓ Verify no text elements were skipped or overlooked
