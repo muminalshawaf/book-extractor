@@ -158,6 +158,11 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ **ARABIC NUMERALS**: ٩٣، ٩٤، ٩٥، ٩٦، ٩٧، ٩٨، ٩٩، ١٠٠، ١٠١، ١٠٢، ١٠٣، ١٠٤، ١٠٥، ١٠٦
    ✓ **ENGLISH NUMERALS**: 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106
    ✓ **QUESTION PATTERNS**: اشرح، وضح، قارن، حدد، احسب، ما المقصود، لماذا، كيف
+   ✓ **MULTIPLE CHOICE DETECTION**: 
+      - Question text followed by lettered options (a., b., c., d.) or (أ., ب., ج., د.)
+      - Each option should include the letter AND the value/answer
+      - Extract complete MC format: "a. 55.63 mL" not just "55.63 mL"
+      - Detect options even if separated from question by spacing
    ✓ **CONTINUATION QUESTIONS**: Questions that span multiple lines or sections
    ✓ **SUB-QUESTIONS**: Parts (أ)، (ب)، (ج) or (a), (b), (c)
 
@@ -207,7 +212,8 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ Career sections: "فنيو الصيدلة", professional roles, job descriptions  
    ✓ Examples: "مثال ٢-١", "مثال ١-٢", with numbers in Arabic or English
    ✓ Calculations: "حساب المولارية", "الحل", step-by-step solutions
-   ✓ Questions: "ماذا قرأت؟", numbered problems, exercise sections
+    ✓ Questions: "ماذا قرأت؟", numbered problems, exercise sections
+    ✓ Multiple Choice Options: detect a), b), c), d) or أ), ب), ج), د) with answer values
    ✓ Definitions: key terms in bold, vocabulary boxes
    ✓ Formulas: mathematical equations, chemical formulas, units
 
