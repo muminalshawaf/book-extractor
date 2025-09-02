@@ -245,111 +245,8 @@ ${enhancedText}`}`;
     let summary = "";
     let providerUsed = "";
 
-    // Try OpenAI first (best for complex reasoning)
-    if (openaiApiKey) {
-      console.log('Attempting to use OpenAI GPT-4.1 for summarization...');
-      try {
-        const openaiResp = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${openaiApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "gpt-4.1-2025-04-14",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt }
-            ],
-            temperature: 0.2,
-            max_completion_tokens: 16000,
-          }),
-        });
-
-        if (openaiResp.ok) {
-          const openaiData = await openaiResp.json();
-          summary = openaiData.choices?.[0]?.message?.content ?? "";
-          const finishReason = openaiData.choices?.[0]?.finish_reason;
-          providerUsed = "openai-gpt-4.1";
-          
-          if (summary.trim()) {
-            console.log(`OpenAI API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
-            
-            // Handle continuation if needed
-            if (finishReason === "length" && summary.length > 0) {
-              console.log('OpenAI summary was truncated, attempting to continue...');
-              
-              for (let attempt = 1; attempt <= 2; attempt++) {
-                console.log(`OpenAI continuation attempt ${attempt}...`);
-                
-                const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
-
-Previous response ended with:
-${summary.slice(-500)}
-
-REQUIREMENTS:
-- Continue from exactly where you left off
-- Process ALL remaining questions (93-106 if not covered)
-- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
-- Use $$formula$$ for math, × for multiplication
-- Complete ALL questions until finished
-
-Original OCR text: ${enhancedText}`;
-
-                const contResp = await fetch("https://api.openai.com/v1/chat/completions", {
-                  method: "POST",
-                  headers: {
-                    "Authorization": `Bearer ${openaiApiKey}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    model: "gpt-4.1-2025-04-14",
-                    messages: [
-                      { role: "system", content: systemPrompt },
-                      { role: "user", content: continuationPrompt }
-                    ],
-                    temperature: 0.2,
-                    max_completion_tokens: 12000,
-                  }),
-                });
-
-                if (contResp.ok) {
-                  const contData = await contResp.json();
-                  const continuation = contData.choices?.[0]?.message?.content ?? "";
-                  const contFinishReason = contData.choices?.[0]?.finish_reason;
-                  
-                  if (continuation.trim()) {
-                    summary += "\n\n" + continuation;
-                    console.log(`OpenAI continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
-                    
-                    if (contFinishReason !== "length") {
-                      break;
-                    }
-                  } else {
-                    console.log(`OpenAI continuation ${attempt} returned empty content`);
-                    break;
-                  }
-                } else {
-                  console.error(`OpenAI continuation attempt ${attempt} failed:`, await contResp.text());
-                  break;
-                }
-              }
-            }
-          } else {
-            throw new Error("OpenAI returned empty content");
-          }
-        } else {
-          const errorText = await openaiResp.text();
-          console.error('OpenAI API error:', openaiResp.status, errorText);
-          throw new Error(`OpenAI API error: ${openaiResp.status}`);
-        }
-      } catch (openaiError) {
-        console.error('OpenAI failed, trying Gemini...', openaiError);
-      }
-    }
-
-    // Fallback to Gemini if OpenAI failed or not available
-    if (!summary.trim() && googleApiKey) {
+    // Try Gemini first (best available model)
+    if (googleApiKey) {
       console.log('Attempting to use Gemini 2.5 Pro for summarization...');
       try {
         const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
@@ -453,9 +350,9 @@ Original OCR text: ${enhancedText}`;
       }
     }
 
-    // Final fallback to DeepSeek
+    // Fallback to DeepSeek if Gemini failed or not available
     if (!summary.trim() && deepSeekApiKey) {
-      console.log('Using DeepSeek as final fallback...');
+      console.log('Using DeepSeek as fallback...');
       try {
         const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
