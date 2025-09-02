@@ -104,7 +104,7 @@ serve(async (req) => {
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
     
     console.log('Available models:');
-    console.log(`- Gemini 2.5 Flash: ${GOOGLE_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
+    console.log(`- Gemini 1.5 Pro: ${GOOGLE_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
     console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? 'AVAILABLE (fallback)' : 'UNAVAILABLE'}`);
 
     if (!text || typeof text !== "string") {
@@ -300,11 +300,11 @@ ${enhancedText}`}`;
     let summary = "";
     let providerUsed = "";
 
-    // Try Gemini 2.5 Flash first (primary model)
+    // Try Gemini 1.5 Pro first (primary model)
     if (googleApiKey) {
-      console.log('Attempting to use Gemini 2.5 Flash for summarization...');
+      console.log('Attempting to use Gemini 1.5 Pro for summarization...');
       try {
-        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${googleApiKey}`, {
+        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -326,17 +326,17 @@ ${enhancedText}`}`;
           const geminiData = await geminiResp.json();
           summary = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
           const finishReason = geminiData.candidates?.[0]?.finishReason;
-          providerUsed = "gemini-2.5-flash";
+          providerUsed = "gemini-1.5-pro";
           
           if (summary.trim()) {
-            console.log(`Gemini 2.5 Flash API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
+            console.log(`Gemini 1.5 Pro API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
             
             // Handle continuation if needed
             if (finishReason === "MAX_TOKENS" && summary.length > 0) {
-              console.log('Gemini 2.5 Flash summary was truncated, attempting to continue...');
+              console.log('Gemini 1.5 Pro summary was truncated, attempting to continue...');
               
               for (let attempt = 1; attempt <= 2; attempt++) {
-                console.log(`Gemini 2.5 Flash continuation attempt ${attempt}...`);
+                console.log(`Gemini 1.5 Pro continuation attempt ${attempt}...`);
                 
                 const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
 
@@ -352,7 +352,7 @@ REQUIREMENTS:
 
 Original OCR text: ${enhancedText}`;
 
-                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${googleApiKey}`, {
+                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
@@ -377,31 +377,31 @@ Original OCR text: ${enhancedText}`;
                   
                   if (continuation.trim()) {
                     summary += "\n\n" + continuation;
-                    console.log(`Gemini 2.5 Flash continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
+                    console.log(`Gemini 1.5 Pro continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
                     
                     if (contFinishReason !== "MAX_TOKENS") {
                       break;
                     }
                   } else {
-                    console.log(`Gemini 2.5 Flash continuation ${attempt} returned empty content`);
+                    console.log(`Gemini 1.5 Pro continuation ${attempt} returned empty content`);
                     break;
                   }
                 } else {
-                  console.error(`Gemini 2.5 Flash continuation attempt ${attempt} failed:`, await contResp.text());
+                  console.error(`Gemini 1.5 Pro continuation attempt ${attempt} failed:`, await contResp.text());
                   break;
                 }
               }
             }
           } else {
-            throw new Error("Gemini 2.5 Flash returned empty content");
+            throw new Error("Gemini 1.5 Pro returned empty content");
           }
         } else {
           const errorText = await geminiResp.text();
-          console.error('Gemini 2.5 Flash API error:', geminiResp.status, errorText);
-          throw new Error(`Gemini 2.5 Flash API error: ${geminiResp.status}`);
+          console.error('Gemini 1.5 Pro API error:', geminiResp.status, errorText);
+          throw new Error(`Gemini 1.5 Pro API error: ${geminiResp.status}`);
         }
       } catch (geminiError) {
-        console.error('Gemini 2.5 Flash failed, trying DeepSeek...', geminiError);
+        console.error('Gemini 1.5 Pro failed, trying DeepSeek...', geminiError);
       }
     }
 
@@ -550,7 +550,7 @@ Original OCR text: ${enhancedText}`;
       console.log(`Answered questions: ${Array.from(answeredQuestionNumbers).join(', ')}`);
       console.log(`Missing questions: ${missingNumbers.join(', ')}`);
       
-      if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-2.5-flash')) {
+      if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-1.5-pro')) {
         // Multi-attempt continuation with safety limit
         const maxAttempts = 4;
         let attempt = 0;
@@ -601,7 +601,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
                 }),
               });
             } else {
-              completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${googleApiKey}`, {
+              completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
