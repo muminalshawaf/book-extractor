@@ -215,6 +215,10 @@ Use tables when necessary
 - Use × (NOT \\cdot or \\cdotp) for multiplication
 - Bold all section headers with **Header**
 
+QUESTION SOLVING DIRECTIVES:
+1. When solving questions, solve them in sequence from the least to the most. Start from question 45, then 46, etc.
+2. Ensure that you answer all the questions despite the maximum tokens and characters. This means be concise on the topics you need to be concise on. Remember, this is a summary of all the important topics on the page.
+
 MANDATORY SECTIONS (only include if content exists on the page):
 - المفاهيم والتعاريف
 - المصطلحات العلمية
