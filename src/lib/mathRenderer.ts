@@ -24,7 +24,7 @@ export function normalizeAndExtractMath(text: string): { text: string; mathBlock
   processedText = processedText.replace(/\\cdotp([a-zA-Z])/g, '\\cdot\\text{ $1}');
   processedText = processedText.replace(/\\cdot([a-zA-Z])/g, '\\cdot\\text{$1}');
   
-  // Fix more LaTeX issues
+  // Fix more comprehensive LaTeX issues
   processedText = processedText.replace(/\\text\{([^}]*)\}\\text\{([^}]*)\}/g, '\\text{$1$2}');
   processedText = processedText.replace(/\\cdot\s*\\times/g, '\\times');
   processedText = processedText.replace(/([0-9.]+)\s*([a-zA-Z]+)/g, '$1\\text{ $2}');
@@ -33,6 +33,19 @@ export function normalizeAndExtractMath(text: string): { text: string; mathBlock
   // Fix unit formatting specifically
   processedText = processedText.replace(/\\text\{([0-9.]+)\s*(atm|mol|L|g|°C|K)\}/g, '\\text{$1 $2}');
   processedText = processedText.replace(/\\text\{([^}]*)\}\\text\{([^}]*)\}/g, '\\text{$1$2}');
+  
+  // Fix any remaining malformed commands
+  processedText = processedText.replace(/\\[a-zA-Z]*p[a-zA-Z]*/g, (match) => {
+    console.warn(`Fixing malformed LaTeX command: ${match}`);
+    if (match.includes('atm')) return '\\cdot\\text{ atm}';
+    if (match.includes('mol')) return '\\cdot\\text{ mol}';
+    return '\\cdot\\text{ ' + match.replace(/\\[a-zA-Z]*p/, '') + '}';
+  });
+  
+  // Clean up any double spaces or malformed spacing
+  processedText = processedText.replace(/\\text\{\s+/g, '\\text{');
+  processedText = processedText.replace(/\s+\}/g, '}');
+  processedText = processedText.replace(/\\text\{\}/g, '');
   
   // Convert LaTeX delimiters to consistent format
   processedText = processedText.replace(/\\\[([\s\S]*?)\\\]/gs, '$$$$$1$$$$');
