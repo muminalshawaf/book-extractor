@@ -767,6 +767,37 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }
   };
 
+  // Function to add table data and run summarization
+  const addTableDataAndSummarize = async () => {
+    const tableData = `
+
+--- SECTION: الجدول 6-1 ---
+المذيب
+KF (°C/m)
+°C درجة التجمد
+الماء
+1.86
+0.0
+البنزين
+5.12
+5.5
+رابع كلوريد الكربون
+29.8
+-23.0
+الإيثانول
+1.99
+-114.1
+الكلوروفورم
+4.68
+-63.5`;
+
+    const updatedText = extractedText + tableData;
+    setExtractedText(updatedText);
+    
+    // Run summarization with the updated text
+    await summarizeExtractedText(updatedText, true);
+  };
+
   // Post-processing function to ensure all numbered questions are answered
   const checkAndCompleteMissingQuestions = async (generatedSummary: string, originalText: string) => {
     try {
@@ -975,6 +1006,19 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                       )}
                       {rtl ? "لخص هذه الصفحة" : "Summarize this page"}
                     </Button>
+                    
+                    {/* Add Table Data Button - Only show on page 50 */}
+                    {index + 1 === 50 && (
+                      <Button 
+                        className="w-full mt-2" 
+                        variant="outline"
+                        onClick={addTableDataAndSummarize}
+                        disabled={ocrLoading || summLoading}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {rtl ? "إضافة الجدول 6-1 وإعادة التلخيص" : "Add Table 6-1 and Re-summarize"}
+                      </Button>
+                    )}
                     
                     {summary && (
                       <div className="mt-4">
@@ -1312,6 +1356,19 @@ export const BookViewer: React.FC<BookViewerProps> = ({
                           </>
                         )}
                       </Button>
+                      
+                      {/* Add Table Data Button - Only show on page 50 */}
+                      {index + 1 === 50 && (
+                        <Button 
+                          className="w-full mt-2" 
+                          variant="outline"
+                          onClick={addTableDataAndSummarize}
+                          disabled={ocrLoading || summLoading}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          {rtl ? "إضافة الجدول 6-1 وإعادة التلخيص" : "Add Table 6-1 and Re-summarize"}
+                        </Button>
+                      )}
                       
                       {!summary && (
                         <div className="mt-3 text-sm text-muted-foreground border rounded-md p-3">
