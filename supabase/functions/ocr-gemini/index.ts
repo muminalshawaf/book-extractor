@@ -99,6 +99,53 @@ function findMultipleChoiceOptions(fullText: string, questionText: string): stri
   return options.slice(0, 4) // Return max 4 options
 }
 
+// JSON Schema validation function
+function validateOCRResult(result: any, schema: any): boolean {
+  try {
+    if (!result || typeof result !== 'object') return false
+    
+    // Check required fields
+    const requiredFields = ['language', 'direction', 'page_context', 'sections', 'visual_elements']
+    for (const field of requiredFields) {
+      if (!(field in result)) {
+        console.error(`Missing required field: ${field}`)
+        return false
+      }
+    }
+    
+    // Validate page_context
+    if (!result.page_context || typeof result.page_context !== 'object') return false
+    const requiredPageFields = ['page_title', 'page_type', 'has_questions', 'has_visual_elements']
+    for (const field of requiredPageFields) {
+      if (!(field in result.page_context)) {
+        console.error(`Missing required page_context field: ${field}`)
+        return false
+      }
+    }
+    
+    // Validate sections array
+    if (!Array.isArray(result.sections)) return false
+    for (const section of result.sections) {
+      if (!section || typeof section !== 'object' || 
+          typeof section.order !== 'number' || 
+          typeof section.type !== 'string') {
+        console.error('Invalid section structure')
+        return false
+      }
+    }
+    
+    // Validate visual_elements array
+    if (!Array.isArray(result.visual_elements)) return false
+    
+    console.log('OCR result passed validation')
+    return true
+    
+  } catch (error) {
+    console.error('Validation error:', error)
+    return false
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -106,7 +153,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log('OCR Gemini function started')
+    console.log('Enhanced OCR Gemini function started with validation pipeline')
     
     const { imageUrl, language = 'en' } = await req.json()
     console.log('Request parsed successfully:', { imageUrl: imageUrl?.substring(0, 100) + '...', language })
@@ -165,8 +212,50 @@ serve(async (req) => {
     const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg'
     console.log('Base64 conversion complete, mime type:', mimeType)
 
-    // Prepare the prompt based on language
+    // Prepare the prompt based on language with enforced JSON schema
     const isArabic = language === 'ar'
+    
+    // JSON Schema for validation
+    const jsonSchema = {
+      type: "object",
+      required: ["language", "direction", "page_context", "sections", "visual_elements"],
+      properties: {
+        language: { type: "string" },
+        direction: { type: "string" },
+        page_context: {
+          type: "object",
+          required: ["page_title", "page_type", "has_questions", "has_visual_elements"],
+          properties: {
+            page_title: { type: "string" },
+            page_type: { type: "string" },
+            main_topics: { type: "array", items: { type: "string" } },
+            headers: { type: "array", items: { type: "string" } },
+            has_questions: { type: "boolean" },
+            has_formulas: { type: "boolean" },
+            has_examples: { type: "boolean" },
+            has_visual_elements: { type: "boolean" }
+          }
+        },
+        sections: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["order", "type"],
+            properties: {
+              order: { type: "number" },
+              type: { type: "string" },
+              title: { type: ["string", "null"] },
+              content: { type: ["string", "null"] }
+            }
+          }
+        },
+        visual_elements: {
+          type: "array",
+          items: { type: "object" }
+        }
+      }
+    }
+    
     const prompt = isArabic 
       ? `You are an expert OCR analyst specializing in Arabic educational textbooks. Analyze this chemistry textbook page with MAXIMUM precision and extract EVERY visible text element without exception.
 
@@ -285,7 +374,7 @@ RETURN THIS EXACT JSON STRUCTURE:
             "order": X,
             "type": "exercise", 
             "title": "question_number",
-            "content": "Question Text: [complete question text]\nOptions:\na. [COMPLETE option text with ALL details, numbers, units, formulas]\nb. [COMPLETE option text with ALL details, numbers, units, formulas]\nc. [COMPLETE option text with ALL details, numbers, units, formulas]\nd. [COMPLETE option text with ALL details, numbers, units, formulas]"
+            "content": "Question Text: [complete question text]\\nOptions:\\na. [COMPLETE option text with ALL details, numbers, units, formulas]\\nb. [COMPLETE option text with ALL details, numbers, units, formulas]\\nc. [COMPLETE option text with ALL details, numbers, units, formulas]\\nd. [COMPLETE option text with ALL details, numbers, units, formulas]"
           }
         - **OPTION CONTENT COMPLETENESS** (CRITICAL):
           * Preserve EXACT option prefixes: "a. 55.63 mL" NOT "55.63 mL"  
@@ -310,127 +399,6 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ **DIAGRAMS**: Describe all components, labels, arrows, and relationships
    ✓ **FIGURES**: Include figure numbers, captions, and detailed descriptions
    ✓ **CHEMICAL STRUCTURES**: Document molecular diagrams, formulas, bonds
-
-4. **FIGURE ٢٦-١ SPECIFIC REQUIREMENTS** (Must be captured):
-   ✓ **COMPLETE DESCRIPTION**: "بيان دائري يوضح النسب المئوية لغازات الهواء"
-   ✓ **ALL PERCENTAGES**: نيتروجين ٧٨٪، أكسجين ٢١٪، أرجون ١٪
-   ✓ **EDUCATIONAL CONTEXT**: How this relates to question 106 about mole fractions
-   ✓ **VISUAL DETAILS**: Color coding, sector sizes, any additional labels
-
-5. **MISSING QUESTIONS RECOVERY** (Questions 103-106 often missed):
-   ✓ **QUESTION 103**: About polarity and solubility using Table 9-1
-   ✓ **QUESTION 104**: About saturated KCl solution temperature changes
-   ✓ **QUESTION 105**: About calculating mass of Ca(NO₃)₂ needed
-   ✓ **QUESTION 106**: About mole fractions using Figure 26-1 data
-   ✓ **CHECK CONTINUATION**: These questions might be split across sections
-
-6. **ENHANCED TABLE EXTRACTION** (Table 9-1 requirements):
-   ✓ **COMPLETE HEADERS**: "مذاب" and "مذيب" columns
-   ✓ **ALL ROWS**: MgCl₂ صلب/H₂O سائل، NH₃ سائل/C₆H₆ سائل، etc.
-   ✓ **EXACT FORMULAS**: Preserve chemical formulas with correct subscripts
-   ✓ **CONTEXT**: How table relates to question 103
-
-7. **DOUBLE-CHECK VALIDATION**:
-   ✓ **QUESTION COUNT**: Ensure questions 93-106 are all captured (14 questions total)
-   ✓ **VISUAL COUNT**: Verify Table 9-1 and Figure 26-1 are both documented
-   ✓ **CONTENT COMPLETENESS**: No truncated sentences or incomplete formulas
-   ✓ **ARABIC ACCURACY**: Proper Arabic text recognition and diacritics
-
-3. **VISUAL LAYOUT ANALYSIS** (Scan the ENTIRE image systematically):
-   ✓ Scan top-to-bottom, right-to-left for Arabic content
-   ✓ Identify EVERY text element by visual prominence: titles, headers, body text, captions
-   ✓ Detect text formatting: bold, italic, underlined, colored text, different font sizes
-   ✓ Map visual hierarchy: main title → section headers → subheaders → body content
-   ✓ Locate bordered boxes, highlighted areas, margin notes, sidebars
-   ✓ Find text in corners, margins, footers, page numbers
-
-4. **ARABIC TEXTBOOK STRUCTURE RECOGNITION**:
-   ✓ Page titles: "مهن في الكيمياء", "الفصل الأول", chapter names
-   ✓ Career sections: "فنيو الصيدلة", professional roles, job descriptions  
-   ✓ Examples: "مثال ٢-١", "مثال ١-٢", with numbers in Arabic or English
-   ✓ Calculations: "حساب المولارية", "الحل", step-by-step solutions
-    ✓ Questions: "ماذا قرأت؟", numbered problems, exercise sections
-    ✓ Multiple Choice Options: detect a), b), c), d) or أ), ب), ج), د) with answer values
-   ✓ Definitions: key terms in bold, vocabulary boxes
-   ✓ Formulas: mathematical equations, chemical formulas, units
-
-5. **TYPOGRAPHY & FORMATTING PRESERVATION**:
-   ✓ Distinguish between different text weights (bold vs regular)
-   ✓ Preserve mathematical notation: subscripts, superscripts, fractions
-   ✓ Maintain chemical formulas exactly: H₂O, CO₂, NaCl, etc.
-   ✓ Keep equation formatting: = signs, division bars, parentheses
-   ✓ Preserve Arabic numbers vs English numbers in context
-   ✓ Maintain units and symbols: mol/L, °C, %, etc.
-
-6. **SECTION CLASSIFICATION** (Critical - identify each visual block):
-   • "title" → Page headers, chapter titles (large bold text at top)
-   • "header" → Section headers, subsection titles (medium bold text)
-   • "main_content" → Primary educational paragraphs and explanations
-   • "sidebar" → Boxed content, highlighted info panels, margin notes
-   • "example" → "مثال" sections with worked problems and solutions
-   • "exercise" → Practice problems, "مسائل تدريبية", questions
-   • "formula" → Mathematical equations, chemical formulas (standalone)
-   • "definition" → Key terms, vocabulary, bolded concepts
-   • "career_box" → Professional information, job descriptions
-   • "highlight_box" → Important notes, tips, warnings in colored boxes
-
-7. **CONTENT COMPLETENESS VERIFICATION** (Zero tolerance for missing text):
-   ✓ Every Arabic word and phrase visible in the image
-   ✓ All English text, numbers, and symbols
-   ✓ Mathematical expressions with proper formatting
-   ✓ Chemical formulas with correct subscripts/superscripts  
-   ✓ Units, measurements, and scientific notation
-   ✓ Page numbers, section numbers, example numbers
-   ✓ Text in boxes, sidebars, margins, and corners
-   ✓ Captions for figures, diagrams, or images
-
-8. **ARABIC TEXT HANDLING**:
-   ✓ Preserve exact Arabic spelling and diacritics
-   ✓ Maintain proper Arabic sentence structure and punctuation
-   ✓ Keep Arabic-English mixed text in correct order
-   ✓ Preserve technical Arabic chemistry terminology
-   ✓ Maintain number formatting (Arabic numerals vs English numerals)
-
-9. **PRECISION NUMERIC EXTRACTION** (Critical for calculation questions):
-    ✓ **GRAPHS**: For each graph/chart, extract EXACT numeric data points:
-      - Read axis tick values precisely (0, 5, 10, 15, 20 atm)
-      - Extract 3-5 reference points per data series/line
-      - Record units for both axes explicitly (atm, mg/100g, %, etc.)
-      - Calculate slopes and intercepts for linear relationships
-      - Map figure titles (الشكل 27-1) to numeric_data arrays
-    ✓ **TABLES**: Extract complete structure with precise values:
-      - Column headers (exactly as written) 
-      - Row data (all filled cells with exact values and units)
-      - Empty/missing cells: Mark cells with "?" symbols or blank spaces as "EMPTY"
-      - For question marks (?): Record as "EMPTY - needs calculation"
-      - Units or context for calculations needed (e.g., Henry's law, dilution formula)
-    ✓ **PIE CHARTS**: Extract exact percentages and labels
-    ✓ **DATA VALIDATION**: Verify extracted numbers make mathematical sense
-    ✓ Note figure captions, titles, or reference numbers (Figure 1, شكل ٢، جدول ٧-١، etc.)
-    ✓ Describe the educational purpose of each visual element
-    ✓ For questions referencing "الشكل", "الجدول", "Table", or "Figure", ensure visual is documented
-    ✓ Mark uncertain interpretations with "estimated": true
-
-10. **QUALITY ASSURANCE CHECKS**:
-     ✓ Verify no text elements were skipped or overlooked
-     ✓ Ensure mathematical formulas are complete and accurate
-     ✓ Confirm all section headers and titles are captured
-     ✓ Double-check example numbers and problem sequences
-     ✓ Validate that boxed/highlighted content is included
-     ✓ Verify visual elements are described if present
-     ✓ **QUESTION COMPLETENESS**: Ensure ALL questions 93-106 are extracted (14 questions total)
-     ✓ **VISUAL COMPLETENESS**: Verify Table 9-1 AND Figure 26-1 are both captured with full details
-     ✓ **NO TRUNCATION**: Ensure no content is cut off or incomplete
-
-CRITICAL SUCCESS METRICS:
-- 100% text capture rate (no missing words, symbols, or numbers)
-- Perfect preservation of mathematical and chemical notation  
-- Complete section identification and classification
-- Accurate Arabic text with proper technical terminology
-- Full extraction of educational structure (examples, exercises, definitions)
-- Comprehensive visual element documentation for educational context
-- **MANDATORY**: All questions 93-106 must be captured (14 questions total)
-- **MANDATORY**: Table 9-1 and Figure 26-1 must be fully documented with complete descriptions
 
 ANALYZE SYSTEMATICALLY - EXTRACT COMPREHENSIVELY - MISS NOTHING!`
       : `Analyze this image and extract all text with high accuracy. Please return a JSON response with the following structure:
@@ -487,19 +455,26 @@ Instructions:
 
 Focus on accuracy and structured context metadata.`
 
-    // Call Google Gemini API with 2.0 Flash for better visual understanding
-    try {
-      const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{
+    // Enhanced OCR processing with retry and validation
+    let ocrResult = null
+    let attempts = 0
+    const maxAttempts = 3
+    
+    while (attempts < maxAttempts && !ocrResult) {
+      attempts++
+      console.log(`OCR attempt ${attempts}/${maxAttempts}`)
+      
+      try {
+        // Call Gemini 2.5 Flash (upgraded model for better accuracy)
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`
+        
+        const requestBody = {
+          contents: [
+            {
               parts: [
-                { text: prompt },
+                {
+                  text: prompt
+                },
                 {
                   inline_data: {
                     mime_type: mimeType,
@@ -507,237 +482,176 @@ Focus on accuracy and structured context metadata.`
                   }
                 }
               ]
-            }],
-            generationConfig: {
-              temperature: 0.01,
-              topK: 1,
-              topP: 0.85,
-              maxOutputTokens: 32768, // Maintained for comprehensive extraction
-              response_mime_type: "application/json"
-            },
-            safetySettings: [
-              {
-                category: "HARM_CATEGORY_HARASSMENT",
-                threshold: "BLOCK_ONLY_HIGH"
-              },
-              {
-                category: "HARM_CATEGORY_HATE_SPEECH",
-                threshold: "BLOCK_ONLY_HIGH"
-              },
-              {
-                category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                threshold: "BLOCK_ONLY_HIGH"
-              },
-              {
-                category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                threshold: "BLOCK_ONLY_HIGH"
+            }
+          ],
+          generationConfig: {
+            temperature: 0.0, // Deterministic output for consistency
+            maxOutputTokens: 8192,
+            topP: 0.1, // Low for deterministic results
+            candidateCount: 1
+          }
+        }
+
+        const response = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        })
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error(`OCR attempt ${attempts} failed:`, response.status, errorText)
+          
+          if (attempts === maxAttempts) {
+            return new Response(
+              JSON.stringify({ error: `Gemini API error after ${maxAttempts} attempts: ${response.status}` }), 
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
+          continue
+        }
+
+        const data = await response.json()
+        console.log('Gemini API response received, processing...')
+
+        if (data.candidates && data.candidates.length > 0 && data.candidates[0].content) {
+          let textContent = data.candidates[0].content.parts[0].text
+          console.log(`Raw Gemini text response length: ${textContent.length}`)
+
+          // Enhanced JSON parsing with validation
+          let parsedResult
+          try {
+            // Clean the text content - remove any markdown formatting
+            textContent = textContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '').trim()
+            parsedResult = JSON.parse(textContent)
+            
+            // Validate against schema
+            if (!validateOCRResult(parsedResult, jsonSchema)) {
+              console.error('OCR result failed schema validation')
+              if (attempts === maxAttempts) {
+                throw new Error('OCR result validation failed after all attempts')
               }
-            ]
-          })
-        }
-      )
-
-      if (!geminiResponse.ok) {
-        const errorText = await geminiResponse.text()
-        console.error('Gemini API error:', geminiResponse.status, errorText)
-        return new Response(
-          JSON.stringify({ error: `Gemini API error: ${geminiResponse.status}` }), 
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-
-      const geminiResult = await geminiResponse.json()
-      console.log('Gemini API response structure:', JSON.stringify(geminiResult, null, 2))
-
-      if (!geminiResult.candidates || geminiResult.candidates.length === 0) {
-        console.error('No candidates in Gemini response')
-        return new Response(
-          JSON.stringify({ error: 'No text extraction results from Gemini' }), 
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-
-      const candidate = geminiResult.candidates[0]
-      
-      // Check if content was blocked by safety filters
-      if (candidate.finishReason === 'SAFETY') {
-        console.error('Content blocked by safety filters:', candidate.safetyRatings)
-        return new Response(
-          JSON.stringify({ 
-            error: 'Content blocked by safety filters. This appears to be educational chemistry content that was mistakenly flagged.',
-            details: 'Safety filters blocked educational chemistry content'
-          }), 
-          { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-      
-      // Check if response was truncated due to token limits
-      if (candidate.finishReason === 'MAX_TOKENS') {
-        console.warn('OCR response was truncated due to token limit. Consider splitting the image or using a higher token limit.')
-        // Continue processing but flag as potentially incomplete
-      }
-      
-      if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
-        console.error('Invalid candidate structure:', candidate)
-        return new Response(
-          JSON.stringify({ error: 'Invalid response structure from Gemini' }), 
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-
-      const rawResponse = candidate.content.parts[0].text || ''
-      
-      // Try to parse JSON response
-      let parsedData
-      let extractedText = ''
-      let columnsDetected = 0
-      let direction = isArabic ? 'rtl' : 'ltr'
-      let pageContext = null
-      
-      try {
-        parsedData = JSON.parse(rawResponse)
-        console.log('Successfully parsed JSON response:', parsedData)
-        
-         // Handle new structured format with sections and page_context
-        if (parsedData.sections && Array.isArray(parsedData.sections)) {
-          // Sort sections by order
-          const sortedSections = parsedData.sections.sort((a, b) => a.order - b.order)
-          columnsDetected = sortedSections.length
-          direction = parsedData.direction || direction
-          pageContext = parsedData.page_context || null
-          
-          // First, get all the raw text combined
-          let rawText = sortedSections.map(section => section.content || '').join('\n')
-          
-          // NEW APPROACH: Post-process the entire text to identify and format multiple choice questions
-          extractedText = postProcessMultipleChoice(rawText, sortedSections)
-          
-           // Append visual context if visual elements exist
-           if (parsedData.visual_elements && Array.isArray(parsedData.visual_elements) && parsedData.visual_elements.length > 0) {
-             const visualContext = parsedData.visual_elements.map(element => {
-               let desc = `**${element.type.toUpperCase()}**: ${element.title || 'Untitled'}\n`
-               desc += `Description: ${element.description || 'No description'}\n`
-               
-               // Handle table structure
-               if (element.table_structure) {
-                 desc += `Table Structure:\n`
-                 desc += `Headers: ${element.table_structure.headers?.join(' | ') || 'N/A'}\n`
-                 if (element.table_structure.rows) {
-                   desc += `Rows:\n`
-                   element.table_structure.rows.forEach((row, i) => {
-                     desc += `Row ${i + 1}: ${row.join(' | ')}\n`
-                   })
-                 }
-                 if (element.table_structure.empty_cells?.length > 0) {
-                   desc += `Empty cells: ${element.table_structure.empty_cells.join(', ')}\n`
-                 }
-                 if (element.table_structure.calculation_context) {
-                   desc += `Calculation needed: ${element.table_structure.calculation_context}\n`
-                 }
-               }
-               
-               // Handle chart/graph elements  
-               if (element.axes_labels) {
-                 if (element.axes_labels.x_axis) desc += `X-axis: ${element.axes_labels.x_axis}\n`
-                 if (element.axes_labels.y_axis) desc += `Y-axis: ${element.axes_labels.y_axis}\n`
-               }
-               if (element.data_description) desc += `Data: ${element.data_description}\n`
-               if (element.key_values && element.key_values.length > 0) {
-                 desc += `Key Values: ${element.key_values.join(', ')}\n`
-               }
-               if (element.educational_context) desc += `Context: ${element.educational_context}\n`
-               if (element.estimated) desc += `(Note: Some details are estimated)\n`
-               return desc
-             }).join('\n')
-             
-             extractedText += `\n\n--- VISUAL CONTEXT ---\n${visualContext}`
-           }
-          
-          console.log(`Structured layout detected: ${columnsDetected} sections, page type: ${pageContext?.page_type || 'unknown'}`)
-        } 
-        // Handle legacy format with columns
-        else if (parsedData.columns && Array.isArray(parsedData.columns)) {
-          // Sort columns by order
-          const sortedColumns = parsedData.columns.sort((a, b) => a.order - b.order)
-          columnsDetected = sortedColumns.length
-          direction = parsedData.direction || direction
-          
-          // Join column texts with double line breaks
-          extractedText = sortedColumns.map(col => col.text).join('\n\n')
-          
-          console.log(`Multi-column layout detected: ${columnsDetected} columns, direction: ${direction}`)
+              continue
+            }
+            
+            console.log('Successfully parsed and validated JSON response')
+            ocrResult = parsedResult
+            break
+            
+          } catch (parseError) {
+            console.error(`JSON parse error on attempt ${attempts}:`, parseError)
+            
+            // Try to extract JSON from the response
+            const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              try {
+                parsedResult = JSON.parse(jsonMatch[0])
+                if (validateOCRResult(parsedResult, jsonSchema)) {
+                  console.log('Extracted and validated JSON successfully from match')
+                  ocrResult = parsedResult
+                  break
+                }
+              } catch (extractError) {
+                console.error('Failed to parse extracted JSON:', extractError)
+              }
+            }
+            
+            if (attempts === maxAttempts) {
+              return new Response(
+                JSON.stringify({ error: 'Failed to parse and validate OCR response as JSON after all attempts' }), 
+                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              )
+            }
+          }
         } else {
-          // Fallback to treating as single text block
-          extractedText = parsedData.text || rawResponse
-          columnsDetected = 1
+          console.error(`No valid response content on attempt ${attempts}`)
+          if (attempts === maxAttempts) {
+            return new Response(
+              JSON.stringify({ error: 'No valid response from Gemini API after all attempts' }), 
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+          }
         }
-      } catch (jsonError) {
-        console.log('Failed to parse JSON, treating as plain text:', jsonError.message)
-        // Fallback to plain text
-        extractedText = rawResponse
-        columnsDetected = 1
-      }
-      
-      // Calculate confidence based on text quality
-      let confidence = 0.85 // Base confidence for Gemini
-      
-      // Adjust confidence based on text characteristics
-      const textLength = extractedText.length
-      if (textLength > 100) confidence += 0.05
-      if (textLength > 500) confidence += 0.05
-      
-      // Check for Arabic text if Arabic language was requested
-      if (isArabic) {
-        const arabicChars = (extractedText.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g) || []).length
-        if (arabicChars > 10) confidence += 0.05
-      }
-      
-      // Cap confidence at 0.95
-      confidence = Math.min(confidence, 0.95)
-
-      console.log(`OCR completed successfully. Text length: ${textLength}, Confidence: ${confidence}, Columns: ${columnsDetected}`)
-      
-      // Check if extraction might be incomplete
-      const wasIncomplete = candidate.finishReason === 'MAX_TOKENS'
-      if (wasIncomplete) {
-        console.warn('Warning: OCR extraction may be incomplete due to token limit truncation')
-      }
-
-      return new Response(
-        JSON.stringify({
-          text: extractedText,
-          confidence: confidence,
-          source: 'gemini',
-          language: language,
-          columnsDetected: columnsDetected,
-          direction: direction,
-          pageContext: pageContext, // Include structured page context
-          rawStructuredData: parsedData, // Include full structured data for debugging
-          incomplete: wasIncomplete // Flag if extraction was truncated
-        }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      } catch (error) {
+        console.error(`OCR attempt ${attempts} error:`, error)
+        if (attempts === maxAttempts) {
+          return new Response(
+            JSON.stringify({ error: `OCR processing failed after ${maxAttempts} attempts` }), 
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
         }
-      )
-
-    } catch (error) {
-      console.error('Error calling Gemini API:', error)
-      return new Response(
-        JSON.stringify({ error: 'Failed to process with Gemini API' }), 
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      }
+      
+      // Wait before retry (exponential backoff)
+      if (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempts) * 1000))
+      }
     }
 
+    // Process successful result
+    if (ocrResult) {
+      // Enhanced post-processing with multiple choice detection
+      const processedText = postProcessMultipleChoice('', ocrResult.sections || [])
+      console.log('Post-processing completed for multiple choice questions')
+
+      // Enhanced metrics collection
+      const totalSections = ocrResult.sections ? ocrResult.sections.length : 0
+      const pageType = ocrResult.page_context ? ocrResult.page_context.page_type : 'unknown'
+      const visualElements = ocrResult.visual_elements ? ocrResult.visual_elements.length : 0
+      const questions = ocrResult.sections ? ocrResult.sections.filter(s => s.type === 'exercise').length : 0
+      const multipleChoiceCount = processedText.split('Options:').length - 1
+      
+      console.log(`OCR Metrics: ${totalSections} sections, ${visualElements} visuals, ${questions} questions, ${multipleChoiceCount} MC questions`)
+      console.log(`Structured layout detected: ${totalSections} sections, page type: ${pageType}`)
+
+      // Calculate enhanced confidence score
+      let confidence = 0.85
+      if (visualElements > 0) confidence += 0.05
+      if (questions > 0) confidence += 0.05
+      if (multipleChoiceCount > 0) confidence += 0.03
+      if (totalSections >= 10) confidence += 0.02
+      confidence = Math.min(0.98, confidence)
+      
+      const detectedLanguage = ocrResult.language || language
+      const columnCount = totalSections
+      const direction = ocrResult.direction || (isArabic ? 'rtl' : 'ltr')
+
+      console.log(`OCR completed successfully. Text length: ${processedText.length}, Confidence: ${confidence}, Columns: ${columnCount}`)
+
+      return new Response(JSON.stringify({
+        text: processedText,
+        confidence: confidence,
+        language: detectedLanguage,
+        columns: columnCount,
+        direction: direction,
+        rawStructuredData: ocrResult,
+        metrics: {
+          attempts: attempts,
+          sections: totalSections,
+          visuals: visualElements,
+          questions: questions,
+          multipleChoice: multipleChoiceCount
+        }
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // Fallback error response
+    return new Response(
+      JSON.stringify({ error: 'OCR processing failed after all attempts' }), 
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+
   } catch (error) {
-    console.error('Unexpected error in OCR function:', error)
-    console.error('Error stack:', error.stack)
-    console.error('Error message:', error.message)
+    console.error('Error in OCR processing:', error)
     return new Response(
       JSON.stringify({ 
-        error: 'Internal server error', 
-        details: error.message,
-        stack: error.stack 
+        error: 'Internal server error in OCR processing',
+        details: error.message 
       }), 
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

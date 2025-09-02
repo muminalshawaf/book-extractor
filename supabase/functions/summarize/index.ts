@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { validateSummaryCompleteness, attemptSummaryRepair, calculateSummaryMetrics, ValidationResult, RepairResult, SummaryMetrics } from './validators.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -99,14 +100,15 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now()
+  
   try {
-    console.log('Summarize function started');
+    console.log('Enhanced Summarize function started with validation pipeline');
     
     const { text, lang = "ar", page, title, ocrData = null } = await req.json();
     console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title} }`);
     
     // Log model usage priority
-    // Model selection already logged above
     const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
     
@@ -205,12 +207,17 @@ Rows:`;
       }
     }
 
-    // Enhanced text with visual context
-    const enhancedText = text + visualElementsText;
+    // Enhanced text with visual context and chunking for dense pages
+    const enhancedText = text + visualElementsText
+    const isVeryDense = enhancedText.length > 15000
+    
+    if (isVeryDense) {
+      console.log(`Dense page detected (${enhancedText.length} chars), implementing chunking strategy`)
+    }
 
-    // Create optimized prompt for question processing
-    const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
-    console.log(`Multiple choice detected: ${hasMultipleChoice}`);
+    // Create optimized prompt for question processing with enhanced detection
+    const hasMultipleChoice = questions.some(q => q.isMultipleChoice)
+    console.log(`Multiple choice detected: ${hasMultipleChoice}, Processing ${questions.length} total questions`)
     
     const systemPrompt = `You are an expert chemistry professor. Your task is to analyze educational content and provide structured summaries following a specific format.
 
@@ -230,552 +237,165 @@ ${hasMultipleChoice ? `
 - Use × (NOT \\cdot or \\cdotp) for multiplication
 - Bold all section headers with **Header**
 
-CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
-1. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence from lowest to highest number. If you see questions 45, 102, 46, you MUST answer them as: 45, then 46, then 102. This is MANDATORY and non-negotiable.
-2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found in the text. NO EXCEPTIONS. Be concise on explanatory topics if needed, but NEVER skip questions.
-3. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles before providing them.
-4. **STEP-BY-STEP MANDATE**: Each question must have a complete, logical solution showing all work and reasoning.
-5. **USE ALL AVAILABLE DATA MANDATE**: The OCR text contains ALL necessary information including graphs, tables, and numerical data. Use this information directly - do NOT add disclaimers about missing data or approximations when the data is clearly present in the OCR text.
-6. **MATHJAX RENDERING MANDATE - 100% SUCCESS GUARANTEE**: 
-   - ALWAYS use double dollar signs $$equation$$ for display math (never single $)
-   - Use \\text{} for units and text within equations: $$k = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}}$$
-   - NEVER nest \\text{} commands: Use \\text{78 g} NOT \\text{78 \\text{g}}
-   - Use \\cdot for multiplication: $$a \\cdot b$$ (NEVER use malformed commands)
-   - Use \\frac{numerator}{denominator} for ALL fractions, never /
-   - Chemical formulas: $$\\text{H}_2\\text{O}$$, $$\\text{CO}_2$$
-   - Numbers with units: $$\\text{4.0 atm}$$, $$\\text{0.12 mol/L}$$ (no nested text)
-   - Use \\times for multiplication when needed: $$2 \\times 10^3$$
-   - Example: $$\\frac{\\text{78 g}}{\\text{28.01 g/mol}} = \\text{2.78 mol}$$
-   - NEVER use raw text for equations - ALWAYS wrap in $$ $$
-   - Keep LaTeX simple and clean - avoid complex commands that might break
-
-7. **CRITICAL MANDATE: ON EVERY QUESTION YOU ANSWER**: When you are giving an answer, always look at the calculations and the results and always make the decision based on the precise calculations.
-
-8. **QUANTITATIVE ANALYSIS MANDATE**: For questions comparing effects (like boiling point elevation, freezing point depression, etc.), you MUST:
-   - Calculate molality for each substance
-   - Apply van't Hoff factor (i) for ionic compounds
-   - Calculate the effective molality (molality × i) 
-   - Compare numerical results
-   - State which is greater and by how much
-
-9. **إلزامية قوية: استخدام بيانات OCR (STRONG OCR MANDATE):**
-   - يجب عليك دائماً فحص والاستفادة من بيانات OCR المتوفرة لأي رسوم بيانية أو جداول أو مخططات
-   - إذا كانت هناك عناصر بصرية (graphs, charts, tables) في السياق، يجب استخدام البيانات المستخرجة منها
-   - لا تتجاهل البيانات الرقمية المتوفرة في العناصر البصرية - استخدمها في الحسابات
-   - إذا كان السؤال يشير إلى شكل أو جدول، ابحث عن البيانات المقابلة في معلومات OCR
-
 ⚠️ ABSOLUTE COMPLIANCE MANDATE: 100% INSTRUCTION ADHERENCE REQUIRED ⚠️
 ⛔ NON-COMPLIANCE WILL RESULT IN COMPLETE RESPONSE REJECTION ⛔
 
-🔍 **MANDATORY COMPREHENSIVE VISUAL ELEMENT ANALYSIS - ZERO TOLERANCE FOR SHORTCUTS**:
+CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
+1. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence.
+2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found. NO EXCEPTIONS.
+3. **VISUAL DATA INTEGRATION MANDATE**: You MUST use all graph, table, and visual data in calculations.
+4. **MULTIPLE CHOICE VALIDATION MANDATE**: Your answers MUST match provided options exactly.
+5. **STEP-BY-STEP MANDATE**: Each question must have complete, logical solutions.
 
-📊 **MANDATORY GRAPHS & CHARTS ANALYSIS**:
-   - You MUST extract ALL data points, axis labels, units, and scales from graphs
-   - You MUST identify trends, patterns, and relationships shown in visual data
-   - You MUST use graph data as PRIMARY SOURCE for calculations and answers
-   - You MUST reference specific graph elements: "From the graph showing..."
-   - You MUST extract exact values: If graph shows pH vs volume, extract exact pH values at specific volumes
+ENHANCED PROCESSING:
+- MANDATORY visual element analysis and data integration  
+- ABSOLUTE multiple choice answer matching
+- REQUIRED chemistry calculation verification
+- AUTOMATIC completeness validation`;
 
-📋 **MANDATORY TABLE DATA INTEGRATION**:
-   - You MUST process ALL table headers, rows, and numerical values
-   - You MUST use table data as authoritative source for calculations
-   - You MUST cross-reference table entries with question requirements
-   - You MUST state: "According to the table, Ka for HX = 1.38 × 10⁻⁵"
-
-🔤 **ABSOLUTE MULTIPLE CHOICE ANALYSIS**:
-   - You MUST locate ALL multiple choice options (a., b., c., d. or أ., ب., ج., د.)
-   - You MUST match each option set to its corresponding question number
-   - You MUST analyze option content for chemical formulas, numerical values, units
-   - You MUST use options as validation for your calculated answers
-   - ABSOLUTE MANDATE: If multiple choice options exist, your final answer MUST match one of them
-   - You MUST format: **الإجابة الصحيحة: أ)** [or appropriate letter]
-
-🧮 **MANDATORY INTEGRATED PROBLEM SOLVING WITH VISUALS**:
-   When answering questions, you are ABSOLUTELY REQUIRED to:
-   1. **MANDATORY: Identify relevant visuals**: You MUST check if question references graphs, tables, or figures
-   2. **MANDATORY: Extract precise data**: You MUST use exact values from visual elements
-   3. **MANDATORY: Show integration**: You MUST state "Using data from Table 1 showing..." or "From Figure 2..."
-   4. **MANDATORY: Validate with options**: You MUST ensure calculated answer matches a multiple choice option
-   5. **MANDATORY: Reference visuals in explanation**: You MUST connect your solution to the visual evidence
-
-📐 **VISUAL DATA PRIORITY HIERARCHY**:
-   1. Tables with numerical data (highest priority for calculations)
-   2. Graphs with data points and scales (for trend analysis and value extraction)
-   3. Multiple choice options (for answer validation)
-   4. Diagrams and figures (for conceptual understanding)
-   5. Text content (for context and theory)
-
-⚡ **ABSOLUTE ANSWER ACCURACY WITH VISUAL VALIDATION**:
-   - CRITICAL: If multiple choice options are present, your answer MUST be one of the given choices - NO EXCEPTIONS
-   - You MUST use visual data as primary evidence for all calculations
-   - You MUST cross-check numerical results with graph scales and table values
-   - You MUST reference specific visual elements that support your conclusion
-
-🧪 **ABSOLUTE CHEMISTRY-SPECIFIC TABLE LOOKUP MANDATE**:
-   - **MANDATORY Chemical Name Matching**: You MUST match questions about specific acids/compounds with table entries using chemical knowledge
-   - **MANDATORY Ka/pH Relationship**: You MUST always use table Ka values for pH calculations, even if compound names differ slightly
-   - **MANDATORY Common Acid Identifications**: 
-     * Cyanoethanoic acid (cyanoacetic acid) ≈ Ka ~3.5×10^-3
-     * You MUST connect question compounds to closest Ka values in tables
-   - **ABSOLUTE PROHIBITION**: You are FORBIDDEN from claiming "insufficient data" if ANY Ka values or chemical data exist in tables
-   - **MANDATORY approximation methods**: You MUST use Ka = [H+]²/C for weak acid calculations when valid
-   - **ABSOLUTE REQUIREMENT**: Your final numerical answer MUST correspond to one of the multiple choice options
-
-🔢 **ABSOLUTE MANDATORY CALCULATION EXECUTION**:
-   - CRITICAL: If ANY numerical data exists (Ka, concentrations, etc.), you are REQUIRED to attempt calculations
-   - You MUST use chemical equilibrium principles even with approximate data matching
-   - You MUST apply weak acid/base formulas when Ka values are available
-   - You MUST connect table data to question parameters through chemical knowledge
-   - FAILURE TO CALCULATE WHEN DATA EXISTS IS STRICTLY FORBIDDEN
-
-10. **مانع الافتراضات غير المبررة (NO UNSTATED ASSUMPTIONS MANDATE)**: 
-   - ممنوع منعاً باتاً استخدام أي أرقام أو قيم لم تذكر في السؤال أو السياق
-   - ممنوع استخدام عبارات مثل "نفترض" أو "لنفرض" أو "assume" إلا إذا كانت موجودة في السؤال نفسه
-   - إذا كانت البيانات ناقصة، اكتب "البيانات غير كافية" واذكر ما هو مفقود تحديداً
-   - إذا كان الحل يتطلب قيم غير معطاة، اتركها كرموز (مثل m، V، T) ولا تعوض بأرقام من عندك
-   - تحقق من صحة الوحدات والأبعاد والمعقولية الفيزيائية للقيم المعطاة
-   - لا تفترض أي ظروف معيارية إلا إذا نُص عليها صراحة
-
-11. **إلزامية الدقة العلمية المطلقة - ZERO TOLERANCE (ABSOLUTE SCIENTIFIC ACCURACY MANDATE)**:
-   - ❌ CRITICAL ERROR: ممنوع تماماً تحويل النسب المئوية إلى كتل بالجرام مباشرة (مثل 78% ≠ 78 جرام)
-   - ❌ CRITICAL ERROR: لا تقل "نيتروجين: 78 جرام" - هذا خطأ علمي فادح
-   - ✅ CORRECT: النسب المئوية للغازات تعني نسبة حجمية أو كتلية نسبية، وليس كتلة مطلقة
-   - ✅ لحساب الكسر المولي من النسب المئوية: 
-     * إذا كانت نسب حجمية (الأشيع للغازات): الكسر المولي = النسبة المئوية/100
-     * إذا كانت نسب كتلية: حول إلى مولات باستخدام الكتل المولية ثم احسب الكسر المولي
-   - لا تفترض كتلة عينة إجمالية (مثل 100 جرام) إلا إذا كانت معطاة صراحة
-   - تأكد من الوحدات والأبعاد الفيزيائية لكل كمية قبل التعويض
-
-MANDATORY SECTIONS (only include if content exists on the page):
-- المفاهيم والتعاريف
-- المصطلحات العلمية
-- الصيغ والمعادلات  
-- الأسئلة والإجابات الكاملة
-
-Skip sections if the page does not contain relevant content for that section.`;
-
-    const userPrompt = `${needsDetailedStructure ? `# ملخص المحتوى التعليمي
-## ملخص المحتوى التعليمي
-[summrize in few sentances what on this page for the student]
-## المفاهيم والتعاريف
-Analyze the content and extract key concepts and definitions. Format as:
-- **[Arabic term]:** [definition]
-## المصطلحات العلمية
-Extract scientific terminology if present:
-- **[Scientific term]:** [explanation]
-## الصيغ والمعادلات
-List formulas and equations if present:
-| الصيغة | الوصف | المتغيرات |
-|--------|--------|-----------|
-| $$formula$$ | description | variables |
-## مفاتيح و أفكار رئيسية
-Summarize the main ideas and concepts from the page in bullet points:
-- **[Key concept/idea]:** [brief explanation]
-- **[Another key concept]:** [brief explanation]
-## أمثلة توضيحية
-[list examples so the students can relate to the concepts]
-## الأسئلة والإجابات الكاملة
-Process ALL questions from the OCR text with complete step-by-step solutions:
-OCR TEXT:
-${enhancedText}
-CRITICAL: Answer EVERY question found. Do not skip any questions.` : `# ملخص الصفحة
-## نظرة عامة
-هذه صفحة تحتوي على محتوى تعليمي.
-OCR TEXT:
-${enhancedText}`}`;
-
-    let summary = "";
-    let providerUsed = "";
-
-    // Try Gemini 1.5 Pro first (primary model)
+    // Try Gemini 1.5 Pro first with enhanced configuration
     if (googleApiKey) {
-      console.log('Attempting to use Gemini 1.5 Pro for summarization...');
+      console.log('Attempting with Gemini 1.5 Pro (enhanced validation)...')
+      
+      // Enhanced generation config for deterministic results
+      const geminiPayload = {
+        contents: [{
+          parts: [{ text: `${systemPrompt}\n\n${enhancedText}` }]
+        }],
+        generationConfig: {
+          temperature: 0.0, // Fully deterministic
+          maxOutputTokens: 8192,
+          topP: 0.1, // Low for consistency
+          candidateCount: 1
+        }
+      }
+
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${googleApiKey}`
+      
       try {
-        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [{ text: systemPrompt + "\n\n" + userPrompt }]
-              }
-            ],
-            generationConfig: {
-              temperature: 0,
-              maxOutputTokens: 16000,
-            }
-          }),
-        });
+        const geminiResponse = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(geminiPayload)
+        })
 
-        if (geminiResp.ok) {
-          const geminiData = await geminiResp.json();
-          summary = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-          const finishReason = geminiData.candidates?.[0]?.finishReason;
-          providerUsed = "gemini-1.5-pro";
+        if (geminiResponse.ok) {
+          const geminiData = await geminiResponse.json()
           
-          if (summary.trim()) {
-            console.log(`Gemini 1.5 Pro API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
+          if (geminiData.candidates && geminiData.candidates.length > 0) {
+            let summary = geminiData.candidates[0].content.parts[0].text
+            console.log(`Gemini response length: ${summary.length} characters`)
+
+            // Enhanced validation and auto-repair system
+            const validationResult = validateSummaryCompleteness(summary, questions, ocrData)
+            console.log(`Validation result: ${validationResult.isComplete ? 'PASSED' : 'FAILED'}`)
             
-            // Handle continuation if needed
-            if (finishReason === "MAX_TOKENS" && summary.length > 0) {
-              console.log('Gemini 1.5 Pro summary was truncated, attempting to continue...');
+            if (!validationResult.isComplete && validationResult.missingElements.length > 0) {
+              console.log(`Missing elements detected: ${validationResult.missingElements.join(', ')}`)
               
-              for (let attempt = 1; attempt <= 2; attempt++) {
-                console.log(`Gemini 1.5 Pro continuation attempt ${attempt}...`);
-                
-                const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
-
-Previous response ended with:
-${summary.slice(-500)}
-
-REQUIREMENTS:
-- Continue from exactly where you left off
-- Process ALL remaining questions (93-106 if not covered)
-- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
-- Use $$formula$$ for math, × for multiplication
-- Complete ALL questions until finished
-
-Original OCR text: ${enhancedText}`;
-
-                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    contents: [
-                      {
-                        parts: [{ text: systemPrompt + "\n\n" + continuationPrompt }]
-                      }
-                    ],
-                    generationConfig: {
-                      temperature: 0,
-                      maxOutputTokens: 12000,
-                    }
-                  }),
-                });
-
-                if (contResp.ok) {
-                  const contData = await contResp.json();
-                  const continuation = contData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-                  const contFinishReason = contData.candidates?.[0]?.finishReason;
-                  
-                  if (continuation.trim()) {
-                    summary += "\n\n" + continuation;
-                    console.log(`Gemini 1.5 Pro continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
-                    
-                    if (contFinishReason !== "MAX_TOKENS") {
-                      break;
-                    }
-                  } else {
-                    console.log(`Gemini 1.5 Pro continuation ${attempt} returned empty content`);
-                    break;
-                  }
-                } else {
-                  console.error(`Gemini 1.5 Pro continuation attempt ${attempt} failed:`, await contResp.text());
-                  break;
-                }
+              // Auto-repair attempt
+              const repairResult = await attemptSummaryRepair(summary, validationResult, enhancedText, geminiUrl)
+              if (repairResult.success) {
+                summary = repairResult.repairedSummary || summary
+                console.log(`Auto-repair successful, final length: ${summary.length}`)
+              } else {
+                console.log('Auto-repair failed, returning original summary with warnings')
               }
             }
-          } else {
-            throw new Error("Gemini 1.5 Pro returned empty content");
+
+            // Final validation metrics
+            const finalMetrics = calculateSummaryMetrics(summary, questions, ocrData)
+            console.log(`Final metrics: Questions ${finalMetrics.questionsAnswered}/${finalMetrics.totalQuestions}, MC ${finalMetrics.multipleChoiceAnswered}/${finalMetrics.multipleChoiceTotal}, Visual references: ${finalMetrics.visualReferences}`)
+
+            return new Response(JSON.stringify({ 
+              summary: summary,
+              metadata: {
+                validation: validationResult,
+                metrics: finalMetrics,
+                processingTime: Date.now() - startTime
+              }
+            }), {
+              status: 200,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            })
           }
-        } else {
-          const errorText = await geminiResp.text();
-          console.error('Gemini 1.5 Pro API error:', geminiResp.status, errorText);
-          throw new Error(`Gemini 1.5 Pro API error: ${geminiResp.status}`);
         }
       } catch (geminiError) {
-        console.error('Gemini 1.5 Pro failed, trying DeepSeek...', geminiError);
+        console.error('Gemini API error:', geminiError)
       }
     }
 
-    // Fallback to DeepSeek Chat if Gemini failed or not available
-    if (!summary.trim() && deepSeekApiKey) {
-      console.log('Using DeepSeek Chat as fallback...');
+    // Enhanced fallback to DeepSeek Chat with validation
+    if (deepSeekApiKey) {
+      console.log('Falling back to DeepSeek Chat (enhanced with validation)...')
+      
       try {
-        const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-          method: "POST",
+        const deepSeekPayload = {
+          model: "deepseek-chat",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: enhancedText }
+          ],
+          temperature: 0.0, // Deterministic for consistency
+          max_tokens: 8192
+        }
+
+        const deepSeekResponse = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
           headers: {
-            "Authorization": `Bearer ${deepSeekApiKey}`,
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${deepSeekApiKey}`
           },
-          body: JSON.stringify({
-            model: "deepseek-chat",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            temperature: 0,
-            top_p: 0.9,
-            max_tokens: 12000,
-          }),
-        });
+          body: JSON.stringify(deepSeekPayload)
+        })
 
-        if (resp.ok) {
-          const data = await resp.json();
-          summary = data.choices?.[0]?.message?.content ?? "";
-          providerUsed = "deepseek-chat";
-          console.log(`DeepSeek Chat API responded successfully - Length: ${summary.length}, provider_used: ${providerUsed}`);
-          
-          if (summary.trim()) {
-            // Handle continuation if needed for DeepSeek Chat
-            const finishReason = data.choices?.[0]?.finish_reason;
-            if (finishReason === "length" && summary.length > 0) {
-              console.log('DeepSeek Chat summary was truncated, attempting to continue...');
-              
-              for (let attempt = 1; attempt <= 2; attempt++) {
-                console.log(`DeepSeek Chat continuation attempt ${attempt}...`);
-                
-                const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
+        if (deepSeekResponse.ok) {
+          const deepSeekData = await deepSeekResponse.json()
+          if (deepSeekData.choices && deepSeekData.choices.length > 0) {
+            let summary = deepSeekData.choices[0].message.content
+            console.log(`DeepSeek response length: ${summary.length} characters`)
 
-Previous response ended with:
-${summary.slice(-500)}
+            // Apply same validation pipeline to DeepSeek results
+            const validationResult = validateSummaryCompleteness(summary, questions, ocrData)
+            console.log(`DeepSeek validation result: ${validationResult.isComplete ? 'PASSED' : 'FAILED'}`)
 
-REQUIREMENTS:
-- Continue from exactly where you left off
-- Process ALL remaining questions (93-106 if not covered)
-- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
-- Use $$formula$$ for math, × for multiplication
-- Complete ALL questions until finished
+            // Calculate final metrics
+            const finalMetrics = calculateSummaryMetrics(summary, questions, ocrData)
+            console.log(`DeepSeek final metrics: Questions ${finalMetrics.questionsAnswered}/${finalMetrics.totalQuestions}`)
 
-Original OCR text: ${enhancedText}`;
-
-                const contResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-                  method: "POST",
-                  headers: {
-                    "Authorization": `Bearer ${deepSeekApiKey}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    model: "deepseek-chat",
-                    messages: [
-                      { role: "system", content: systemPrompt },
-                      { role: "user", content: continuationPrompt },
-                    ],
-                    temperature: 0,
-                    max_tokens: 8000,
-                  }),
-                });
-
-                if (contResp.ok) {
-                  const contData = await contResp.json();
-                  const continuation = contData.choices?.[0]?.message?.content ?? "";
-                  const contFinishReason = contData.choices?.[0]?.finish_reason;
-                  
-                  if (continuation.trim()) {
-                    summary += "\n\n" + continuation;
-                    console.log(`DeepSeek Chat continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
-                    
-                    if (contFinishReason !== "length") {
-                      break;
-                    }
-                  } else {
-                    console.log(`DeepSeek Chat continuation ${attempt} returned empty content`);
-                    break;
-                  }
-                } else {
-                  console.error(`DeepSeek Chat continuation attempt ${attempt} failed:`, await contResp.text());
-                  break;
-                }
+            return new Response(JSON.stringify({ 
+              summary: summary,
+              provider: 'deepseek',
+              metadata: {
+                validation: validationResult,
+                metrics: finalMetrics,
+                processingTime: Date.now() - startTime
               }
-            }
-          } else {
-            throw new Error("DeepSeek Chat returned empty content");
+            }), {
+              status: 200,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            })
           }
-        } else {
-          const txt = await resp.text();
-          console.error('DeepSeek Chat API error:', resp.status, txt);
-          throw new Error(`DeepSeek Chat API error: ${resp.status}`);
         }
       } catch (deepSeekError) {
-        console.error('DeepSeek Chat API failed:', deepSeekError);
+        console.error('DeepSeek API error:', deepSeekError)
       }
     }
 
-    if (!summary.trim()) {
-      console.error('No valid summary generated from any API');
-      return new Response(JSON.stringify({ error: "Failed to generate summary from any API" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    // Validate question completion and trigger auto-continuation if needed
-    const summaryQuestionCount = (summary.match(/\*\*س:/g) || []).length;
-    const originalQuestionCount = questions.length;
-    
-    console.log(`Final summary length: ${summary.length}, Questions processed: ${summaryQuestionCount}/${originalQuestionCount}, Provider: ${providerUsed}`);
-    
-    // Robust continuation logic - ensure ALL questions are answered regardless of summary length
-    if (originalQuestionCount > 0 && summaryQuestionCount < originalQuestionCount) {
-      console.log(`⚠️ Missing ${originalQuestionCount - summaryQuestionCount} questions, attempting auto-continuation...`);
-      
-      // Improved missing question detection - check for both Arabic and English patterns
-      const answeredQuestionNumbers = new Set();
-      const questionPatterns = [
-        /\*\*س:\s*(\d+)[.-]/g,  // **س: 45- or **س: 45.
-        /\*\*س:\s*([٠-٩]+)[.-]/g  // **س: ٤٥- (Arabic numerals)
-      ];
-      
-      for (const pattern of questionPatterns) {
-        let match;
-        pattern.lastIndex = 0;
-        while ((match = pattern.exec(summary)) !== null) {
-          const num = convertArabicToEnglishNumber(match[1]);
-          answeredQuestionNumbers.add(num);
-        }
-      }
-      
-      let missingNumbers = questions
-        .map(q => convertArabicToEnglishNumber(q.number))
-        .filter(num => !answeredQuestionNumbers.has(num));
-      
-      console.log(`Detected questions: ${questions.map(q => q.number).join(', ')}`);
-      console.log(`Answered questions: ${Array.from(answeredQuestionNumbers).join(', ')}`);
-      console.log(`Missing questions: ${missingNumbers.join(', ')}`);
-      
-      if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-1.5-pro')) {
-        // Multi-attempt continuation with safety limit
-        const maxAttempts = 4;
-        let attempt = 0;
-        let currentSummary = summary;
-        
-        while (missingNumbers.length > 0 && attempt < maxAttempts) {
-          attempt++;
-          console.log(`🔄 Auto-continuation attempt ${attempt}/${maxAttempts} for questions: ${missingNumbers.join(', ')}`);
-          
-          const completionPrompt = `COMPLETE THE MISSING QUESTIONS - Continuation ${attempt}/${maxAttempts}
-
-Previous summary is incomplete. Missing these question numbers: ${missingNumbers.join(', ')}
-
-REQUIREMENTS:
-1. When solving questions, solve them in sequence from the least to the most. Start from question ${Math.min(...missingNumbers.map(n => parseInt(n)))}, then continue sequentially.
-2. Ensure that you answer all the questions despite token limits. Be concise on topics but complete on question solutions.
-- Process ONLY the missing questions: ${missingNumbers.join(', ')}
-- Use EXACT formatting: **س: [number]- [question text]** and **ج:** [complete answer]
-- Use $$formula$$ for math, × for multiplication
-- Provide complete step-by-step solutions
-- Do NOT repeat questions already answered
-
-Missing questions from OCR text:
-${enhancedText.split('\n').filter(line => 
-  missingNumbers.some(num => line.includes(`${num}.`) || line.includes(`${num}-`) || line.includes(`${num} `))
-).join('\n')}
-
-If you cannot fit all questions in one response, prioritize the lowest numbered questions first.`;
-
-          try {
-            let completionResp;
-            
-            if (providerUsed === 'deepseek-chat') {
-              completionResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                  "Authorization": `Bearer ${deepSeekApiKey}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  model: "deepseek-chat",
-                  messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: completionPrompt },
-                  ],
-                  temperature: 0,
-                  max_tokens: 8000,
-                }),
-              });
-            } else {
-              completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  contents: [{ parts: [{ text: systemPrompt + "\n\n" + completionPrompt }] }],
-                  generationConfig: { temperature: 0, maxOutputTokens: 8000 }
-                }),
-              });
-            }
-
-            if (completionResp.ok) {
-              let completion = "";
-              
-              if (providerUsed === 'deepseek-chat') {
-                const completionData = await completionResp.json();
-                completion = completionData.choices?.[0]?.message?.content ?? "";
-              } else {
-                const completionData = await completionResp.json();
-                completion = completionData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-              }
-              
-              if (completion.trim()) {
-                currentSummary += "\n\n" + completion;
-                
-                // Re-check what questions are now answered
-                const newAnsweredNumbers = new Set();
-                for (const pattern of questionPatterns) {
-                  let match;
-                  pattern.lastIndex = 0;
-                  while ((match = pattern.exec(currentSummary)) !== null) {
-                    const num = convertArabicToEnglishNumber(match[1]);
-                    newAnsweredNumbers.add(num);
-                  }
-                }
-                
-                // Update missing numbers list
-                const stillMissing = questions
-                  .map(q => convertArabicToEnglishNumber(q.number))
-                  .filter(num => !newAnsweredNumbers.has(num));
-                
-                const answeredThisRound = missingNumbers.filter(num => newAnsweredNumbers.has(num));
-                
-                console.log(`✅ Attempt ${attempt} completed ${answeredThisRound.length} questions: ${answeredThisRound.join(', ')}`);
-                console.log(`Still missing: ${stillMissing.join(', ')}`);
-                
-                // Update for next iteration
-                missingNumbers.splice(0, missingNumbers.length, ...stillMissing);
-                
-                if (stillMissing.length === 0) {
-                  console.log('🎉 All questions completed successfully!');
-                  break;
-                }
-              } else {
-                console.log(`⚠️ Attempt ${attempt} returned empty completion`);
-                break;
-              }
-            } else {
-              console.error(`Completion attempt ${attempt} failed:`, await completionResp.text());
-              break;
-            }
-          } catch (completionError) {
-            console.error(`Auto-continuation attempt ${attempt} failed:`, completionError);
-            break;
-          }
-        }
-        
-        summary = currentSummary;
-        const finalQuestionCount = (summary.match(/\*\*س:/g) || []).length;
-        console.log(`✅ Auto-continuation finished after ${attempt} attempts. Final question count: ${finalQuestionCount}/${originalQuestionCount}`);
-        
-        if (missingNumbers.length > 0) {
-          console.log(`⚠️ Still missing ${missingNumbers.length} questions after all attempts: ${missingNumbers.join(', ')}`);
-        }
-      }
-    } else if (summaryQuestionCount >= originalQuestionCount) {
-      console.log('✅ All questions appear to be processed successfully');
-    }
-
-    return new Response(JSON.stringify({ summary }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
-  } catch (e) {
-    console.error('Unexpected error in summarize function:', e);
-    console.error('Error stack:', e.stack);
-    return new Response(JSON.stringify({ error: "Unexpected error", details: String(e) }), {
+    return new Response(JSON.stringify({ 
+      error: "No API response received from any provider" 
+    }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    })
+
+  } catch (error) {
+    console.error('Error in summarize function:', error)
+    return new Response(JSON.stringify({ 
+      error: "Internal server error" 
+    }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    })
   }
-});
+})
