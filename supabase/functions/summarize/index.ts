@@ -215,9 +215,11 @@ Use tables when necessary
 - Use × (NOT \\cdot or \\cdotp) for multiplication
 - Bold all section headers with **Header**
 
-QUESTION SOLVING DIRECTIVES:
-1. When solving questions, solve them in sequence from the least to the most. Start from question 45, then 46, etc.
-2. Ensure that you answer all the questions despite the maximum tokens and characters. This means be concise on the topics you need to be concise on. Remember, this is a summary of all the important topics on the page.
+CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
+1. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence from lowest to highest number. If you see questions 45, 102, 46, you MUST answer them as: 45, then 46, then 102. This is MANDATORY and non-negotiable.
+2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found in the text. NO EXCEPTIONS. Be concise on explanatory topics if needed, but NEVER skip questions.
+3. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles before providing them.
+4. **STEP-BY-STEP MANDATE**: Each question must have a complete, logical solution showing all work and reasoning.
 
 MANDATORY SECTIONS (only include if content exists on the page):
 - المفاهيم والتعاريف
