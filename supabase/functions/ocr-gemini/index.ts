@@ -252,42 +252,51 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ **ARABIC NUMERALS**: ٩٣، ٩٤، ٩٥، ٩٦، ٩٧، ٩٨، ٩٩، ١٠٠، ١٠١، ١٠٢، ١٠٣، ١٠٤، ١٠٥، ١٠٦
    ✓ **ENGLISH NUMERALS**: 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106
    ✓ **QUESTION PATTERNS**: اشرح، وضح، قارن، حدد، احسب، ما المقصود، لماذا، كيف
-    ✓ **CRITICAL MULTIPLE CHOICE DETECTION** (Zero tolerance for missing options): 
-        - **SYSTEMATIC PAGE SCANNING**: Scan the ENTIRE page in a grid pattern (top-right to bottom-left for Arabic RTL)
-        - **MULTIPLE CHOICE PATTERNS**: Look for ALL possible option formats:
-          * English: a., b., c., d. OR a) b) c) d) OR (a) (b) (c) (d) OR A. B. C. D.
-          * Arabic: أ., ب., ج., د. OR أ) ب) ج) د) OR (أ) (ب) (ج) (د)
-          * Numbers: 1., 2., 3., 4. OR 1) 2) 3) 4) OR (1) (2) (3) (4)
-        - **VISUAL SEPARATION TOLERANCE**: Options may be:
-          * Separated by large white spaces from their questions
-          * Located in different columns or visual blocks
-          * Positioned below graphs, tables, or diagrams
-          * Split across page sections or bordered areas
-          * Arranged horizontally across the page width
-          * Grouped together separate from question text
-        - **ASSOCIATION STRATEGY**: For each set of options found:
-          * Look for the nearest question number above, to the right, or in adjacent areas
-          * Check for connecting visual elements (lines, boxes, spacing patterns)
-          * Match question topics with option content for logical association
-          * Consider page layout flow and reading direction
-        - **COMPLETE EXTRACTION FORMAT**: For EACH multiple choice question:
+    ✓ **CRITICAL MULTIPLE CHOICE DETECTION** (MANDATORY - Zero tolerance for missing options): 
+        - **EXHAUSTIVE PAGE SCANNING**: Scan EVERY pixel of the image systematically:
+          * Top-right to bottom-left for Arabic RTL layout
+          * Top-left to bottom-right for English LTR layout  
+          * Grid-by-grid analysis: divide page into 6x6 grid sections, scan each section thoroughly
+          * Pay special attention to white spaces, margins, and areas between visual elements
+        - **COMPREHENSIVE OPTION PATTERN DETECTION**: Search for ALL possible formats:
+          * English: a., b., c., d. | a) b) c) d) | (a) (b) (c) (d) | A. B. C. D. | A) B) C) D)
+          * Arabic: أ., ب., ج., د. | أ) ب) ج) د) | (أ) (ب) (ج) (د) | ا., ب., ت., ث.
+          * Numbers: 1., 2., 3., 4. | 1) 2) 3) 4) | (1) (2) (3) (4) | ١., ٢., ٣., ٤.
+          * Mixed formats within same question set
+        - **AGGRESSIVE VISUAL SEPARATION HANDLING**: Options can be ANYWHERE:
+          * Several centimeters away from question text
+          * In completely different columns or page sections
+          * Below graphs, charts, tables, or diagrams
+          * In margins, corners, or footer areas
+          * Arranged in horizontal rows across page width
+          * Clustered together without nearby question reference
+          * Separated by page borders, lines, or visual dividers
+        - **INTELLIGENT OPTION-QUESTION MATCHING**: For orphaned option sets:
+          * Scan 360° around options for nearest question numbers
+          * Look for numerical sequences (if options near "4)" then look for question 4)
+          * Match content themes (chemistry options → chemistry questions)
+          * Use spatial proximity but allow for large distances
+          * Consider reading flow patterns and page layout logic
+        - **MANDATORY EXTRACTION REQUIREMENTS**: For EVERY question with options found:
           {
             "order": X,
             "type": "exercise", 
             "title": "question_number",
-            "content": "Question Text: [complete question text]\nOptions:\na. [complete option a text including ALL numerical values, units, and formulas]\nb. [complete option b text including ALL numerical values, units, and formulas]\nc. [complete option c text including ALL numerical values, units, and formulas]\nd. [complete option d text including ALL numerical values, units, and formulas]"
+            "content": "Question Text: [complete question text]\nOptions:\na. [COMPLETE option text with ALL details, numbers, units, formulas]\nb. [COMPLETE option text with ALL details, numbers, units, formulas]\nc. [COMPLETE option text with ALL details, numbers, units, formulas]\nd. [COMPLETE option text with ALL details, numbers, units, formulas]"
           }
-        - **EXTRACTION COMPLETENESS**: 
-          * Include option prefixes: "a. 55.63 mL" NOT just "55.63 mL"
-          * Preserve ALL mathematical expressions, chemical formulas, and units
-          * Capture multi-line options completely (don't truncate)
-          * Include parenthetical information and sub-clauses
-        - **VERIFICATION CHECKLIST**: 
-          * Scan each page quadrant systematically for orphaned options
-          * Check margins, corners, and spaces between major elements
-          * Look for continuation patterns (questions continuing on next column/section)
-          * Verify each MC question has exactly 4 options (a-d) unless clearly otherwise
-          * Double-check that no option text was merged or split incorrectly
+        - **OPTION CONTENT COMPLETENESS** (CRITICAL):
+          * Preserve EXACT option prefixes: "a. 55.63 mL" NOT "55.63 mL"  
+          * Include ALL numerical values with proper units
+          * Maintain chemical formulas with correct subscripts/superscripts
+          * Capture mathematical expressions completely
+          * Include parenthetical clarifications and sub-text
+          * Don't truncate multi-line options - get complete text
+        - **TRIPLE-VERIFICATION PROTOCOL**:
+          * First pass: systematic grid scanning for any a/b/c/d or أ/ب/ج/د patterns
+          * Second pass: contextual matching of found options to questions  
+          * Third pass: completeness check - ensure each question has all options
+          * FAIL if ANY multiple choice question lacks its complete option set
+          * Mark questions as "MULTIPLE CHOICE" in the type field if options are found
    ✓ **CONTINUATION QUESTIONS**: Questions that span multiple lines or sections
    ✓ **SUB-QUESTIONS**: Parts (أ)، (ب)، (ج) or (a), (b), (c)
 
