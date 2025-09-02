@@ -104,7 +104,7 @@ serve(async (req) => {
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
     
     console.log('Available models:');
-    console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
+    console.log(`- Gemini 1.5 Flash: ${GOOGLE_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
     console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? 'AVAILABLE (fallback)' : 'UNAVAILABLE'}`);
 
     if (!text || typeof text !== "string") {
@@ -256,9 +256,9 @@ ${enhancedText}`}`;
 
     // Try Gemini first (best available model)
     if (googleApiKey) {
-      console.log('Attempting to use Gemini 2.5 Pro for summarization...');
+      console.log('Attempting to use Gemini 1.5 Flash for summarization...');
       try {
-        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -280,7 +280,7 @@ ${enhancedText}`}`;
           const geminiData = await geminiResp.json();
           summary = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
           const finishReason = geminiData.candidates?.[0]?.finishReason;
-          providerUsed = "gemini-2.5-pro";
+          providerUsed = "gemini-1.5-flash";
           
           if (summary.trim()) {
             console.log(`Gemini API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
@@ -306,7 +306,7 @@ REQUIREMENTS:
 
 Original OCR text: ${enhancedText}`;
 
-                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
@@ -418,7 +418,7 @@ Original OCR text: ${enhancedText}`;
         .map(q => q.number)
         .filter(num => !summary.includes(`**س: ${num}-`));
       
-      if (missingNumbers.length > 0 && providerUsed === 'gemini-2.5-pro') {
+      if (missingNumbers.length > 0 && providerUsed === 'gemini-1.5-flash') {
         console.log(`🔄 Auto-continuing to complete missing questions: ${missingNumbers.join(', ')}`);
         
         const completionPrompt = `COMPLETE THE MISSING QUESTIONS - This is a quality check continuation.
@@ -438,7 +438,7 @@ ${enhancedText.split('\n').filter(line =>
 ).join('\n')}`;
 
         try {
-          const completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+          const completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

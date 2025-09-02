@@ -31,7 +31,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Using Gemini 2.5 Pro Vision as fallback OCR model');
+    console.log('Using Gemini 1.5 Flash Vision as fallback OCR model');
 
     // Fetch and convert image to base64
     const imageResponse = await fetch(imageUrl);
@@ -72,7 +72,7 @@ serve(async (req) => {
 
     console.log('Making request to Gemini Pro Vision API...');
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -129,7 +129,7 @@ serve(async (req) => {
           text: extractedText,
           confidence: confidence,
           source: 'gemini-pro-vision-fallback',
-          model_used: 'gemini-2.5-pro'
+          model_used: 'gemini-1.5-flash'
         }), 
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
