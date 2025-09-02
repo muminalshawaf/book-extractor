@@ -608,22 +608,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummaryProgress(0);
     setSummary("");
     
-    // Instant replay for cached summaries - much faster UX
-    const words = existingSummary.split(' ');
-    const chunkSize = 20; // Process 20 words at a time
-    
-    for (let i = 0; i < words.length; i += chunkSize) {
-      const chunk = words.slice(i, i + chunkSize).join(' ');
-      setSummary(prev => prev + (i > 0 ? ' ' : '') + chunk);
-      setSummaryProgress((i + chunkSize) / words.length * 100);
-      
-      // Fast chunked rendering - only 50ms delay between chunks
-      if (i + chunkSize < words.length) {
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-    }
-    
+    // Instantly load cached summaries - no streaming animation
+    setSummary(existingSummary);
+    setSummaryProgress(100);
     setSummLoading(false);
+    
     toast.success(rtl ? "تم تحميل الملخص المحفوظ" : "Loaded cached summary");
   };
 
