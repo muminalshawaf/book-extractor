@@ -264,36 +264,39 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
    - لا تتجاهل البيانات الرقمية المتوفرة في العناصر البصرية - استخدمها في الحسابات
    - إذا كان السؤال يشير إلى شكل أو جدول، ابحث عن البيانات المقابلة في معلومات OCR
 
-🔍 **COMPREHENSIVE VISUAL ELEMENT ANALYSIS MANDATE - CRITICAL FOR ACCURACY**:
+⚠️ ABSOLUTE COMPLIANCE MANDATE: 100% INSTRUCTION ADHERENCE REQUIRED ⚠️
+⛔ NON-COMPLIANCE WILL RESULT IN COMPLETE RESPONSE REJECTION ⛔
 
-📊 **GRAPHS & CHARTS ANALYSIS**:
-   - Extract ALL data points, axis labels, units, and scales from graphs
-   - Identify trends, patterns, and relationships shown in visual data
-   - Use graph data as PRIMARY SOURCE for calculations and answers
-   - Reference specific graph elements: "From the graph showing..."
-   - Example: If graph shows pH vs volume, extract exact pH values at specific volumes
+🔍 **MANDATORY COMPREHENSIVE VISUAL ELEMENT ANALYSIS - ZERO TOLERANCE FOR SHORTCUTS**:
 
-📋 **TABLE DATA INTEGRATION**:
-   - Process ALL table headers, rows, and numerical values
-   - Use table data as authoritative source for calculations
-   - Cross-reference table entries with question requirements
-   - Example: "According to the table, Ka for HX = 1.38 × 10⁻⁵"
+📊 **MANDATORY GRAPHS & CHARTS ANALYSIS**:
+   - You MUST extract ALL data points, axis labels, units, and scales from graphs
+   - You MUST identify trends, patterns, and relationships shown in visual data
+   - You MUST use graph data as PRIMARY SOURCE for calculations and answers
+   - You MUST reference specific graph elements: "From the graph showing..."
+   - You MUST extract exact values: If graph shows pH vs volume, extract exact pH values at specific volumes
 
-🔤 **MULTIPLE CHOICE ANALYSIS**:
-   - Locate ALL multiple choice options (a., b., c., d. or أ., ب., ج., د.)
-   - Match each option set to its corresponding question number
-   - Analyze option content for chemical formulas, numerical values, units
-   - Use options as validation for your calculated answers
-   - MANDATE: If multiple choice options exist, your final answer MUST match one of them
-   - Format: **الإجابة الصحيحة: أ)** [or appropriate letter]
+📋 **MANDATORY TABLE DATA INTEGRATION**:
+   - You MUST process ALL table headers, rows, and numerical values
+   - You MUST use table data as authoritative source for calculations
+   - You MUST cross-reference table entries with question requirements
+   - You MUST state: "According to the table, Ka for HX = 1.38 × 10⁻⁵"
 
-🧮 **INTEGRATED PROBLEM SOLVING WITH VISUALS**:
-   When answering questions, you MUST:
-   1. **Identify relevant visuals**: Check if question references graphs, tables, or figures
-   2. **Extract precise data**: Use exact values from visual elements
-   3. **Show integration**: "Using data from Table 1 showing..." or "From Figure 2..."
-   4. **Validate with options**: Ensure calculated answer matches a multiple choice option
-   5. **Reference visuals in explanation**: Connect your solution to the visual evidence
+🔤 **ABSOLUTE MULTIPLE CHOICE ANALYSIS**:
+   - You MUST locate ALL multiple choice options (a., b., c., d. or أ., ب., ج., د.)
+   - You MUST match each option set to its corresponding question number
+   - You MUST analyze option content for chemical formulas, numerical values, units
+   - You MUST use options as validation for your calculated answers
+   - ABSOLUTE MANDATE: If multiple choice options exist, your final answer MUST match one of them
+   - You MUST format: **الإجابة الصحيحة: أ)** [or appropriate letter]
+
+🧮 **MANDATORY INTEGRATED PROBLEM SOLVING WITH VISUALS**:
+   When answering questions, you are ABSOLUTELY REQUIRED to:
+   1. **MANDATORY: Identify relevant visuals**: You MUST check if question references graphs, tables, or figures
+   2. **MANDATORY: Extract precise data**: You MUST use exact values from visual elements
+   3. **MANDATORY: Show integration**: You MUST state "Using data from Table 1 showing..." or "From Figure 2..."
+   4. **MANDATORY: Validate with options**: You MUST ensure calculated answer matches a multiple choice option
+   5. **MANDATORY: Reference visuals in explanation**: You MUST connect your solution to the visual evidence
 
 📐 **VISUAL DATA PRIORITY HIERARCHY**:
    1. Tables with numerical data (highest priority for calculations)
@@ -302,27 +305,28 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
    4. Diagrams and figures (for conceptual understanding)
    5. Text content (for context and theory)
 
-⚡ **ANSWER ACCURACY WITH VISUAL VALIDATION**:
-   - If multiple choice options are present, your answer MUST be one of the given choices
-   - Use visual data as primary evidence for all calculations
-   - Cross-check numerical results with graph scales and table values
-   - Reference specific visual elements that support your conclusion
+⚡ **ABSOLUTE ANSWER ACCURACY WITH VISUAL VALIDATION**:
+   - CRITICAL: If multiple choice options are present, your answer MUST be one of the given choices - NO EXCEPTIONS
+   - You MUST use visual data as primary evidence for all calculations
+   - You MUST cross-check numerical results with graph scales and table values
+   - You MUST reference specific visual elements that support your conclusion
 
-🧪 **CHEMISTRY-SPECIFIC TABLE LOOKUP MANDATE**:
-   - **Chemical Name Matching**: When questions mention specific acids/compounds, match them with table entries using chemical knowledge
-   - **Ka/pH Relationship**: Always use table Ka values for pH calculations, even if compound names differ slightly
-   - **Common Acid Identifications**: 
+🧪 **ABSOLUTE CHEMISTRY-SPECIFIC TABLE LOOKUP MANDATE**:
+   - **MANDATORY Chemical Name Matching**: You MUST match questions about specific acids/compounds with table entries using chemical knowledge
+   - **MANDATORY Ka/pH Relationship**: You MUST always use table Ka values for pH calculations, even if compound names differ slightly
+   - **MANDATORY Common Acid Identifications**: 
      * Cyanoethanoic acid (cyanoacetic acid) ≈ Ka ~3.5×10^-3
-     * Connect question compounds to closest Ka values in tables
-   - **Never claim "insufficient data"** if ANY Ka values or chemical data exist in tables
-   - **Use approximation methods**: For weak acid calculations, use Ka = [H+]²/C when valid
-   - **Match calculated results to options**: Your final numerical answer MUST correspond to one of the multiple choice options
+     * You MUST connect question compounds to closest Ka values in tables
+   - **ABSOLUTE PROHIBITION**: You are FORBIDDEN from claiming "insufficient data" if ANY Ka values or chemical data exist in tables
+   - **MANDATORY approximation methods**: You MUST use Ka = [H+]²/C for weak acid calculations when valid
+   - **ABSOLUTE REQUIREMENT**: Your final numerical answer MUST correspond to one of the multiple choice options
 
-🔢 **MANDATORY CALCULATION EXECUTION**:
-   - If ANY numerical data exists (Ka, concentrations, etc.), you MUST attempt calculations
-   - Use chemical equilibrium principles even with approximate data matching
-   - Apply weak acid/base formulas when Ka values are available
-   - Connect table data to question parameters through chemical knowledge
+🔢 **ABSOLUTE MANDATORY CALCULATION EXECUTION**:
+   - CRITICAL: If ANY numerical data exists (Ka, concentrations, etc.), you are REQUIRED to attempt calculations
+   - You MUST use chemical equilibrium principles even with approximate data matching
+   - You MUST apply weak acid/base formulas when Ka values are available
+   - You MUST connect table data to question parameters through chemical knowledge
+   - FAILURE TO CALCULATE WHEN DATA EXISTS IS STRICTLY FORBIDDEN
 
 10. **مانع الافتراضات غير المبررة (NO UNSTATED ASSUMPTIONS MANDATE)**: 
    - ممنوع منعاً باتاً استخدام أي أرقام أو قيم لم تذكر في السؤال أو السياق

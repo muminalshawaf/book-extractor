@@ -239,30 +239,33 @@ RETURN THIS EXACT JSON STRUCTURE:
    ]
 }
 
-🔥 MASTER OCR INSTRUCTIONS - LEAVE NOTHING BEHIND:
+⚠️ CRITICAL MANDATE: ABSOLUTE 100% COMPLIANCE REQUIRED ⚠️
+⛔ FAILURE TO FOLLOW ANY INSTRUCTION WILL RESULT IN COMPLETE REJECTION ⛔
 
-1. **COMPLETE PAGE SCANNING** (Critical - scan EVERY pixel):
-   ✓ **SYSTEMATIC SCANNING**: Scan the entire image systematically from top-right to bottom-left (Arabic RTL)
-   ✓ **QUESTION COMPLETENESS**: Extract ALL question numbers that exist on the page - verify each number exists
-   ✓ **VISUAL ELEMENTS**: Document EVERY graph, chart, table, diagram, and figure with complete descriptions
-   ✓ **TEXT IN MARGINS**: Check corners, margins, headers, footers for any text content
-   ✓ **OVERLAPPING CONTENT**: Sometimes questions continue across columns or sections
+🔥 MASTER OCR INSTRUCTIONS - ZERO TOLERANCE FOR MISSED CONTENT:
 
-2. **ENHANCED QUESTION DETECTION** (Zero tolerance for missing questions):
-   ✓ **ARABIC NUMERALS**: ٩٣، ٩٤، ٩٥، ٩٦، ٩٧، ٩٨، ٩٩، ١٠٠، ١٠١، ١٠٢، ١٠٣، ١٠٤، ١٠٥، ١٠٦
-   ✓ **ENGLISH NUMERALS**: 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106
-   ✓ **QUESTION PATTERNS**: اشرح، وضح، قارن، حدد، احسب، ما المقصود، لماذا، كيف
-    ✓ **CRITICAL MULTIPLE CHOICE DETECTION** (MANDATORY - Zero tolerance for missing options): 
-        - **EXHAUSTIVE PAGE SCANNING**: Scan EVERY pixel of the image systematically:
-          * Top-right to bottom-left for Arabic RTL layout
-          * Top-left to bottom-right for English LTR layout  
-          * Grid-by-grid analysis: divide page into 6x6 grid sections, scan each section thoroughly
-          * Pay special attention to white spaces, margins, and areas between visual elements
-        - **COMPREHENSIVE OPTION PATTERN DETECTION**: Search for ALL possible formats:
-          * English: a., b., c., d. | a) b) c) d) | (a) (b) (c) (d) | A. B. C. D. | A) B) C) D)
-          * Arabic: أ., ب., ج., د. | أ) ب) ج) د) | (أ) (ب) (ج) (د) | ا., ب., ت., ث.
-          * Numbers: 1., 2., 3., 4. | 1) 2) 3) 4) | (1) (2) (3) (4) | ١., ٢., ٣., ٤.
-          * Mixed formats within same question set
+1. **MANDATORY COMPLETE PAGE SCANNING** (NON-NEGOTIABLE - scan EVERY pixel):
+   ⚡ **SYSTEMATIC SCANNING**: You MUST scan the entire image systematically from top-right to bottom-left (Arabic RTL)
+   ⚡ **QUESTION COMPLETENESS**: You MUST extract ALL question numbers that exist on the page - verify each number exists
+   ⚡ **VISUAL ELEMENTS**: You MUST document EVERY graph, chart, table, diagram, and figure with complete descriptions
+   ⚡ **TEXT IN MARGINS**: You MUST check corners, margins, headers, footers for any text content
+   ⚡ **OVERLAPPING CONTENT**: You MUST identify questions that continue across columns or sections
+
+2. **MANDATORY QUESTION DETECTION** (ABSOLUTE - Zero tolerance for missing questions):
+   ⚡ **ARABIC NUMERALS**: You MUST find ALL: ٩٣، ٩٤، ٩٥، ٩٦، ٩٧، ٩٨، ٩٩، ١٠٠، ١٠١، ١٠٢، ١٠٣، ١٠٤، ١٠٥، ١٠٦
+   ⚡ **ENGLISH NUMERALS**: You MUST find ALL: 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106
+   ⚡ **QUESTION PATTERNS**: You MUST detect: اشرح، وضح، قارن، حدد، احسب، ما المقصود، لماذا، كيف
+    ⚡ **ABSOLUTE MULTIPLE CHOICE DETECTION** (MANDATORY - REJECTION IF ANY OPTION MISSED): 
+        - **MANDATORY EXHAUSTIVE PAGE SCANNING**: You MUST scan EVERY pixel of the image systematically:
+          * You MUST scan top-right to bottom-left for Arabic RTL layout
+          * You MUST scan top-left to bottom-right for English LTR layout  
+          * You MUST use grid-by-grid analysis: divide page into 6x6 grid sections, scan each section thoroughly
+          * You MUST pay special attention to white spaces, margins, and areas between visual elements
+        - **MANDATORY COMPREHENSIVE OPTION PATTERN DETECTION**: You MUST search for ALL possible formats:
+          * You MUST find English: a., b., c., d. | a) b) c) d) | (a) (b) (c) (d) | A. B. C. D. | A) B) C) D)
+          * You MUST find Arabic: أ., ب., ج., د. | أ) ب) ج) د) | (أ) (ب) (ج) (د) | ا., ب., ت., ث.
+          * You MUST find Numbers: 1., 2., 3., 4. | 1) 2) 3) 4) | (1) (2) (3) (4) | ١., ٢., ٣., ٤.
+          * You MUST handle mixed formats within same question set
         - **AGGRESSIVE VISUAL SEPARATION HANDLING**: Options can be ANYWHERE:
           * Several centimeters away from question text
           * In completely different columns or page sections
