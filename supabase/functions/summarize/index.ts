@@ -233,15 +233,7 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
    - Test format: k = $$\\frac{P_1}{C_1} = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}} = \\text{0.03 mol/(L·atm)}$$
     - NEVER use raw text for equations - ALWAYS wrap in $$ $$
 
-7. **PRECISION PROBLEM-SOLVING FRAMEWORK MANDATE** - Follow these six explicit steps for every problem:
-   - Identify the Core Principle: State the fundamental scientific or mathematical principle that governs the problem
-   - Extract and Define Variables: List all given numerical values and their units (e.g., mass = 50 g, volume = 1.00 kg)
-   - Select the Formula: Write down the exact formula or formulas that will be used to solve the problem
-   - Outline the Method: Describe the logical sequence of calculations. For multi-step problems, break down the process into clear, numbered steps
-   - Execute the Calculations: Perform each calculation step-by-step, showing the formula with the values substituted. Use clear and concise intermediate results, and ensure all units are correctly tracked and converted
-   - Formulate the Final Answer and Justification: Clearly state the final answer with the correct units. Provide a concise, logical justification that directly references the calculated values
-
-8. **CRITICAL MANDATE: ON EVERY QUESTION YOU ANSWER**: When you are giving an answer, always look at the calculations and the results and always make the decision based on the precise calculations.
+7. **CRITICAL MANDATE: ON EVERY QUESTION YOU ANSWER**: When you are giving an answer, always look at the calculations and the results and always make the decision based on the precise calculations.
 
 MANDATORY SECTIONS (only include if content exists on the page):
 - المفاهيم والتعاريف
