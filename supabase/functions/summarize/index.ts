@@ -220,6 +220,7 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
 2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found in the text. NO EXCEPTIONS. Be concise on explanatory topics if needed, but NEVER skip questions.
 3. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles before providing them.
 4. **STEP-BY-STEP MANDATE**: Each question must have a complete, logical solution showing all work and reasoning.
+5. **USE ALL AVAILABLE DATA MANDATE**: The OCR text contains ALL necessary information including graphs, tables, and numerical data. Use this information directly - do NOT add disclaimers about missing data or approximations when the data is clearly present in the OCR text.
 
 MANDATORY SECTIONS (only include if content exists on the page):
 - المفاهيم والتعاريف
