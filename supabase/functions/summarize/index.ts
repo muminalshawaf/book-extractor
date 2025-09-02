@@ -302,6 +302,10 @@ List formulas and equations if present:
 | الصيغة | الوصف | المتغيرات |
 |--------|--------|-----------|
 | $$formula$$ | description | variables |
+## مفاتيح و أفكار رئيسية
+Summarize the main ideas and concepts from the page in bullet points:
+- **[Key concept/idea]:** [brief explanation]
+- **[Another key concept]:** [brief explanation]
 ## الأسئلة والإجابات الكاملة
 Process ALL questions from the OCR text with complete step-by-step solutions:
 OCR TEXT:
