@@ -158,11 +158,18 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ **ARABIC NUMERALS**: ٩٣، ٩٤، ٩٥، ٩٦، ٩٧، ٩٨، ٩٩، ١٠٠، ١٠١، ١٠٢، ١٠٣، ١٠٤، ١٠٥، ١٠٦
    ✓ **ENGLISH NUMERALS**: 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106
    ✓ **QUESTION PATTERNS**: اشرح، وضح، قارن، حدد، احسب، ما المقصود، لماذا، كيف
-   ✓ **MULTIPLE CHOICE DETECTION**: 
-      - Question text followed by lettered options (a., b., c., d.) or (أ., ب., ج., د.)
-      - Each option should include the letter AND the value/answer
+   ✓ **MULTIPLE CHOICE DETECTION & FORMATTING**: 
+      - Identify questions with lettered options (a., b., c., d.) or (أ., ب., ج., د.)
+      - Use this EXACT format for multiple choice questions:
+        Question Text: [complete question text]
+        Options:
+        a. [complete option a text with value]
+        b. [complete option b text with value]  
+        c. [complete option c text with value]
+        d. [complete option d text with value]
       - Extract complete MC format: "a. 55.63 mL" not just "55.63 mL"
-      - Detect options even if separated from question by spacing
+      - Detect options even if separated from question by spacing or line breaks
+      - Always extract ALL four options (a, b, c, d) completely
    ✓ **CONTINUATION QUESTIONS**: Questions that span multiple lines or sections
    ✓ **SUB-QUESTIONS**: Parts (أ)، (ب)، (ج) or (a), (b), (c)
 
