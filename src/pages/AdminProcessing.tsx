@@ -171,13 +171,13 @@ const AdminProcessing = () => {
               ocrConfidence = ocrResult.confidence || 0.8;
               addLog(`Page ${pageNum}: OCR completed (confidence: ${(ocrConfidence * 100).toFixed(1)}%)`);
             } catch (ocrError) {
-              // Fallback to DeepSeek OCR
-              try {
-                addLog(`Page ${pageNum}: Gemini OCR failed, trying DeepSeek...`);
-                const fallbackResult = await callFunction('ocr-deepseek', {
-                  imageUrl: pageImage.src,
-                  language: 'ar'
-                }, { timeout: 60000, retries: 1 }); // 1 minute timeout for OCR
+                // Fallback to Gemini Pro Vision OCR
+                try {
+                  addLog(`Page ${pageNum}: Gemini Flash OCR failed, trying Gemini Pro Vision fallback...`);
+                  const fallbackResult = await callFunction('ocr-fallback', {
+                    imageUrl: pageImage.src,
+                    language: 'ar'
+                  }, { timeout: 90000, retries: 1 }); // 1.5 minute timeout for fallback OCR
                 
                 // Check if processing was stopped during fallback OCR
                 if (!isRunningRef.current) {

@@ -97,6 +97,15 @@ serve(async (req) => {
     
     const { text, lang = "ar", page, title, ocrData = null } = await req.json();
     console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title} }`);
+    
+    // Log model usage priority
+    // Model selection already logged above
+    const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
+    const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
+    
+    console.log('Available models:');
+    console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
+    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? 'AVAILABLE (fallback)' : 'UNAVAILABLE'}`);
 
     if (!text || typeof text !== "string") {
       console.error('No text provided or text is not a string');
@@ -395,9 +404,66 @@ Original OCR text: ${enhancedText}`;
       });
     }
 
-    // Validate question completion
+    // Validate question completion and trigger auto-continuation if needed
     const summaryQuestionCount = (summary.match(/\*\*س:/g) || []).length;
-    console.log(`Final summary length: ${summary.length}, Questions processed: ${summaryQuestionCount}/${questions.length}, Provider: ${providerUsed}`);
+    const originalQuestionCount = questions.length;
+    
+    console.log(`Final summary length: ${summary.length}, Questions processed: ${summaryQuestionCount}/${originalQuestionCount}, Provider: ${providerUsed}`);
+    
+    // Auto-continuation check: if we're missing questions and have space for more content
+    if (originalQuestionCount > 0 && summaryQuestionCount < originalQuestionCount && summary.length < 14000) {
+      console.log(`⚠️ Missing ${originalQuestionCount - summaryQuestionCount} questions, attempting auto-continuation...`);
+      
+      const missingNumbers = questions
+        .map(q => q.number)
+        .filter(num => !summary.includes(`**س: ${num}-`));
+      
+      if (missingNumbers.length > 0 && providerUsed === 'gemini-2.5-pro') {
+        console.log(`🔄 Auto-continuing to complete missing questions: ${missingNumbers.join(', ')}`);
+        
+        const completionPrompt = `COMPLETE THE MISSING QUESTIONS - This is a quality check continuation.
+
+Previous summary is missing these question numbers: ${missingNumbers.join(', ')}
+
+REQUIREMENTS:
+- Process ONLY the missing questions: ${missingNumbers.join(', ')}
+- Use EXACT formatting: **س: [number]- [question text]** and **ج:** [complete answer]
+- Use $$formula$$ for math, × for multiplication
+- Provide complete step-by-step solutions
+- Do NOT repeat questions already answered
+
+Missing questions from OCR text:
+${enhancedText.split('\n').filter(line => 
+  missingNumbers.some(num => line.includes(`${num}.`) || line.includes(`${num}-`))
+).join('\n')}`;
+
+        try {
+          const completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: systemPrompt + "\n\n" + completionPrompt }] }],
+              generationConfig: { temperature: 0.2, maxOutputTokens: 8000 }
+            }),
+          });
+
+          if (completionResp.ok) {
+            const completionData = await completionResp.json();
+            const completion = completionData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+            
+            if (completion.trim()) {
+              summary += "\n\n" + completion;
+              const finalQuestionCount = (summary.match(/\*\*س:/g) || []).length;
+              console.log(`✅ Auto-continuation completed. Final question count: ${finalQuestionCount}/${originalQuestionCount}`);
+            }
+          }
+        } catch (completionError) {
+          console.error('Auto-continuation failed:', completionError);
+        }
+      }
+    } else if (summaryQuestionCount >= originalQuestionCount) {
+      console.log('✅ All questions appear to be processed successfully');
+    }
 
     return new Response(JSON.stringify({ summary }), {
       status: 200,
