@@ -612,8 +612,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummary(existingSummary);
     setSummaryProgress(100);
     setSummLoading(false);
-    
-    toast.success(rtl ? "تم تحميل الملخص المحفوظ" : "Loaded cached summary");
   };
 
   const summarizeExtractedText = async (text: string = extractedText, force = false) => {
