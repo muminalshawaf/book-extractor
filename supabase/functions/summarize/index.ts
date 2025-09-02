@@ -202,51 +202,55 @@ Rows:`;
     const enhancedText = text + visualElementsText;
 
     // Create optimized prompt for question processing
-    const systemPrompt = `You are an expert chemistry professor specializing in solution chemistry, colligative properties, and Henry's Law. Your task is to process educational content and provide complete solutions to ALL questions with perfect formatting.
+    const systemPrompt = `You are an expert chemistry professor. Your task is to analyze educational content and provide structured summaries following a specific format.
 
-CRITICAL FORMATTING RULES:
-- Question format: **س: ٩٣- [exact question text]**
+FORMAT REQUIREMENTS:
+# Header
+## Sub Header  
+### Sub Header
+Use tables when necessary
+- Question format: **س: [number]- [exact question text]**
 - Answer format: **ج:** [complete step-by-step solution]
 - Use LaTeX for formulas: $$formula$$ 
 - Use × (NOT \\cdot or \\cdotp) for multiplication
 - Bold all section headers with **Header**
-- Include complete calculations with units
-- Reference visual data when mentioned in questions
 
-MANDATORY: Process EVERY question from 93-106. DO NOT skip any questions.`;
+MANDATORY SECTIONS (only include if content exists on the page):
+- المفاهيم والتعاريف
+- المصطلحات العلمية
+- الصيغ والمعادلات  
+- الأسئلة والإجابات الكاملة
+
+Skip sections if the page does not contain relevant content for that section.`;
 
     const userPrompt = `${needsDetailedStructure ? `
-### **المحتوى الأساسي**
+# ملخص المحتوى التعليمي
 
-يتناول هذا الفصل مفاهيم أساسية في كيمياء المحاليل، مع التركيز على الخواص الجامعة للمحاليل وقانون هنري. الخواص الجامعة هي الخواص الفيزيائية التي تعتمد على عدد جسيمات المذاب في كمية معينة من المذيب، وليس على طبيعة هذه الجسيمات.
+## المفاهيم والتعاريف
+Analyze the content and extract key concepts and definitions. Format as:
+- **[Arabic term]:** [definition]
 
-**المفاهيم الأساسية:**
-*   **قانون هنري:** يصف العلاقة بين ذائبية غاز في سائل والضغط الجزئي لذلك الغاز فوق السائل.
-*   **الخواص الجامعة (Colligative Properties):** تشمل الانخفاض في الضغط البخاري، والارتفاع في درجة الغليان، والانخفاض في درجة التجمد، والضغط الأسموزي.
-*   **الذائبية والقطبية:** المبدأ الأساسي هو "الشّبيه يذيب الشّبيه"، حيث تميل المذيبات القطبية إلى إذابة المذابات القطبية، والمذيبات غير القطبية تذيب المذابات غير القطبية.
-*   **التركيز:** يتم التعبير عنه بطرق مختلفة مثل المولالية (mol/kg)، والمولارية (mol/L)، والكسر المولي.
+## المصطلحات العلمية
+Extract scientific terminology if present:
+- **[Scientific term]:** [explanation]
 
-**الصيغ والمعادلات الرئيسية:**
-*   **قانون هنري:** $$\\frac{S_1}{P_1} = \\frac{S_2}{P_2}$$
-*   **الانخفاض في درجة التجمد:** $$\\Delta T_f = i \\times K_f \\times m$$
-*   **الارتفاع في درجة الغليان:** $$\\Delta T_b = i \\times K_b \\times m$$
-*   **المولالية (m):** $$m = \\frac{\\text{مولات المذاب}}{\\text{كتلة المذيب (kg)}}$$
-*   **المولارية (M):** $$M = \\frac{\\text{مولات المذاب}}{\\text{حجم المحلول (L)}}$$
-*   **الكسر المولي (X):** $$X_A = \\frac{\\text{مولات المكون A}}{\\text{مجموع مولات جميع المكونات}}$$
-حيث $$i$$ هو معامل فانت هوف (عدد الجسيمات الناتجة عن تفكك وحدة صيغة واحدة من المذاب).
+## الصيغ والمعادلات
+List formulas and equations if present:
+| الصيغة | الوصف | المتغيرات |
+|--------|--------|-----------|
+| $$formula$$ | description | variables |
 
----
-
-### **الأسئلة والإجابات**
-
-Process ALL questions from the following OCR text. Use the EXACT question numbers as they appear (93-106). Provide complete step-by-step solutions using chemistry expertise.
+## الأسئلة والإجابات الكاملة
+Process ALL questions from the OCR text with complete step-by-step solutions:
 
 OCR TEXT:
 ${enhancedText}
 
-CRITICAL: Answer EVERY question found. Do not skip any questions or stop early.` : `
-### ${lang === "ar" ? "نظرة عامة" : "Overview"}
-هذه صفحة تحتوي على محتوى تعليمي في الكيمياء.
+CRITICAL: Answer EVERY question found. Do not skip any questions.` : `
+# ملخص الصفحة
+
+## نظرة عامة
+هذه صفحة تحتوي على محتوى تعليمي.
 
 OCR TEXT:
 ${enhancedText}`}`;
