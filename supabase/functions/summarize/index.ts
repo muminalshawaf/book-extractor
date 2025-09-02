@@ -291,6 +291,8 @@ MANDATORY SECTIONS (only include if content exists on the page):
 Skip sections if the page does not contain relevant content for that section.`;
 
     const userPrompt = `${needsDetailedStructure ? `# ملخص المحتوى التعليمي
+## ملخص المحتوى التعليمي
+[summrize in few sentances what on this page for the student]
 ## المفاهيم والتعاريف
 Analyze the content and extract key concepts and definitions. Format as:
 - **[Arabic term]:** [definition]
@@ -306,6 +308,8 @@ List formulas and equations if present:
 Summarize the main ideas and concepts from the page in bullet points:
 - **[Key concept/idea]:** [brief explanation]
 - **[Another key concept]:** [brief explanation]
+## أمثلة توضيحية
+[list examples so the students can relate to the concepts]
 ## الأسئلة والإجابات الكاملة
 Process ALL questions from the OCR text with complete step-by-step solutions:
 OCR TEXT:
