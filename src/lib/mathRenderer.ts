@@ -19,6 +19,11 @@ export function normalizeAndExtractMath(text: string): { text: string; mathBlock
   const mathBlocks: MathBlock[] = [];
   let blockIndex = 0;
 
+  // Fix common LaTeX command issues before processing
+  processedText = processedText.replace(/\\cdotpatm/g, '\\cdot\\text{ atm}');
+  processedText = processedText.replace(/\\cdotp([a-zA-Z])/g, '\\cdot\\text{ $1}');
+  processedText = processedText.replace(/\\cdot([a-zA-Z])/g, '\\cdot\\text{$1}');
+  
   // Convert LaTeX delimiters to consistent format
   processedText = processedText.replace(/\\\[([\s\S]*?)\\\]/gs, '$$$$$1$$$$');
   processedText = processedText.replace(/\\\(([\s\S]*?)\\\)/gs, '$$$1$');
