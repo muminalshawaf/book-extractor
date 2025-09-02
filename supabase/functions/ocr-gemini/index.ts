@@ -252,18 +252,21 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ **ARABIC NUMERALS**: ٩٣، ٩٤، ٩٥، ٩٦، ٩٧، ٩٨، ٩٩، ١٠٠، ١٠١، ١٠٢، ١٠٣، ١٠٤، ١٠٥، ١٠٦
    ✓ **ENGLISH NUMERALS**: 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106
    ✓ **QUESTION PATTERNS**: اشرح، وضح، قارن، حدد، احسب، ما المقصود، لماذا، كيف
-   ✓ **MULTIPLE CHOICE DETECTION & FORMATTING**: 
-      - Identify questions with lettered options (a., b., c., d.) or (أ., ب., ج., د.)
-      - Use this EXACT format for multiple choice questions:
-        Question Text: [complete question text]
-        Options:
-        a. [complete option a text with value]
-        b. [complete option b text with value]  
-        c. [complete option c text with value]
-        d. [complete option d text with value]
-      - Extract complete MC format: "a. 55.63 mL" not just "55.63 mL"
-      - Detect options even if separated from question by spacing or line breaks
-      - Always extract ALL four options (a, b, c, d) completely
+   ✓ **CRITICAL MULTIPLE CHOICE DETECTION** (Zero tolerance for missing options): 
+       - SCAN THE ENTIRE PAGE for ANY multiple choice patterns
+       - Look for options ANYWHERE on the page: a., b., c., d. OR أ., ب., ج., د.
+       - Options may be VISUALLY SEPARATED from questions by white space, columns, or visual elements
+       - For EACH multiple choice question, create a COMPLETE section with this EXACT format:
+         {
+           "order": X,
+           "type": "exercise", 
+           "title": "question_number",
+           "content": "Question Text: [complete question text]\nOptions:\na. [complete option a text including numerical values]\nb. [complete option b text including numerical values]\nc. [complete option c text including numerical values]\nd. [complete option d text including numerical values]"
+         }
+       - EXTRACT COMPLETE options: "a. 55.63 mL" NOT just "55.63 mL"
+       - SCAN SYSTEMATICALLY for options that may be in different visual areas of the page
+       - Even if options appear BELOW graphs or in different columns, associate them with nearby questions
+       - VERIFY each question has ALL four options extracted completely
    ✓ **CONTINUATION QUESTIONS**: Questions that span multiple lines or sections
    ✓ **SUB-QUESTIONS**: Parts (أ)، (ب)، (ج) or (a), (b), (c)
 
