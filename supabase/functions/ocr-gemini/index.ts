@@ -252,21 +252,42 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ **ARABIC NUMERALS**: ٩٣، ٩٤، ٩٥، ٩٦، ٩٧، ٩٨، ٩٩، ١٠٠، ١٠١، ١٠٢، ١٠٣، ١٠٤، ١٠٥، ١٠٦
    ✓ **ENGLISH NUMERALS**: 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106
    ✓ **QUESTION PATTERNS**: اشرح، وضح، قارن، حدد، احسب، ما المقصود، لماذا، كيف
-   ✓ **CRITICAL MULTIPLE CHOICE DETECTION** (Zero tolerance for missing options): 
-       - SCAN THE ENTIRE PAGE for ANY multiple choice patterns
-       - Look for options ANYWHERE on the page: a., b., c., d. OR أ., ب., ج., د.
-       - Options may be VISUALLY SEPARATED from questions by white space, columns, or visual elements
-       - For EACH multiple choice question, create a COMPLETE section with this EXACT format:
-         {
-           "order": X,
-           "type": "exercise", 
-           "title": "question_number",
-           "content": "Question Text: [complete question text]\nOptions:\na. [complete option a text including numerical values]\nb. [complete option b text including numerical values]\nc. [complete option c text including numerical values]\nd. [complete option d text including numerical values]"
-         }
-       - EXTRACT COMPLETE options: "a. 55.63 mL" NOT just "55.63 mL"
-       - SCAN SYSTEMATICALLY for options that may be in different visual areas of the page
-       - Even if options appear BELOW graphs or in different columns, associate them with nearby questions
-       - VERIFY each question has ALL four options extracted completely
+    ✓ **CRITICAL MULTIPLE CHOICE DETECTION** (Zero tolerance for missing options): 
+        - **SYSTEMATIC PAGE SCANNING**: Scan the ENTIRE page in a grid pattern (top-right to bottom-left for Arabic RTL)
+        - **MULTIPLE CHOICE PATTERNS**: Look for ALL possible option formats:
+          * English: a., b., c., d. OR a) b) c) d) OR (a) (b) (c) (d) OR A. B. C. D.
+          * Arabic: أ., ب., ج., د. OR أ) ب) ج) د) OR (أ) (ب) (ج) (د)
+          * Numbers: 1., 2., 3., 4. OR 1) 2) 3) 4) OR (1) (2) (3) (4)
+        - **VISUAL SEPARATION TOLERANCE**: Options may be:
+          * Separated by large white spaces from their questions
+          * Located in different columns or visual blocks
+          * Positioned below graphs, tables, or diagrams
+          * Split across page sections or bordered areas
+          * Arranged horizontally across the page width
+          * Grouped together separate from question text
+        - **ASSOCIATION STRATEGY**: For each set of options found:
+          * Look for the nearest question number above, to the right, or in adjacent areas
+          * Check for connecting visual elements (lines, boxes, spacing patterns)
+          * Match question topics with option content for logical association
+          * Consider page layout flow and reading direction
+        - **COMPLETE EXTRACTION FORMAT**: For EACH multiple choice question:
+          {
+            "order": X,
+            "type": "exercise", 
+            "title": "question_number",
+            "content": "Question Text: [complete question text]\nOptions:\na. [complete option a text including ALL numerical values, units, and formulas]\nb. [complete option b text including ALL numerical values, units, and formulas]\nc. [complete option c text including ALL numerical values, units, and formulas]\nd. [complete option d text including ALL numerical values, units, and formulas]"
+          }
+        - **EXTRACTION COMPLETENESS**: 
+          * Include option prefixes: "a. 55.63 mL" NOT just "55.63 mL"
+          * Preserve ALL mathematical expressions, chemical formulas, and units
+          * Capture multi-line options completely (don't truncate)
+          * Include parenthetical information and sub-clauses
+        - **VERIFICATION CHECKLIST**: 
+          * Scan each page quadrant systematically for orphaned options
+          * Check margins, corners, and spaces between major elements
+          * Look for continuation patterns (questions continuing on next column/section)
+          * Verify each MC question has exactly 4 options (a-d) unless clearly otherwise
+          * Double-check that no option text was merged or split incorrectly
    ✓ **CONTINUATION QUESTIONS**: Questions that span multiple lines or sections
    ✓ **SUB-QUESTIONS**: Parts (أ)، (ب)، (ج) or (a), (b), (c)
 
