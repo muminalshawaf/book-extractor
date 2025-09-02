@@ -1,6 +1,5 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { validatePreflight, extractPreflightChecklist, validateSummaryStructure } from './validators.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -268,16 +267,6 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
 ⚠️ ABSOLUTE COMPLIANCE MANDATE: 100% INSTRUCTION ADHERENCE REQUIRED ⚠️
 ⛔ NON-COMPLIANCE WILL RESULT IN COMPLETE RESPONSE REJECTION ⛔
 
-🚨 **CRITICAL MANDATE - 100% COMPLIANCE FOR VISUAL REFERENCES**:
-**ABSOLUTE REQUIREMENT**: If ANY question mentions "graph", "table", "figure", "chart", "diagram", "شكل", "جدول", "رسم", "مخطط", or ANY visual reference, you MUST:
-- Immediately locate the corresponding visual element in the OCR data
-- Extract ALL relevant data from that specific visual element
-- Use ONLY the data from the referenced visual element in your answer
-- Begin your answer with: "من [الجدول/الشكل/الرسم] رقم X:" or "From [Table/Figure/Chart] X:"
-- NEVER provide an answer without referencing the specific visual element mentioned
-- If the visual element is not found, state: "العنصر البصري المشار إليه غير متوفر في البيانات"
-**ZERO TOLERANCE**: Failure to comply with this mandate will result in complete response rejection.
-
 🔍 **MANDATORY COMPREHENSIVE VISUAL ELEMENT ANALYSIS - ZERO TOLERANCE FOR SHORTCUTS**:
 
 📊 **MANDATORY GRAPHS & CHARTS ANALYSIS**:
@@ -339,32 +328,8 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
    - You MUST connect table data to question parameters through chemical knowledge
    - FAILURE TO CALCULATE WHEN DATA EXISTS IS STRICTLY FORBIDDEN
 
-    10. **مانع الافتراضات غير المبررة (NO UNSTATED ASSUMPTIONS MANDATE)**: 
-    - ممنوع منعاً باتاً استخدام أي أرقام أو قيم لم تذكر في السؤال أو السياق
-
-🛡️ **MANDATORY PRE-FLIGHT CHECKLIST - 100% COMPLIANCE VERIFICATION**:
-
-**ABSOLUTE REQUIREMENT**: You MUST include this checklist in JSON format at the END of your response to confirm 100% compliance:
-
-\`\`\`json
-{
-  "visualReferenceCompliance": [true/false], // Did I properly handle ALL visual references?
-  "visualDataExtraction": [true/false], // Did I extract ALL relevant visual data?
-  "mcqMapping": [true/false], // Did I properly map multiple choice options?
-  "calculationAccuracy": [true/false], // Are ALL calculations accurate and complete?
-  "languageConsistency": [true/false], // Is language consistent throughout?
-  "questionCompleteness": [true/false], // Did I answer ALL questions found?
-  "schemaAdherence": [true/false], // Do I follow the exact format required?
-  "citationRequirement": [true/false], // Did I cite visual elements properly?
-  "formatCompliance": [true/false], // Is LaTeX and formatting correct?
-  "contentStructure": [true/false], // Is content properly structured?
-  "keywordIntegration": [true/false], // Are keywords properly integrated?
-  "responseLength": [true/false], // Is response comprehensive yet focused?
-  "overallCompliance": [true/false] // 100% compliance with ALL mandates?
-}
-\`\`\`
-
-**ZERO TOLERANCE**: Any 'false' value will trigger automatic response rejection and regeneration.
+10. **مانع الافتراضات غير المبررة (NO UNSTATED ASSUMPTIONS MANDATE)**: 
+   - ممنوع منعاً باتاً استخدام أي أرقام أو قيم لم تذكر في السؤال أو السياق
    - ممنوع استخدام عبارات مثل "نفترض" أو "لنفرض" أو "assume" إلا إذا كانت موجودة في السؤال نفسه
    - إذا كانت البيانات ناقصة، اكتب "البيانات غير كافية" واذكر ما هو مفقود تحديداً
    - إذا كان الحل يتطلب قيم غير معطاة، اتركها كرموز (مثل m، V، T) ولا تعوض بأرقام من عندك
@@ -801,91 +766,6 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
       console.log('✅ All questions appear to be processed successfully');
     }
 
-    // ========== PRE-FLIGHT CHECKLIST VALIDATION & AUTO-REPAIR ==========
-    console.log('🛡️ Starting Pre-flight Checklist Validation...');
-    
-    let finalSummary = summary;
-    let validationAttempt = 0;
-    const maxValidationAttempts = 3;
-    
-    while (validationAttempt < maxValidationAttempts) {
-      validationAttempt++;
-      console.log(`🔍 Validation attempt ${validationAttempt}/${maxValidationAttempts}`);
-      
-      // Extract pre-flight checklist from AI response
-      const checklist = extractPreflightChecklist(finalSummary);
-      
-      if (!checklist) {
-        console.log('⚠️ No pre-flight checklist found in AI response - triggering repair');
-        
-        const repairPrompt = `🚨 CRITICAL REPAIR REQUIRED - MISSING PRE-FLIGHT CHECKLIST
-
-Your response is missing the mandatory pre-flight checklist. You MUST add this checklist at the end of your response:
-
-\`\`\`json
-{
-  "visualReferenceCompliance": true/false,
-  "visualDataExtraction": true/false, 
-  "mcqMapping": true/false,
-  "calculationAccuracy": true/false,
-  "languageConsistency": true/false,
-  "questionCompleteness": true/false,
-  "schemaAdherence": true/false,
-  "citationRequirement": true/false,
-  "formatCompliance": true/false,
-  "contentStructure": true/false,
-  "keywordIntegration": true/false,
-  "responseLength": true/false,
-  "overallCompliance": true/false
-}
-\`\`\`
-
-Current response without checklist:
-${finalSummary}
-
-Add the checklist and ensure all values are accurate.`;
-        
-        finalSummary = await attemptRepair(repairPrompt, providerUsed, googleApiKey, deepSeekApiKey, systemPrompt);
-        continue;
-      }
-      
-      // Validate the checklist
-      const validation = validatePreflight(checklist, questions, finalSummary);
-      
-      if (validation.isValid) {
-        console.log('✅ Pre-flight checklist validation PASSED');
-        console.log('📊 Compliance Status: ALL MANDATES SATISFIED');
-        break;
-      } else {
-        console.log(`❌ Pre-flight checklist validation FAILED: ${validation.failedChecks.join(', ')}`);
-        
-        if (validation.repairPrompt && validationAttempt < maxValidationAttempts) {
-          console.log(`🔧 Attempting targeted repair for attempt ${validationAttempt}...`);
-          finalSummary = await attemptRepair(validation.repairPrompt, providerUsed, googleApiKey, deepSeekApiKey, systemPrompt);
-        } else {
-          console.log('🚨 Maximum validation attempts reached - proceeding with current response');
-          break;
-        }
-      }
-    }
-    
-    // Final validation and logging
-    const finalChecklist = extractPreflightChecklist(finalSummary);
-    if (finalChecklist) {
-      const finalValidation = validatePreflight(finalChecklist, questions, finalSummary);
-      console.log('📋 FINAL COMPLIANCE REPORT:');
-      console.log(`- Visual Reference Compliance: ${finalChecklist.visualReferenceCompliance ? '✅' : '❌'}`);
-      console.log(`- Visual Data Extraction: ${finalChecklist.visualDataExtraction ? '✅' : '❌'}`);
-      console.log(`- MCQ Mapping: ${finalChecklist.mcqMapping ? '✅' : '❌'}`);
-      console.log(`- Question Completeness: ${finalChecklist.questionCompleteness ? '✅' : '❌'}`);
-      console.log(`- Overall Compliance: ${finalChecklist.overallCompliance ? '✅' : '❌'}`);
-      console.log(`- Validation Attempts Used: ${validationAttempt}/${maxValidationAttempts}`);
-    } else {
-      console.log('🚨 CRITICAL: Final response still missing pre-flight checklist');
-    }
-    
-    summary = finalSummary;
-
     return new Response(JSON.stringify({ summary }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -899,71 +779,3 @@ Add the checklist and ensure all values are accurate.`;
     });
   }
 });
-
-// Helper function for repair attempts
-async function attemptRepair(
-  repairPrompt: string, 
-  providerUsed: string, 
-  googleApiKey: string, 
-  deepSeekApiKey: string, 
-  systemPrompt: string
-): Promise<string> {
-  try {
-    console.log(`🔧 Attempting repair using ${providerUsed}...`);
-    
-    let repairResp;
-    
-    if (providerUsed === 'gemini-1.5-pro' && googleApiKey) {
-      repairResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt + "\n\n" + repairPrompt }] }],
-          generationConfig: { temperature: 0, maxOutputTokens: 16000 }
-        }),
-      });
-      
-      if (repairResp.ok) {
-        const repairData = await repairResp.json();
-        const repairedContent = repairData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-        if (repairedContent.trim()) {
-          console.log('✅ Repair successful with Gemini');
-          return repairedContent;
-        }
-      }
-    } else if (providerUsed === 'deepseek-chat' && deepSeekApiKey) {
-      repairResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${deepSeekApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "deepseek-chat",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: repairPrompt },
-          ],
-          temperature: 0,
-          max_tokens: 12000,
-        }),
-      });
-      
-      if (repairResp.ok) {
-        const repairData = await repairResp.json();
-        const repairedContent = repairData.choices?.[0]?.message?.content ?? "";
-        if (repairedContent.trim()) {
-          console.log('✅ Repair successful with DeepSeek');
-          return repairedContent;
-        }
-      }
-    }
-    
-    console.log('⚠️ Repair attempt failed - returning original content');
-    return repairPrompt; // Return original content if repair fails
-    
-  } catch (error) {
-    console.error('🚨 Repair attempt error:', error);
-    return repairPrompt; // Return original content if repair fails
-  }
-}
