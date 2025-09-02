@@ -28,13 +28,14 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
   rtl = false
 }) => {
   const [rangeStart, setRangeStart] = useState(1);
-  const [rangeEnd, setRangeEnd] = useState(Math.min(10, totalPages));
+  const [rangeEnd, setRangeEnd] = useState(Math.min(3, totalPages));
   const [progress, setProgress] = useState<BatchProgress>({
     current: 0,
     total: 0,
     currentPage: 0,
     status: 'idle'
   });
+  const [isProcessingCancelled, setIsProcessingCancelled] = useState(false);
 
   const processPageRange = async () => {
     if (progress.status === 'running') return;
@@ -43,6 +44,18 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
     const end = Math.max(start, Math.min(rangeEnd, totalPages));
     const pageCount = end - start + 1;
 
+    // Limit batch size to prevent timeouts
+    const maxBatchSize = 5;
+    if (pageCount > maxBatchSize) {
+      toast.warning(
+        rtl 
+          ? `يُنصح بمعالجة ${maxBatchSize} صفحات كحد أقصى في المرة الواحدة لتجنب انقطاع الاتصال` 
+          : `Process max ${maxBatchSize} pages at once to avoid timeouts`
+      );
+      return;
+    }
+
+    setIsProcessingCancelled(false);
     setProgress({
       current: 0,
       total: pageCount,
@@ -50,11 +63,12 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
       status: 'running'
     });
 
+    let processedCount = 0;
+    let errorCount = 0;
+
     try {
-      let isRunning = true;
-      
       for (let pageNum = start; pageNum <= end; pageNum++) {
-        if (!isRunning) break;
+        if (isProcessingCancelled) break;
 
         setProgress(prev => ({
           ...prev,
@@ -72,59 +86,76 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
 
         if (existing?.ocr_text && existing?.summary_md) {
           console.log(`Page ${pageNum} already processed, skipping...`);
+          processedCount++;
           continue;
         }
 
         try {
-          // Generate OCR and summary for this page
-          await callFunction('summarize', {
+          // Process with shorter timeout to prevent CF timeouts
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('TIMEOUT_ERROR')), 90000) // 90 second timeout
+          );
+
+          const processPromise = callFunction('summarize', {
             book_id: bookId,
             page_number: pageNum,
             force_regenerate: true
-          });
+          }, { timeout: 85000 }); // 85 second function timeout
 
+          await Promise.race([processPromise, timeoutPromise]);
+          
+          processedCount++;
           toast.success(
             rtl 
               ? `تم معالجة الصفحة ${pageNum}` 
               : `Processed page ${pageNum}`
           );
 
-          // Small delay to prevent overwhelming the API
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Minimal delay to prevent API rate limits
+          await new Promise(resolve => setTimeout(resolve, 500));
 
         } catch (error) {
+          errorCount++;
           console.error(`Error processing page ${pageNum}:`, error);
           
           // Handle timeout errors specifically
-          if (error instanceof Error && error.message.includes('TIMEOUT_ERROR')) {
+          if (error instanceof Error && (
+            error.message.includes('TIMEOUT_ERROR') || 
+            error.message.includes('504') ||
+            error.message.includes('timeout')
+          )) {
             toast.error(
               rtl 
-                ? `الصفحة ${pageNum}: المحتوى كبير جداً للمعالجة` 
-                : `Page ${pageNum}: Content too large for processing`
+                ? `الصفحة ${pageNum}: انتهت مهلة المعالجة - حاول صفحة واحدة في المرة` 
+                : `Page ${pageNum}: Processing timeout - try one page at a time`
             );
-            // Continue with next page instead of stopping
-            continue;
+          } else {
+            toast.error(
+              rtl 
+                ? `خطأ في معالجة الصفحة ${pageNum}` 
+                : `Error processing page ${pageNum}`
+            );
           }
           
-          toast.error(
-            rtl 
-              ? `خطأ في معالجة الصفحة ${pageNum}` 
-              : `Error processing page ${pageNum}`
-          );
+          // Continue with next page instead of stopping
+          continue;
         }
       }
 
       setProgress(prev => ({
         ...prev,
         current: prev.total,
-        status: 'completed'
+        status: isProcessingCancelled ? 'idle' : 'completed'
       }));
 
-      toast.success(
-        rtl 
-          ? `تم معالجة ${pageCount} صفحة بنجاح` 
-          : `Successfully processed ${pageCount} pages`
-      );
+      if (!isProcessingCancelled) {
+        const summary = `${processedCount} processed, ${errorCount} errors`;
+        toast.success(
+          rtl 
+            ? `انتهت المعالجة: ${summary}` 
+            : `Processing complete: ${summary}`
+        );
+      }
 
     } catch (error) {
       console.error('Batch processing error:', error);
@@ -138,6 +169,7 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
   };
 
   const stopProcessing = () => {
+    setIsProcessingCancelled(true);
     setProgress(prev => ({ ...prev, status: 'idle' }));
     toast.info(rtl ? 'تم إيقاف المعالجة' : 'Processing stopped');
   };
@@ -217,10 +249,17 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
           </div>
         )}
 
-        <div className="text-xs text-muted-foreground">
-          {rtl 
-            ? "يقوم هذا المعالج بإنشاء النصوص والملخصات لتحسين فهرسة محركات البحث"
-            : "This processor generates OCR text and summaries for better search engine indexing"}
+        <div className="text-xs text-muted-foreground space-y-1">
+          <div>
+            {rtl 
+              ? "يقوم هذا المعالج بإنشاء النصوص والملخصات لتحسين فهرسة محركات البحث"
+              : "This processor generates OCR text and summaries for better search engine indexing"}
+          </div>
+          <div className="text-amber-600 dark:text-amber-400">
+            {rtl 
+              ? "💡 نصيحة: معالجة صفحة واحدة في المرة تقلل من مخاطر انقطاع الاتصال"
+              : "💡 Tip: Process 1-3 pages at a time to avoid CloudFlare timeouts"}
+          </div>
         </div>
       </CardContent>
     </Card>
