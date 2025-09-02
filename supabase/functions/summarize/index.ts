@@ -272,7 +272,7 @@ ${enhancedText}`}`;
               }
             ],
             generationConfig: {
-              temperature: 0.2,
+              temperature: 0,
               maxOutputTokens: 16000,
             }
           }),
@@ -320,7 +320,7 @@ Original OCR text: ${enhancedText}`;
                       }
                     ],
                     generationConfig: {
-                      temperature: 0.2,
+                      temperature: 0,
                       maxOutputTokens: 12000,
                     }
                   }),
@@ -377,7 +377,7 @@ Original OCR text: ${enhancedText}`;
               { role: "system", content: systemPrompt },
               { role: "user", content: userPrompt },
             ],
-            temperature: 0.2,
+            temperature: 0,
             top_p: 0.9,
             max_tokens: 12000,
           }),
