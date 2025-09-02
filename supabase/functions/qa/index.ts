@@ -60,6 +60,14 @@ For chemistry problems:
 - If units are missing or inconsistent in the provided data, state "insufficient data" instead of guessing
 - For graph-based questions, show step-by-step calculations using the exact coordinates provided
 
+مانع الافتراضات غير المبررة (NO UNSTATED ASSUMPTIONS MANDATE): 
+- ممنوع منعاً باتاً استخدام أي أرقام أو قيم لم تذكر في السؤال أو السياق
+- ممنوع استخدام عبارات مثل "نفترض" أو "لنفرض" أو "assume" إلا إذا كانت موجودة في السؤال نفسه
+- إذا كانت البيانات ناقصة، اكتب "البيانات غير كافية" واذكر ما هو مفقود تحديداً
+- إذا كان الحل يتطلب قيم غير معطاة، اتركها كرموز (مثل m، V، T) ولا تعوض بأرقام من عندك
+- تحقق من صحة الوحدات والأبعاد والمعقولية الفيزيائية للقيم المعطاة
+- لا تفترض أي ظروف معيارية إلا إذا نُص عليها صراحة
+
 Use Saudi Arabic. Output math in $$...$$ format. Language: ${lang}.`;
 
     let userPrompt = `Question: ${question}`;
@@ -134,7 +142,7 @@ Use Saudi Arabic. Output math in $$...$$ format. Language: ${lang}.`;
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        temperature: 0.2,
+        temperature: 0,
         max_tokens: 600,
       }),
     });
