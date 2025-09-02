@@ -219,66 +219,39 @@ Rows:`;
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice)
     console.log(`Multiple choice detected: ${hasMultipleChoice}, Processing ${questions.length} total questions`)
     
-    const systemPrompt = `You are an expert chemistry professor analyzing educational content. You MUST provide 100% compliant structured summaries with ZERO tolerance for missing elements.
+    const systemPrompt = `You are an expert chemistry professor. Your task is to analyze educational content and provide structured summaries following a specific format.
 
-⚠️ CRITICAL MANDATE: ABSOLUTE 100% COMPLIANCE REQUIRED ⚠️
-⛔ ANY MISSING ELEMENT WILL RESULT IN COMPLETE REJECTION ⛔
-
-🔥 **MANDATORY RESPONSE FORMAT** - STRICT ADHERENCE REQUIRED:
-# Header (استخدم العناوين المناسبة)
+FORMAT REQUIREMENTS:
+# Header
 ## Sub Header  
 ### Sub Header
-**Question Format**: **س: [exact_number]- [complete_question_text]**
-**Answer Format**: **ج:** [detailed_step-by-step_solution]
-
+Use tables when necessary
+- Question format: **س: [number]- [exact question text]**
+- Answer format: **ج:** [complete step-by-step solution]
 ${hasMultipleChoice ? `
-🎯 **ABSOLUTE MULTIPLE CHOICE REQUIREMENTS**:
-**س: [number]- [complete question text]**
-**Options Available:**
-أ) [complete option A with all details]
-ب) [complete option B with all details]  
-ج) [complete option C with all details]
-د) [complete option D with all details]
-**ج:** [detailed calculation/reasoning process]
-**الإجابة الصحيحة: [exact_letter]** (MANDATORY - must match an option exactly)` : ''}
+- MULTIPLE CHOICE FORMAT: 
+  * **س: [number]- [question text]**
+  * List answer choices if present: أ) [choice A] ب) [choice B] ج) [choice C] د) [choice D]
+  * **ج:** [reasoning/calculation] **الإجابة الصحيحة: [letter]**` : ''}
+- Use LaTeX for formulas: $$formula$$ 
+- Use × (NOT \\cdot or \\cdotp) for multiplication
+- Bold all section headers with **Header**
 
-📐 **MATHEMATICAL FORMATTING MANDATES**:
-- LaTeX equations: $$equation$$ (NEVER single $)
-- Multiplication: Use × or \\times (NEVER \\cdot)
-- Units in text blocks: $$\\text{4.0 atm}$$
-- Fractions: $$\\frac{numerator}{denominator}$$
-- Chemical formulas: $$\\text{H}_2\\text{O}$$, $$\\text{CO}_2$$
+⚠️ ABSOLUTE COMPLIANCE MANDATE: 100% INSTRUCTION ADHERENCE REQUIRED ⚠️
+⛔ NON-COMPLIANCE WILL RESULT IN COMPLETE RESPONSE REJECTION ⛔
 
-⚡ **NON-NEGOTIABLE PROCESSING MANDATES**:
+CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
+1. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence.
+2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found. NO EXCEPTIONS.
+3. **VISUAL DATA INTEGRATION MANDATE**: You MUST use all graph, table, and visual data in calculations.
+4. **MULTIPLE CHOICE VALIDATION MANDATE**: Your answers MUST match provided options exactly.
+5. **STEP-BY-STEP MANDATE**: Each question must have complete, logical solutions.
 
-1. **ABSOLUTE QUESTION COMPLETENESS** (100% REQUIRED):
-   - You MUST solve ALL questions in strict numerical order (lowest to highest)
-   - You MUST provide complete solutions for every detected question
-   - You MUST include step-by-step work showing all calculations
-   - FAILURE TO ANSWER ANY QUESTION = IMMEDIATE REJECTION
-
-2. **MANDATORY VISUAL DATA INTEGRATION** (ZERO TOLERANCE FOR SHORTCUTS):
-   - You MUST analyze ALL graphs, tables, charts, and diagrams
-   - You MUST extract exact numerical values from visual elements  
-   - You MUST reference visual data in your calculations: "من الجدول نجد أن..." or "من الشكل البياني..."
-   - You MUST use table data as PRIMARY source for Ka values, concentrations, etc.
-   - FAILURE TO USE VISUAL DATA WHEN AVAILABLE = IMMEDIATE REJECTION
-
-3. **ABSOLUTE MULTIPLE CHOICE ACCURACY** (MANDATORY VALIDATION):
-   - You MUST locate ALL multiple choice options for each MC question
-   - You MUST ensure your calculated answer matches ONE of the provided options exactly
-   - You MUST state: **الإجابة الصحيحة: [letter]** for every MC question
-   - If your calculation doesn't match any option, you MUST re-examine the visual data and recalculate
-   - FAILURE TO MATCH MC OPTIONS = IMMEDIATE REJECTION
-
-4. **COMPREHENSIVE CHEMISTRY CALCULATIONS** (ABSOLUTE REQUIREMENT):
-   - You MUST show complete dimensional analysis with units
-   - You MUST apply correct chemical principles (equilibrium, stoichiometry, etc.)
-   - You MUST use appropriate significant figures based on given data
-   - You MUST validate answers against chemical reasonableness
-   - SHORTCUTS OR INCOMPLETE CALCULATIONS = IMMEDIATE REJECTION
-
-REMEMBER: This is a ZERO-TOLERANCE system. ANY missing element triggers complete response rejection and re-generation.`;
+ENHANCED PROCESSING:
+- MANDATORY visual element analysis and data integration  
+- ABSOLUTE multiple choice answer matching
+- REQUIRED chemistry calculation verification
+- AUTOMATIC completeness validation`;
 
     // Try Gemini 1.5 Pro first with enhanced configuration
     if (googleApiKey) {
@@ -313,74 +286,33 @@ REMEMBER: This is a ZERO-TOLERANCE system. ANY missing element triggers complete
             let summary = geminiData.candidates[0].content.parts[0].text
             console.log(`Gemini response length: ${summary.length} characters`)
 
-            // Enhanced multi-stage validation and auto-repair system
-            let finalSummary = summary
-            let validationAttempts = 0
-            const maxValidationAttempts = 3
-            let lastValidationResult = validateSummaryCompleteness(summary, questions, ocrData)
+            // Enhanced validation and auto-repair system
+            const validationResult = validateSummaryCompleteness(summary, questions, ocrData)
+            console.log(`Validation result: ${validationResult.isComplete ? 'PASSED' : 'FAILED'}`)
             
-            console.log(`Initial validation result: ${lastValidationResult.isComplete ? 'PASSED' : 'FAILED'} (Confidence: ${lastValidationResult.confidence})`)
-            
-            // Multi-stage repair process for 100% compliance
-            while (!lastValidationResult.isComplete && validationAttempts < maxValidationAttempts) {
-              validationAttempts++
-              console.log(`Validation attempt ${validationAttempts}/${maxValidationAttempts}`)
-              console.log(`Issues detected: ${lastValidationResult.missingElements.join(', ')}`)
+            if (!validationResult.isComplete && validationResult.missingElements.length > 0) {
+              console.log(`Missing elements detected: ${validationResult.missingElements.join(', ')}`)
               
-              // Progressively aggressive repair attempts
-              const repairResult = await attemptSummaryRepair(finalSummary, lastValidationResult, enhancedText, geminiUrl)
-              
-              if (repairResult.success && repairResult.repairedSummary) {
-                finalSummary = repairResult.repairedSummary
-                lastValidationResult = validateSummaryCompleteness(finalSummary, questions, ocrData)
-                
-                console.log(`Repair attempt ${validationAttempts} result: ${lastValidationResult.isComplete ? 'SUCCESS' : 'STILL INCOMPLETE'}`)
-                console.log(`New confidence: ${lastValidationResult.confidence}`)
-                
-                if (lastValidationResult.isComplete) {
-                  console.log(`🎯 100% COMPLIANCE ACHIEVED after ${validationAttempts} repair attempts`)
-                  break
-                }
+              // Auto-repair attempt
+              const repairResult = await attemptSummaryRepair(summary, validationResult, enhancedText, geminiUrl)
+              if (repairResult.success) {
+                summary = repairResult.repairedSummary || summary
+                console.log(`Auto-repair successful, final length: ${summary.length}`)
               } else {
-                console.log(`Repair attempt ${validationAttempts} failed: ${repairResult.error}`)
-                break
+                console.log('Auto-repair failed, returning original summary with warnings')
               }
             }
-            
-            // Final comprehensive validation
-            const finalValidation = validateSummaryCompleteness(finalSummary, questions, ocrData)
-            const finalMetrics = calculateSummaryMetrics(finalSummary, questions, ocrData)
-            
-            // Enhanced logging for compliance tracking
-            console.log(`=== FINAL COMPLIANCE REPORT ===`)
-            console.log(`Validation Status: ${finalValidation.isComplete ? '✅ PASSED' : '❌ FAILED'}`)
-            console.log(`Confidence Score: ${(finalValidation.confidence * 100).toFixed(1)}%`)
-            console.log(`Questions: ${finalMetrics.questionsAnswered}/${finalMetrics.totalQuestions} (${finalMetrics.totalQuestions > 0 ? ((finalMetrics.questionsAnswered / finalMetrics.totalQuestions) * 100).toFixed(1) : 0}%)`)
-            console.log(`Multiple Choice: ${finalMetrics.multipleChoiceAnswered}/${finalMetrics.multipleChoiceTotal}`)
-            console.log(`Visual References: ${finalMetrics.visualReferences}`)
-            console.log(`Formulas Used: ${finalMetrics.formulasUsed}`)
-            console.log(`Calculation Quality: ${finalMetrics.calculationsShown} detailed solutions`)
-            console.log(`Repair Attempts: ${validationAttempts}/${maxValidationAttempts}`)
-            
-            if (!finalValidation.isComplete) {
-              console.log(`⚠️  Remaining Issues: ${finalValidation.missingElements.join(', ')}`)
-            }
+
+            // Final validation metrics
+            const finalMetrics = calculateSummaryMetrics(summary, questions, ocrData)
+            console.log(`Final metrics: Questions ${finalMetrics.questionsAnswered}/${finalMetrics.totalQuestions}, MC ${finalMetrics.multipleChoiceAnswered}/${finalMetrics.multipleChoiceTotal}, Visual references: ${finalMetrics.visualReferences}`)
 
             return new Response(JSON.stringify({ 
-              summary: finalSummary,
+              summary: summary,
               metadata: {
-                validation: finalValidation,
+                validation: validationResult,
                 metrics: finalMetrics,
-                processingTime: Date.now() - startTime,
-                repairAttempts: validationAttempts,
-                complianceScore: finalValidation.confidence * 100,
-                qualityIndicators: {
-                  allQuestionsAnswered: finalValidation.questionsFound >= finalValidation.questionsExpected,
-                  multipleChoiceComplete: finalValidation.multipleChoiceMatched,
-                  visualDataIntegrated: finalValidation.visualDataUsed,
-                  mathematicalFormatting: finalMetrics.formulasUsed > 0,
-                  detailedCalculations: finalMetrics.calculationsShown > 0
-                }
+                processingTime: Date.now() - startTime
               }
             }), {
               status: 200,
@@ -423,45 +355,21 @@ REMEMBER: This is a ZERO-TOLERANCE system. ANY missing element triggers complete
             let summary = deepSeekData.choices[0].message.content
             console.log(`DeepSeek response length: ${summary.length} characters`)
 
-            // Apply same enhanced validation pipeline to DeepSeek results
-            let finalSummary = summary
-            let validationAttempts = 0
-            const maxValidationAttempts = 2 // Fewer attempts for fallback
-            let lastValidationResult = validateSummaryCompleteness(summary, questions, ocrData)
-            
-            console.log(`DeepSeek initial validation: ${lastValidationResult.isComplete ? 'PASSED' : 'FAILED'}`)
-            
-            // Attempt repair for DeepSeek if needed
-            while (!lastValidationResult.isComplete && validationAttempts < maxValidationAttempts) {
-              validationAttempts++
-              console.log(`DeepSeek repair attempt ${validationAttempts}/${maxValidationAttempts}`)
-              
-              const repairResult = await attemptSummaryRepair(finalSummary, lastValidationResult, enhancedText, 'https://api.deepseek.com/chat/completions')
-              
-              if (repairResult.success && repairResult.repairedSummary) {
-                finalSummary = repairResult.repairedSummary
-                lastValidationResult = validateSummaryCompleteness(finalSummary, questions, ocrData)
-                
-                if (lastValidationResult.isComplete) {
-                  console.log(`🎯 DeepSeek 100% COMPLIANCE achieved after ${validationAttempts} attempts`)
-                  break
-                }
-              }
-            }
+            // Apply same validation pipeline to DeepSeek results
+            const validationResult = validateSummaryCompleteness(summary, questions, ocrData)
+            console.log(`DeepSeek validation result: ${validationResult.isComplete ? 'PASSED' : 'FAILED'}`)
 
-            // Final DeepSeek metrics
-            const finalMetrics = calculateSummaryMetrics(finalSummary, questions, ocrData)
-            console.log(`DeepSeek final: ${finalMetrics.questionsAnswered}/${finalMetrics.totalQuestions} questions, confidence: ${(lastValidationResult.confidence * 100).toFixed(1)}%`)
+            // Calculate final metrics
+            const finalMetrics = calculateSummaryMetrics(summary, questions, ocrData)
+            console.log(`DeepSeek final metrics: Questions ${finalMetrics.questionsAnswered}/${finalMetrics.totalQuestions}`)
 
             return new Response(JSON.stringify({ 
-              summary: finalSummary,
+              summary: summary,
               provider: 'deepseek',
               metadata: {
-                validation: lastValidationResult,
+                validation: validationResult,
                 metrics: finalMetrics,
-                processingTime: Date.now() - startTime,
-                repairAttempts: validationAttempts,
-                complianceScore: lastValidationResult.confidence * 100
+                processingTime: Date.now() - startTime
               }
             }), {
               status: 200,
