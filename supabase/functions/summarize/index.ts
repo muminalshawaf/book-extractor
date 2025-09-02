@@ -104,8 +104,8 @@ serve(async (req) => {
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
     
     console.log('Available models:');
-    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
-    console.log(`- Gemini 1.5 Pro: ${GOOGLE_API_KEY ? 'AVAILABLE (fallback)' : 'UNAVAILABLE'}`);
+    console.log(`- Gemini 2.5 Flash: ${GOOGLE_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
+    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? 'AVAILABLE (fallback)' : 'UNAVAILABLE'}`);
 
     if (!text || typeof text !== "string") {
       console.error('No text provided or text is not a string');
@@ -300,9 +300,114 @@ ${enhancedText}`}`;
     let summary = "";
     let providerUsed = "";
 
-    // Try DeepSeek R1 first (primary model)
-    if (deepSeekApiKey) {
-      console.log('Attempting to use DeepSeek Chat for summarization...');
+    // Try Gemini 2.5 Flash first (primary model)
+    if (googleApiKey) {
+      console.log('Attempting to use Gemini 2.5 Flash for summarization...');
+      try {
+        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${googleApiKey}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: systemPrompt + "\n\n" + userPrompt }]
+              }
+            ],
+            generationConfig: {
+              temperature: 0,
+              maxOutputTokens: 16000,
+            }
+          }),
+        });
+
+        if (geminiResp.ok) {
+          const geminiData = await geminiResp.json();
+          summary = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+          const finishReason = geminiData.candidates?.[0]?.finishReason;
+          providerUsed = "gemini-2.5-flash";
+          
+          if (summary.trim()) {
+            console.log(`Gemini 2.5 Flash API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
+            
+            // Handle continuation if needed
+            if (finishReason === "MAX_TOKENS" && summary.length > 0) {
+              console.log('Gemini 2.5 Flash summary was truncated, attempting to continue...');
+              
+              for (let attempt = 1; attempt <= 2; attempt++) {
+                console.log(`Gemini 2.5 Flash continuation attempt ${attempt}...`);
+                
+                const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
+
+Previous response ended with:
+${summary.slice(-500)}
+
+REQUIREMENTS:
+- Continue from exactly where you left off
+- Process ALL remaining questions (93-106 if not covered)
+- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
+- Use $$formula$$ for math, × for multiplication
+- Complete ALL questions until finished
+
+Original OCR text: ${enhancedText}`;
+
+                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${googleApiKey}`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    contents: [
+                      {
+                        parts: [{ text: systemPrompt + "\n\n" + continuationPrompt }]
+                      }
+                    ],
+                    generationConfig: {
+                      temperature: 0,
+                      maxOutputTokens: 12000,
+                    }
+                  }),
+                });
+
+                if (contResp.ok) {
+                  const contData = await contResp.json();
+                  const continuation = contData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+                  const contFinishReason = contData.candidates?.[0]?.finishReason;
+                  
+                  if (continuation.trim()) {
+                    summary += "\n\n" + continuation;
+                    console.log(`Gemini 2.5 Flash continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
+                    
+                    if (contFinishReason !== "MAX_TOKENS") {
+                      break;
+                    }
+                  } else {
+                    console.log(`Gemini 2.5 Flash continuation ${attempt} returned empty content`);
+                    break;
+                  }
+                } else {
+                  console.error(`Gemini 2.5 Flash continuation attempt ${attempt} failed:`, await contResp.text());
+                  break;
+                }
+              }
+            }
+          } else {
+            throw new Error("Gemini 2.5 Flash returned empty content");
+          }
+        } else {
+          const errorText = await geminiResp.text();
+          console.error('Gemini 2.5 Flash API error:', geminiResp.status, errorText);
+          throw new Error(`Gemini 2.5 Flash API error: ${geminiResp.status}`);
+        }
+      } catch (geminiError) {
+        console.error('Gemini 2.5 Flash failed, trying DeepSeek...', geminiError);
+      }
+    }
+
+    // Fallback to DeepSeek Chat if Gemini failed or not available
+    if (!summary.trim() && deepSeekApiKey) {
+      console.log('Using DeepSeek Chat as fallback...');
       try {
         const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
@@ -329,13 +434,13 @@ ${enhancedText}`}`;
           console.log(`DeepSeek Chat API responded successfully - Length: ${summary.length}, provider_used: ${providerUsed}`);
           
           if (summary.trim()) {
-            // Handle continuation if needed for DeepSeek R1
+            // Handle continuation if needed for DeepSeek Chat
             const finishReason = data.choices?.[0]?.finish_reason;
             if (finishReason === "length" && summary.length > 0) {
-              console.log('DeepSeek R1 summary was truncated, attempting to continue...');
+              console.log('DeepSeek Chat summary was truncated, attempting to continue...');
               
               for (let attempt = 1; attempt <= 2; attempt++) {
-                console.log(`DeepSeek R1 continuation attempt ${attempt}...`);
+                console.log(`DeepSeek Chat continuation attempt ${attempt}...`);
                 
                 const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
 
@@ -375,173 +480,31 @@ Original OCR text: ${enhancedText}`;
                   
                   if (continuation.trim()) {
                     summary += "\n\n" + continuation;
-                    console.log(`DeepSeek R1 continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
+                    console.log(`DeepSeek Chat continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
                     
                     if (contFinishReason !== "length") {
                       break;
                     }
                   } else {
-                    console.log(`DeepSeek R1 continuation ${attempt} returned empty content`);
+                    console.log(`DeepSeek Chat continuation ${attempt} returned empty content`);
                     break;
                   }
                 } else {
-                  console.error(`DeepSeek R1 continuation attempt ${attempt} failed:`, await contResp.text());
+                  console.error(`DeepSeek Chat continuation attempt ${attempt} failed:`, await contResp.text());
                   break;
                 }
               }
             }
           } else {
-            throw new Error("DeepSeek R1 returned empty content");
+            throw new Error("DeepSeek Chat returned empty content");
           }
         } else {
           const txt = await resp.text();
-          console.error('DeepSeek R1 API error:', resp.status, txt);
-          throw new Error(`DeepSeek R1 API error: ${resp.status}`);
+          console.error('DeepSeek Chat API error:', resp.status, txt);
+          throw new Error(`DeepSeek Chat API error: ${resp.status}`);
         }
       } catch (deepSeekError) {
-        console.error('DeepSeek R1 failed, trying Gemini...', deepSeekError);
-      }
-    }
-
-    // Fallback to Gemini if DeepSeek R1 failed or not available
-    if (!summary.trim() && googleApiKey) {
-      console.log('Using Gemini 1.5 Pro as fallback...');
-      try {
-        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [{ text: systemPrompt + "\n\n" + userPrompt }]
-              }
-            ],
-            generationConfig: {
-              temperature: 0,
-              maxOutputTokens: 16000,
-            }
-          }),
-        });
-
-        if (geminiResp.ok) {
-          const geminiData = await geminiResp.json();
-          summary = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-          const finishReason = geminiData.candidates?.[0]?.finishReason;
-          providerUsed = "gemini-1.5-pro";
-          
-          if (summary.trim()) {
-            console.log(`Gemini API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
-            
-            // Handle continuation if needed
-            if (finishReason === "MAX_TOKENS" && summary.length > 0) {
-              console.log('Gemini summary was truncated, attempting to continue...');
-              
-              for (let attempt = 1; attempt <= 2; attempt++) {
-                console.log(`Gemini continuation attempt ${attempt}...`);
-                
-                const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
-
-Previous response ended with:
-${summary.slice(-500)}
-
-REQUIREMENTS:
-- Continue from exactly where you left off
-- Process ALL remaining questions (93-106 if not covered)
-- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
-- Use $$formula$$ for math, × for multiplication
-- Complete ALL questions until finished
-
-Original OCR text: ${enhancedText}`;
-
-                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    contents: [
-                      {
-                        parts: [{ text: systemPrompt + "\n\n" + continuationPrompt }]
-                      }
-                    ],
-                    generationConfig: {
-                      temperature: 0,
-                      maxOutputTokens: 12000,
-                    }
-                  }),
-                });
-
-                if (contResp.ok) {
-                  const contData = await contResp.json();
-                  const continuation = contData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-                  const contFinishReason = contData.candidates?.[0]?.finishReason;
-                  
-                  if (continuation.trim()) {
-                    summary += "\n\n" + continuation;
-                    console.log(`Gemini continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
-                    
-                    if (contFinishReason !== "MAX_TOKENS") {
-                      break;
-                    }
-                  } else {
-                    console.log(`Gemini continuation ${attempt} returned empty content`);
-                    break;
-                  }
-                } else {
-                  console.error(`Gemini continuation attempt ${attempt} failed:`, await contResp.text());
-                  break;
-                }
-              }
-            }
-          } else {
-            throw new Error("Gemini returned empty content");
-          }
-        } else {
-          const errorText = await geminiResp.text();
-          console.error('Gemini API error:', geminiResp.status, errorText);
-          throw new Error(`Gemini API error: ${geminiResp.status}`);
-        }
-      } catch (geminiError) {
-        console.error('Gemini failed, trying DeepSeek...', geminiError);
-      }
-    }
-
-    // Fallback to DeepSeek if Gemini failed or not available
-    if (!summary.trim() && deepSeekApiKey) {
-      console.log('Using DeepSeek as fallback...');
-      try {
-        const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${deepSeekApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "deepseek-chat",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            temperature: 0,
-            top_p: 0.9,
-            max_tokens: 12000,
-          }),
-        });
-
-        if (resp.ok) {
-          const data = await resp.json();
-          summary = data.choices?.[0]?.message?.content ?? "";
-          providerUsed = "deepseek-chat";
-          console.log(`DeepSeek API responded successfully - Length: ${summary.length}, provider_used: ${providerUsed}`);
-        } else {
-          const txt = await resp.text();
-          console.error('DeepSeek API error:', resp.status, txt);
-          throw new Error(`DeepSeek API error: ${resp.status}`);
-        }
-      } catch (deepSeekError) {
-        console.error('DeepSeek API failed:', deepSeekError);
+        console.error('DeepSeek Chat API failed:', deepSeekError);
       }
     }
 
@@ -587,7 +550,7 @@ Original OCR text: ${enhancedText}`;
       console.log(`Answered questions: ${Array.from(answeredQuestionNumbers).join(', ')}`);
       console.log(`Missing questions: ${missingNumbers.join(', ')}`);
       
-      if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-1.5-pro')) {
+      if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-2.5-flash')) {
         // Multi-attempt continuation with safety limit
         const maxAttempts = 4;
         let attempt = 0;
@@ -638,12 +601,12 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
                 }),
               });
             } else {
-              completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
+              completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${googleApiKey}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   contents: [{ parts: [{ text: systemPrompt + "\n\n" + completionPrompt }] }],
-                  generationConfig: { temperature: 0.2, maxOutputTokens: 8192 }
+                  generationConfig: { temperature: 0, maxOutputTokens: 8000 }
                 }),
               });
             }
