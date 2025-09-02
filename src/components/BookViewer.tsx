@@ -327,7 +327,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   useEffect(() => {
     let cancelled = false;
     const fetchFromDb = async () => {
-      console.log('Fetching from database:', { book_id: dbBookId, page_number: index + 1 });
+      console.log('BookViewer: Fetching from database:', { book_id: dbBookId, page_number: index + 1 });
       try {
         const { data, error } = await supabase
           .from('page_summaries')
@@ -381,7 +381,14 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           else localStorage.removeItem(sumKey);
         } catch {}
       } catch (e) {
-        console.warn('Failed to fetch page from DB:', e);
+        console.error('BookViewer: Failed to fetch page from DB:', e);
+        console.error('BookViewer: Error details:', { 
+          message: e instanceof Error ? e.message : 'Unknown error', 
+          stack: e instanceof Error ? e.stack : undefined,
+          dbBookId, 
+          pageNumber: index + 1,
+          errorCode: 'e8213cfbaf41bf3c1f76850cfa0af698'
+        });
       }
     };
     fetchFromDb();
