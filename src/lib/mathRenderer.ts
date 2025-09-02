@@ -24,6 +24,16 @@ export function normalizeAndExtractMath(text: string): { text: string; mathBlock
   processedText = processedText.replace(/\\cdotp([a-zA-Z])/g, '\\cdot\\text{ $1}');
   processedText = processedText.replace(/\\cdot([a-zA-Z])/g, '\\cdot\\text{$1}');
   
+  // Fix more LaTeX issues
+  processedText = processedText.replace(/\\text\{([^}]*)\}\\text\{([^}]*)\}/g, '\\text{$1$2}');
+  processedText = processedText.replace(/\\cdot\s*\\times/g, '\\times');
+  processedText = processedText.replace(/([0-9.]+)\s*([a-zA-Z]+)/g, '$1\\text{ $2}');
+  processedText = processedText.replace(/\\text\{([^}]*)\}\s*\\text\{([^}]*)\}/g, '\\text{$1 $2}');
+  
+  // Fix unit formatting specifically
+  processedText = processedText.replace(/\\text\{([0-9.]+)\s*(atm|mol|L|g|°C|K)\}/g, '\\text{$1 $2}');
+  processedText = processedText.replace(/\\text\{([^}]*)\}\\text\{([^}]*)\}/g, '\\text{$1$2}');
+  
   // Convert LaTeX delimiters to consistent format
   processedText = processedText.replace(/\\\[([\s\S]*?)\\\]/gs, '$$$$$1$$$$');
   processedText = processedText.replace(/\\\(([\s\S]*?)\\\)/gs, '$$$1$');

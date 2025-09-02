@@ -224,14 +224,15 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
 6. **MATHJAX RENDERING MANDATE - 100% SUCCESS GUARANTEE**: 
    - ALWAYS use double dollar signs $$equation$$ for display math (never single $)
    - Use \\text{} for units and text within equations: $$k = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}} = \\text{0.03 mol/(L·atm)}$$
-   - Replace ALL multiplication dots with \\cdot: $$a \\cdot b$$ not $$a \cdot b$$
+   - Use \\cdot for multiplication: $$a \\cdot b$$ (NEVER \\cdotpatm or \\cdotp)
    - Use \\frac{numerator}{denominator} for ALL fractions, never /
    - Chemical formulas: $$\\text{H}_2\\text{O}$$, $$\\text{CO}_2$$
    - Always wrap numbers with units in \\text{}: $$\\text{4.0 atm}$$, $$\\text{0.12 mol/L}$$
    - Use \\times for multiplication when needed: $$2 \\times 10^3$$
    - Escape special characters: use \\% for percent, \\# for hash
-   - Test format: k = $$\\frac{P_1}{C_1} = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}} = \\text{0.03 mol/(L·atm)}$$
-    - NEVER use raw text for equations - ALWAYS wrap in $$ $$
+   - Example format: $$k = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}} = \\text{0.03 mol/(L·atm)}$$
+   - NEVER use raw text for equations - ALWAYS wrap in $$ $$
+   - NEVER use invalid commands like \\cdotpatm - use \\cdot\\text{ atm} instead
 
 7. **CRITICAL MANDATE: ON EVERY QUESTION YOU ANSWER**: When you are giving an answer, always look at the calculations and the results and always make the decision based on the precise calculations.
 
