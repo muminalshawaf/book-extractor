@@ -705,16 +705,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           console.log('Removed formulas section due to lack of math markers');
         }
         
-        // Clean up malformed LaTeX before displaying
-        cleanSummary = cleanSummary.replace(/\\cdotpatm/g, '\\cdot\\text{ atm}');
-        cleanSummary = cleanSummary.replace(/\\cdotp([a-zA-Z])/g, '\\cdot\\text{ $1}');
-        cleanSummary = cleanSummary.replace(/\\[a-zA-Z]*p[a-zA-Z]*/g, (match) => {
-          console.warn(`Cleaning malformed LaTeX in summary: ${match}`);
-          if (match.includes('atm')) return '\\cdot\\text{ atm}';
-          if (match.includes('mol')) return '\\cdot\\text{ mol}';
-          return '\\cdot\\text{ ' + match.replace(/\\[a-zA-Z]*p/, '') + '}';
-        });
-        
         // Remove duplicate content - no character limit to ensure full summaries
         const finalSummary = cleanSummary.split('### نظرة عامة')[0] + 
                            (cleanSummary.includes('### نظرة عامة') ? '### نظرة عامة' + cleanSummary.split('### نظرة عامة')[1] : '');
