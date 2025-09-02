@@ -231,7 +231,33 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
    - Use \\times for multiplication when needed: $$2 \\times 10^3$$
    - Escape special characters: use \\% for percent, \\# for hash
    - Test format: k = $$\\frac{P_1}{C_1} = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}} = \\text{0.03 mol/(L·atm)}$$
-   - NEVER use raw text for equations - ALWAYS wrap in $$ $$
+    - NEVER use raw text for equations - ALWAYS wrap in $$ $$
+
+7. **PRECISION PROBLEM-SOLVING FRAMEWORK MANDATE** - Follow these six explicit steps for every problem:
+   - Identify the Core Principle: State the fundamental scientific or mathematical principle that governs the problem
+   - Extract and Define Variables: List all given numerical values and their units (e.g., mass = 50 g, volume = 1.00 kg)
+   - Select the Formula: Write down the exact formula or formulas that will be used to solve the problem
+   - Outline the Method: Describe the logical sequence of calculations. For multi-step problems, break down the process into clear, numbered steps
+   - Execute the Calculations: Perform each calculation step-by-step, showing the formula with the values substituted. Use clear and concise intermediate results, and ensure all units are correctly tracked and converted
+   - Formulate the Final Answer and Justification: Clearly state the final answer with the correct units. Provide a concise, logical justification that directly references the calculated values
+
+8. **UNIVERSAL PROBLEM-SOLVING FRAMEWORK MANDATE** - Follow these four mandatory steps for EVERY problem:
+   **Step 1: Problem Deconstruction**
+   - Goal: State the final objective clearly
+   - Given Information: List all given values with units
+   - Underlying Principles: List relevant scientific or mathematical principles
+   
+   **Step 2: Step-by-Step Plan**
+   - Create a numbered list of actions/calculations required
+   - This acts as a logical roadmap before any work is done
+   
+   **Step 3: Execution of the Plan**
+   - Perform each step from the plan showing all work
+   - Provide clear, detailed reasoning for each action
+   
+   **Step 4: Verification and Conclusion**
+   - Review work to ensure final answer is supported by calculations
+   - Provide concise summary of findings with proper units
 
 MANDATORY SECTIONS (only include if content exists on the page):
 - المفاهيم والتعاريف
