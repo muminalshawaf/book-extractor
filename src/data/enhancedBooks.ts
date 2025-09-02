@@ -1,4 +1,7 @@
-import { BookPage } from "@/components/BookViewer";
+export interface BookPage {
+  src: string;
+  alt: string;
+}
 
 export interface LessonData {
   id: string;

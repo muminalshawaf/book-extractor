@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ResizablePanel, ResizablePanelGroup, Resizer } from "@/components/ui/resizable";
+import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,6 @@ import { Slider } from "@/components/ui/slider";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ReloadIcon } from "@radix-ui/react-icons";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -41,12 +40,17 @@ import { EnhancedSummary } from "@/components/EnhancedSummary";
 import { StrictModeToggle } from "@/components/StrictModeToggle";
 import { extractStructuredData } from "@/lib/ocrStructuredExtractor";
 
+export interface BookPage {
+  src: string;
+  alt: string;
+}
+
 const BookViewer = () => {
   const { bookId } = useParams();
   const navigate = useNavigate();
   const [book, setBook] = useState(enhancedBooks.find((b) => b.id === bookId) || enhancedBooks[0]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(book.pages);
+  const [totalPages, setTotalPages] = useState(book.totalPages || 1);
   const [scale, setScale] = useState(1.0);
   const [rotation, setRotation] = useState(0);
   const [summary, setSummary] = useState("");
@@ -59,7 +63,7 @@ const BookViewer = () => {
     if (bookId) {
       const selectedBook = enhancedBooks.find((b) => b.id === bookId) || enhancedBooks[0];
       setBook(selectedBook);
-      setTotalPages(selectedBook.pages);
+      setTotalPages(selectedBook.totalPages || 1);
       setCurrentPage(1);
     }
   }, [bookId]);
@@ -107,8 +111,8 @@ const BookViewer = () => {
     setScale(newScale[0] / 100);
   };
 
-  const handleRotationChange = (newRotation: number) => {
-    setRotation(newRotation);
+  const handleRotationChange = (newRotation: number[]) => {
+    setRotation(newRotation[0]);
   };
 
   const handleReset = () => {
@@ -447,7 +451,7 @@ const BookViewer = () => {
             </h1>
             <div>
               <Button
-                variant="primary"
+                variant="default"
                 className="mr-2"
                 onClick={handleSummarize}
                 disabled={isLoading}
@@ -489,7 +493,7 @@ const BookViewer = () => {
                       </div>
                     ) : (
                       <img
-                        src={`${book.imagePrefix}${currentPage}.jpg`}
+                        src={book.buildPages()[currentPage - 1]?.src}
                         alt={`صفحة ${currentPage} من ${book.title}`}
                         style={{ transform: `scale(${scale}) rotate(${rotation}deg)` }}
                         className="object-contain rounded-md shadow-md"
@@ -521,7 +525,7 @@ const BookViewer = () => {
               </div>
             </ResizablePanel>
 
-            <Resizer className="bg-gray-200" />
+            <ResizableHandle className="bg-gray-200" />
 
             {/* Right panel - Summary display */}
             <ResizablePanel defaultSize={50} minSize={30}>
