@@ -262,7 +262,7 @@ ${enhancedText}`}`;
               { role: "user", content: userPrompt }
             ],
             temperature: 0.2,
-            max_completion_tokens: 8000,
+            max_completion_tokens: 16000,
           }),
         });
 
@@ -309,7 +309,7 @@ Original OCR text: ${enhancedText}`;
                       { role: "user", content: continuationPrompt }
                     ],
                     temperature: 0.2,
-                    max_completion_tokens: 6000,
+                    max_completion_tokens: 12000,
                   }),
                 });
 
@@ -365,7 +365,7 @@ Original OCR text: ${enhancedText}`;
             ],
             generationConfig: {
               temperature: 0.2,
-              maxOutputTokens: 8000,
+              maxOutputTokens: 16000,
             }
           }),
         });
@@ -413,7 +413,7 @@ Original OCR text: ${enhancedText}`;
                     ],
                     generationConfig: {
                       temperature: 0.2,
-                      maxOutputTokens: 6000,
+                      maxOutputTokens: 12000,
                     }
                   }),
                 });
@@ -471,7 +471,7 @@ Original OCR text: ${enhancedText}`;
             ],
             temperature: 0.2,
             top_p: 0.9,
-            max_tokens: 6000,
+            max_tokens: 12000,
           }),
         });
 
