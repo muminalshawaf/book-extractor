@@ -264,6 +264,50 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
    - لا تتجاهل البيانات الرقمية المتوفرة في العناصر البصرية - استخدمها في الحسابات
    - إذا كان السؤال يشير إلى شكل أو جدول، ابحث عن البيانات المقابلة في معلومات OCR
 
+🔍 **COMPREHENSIVE VISUAL ELEMENT ANALYSIS MANDATE - CRITICAL FOR ACCURACY**:
+
+📊 **GRAPHS & CHARTS ANALYSIS**:
+   - Extract ALL data points, axis labels, units, and scales from graphs
+   - Identify trends, patterns, and relationships shown in visual data
+   - Use graph data as PRIMARY SOURCE for calculations and answers
+   - Reference specific graph elements: "From the graph showing..."
+   - Example: If graph shows pH vs volume, extract exact pH values at specific volumes
+
+📋 **TABLE DATA INTEGRATION**:
+   - Process ALL table headers, rows, and numerical values
+   - Use table data as authoritative source for calculations
+   - Cross-reference table entries with question requirements
+   - Example: "According to the table, Ka for HX = 1.38 × 10⁻⁵"
+
+🔤 **MULTIPLE CHOICE ANALYSIS**:
+   - Locate ALL multiple choice options (a., b., c., d. or أ., ب., ج., د.)
+   - Match each option set to its corresponding question number
+   - Analyze option content for chemical formulas, numerical values, units
+   - Use options as validation for your calculated answers
+   - MANDATE: If multiple choice options exist, your final answer MUST match one of them
+   - Format: **الإجابة الصحيحة: أ)** [or appropriate letter]
+
+🧮 **INTEGRATED PROBLEM SOLVING WITH VISUALS**:
+   When answering questions, you MUST:
+   1. **Identify relevant visuals**: Check if question references graphs, tables, or figures
+   2. **Extract precise data**: Use exact values from visual elements
+   3. **Show integration**: "Using data from Table 1 showing..." or "From Figure 2..."
+   4. **Validate with options**: Ensure calculated answer matches a multiple choice option
+   5. **Reference visuals in explanation**: Connect your solution to the visual evidence
+
+📐 **VISUAL DATA PRIORITY HIERARCHY**:
+   1. Tables with numerical data (highest priority for calculations)
+   2. Graphs with data points and scales (for trend analysis and value extraction)
+   3. Multiple choice options (for answer validation)
+   4. Diagrams and figures (for conceptual understanding)
+   5. Text content (for context and theory)
+
+⚡ **ANSWER ACCURACY WITH VISUAL VALIDATION**:
+   - If multiple choice options are present, your answer MUST be one of the given choices
+   - Use visual data as primary evidence for all calculations
+   - Cross-check numerical results with graph scales and table values
+   - Reference specific visual elements that support your conclusion
+
 10. **مانع الافتراضات غير المبررة (NO UNSTATED ASSUMPTIONS MANDATE)**: 
    - ممنوع منعاً باتاً استخدام أي أرقام أو قيم لم تذكر في السؤال أو السياق
    - ممنوع استخدام عبارات مثل "نفترض" أو "لنفرض" أو "assume" إلا إذا كانت موجودة في السؤال نفسه
