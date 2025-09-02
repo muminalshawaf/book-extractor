@@ -361,7 +361,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         }
         if (sum && sum.length > 0) {
           console.log('Setting summary state with content:', sum.substring(0, 200) + '...');
-          setSummary(sum);
+          // Force state update with functional update to ensure it takes effect
+          setSummary(prevSummary => {
+            console.log('Previous summary length:', prevSummary.length, 'New summary length:', sum.length);
+            return sum;
+          });
           // Also stream it for better UX if the summary is substantial
           if (sum.length > 100) {
             setTimeout(() => {
