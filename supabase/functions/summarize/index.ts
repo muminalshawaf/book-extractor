@@ -235,6 +235,13 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
 
 7. **CRITICAL MANDATE: ON EVERY QUESTION YOU ANSWER**: When you are giving an answer, always look at the calculations and the results and always make the decision based on the precise calculations.
 
+8. **QUANTITATIVE ANALYSIS MANDATE**: For questions comparing effects (like boiling point elevation, freezing point depression, etc.), you MUST:
+   - Calculate molality for each substance
+   - Apply van't Hoff factor (i) for ionic compounds
+   - Calculate the effective molality (molality × i) 
+   - Compare numerical results
+   - State which is greater and by how much
+
 MANDATORY SECTIONS (only include if content exists on the page):
 - المفاهيم والتعاريف
 - المصطلحات العلمية
