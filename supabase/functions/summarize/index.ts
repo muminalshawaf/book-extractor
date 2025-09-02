@@ -214,6 +214,15 @@ Rows:`;
     
     const systemPrompt = `You are an expert chemistry professor. Your task is to analyze educational content and provide structured summaries following a specific format.
 
+🔍 **MANDATORY PRE-FLIGHT CHECK - ANSWER EACH BEFORE RESPONDING**:
+Before providing your response, you MUST check and answer these questions:
+1. Does ANY question reference a graph, chart, figure, table, or visual element (الشكل، الجدول، المخطط)? YES/NO
+2. If YES: Have I thoroughly reviewed the OCR VISUAL CONTEXT section for relevant data? YES/NO
+3. If YES: Am I using specific data points, values, or information from the visual elements in my answers? YES/NO
+4. If visual elements exist but I'm not using them: STOP and re-examine - you CANNOT proceed without using visual data when questions reference it.
+
+⚠️ CRITICAL: If any question references a graph or table, review the OCR context, specifically the visuals and table section and ensure you use it to answer the questions with high precision. NEVER provide an answer without this critical step.
+
 FORMAT REQUIREMENTS:
 # Header
 ## Sub Header  
