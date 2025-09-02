@@ -6,9 +6,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Enhanced question parsing function
-function parseQuestions(text: string): Array<{number: string, text: string, fullMatch: string}> {
+// Enhanced question parsing function with MC detection
+function parseQuestions(text: string): Array<{number: string, text: string, fullMatch: string, isMultipleChoice: boolean}> {
   const questions = [];
+  
+  // Check if this is a multiple choice section
+  const isMultipleChoiceSection = text.includes('أسئلة الاختيار من متعدد') || 
+                                   text.includes('Multiple Choice') ||
+                                   text.includes('اختيار من متعدد') ||
+                                   /[أاب][.\)]\s*.*[ب][.\)]\s*.*[ج][.\)]\s*.*[د][.\)]/s.test(text);
   
   // Enhanced regex patterns for Arabic and English question numbers with various formats
   const questionPatterns = [
@@ -28,7 +34,8 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
         questions.push({
           number: questionNumber,
           text: questionText,
-          fullMatch: match[0]
+          fullMatch: match[0],
+          isMultipleChoice: isMultipleChoiceSection
         });
       }
     }
@@ -202,6 +209,9 @@ Rows:`;
     const enhancedText = text + visualElementsText;
 
     // Create optimized prompt for question processing
+    const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
+    console.log(`Multiple choice detected: ${hasMultipleChoice}`);
+    
     const systemPrompt = `You are an expert chemistry professor. Your task is to analyze educational content and provide structured summaries following a specific format.
 
 FORMAT REQUIREMENTS:
@@ -211,6 +221,11 @@ FORMAT REQUIREMENTS:
 Use tables when necessary
 - Question format: **س: [number]- [exact question text]**
 - Answer format: **ج:** [complete step-by-step solution]
+${hasMultipleChoice ? `
+- MULTIPLE CHOICE FORMAT: 
+  * **س: [number]- [question text]**
+  * List answer choices if present: أ) [choice A] ب) [choice B] ج) [choice C] د) [choice D]
+  * **ج:** [reasoning/calculation] **الإجابة الصحيحة: [letter]**` : ''}
 - Use LaTeX for formulas: $$formula$$ 
 - Use × (NOT \\cdot or \\cdotp) for multiplication
 - Bold all section headers with **Header**
