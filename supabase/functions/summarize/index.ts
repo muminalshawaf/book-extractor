@@ -221,6 +221,7 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
 3. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles before providing them.
 4. **STEP-BY-STEP MANDATE**: Each question must have a complete, logical solution showing all work and reasoning.
 5. **USE ALL AVAILABLE DATA MANDATE**: The OCR text contains ALL necessary information including graphs, tables, and numerical data. Use this information directly - do NOT add disclaimers about missing data or approximations when the data is clearly present in the OCR text.
+6. **MATHJAX RENDERING MANDATE**: Use reliable MathJax syntax for ALL mathematical equations, formulas, and expressions. Use $$equation$$ for display math and $equation$ for inline math. Ensure proper LaTeX formatting for fractions, subscripts, superscripts, and chemical formulas.
 
 MANDATORY SECTIONS (only include if content exists on the page):
 - المفاهيم والتعاريف
