@@ -475,9 +475,40 @@ Focus on accuracy and structured context metadata.`
             if (section.title && section.type !== 'title') {
               sectionText += `--- SECTION: ${section.title} ---\n`
             }
-            sectionText += section.content
+            
+            // Enhanced handling for exercise sections to capture MC options
+            if (section.type === 'exercise' && section.content) {
+              sectionText += section.content
+              
+              // Look for MC options in subsequent sections or within this section
+              const nextSections = sortedSections.filter(s => s.order > section.order && s.order <= section.order + 4)
+              const mcOptions = []
+              
+              // Check if content contains MC options pattern - more flexible patterns
+              const mcPattern = /^[a-d]\.\s*.+$/gm
+              const arabicMcPattern = /^[أابجد]\.\s*.+$/gm
+              
+              for (const nextSection of nextSections) {
+                if (nextSection.content) {
+                  const matches = [...nextSection.content.matchAll(mcPattern), ...nextSection.content.matchAll(arabicMcPattern)]
+                  if (matches.length > 0) {
+                    mcOptions.push(nextSection.content)
+                    // Mark this section as processed to avoid duplication
+                    nextSection.processed = true
+                  }
+                }
+              }
+              
+              // Add MC options if found
+              if (mcOptions.length > 0) {
+                sectionText += '\n' + mcOptions.join('\n')
+              }
+            } else if (!section.processed) {
+              sectionText += section.content
+            }
+            
             return sectionText
-          }).join('\n\n')
+          }).filter(text => text.trim() !== '').join('\n\n')
           
            // Append visual context if visual elements exist
            if (parsedData.visual_elements && Array.isArray(parsedData.visual_elements) && parsedData.visual_elements.length > 0) {
