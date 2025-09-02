@@ -104,7 +104,7 @@ serve(async (req) => {
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
     
     console.log('Available models:');
-    console.log(`- DeepSeek R1: ${DEEPSEEK_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
+    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
     console.log(`- Gemini 1.5 Pro: ${GOOGLE_API_KEY ? 'AVAILABLE (fallback)' : 'UNAVAILABLE'}`);
 
     if (!text || typeof text !== "string") {
@@ -302,7 +302,7 @@ ${enhancedText}`}`;
 
     // Try DeepSeek R1 first (primary model)
     if (deepSeekApiKey) {
-      console.log('Attempting to use DeepSeek R1 for summarization...');
+      console.log('Attempting to use DeepSeek Chat for summarization...');
       try {
         const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
@@ -311,7 +311,7 @@ ${enhancedText}`}`;
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "deepseek-r1",
+            model: "deepseek-chat",
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: userPrompt },
@@ -325,8 +325,8 @@ ${enhancedText}`}`;
         if (resp.ok) {
           const data = await resp.json();
           summary = data.choices?.[0]?.message?.content ?? "";
-          providerUsed = "deepseek-r1";
-          console.log(`DeepSeek R1 API responded successfully - Length: ${summary.length}, provider_used: ${providerUsed}`);
+          providerUsed = "deepseek-chat";
+          console.log(`DeepSeek Chat API responded successfully - Length: ${summary.length}, provider_used: ${providerUsed}`);
           
           if (summary.trim()) {
             // Handle continuation if needed for DeepSeek R1
@@ -358,7 +358,7 @@ Original OCR text: ${enhancedText}`;
                     "Content-Type": "application/json",
                   },
                   body: JSON.stringify({
-                    model: "deepseek-r1",
+                    model: "deepseek-chat",
                     messages: [
                       { role: "system", content: systemPrompt },
                       { role: "user", content: continuationPrompt },
@@ -620,7 +620,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
           try {
             let completionResp;
             
-            if (providerUsed === 'deepseek-r1') {
+            if (providerUsed === 'deepseek-chat') {
               completionResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
                 method: "POST",
                 headers: {
@@ -628,7 +628,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  model: "deepseek-r1",
+                  model: "deepseek-chat",
                   messages: [
                     { role: "system", content: systemPrompt },
                     { role: "user", content: completionPrompt },
@@ -651,7 +651,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
             if (completionResp.ok) {
               let completion = "";
               
-              if (providerUsed === 'deepseek-r1') {
+              if (providerUsed === 'deepseek-chat') {
                 const completionData = await completionResp.json();
                 completion = completionData.choices?.[0]?.message?.content ?? "";
               } else {
