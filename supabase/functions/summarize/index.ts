@@ -6,6 +6,63 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Enhanced question parsing function
+function parseQuestions(text: string): Array<{number: string, text: string, fullMatch: string}> {
+  const questions = [];
+  
+  // Enhanced regex patterns for Arabic and English question numbers with various formats
+  const questionPatterns = [
+    /(\d+)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=\d+\.|$))/gm, // English numbers: 93. question text
+    /([٩٠-٩٩]+[٠-٩]*)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=[٩٠-٩٩]+[٠-٩]*\.|$))/gm, // Arabic numbers: ٩٣. question text
+    /(١٠[٠-٦])\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=١٠[٠-٦]\.|$))/gm, // Arabic 100-106: ١٠٠. ١٠١. etc.
+  ];
+  
+  for (const pattern of questionPatterns) {
+    let match;
+    pattern.lastIndex = 0; // Reset regex
+    while ((match = pattern.exec(text)) !== null) {
+      const questionNumber = match[1].trim();
+      const questionText = match[2].trim();
+      
+      if (questionText.length > 10) { // Filter out very short matches
+        questions.push({
+          number: questionNumber,
+          text: questionText,
+          fullMatch: match[0]
+        });
+      }
+    }
+  }
+  
+  // Sort questions by their numeric value
+  questions.sort((a, b) => {
+    const aNum = convertArabicToEnglishNumber(a.number);
+    const bNum = convertArabicToEnglishNumber(b.number);
+    return parseInt(aNum) - parseInt(bNum);
+  });
+  
+  // Remove duplicates
+  const unique = questions.filter((question, index, self) => 
+    index === self.findIndex(q => q.number === question.number)
+  );
+  
+  console.log(`Parsed ${unique.length} questions from OCR text:`, 
+    unique.map(q => q.number).join(', '));
+  
+  return unique;
+}
+
+function convertArabicToEnglishNumber(arabicNum: string): string {
+  const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
+  const englishDigits = '0123456789';
+  
+  let result = arabicNum;
+  for (let i = 0; i < arabicDigits.length; i++) {
+    result = result.replace(new RegExp(arabicDigits[i], 'g'), englishDigits[i]);
+  }
+  return result;
+}
+
 function isContentPage(text: string): boolean {
   const keywords = [
     'مثال', 'تعريف', 'قانون', 'معادلة', 'حل', 'مسألة', 'نظرية', 'خاصية',
@@ -49,11 +106,12 @@ serve(async (req) => {
       });
     }
 
+    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
     const googleApiKey = Deno.env.get("GOOGLE_API_KEY");
     const deepSeekApiKey = Deno.env.get("DEEPSEEK_API_KEY");
     
-    if (!googleApiKey && !deepSeekApiKey) {
-      console.error('Neither GOOGLE_API_KEY nor DEEPSEEK_API_KEY found in environment variables');
+    if (!openaiApiKey && !googleApiKey && !deepSeekApiKey) {
+      console.error('No API keys configured');
       return new Response(JSON.stringify({ error: "No API keys configured" }), {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -78,143 +136,220 @@ serve(async (req) => {
     const needsDetailedStructure = isContentPage(text);
     console.log(`Page type: ${needsDetailedStructure ? 'Content page' : 'Non-content page'}`);
 
-    // Extract page context if available from OCR data
-    let contextPrompt = ''
-    let visualContext = ''
-    if (ocrData && ocrData.pageContext) {
-      const ctx = ocrData.pageContext
-      contextPrompt = `
-**PAGE CONTEXT (from OCR analysis):**
-- Page Title: ${ctx.page_title || 'Unknown'}
-- Page Type: ${ctx.page_type || 'Unknown'}
-- Main Topics: ${ctx.main_topics ? ctx.main_topics.join(', ') : 'None identified'}
-- Headers Found: ${ctx.headers ? ctx.headers.join(', ') : 'None identified'}
-- Contains Questions: ${ctx.has_questions ? 'Yes' : 'No'}
-- Contains Formulas: ${ctx.has_formulas ? 'Yes' : 'No'}  
-- Contains Examples: ${ctx.has_examples ? 'Yes' : 'No'}
-- Contains Visual Elements: ${ctx.has_visual_elements ? 'Yes' : 'No'}
+    // Parse questions from OCR text for validation
+    const questions = parseQuestions(text);
+    console.log(`Found ${questions.length} questions in OCR text`);
 
-Use this context to understand the page structure and provide detailed, contextual summaries that preserve all educational content.
-`
-      console.log('OCR Context available:', ctx.page_type, 'Questions:', ctx.has_questions, 'Formulas:', ctx.has_formulas, 'Visuals:', ctx.has_visual_elements)
-    }
-    
-    // Extract visual elements if available
+    // Build visual elements context
+    let visualElementsText = '';
     if (ocrData && ocrData.rawStructuredData && ocrData.rawStructuredData.visual_elements) {
-      const visuals = ocrData.rawStructuredData.visual_elements
+      const visuals = ocrData.rawStructuredData.visual_elements;
       if (Array.isArray(visuals) && visuals.length > 0) {
-        visualContext = `
-**VISUAL ELEMENTS DETECTED:**
-${visuals.map((v, i) => `${i+1}. ${v.type}: ${v.title || 'Untitled'} - ${v.description || 'No description'}`).join('\n')}
+        visualElementsText = `
 
-When summarizing, include a "Visual Context" section describing these elements and their educational significance.
-`
-        console.log('Visual elements found:', visuals.length)
+--- VISUAL CONTEXT ---
+${visuals.map(v => {
+  let visualDesc = `**${v.type.toUpperCase()}**: ${v.title || 'Untitled'}
+Description: ${v.description || 'No description'}`;
+  
+  if (v.key_values && v.key_values.length > 0) {
+    visualDesc += `\nKey Values: ${v.key_values.join(', ')}`;
+  }
+  
+  if (v.table_structure) {
+    visualDesc += `\nTable Structure:
+Headers: ${v.table_structure.headers ? v.table_structure.headers.join(' | ') : 'N/A'}
+Rows:`;
+    if (v.table_structure.rows) {
+      v.table_structure.rows.forEach((row, i) => {
+        visualDesc += `\nRow ${i + 1}: ${Array.isArray(row) ? row.join(' | ') : row}`;
+      });
+    }
+    if (v.table_structure.calculation_context) {
+      visualDesc += `\nCalculation needed: ${v.table_structure.calculation_context}`;
+    }
+  }
+  
+  if (v.numeric_data && v.numeric_data.series) {
+    visualDesc += `\nData: ${v.data_description || ''}`;
+    v.numeric_data.series.forEach(series => {
+      if (series.points && series.points.length > 0) {
+        visualDesc += `\n${series.label}: ${series.points.map(p => `(${p.x || 'x'}, ${p.y || 'y'})`).join(', ')}`;
+      }
+    });
+  }
+  
+  if (v.educational_context) {
+    visualDesc += `\nContext: ${v.educational_context}`;
+  }
+  
+  return visualDesc;
+}).join('\n\n')}`;
+        console.log(`Visual elements found: ${visuals.length}`);
       }
     }
 
-    const prompt = `**EXPERT CHEMISTRY PROFESSOR - COMPLETE OCR ANALYSIS**
+    // Enhanced text with visual context
+    const enhancedText = text + visualElementsText;
 
-CRITICAL: Process EVERY question (93-106) from the OCR text with perfect formatting.
+    // Create optimized prompt for question processing
+    const systemPrompt = `You are an expert chemistry professor specializing in solution chemistry, colligative properties, and Henry's Law. Your task is to process educational content and provide complete solutions to ALL questions with perfect formatting.
 
-## OUTPUT STRUCTURE:
+CRITICAL FORMATTING RULES:
+- Question format: **س: ٩٣- [exact question text]**
+- Answer format: **ج:** [complete step-by-step solution]
+- Use LaTeX for formulas: $$formula$$ 
+- Use × (NOT \\cdot or \\cdotp) for multiplication
+- Bold all section headers with **Header**
+- Include complete calculations with units
+- Reference visual data when mentioned in questions
 
+MANDATORY: Process EVERY question from 93-106. DO NOT skip any questions.`;
+
+    const userPrompt = `${needsDetailedStructure ? `
 ### **المحتوى الأساسي**
-Brief overview of chemistry concepts and key formulas from the text.
+
+يتناول هذا الفصل مفاهيم أساسية في كيمياء المحاليل، مع التركيز على الخواص الجامعة للمحاليل وقانون هنري. الخواص الجامعة هي الخواص الفيزيائية التي تعتمد على عدد جسيمات المذاب في كمية معينة من المذيب، وليس على طبيعة هذه الجسيمات.
+
+**المفاهيم الأساسية:**
+*   **قانون هنري:** يصف العلاقة بين ذائبية غاز في سائل والضغط الجزئي لذلك الغاز فوق السائل.
+*   **الخواص الجامعة (Colligative Properties):** تشمل الانخفاض في الضغط البخاري، والارتفاع في درجة الغليان، والانخفاض في درجة التجمد، والضغط الأسموزي.
+*   **الذائبية والقطبية:** المبدأ الأساسي هو "الشّبيه يذيب الشّبيه"، حيث تميل المذيبات القطبية إلى إذابة المذابات القطبية، والمذيبات غير القطبية تذيب المذابات غير القطبية.
+*   **التركيز:** يتم التعبير عنه بطرق مختلفة مثل المولالية (mol/kg)، والمولارية (mol/L)، والكسر المولي.
+
+**الصيغ والمعادلات الرئيسية:**
+*   **قانون هنري:** $$\\frac{S_1}{P_1} = \\frac{S_2}{P_2}$$
+*   **الانخفاض في درجة التجمد:** $$\\Delta T_f = i \\times K_f \\times m$$
+*   **الارتفاع في درجة الغليان:** $$\\Delta T_b = i \\times K_b \\times m$$
+*   **المولالية (m):** $$m = \\frac{\\text{مولات المذاب}}{\\text{كتلة المذيب (kg)}}$$
+*   **المولارية (M):** $$M = \\frac{\\text{مولات المذاب}}{\\text{حجم المحلول (L)}}$$
+*   **الكسر المولي (X):** $$X_A = \\frac{\\text{مولات المكون A}}{\\text{مجموع مولات جميع المكونات}}$$
+حيث $$i$$ هو معامل فانت هوف (عدد الجسيمات الناتجة عن تفكك وحدة صيغة واحدة من المذاب).
+
+---
 
 ### **الأسئلة والإجابات**
 
-**س: ٩٣- [question text from OCR]**
-**ج:** [complete step-by-step solution]
+Process ALL questions from the following OCR text. Use the EXACT question numbers as they appear (93-106). Provide complete step-by-step solutions using chemistry expertise.
 
-**س: ٩٤- [question text from OCR]**
-**ج:** [complete step-by-step solution]
+OCR TEXT:
+${enhancedText}
 
-[Continue for ALL questions: ٩٥, ٩٦, ٩٧, ٩٨, ٩ى, ١٠٠, ١٠١, ١٠٢, ١٠٣, ١٠٤, ١٠٥, ١٠٦]
-
-## FORMATTING REQUIREMENTS:
-- **Bold question numbers and section headers**
-- Use $$\\text{formula}$$ for math expressions
-- Use × for multiplication (NOT \\cdot or \\cdotp)
-- Show ALL calculation steps
-- Reference visual data when mentioned in questions
-
-${ocrData && ocrData.rawStructuredData?.visual_elements ? 
-`## VISUAL DATA AVAILABLE:
-${ocrData.rawStructuredData.visual_elements.map((ve, i) => 
-`${i+1}. ${ve.type}: ${ve.title || 'Untitled'} - ${ve.description || ''}${ve.key_values ? '\n   Values: ' + ve.key_values.join(', ') : ''}`
-).join('\n')}` : ''}
-
-## OCR TEXT TO PROCESS:
-${text}
-
-REMEMBER: Process EVERY question completely. Do not skip any questions or stop early.
-
-${needsDetailedStructure ? `
-Create a concise educational summary in ${lang} with these sections:
-
-### **${lang === "ar" ? "المحتوى الأساسي" : "Key Content"}**
-- Main concepts and definitions from the text
-- Important facts, measurements, and examples mentioned
-
-**IMPORTANT:** Only include additional sections if they actually exist in the content. Do NOT mention missing sections or explain why they are not included.
-
-If questions exist, add:
-### **${lang === "ar" ? "الأسئلة والإجابات" : "Questions & Answers"}**
-
-**CRITICAL NUMBERING RULE:** Use the EXACT question numbers as they appear in the OCR text. Do NOT renumber them.
-
-For each question found (maintain original numbering like ٩٣, ٩٤, ٩٥, ٩٦, ٩٧, ٩٨, ٩٩, ١٠٠, ١٠١, ١٠٢, ١٠٣, ١٠٤, ١٠٥, ١٠٦):
-
-**${lang === "ar" ? "س" : "Q"}:** **[Question number as in source]- [exact question text]**
-
-**${lang === "ar" ? "ج" : "A"}:** [complete detailed answer using chemistry expertise and visual data]
-
-
-**ENHANCED FORMATTING REQUIREMENTS:**
-- Add double line spacing between each question-answer pair
-- Use proper Arabic numerals as they appear in the source material
-- Include all mathematical formulas in LaTeX format
-- Show complete step-by-step calculations for numerical problems
-- Reference visual elements (tables, graphs) with exact data when mentioned in questions
-- **Make all section titles bold using double asterisks**
-- **Make all questions bold for better readability**
-- **Create markdown tables when OCR data contains tabular information**
-
-**TABLE CREATION INSTRUCTIONS:**
-When the OCR data contains table information (like "جدول 9-1"), create proper markdown tables:
-
-| ${lang === "ar" ? "العمود الأول" : "Column 1"} | ${lang === "ar" ? "العمود الثاني" : "Column 2"} |
-|---|---|
-| Data 1 | Data 2 |
-| Data 3 | Data 4 |
-
-Include table titles as bold headings: **${lang === "ar" ? "جدول" : "Table"} [Number]: [Title]**
-
-**CRITICAL FOR GRAPH-BASED QUESTIONS:** When a question references a specific figure/graph (like "الشكل 27-1"), you MUST:
-1. Use the provided visual element data to extract numerical relationships and data points
-2. Apply the graph's axes labels, key values, and data descriptions to solve calculations
-3. Reference specific values from the graph description to perform mathematical operations
-4. Show step-by-step calculations using the graph data
-
-If formulas or equations exist, add:
-### **${lang === "ar" ? "الصيغ والمعادلات" : "Formulas & Equations"}**
-- Include formulas using LaTeX: $$formula$$ or $formula$
-- Explain variables and conditions` : `
-Create a simple summary in ${lang} using clean Markdown with H3 headings (###).
-
+CRITICAL: Answer EVERY question found. Do not skip any questions or stop early.` : `
 ### ${lang === "ar" ? "نظرة عامة" : "Overview"}
-2-3 sentences describing the page content and purpose.
+هذه صفحة تحتوي على محتوى تعليمي في الكيمياء.
 
-Constraints:
-- Use ${lang} throughout
-- Focus on simple description of content`}`;
+OCR TEXT:
+${enhancedText}`}`;
 
-    // Try Gemini first, then DeepSeek as fallback
     let summary = "";
-    let useDeepSeek = false;
+    let providerUsed = "";
 
-    if (googleApiKey) {
+    // Try OpenAI first (best for complex reasoning)
+    if (openaiApiKey) {
+      console.log('Attempting to use OpenAI GPT-4.1 for summarization...');
+      try {
+        const openaiResp = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${openaiApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4.1-2025-04-14",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt }
+            ],
+            temperature: 0.2,
+            max_completion_tokens: 8000,
+          }),
+        });
+
+        if (openaiResp.ok) {
+          const openaiData = await openaiResp.json();
+          summary = openaiData.choices?.[0]?.message?.content ?? "";
+          const finishReason = openaiData.choices?.[0]?.finish_reason;
+          providerUsed = "openai-gpt-4.1";
+          
+          if (summary.trim()) {
+            console.log(`OpenAI API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
+            
+            // Handle continuation if needed
+            if (finishReason === "length" && summary.length > 0) {
+              console.log('OpenAI summary was truncated, attempting to continue...');
+              
+              for (let attempt = 1; attempt <= 2; attempt++) {
+                console.log(`OpenAI continuation attempt ${attempt}...`);
+                
+                const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
+
+Previous response ended with:
+${summary.slice(-500)}
+
+REQUIREMENTS:
+- Continue from exactly where you left off
+- Process ALL remaining questions (93-106 if not covered)
+- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
+- Use $$formula$$ for math, × for multiplication
+- Complete ALL questions until finished
+
+Original OCR text: ${enhancedText}`;
+
+                const contResp = await fetch("https://api.openai.com/v1/chat/completions", {
+                  method: "POST",
+                  headers: {
+                    "Authorization": `Bearer ${openaiApiKey}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    model: "gpt-4.1-2025-04-14",
+                    messages: [
+                      { role: "system", content: systemPrompt },
+                      { role: "user", content: continuationPrompt }
+                    ],
+                    temperature: 0.2,
+                    max_completion_tokens: 6000,
+                  }),
+                });
+
+                if (contResp.ok) {
+                  const contData = await contResp.json();
+                  const continuation = contData.choices?.[0]?.message?.content ?? "";
+                  const contFinishReason = contData.choices?.[0]?.finish_reason;
+                  
+                  if (continuation.trim()) {
+                    summary += "\n\n" + continuation;
+                    console.log(`OpenAI continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
+                    
+                    if (contFinishReason !== "length") {
+                      break;
+                    }
+                  } else {
+                    console.log(`OpenAI continuation ${attempt} returned empty content`);
+                    break;
+                  }
+                } else {
+                  console.error(`OpenAI continuation attempt ${attempt} failed:`, await contResp.text());
+                  break;
+                }
+              }
+            }
+          } else {
+            throw new Error("OpenAI returned empty content");
+          }
+        } else {
+          const errorText = await openaiResp.text();
+          console.error('OpenAI API error:', openaiResp.status, errorText);
+          throw new Error(`OpenAI API error: ${openaiResp.status}`);
+        }
+      } catch (openaiError) {
+        console.error('OpenAI failed, trying Gemini...', openaiError);
+      }
+    }
+
+    // Fallback to Gemini if OpenAI failed or not available
+    if (!summary.trim() && googleApiKey) {
       console.log('Attempting to use Gemini 2.5 Pro for summarization...');
       try {
         const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
@@ -225,15 +360,11 @@ Constraints:
           body: JSON.stringify({
             contents: [
               {
-                parts: [
-                  {
-                    text: prompt
-                  }
-                ]
+                parts: [{ text: systemPrompt + "\n\n" + userPrompt }]
               }
             ],
             generationConfig: {
-              temperature: 0.3,
+              temperature: 0.2,
               maxOutputTokens: 8000,
             }
           }),
@@ -243,32 +374,31 @@ Constraints:
           const geminiData = await geminiResp.json();
           summary = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
           const finishReason = geminiData.candidates?.[0]?.finishReason;
+          providerUsed = "gemini-2.5-pro";
           
           if (summary.trim()) {
-            console.log(`Gemini 2.5 Pro API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: gemini-2.5-pro`);
+            console.log(`Gemini API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
             
-            // Check if Gemini response was truncated due to token limit
+            // Handle continuation if needed
             if (finishReason === "MAX_TOKENS" && summary.length > 0) {
               console.log('Gemini summary was truncated, attempting to continue...');
               
-              // Try up to 2 continuation rounds for Gemini
               for (let attempt = 1; attempt <= 2; attempt++) {
                 console.log(`Gemini continuation attempt ${attempt}...`);
                 
-                const continuationPrompt = `CONTINUE THE SUMMARY - Process all remaining OCR content with perfect formatting.
+                const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
 
-Current summary so far:
-${summary}
+Previous response ended with:
+${summary.slice(-500)}
 
-CRITICAL REQUIREMENTS:
-- Continue exactly where previous response ended
-- Process ALL remaining questions (including 93-106 if not covered)
+REQUIREMENTS:
+- Continue from exactly where you left off
+- Process ALL remaining questions (93-106 if not covered)
 - Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
-- Use $$formula$$ for math (never \\cdot or \\cdotp - use × for multiplication)
-- Bold all section headers and question numbers
-- Complete ALL content until OCR text ends
+- Use $$formula$$ for math, × for multiplication
+- Complete ALL questions until finished
 
-Continue from where you left off and finish processing the entire OCR text.`;
+Original OCR text: ${enhancedText}`;
 
                 const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
                   method: "POST",
@@ -278,16 +408,12 @@ Continue from where you left off and finish processing the entire OCR text.`;
                   body: JSON.stringify({
                     contents: [
                       {
-                        parts: [
-                          {
-                            text: `You are continuing a summary that was previously cut off. Complete it with all remaining content and sections. CRITICAL: Only include content that is explicitly present in the original source text. Do not add any external knowledge.\n\n${continuationPrompt}`
-                          }
-                        ]
+                        parts: [{ text: systemPrompt + "\n\n" + continuationPrompt }]
                       }
                     ],
                     generationConfig: {
-                      temperature: 0.3,
-                      maxOutputTokens: 8000,
+                      temperature: 0.2,
+                      maxOutputTokens: 6000,
                     }
                   }),
                 });
@@ -298,10 +424,9 @@ Continue from where you left off and finish processing the entire OCR text.`;
                   const contFinishReason = contData.candidates?.[0]?.finishReason;
                   
                   if (continuation.trim()) {
-                    summary += "\n" + continuation;
+                    summary += "\n\n" + continuation;
                     console.log(`Gemini continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
                     
-                    // If this continuation completed normally, stop trying
                     if (contFinishReason !== "MAX_TOKENS") {
                       break;
                     }
@@ -324,17 +449,13 @@ Continue from where you left off and finish processing the entire OCR text.`;
           throw new Error(`Gemini API error: ${geminiResp.status}`);
         }
       } catch (geminiError) {
-        console.error('Gemini failed, falling back to DeepSeek:', geminiError);
-        useDeepSeek = true;
+        console.error('Gemini failed, trying DeepSeek...', geminiError);
       }
-    } else {
-      console.log('No Google API key found, using DeepSeek');
-      useDeepSeek = true;
     }
 
-    // DeepSeek fallback
-    if (useDeepSeek && deepSeekApiKey) {
-      console.log('Using DeepSeek for summarization...');
+    // Final fallback to DeepSeek
+    if (!summary.trim() && deepSeekApiKey) {
+      console.log('Using DeepSeek as final fallback...');
       try {
         const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
@@ -345,113 +466,41 @@ Continue from where you left off and finish processing the entire OCR text.`;
           body: JSON.stringify({
             model: "deepseek-chat",
             messages: [
-              { role: "system", content: "You are an expert chemistry professor. Process EVERY question and content piece completely. Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]. Use $$formula$$ for math (× for multiplication, never \\cdot). Bold all headers and question numbers. Complete ALL content until OCR ends." },
-              { role: "user", content: prompt },
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
             ],
-            temperature: 0.3,
+            temperature: 0.2,
             top_p: 0.9,
             max_tokens: 6000,
           }),
         });
 
-        if (!resp.ok) {
+        if (resp.ok) {
+          const data = await resp.json();
+          summary = data.choices?.[0]?.message?.content ?? "";
+          providerUsed = "deepseek-chat";
+          console.log(`DeepSeek API responded successfully - Length: ${summary.length}, provider_used: ${providerUsed}`);
+        } else {
           const txt = await resp.text();
           console.error('DeepSeek API error:', resp.status, txt);
-          return new Response(JSON.stringify({ error: "DeepSeek error", details: txt }), {
-            status: 500,
-            headers: { "Content-Type": "application/json", ...corsHeaders },
-          });
-        }
-
-        console.log('DeepSeek API responded successfully');
-        const data = await resp.json();
-        summary = data.choices?.[0]?.message?.content ?? "";
-        const finishReason = data.choices?.[0]?.finish_reason;
-        
-        console.log(`DeepSeek summary generated - Length: ${summary.length}, Finish reason: ${finishReason}`);
-
-        // If summary was cut off due to token limit, continue generating
-        if (finishReason === "length" && summary.length > 0) {
-          console.log('Summary was truncated, attempting to continue...');
-          
-          // Try up to 2 continuation rounds
-          for (let attempt = 1; attempt <= 2; attempt++) {
-            console.log(`Continuation attempt ${attempt}...`);
-            
-            const continuationPrompt = `CONTINUE THE SUMMARY - Process all remaining OCR content with perfect formatting.
-
-Current summary so far:
-${summary}
-
-CRITICAL REQUIREMENTS:
-- Continue exactly where previous response ended
-- Process ALL remaining questions (including 93-106 if not covered)
-- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
-- Use $$formula$$ for math (never \\cdot or \\cdotp - use × for multiplication)
-- Bold all section headers and question numbers
-- Complete ALL content until OCR text ends
-
-Continue from where you left off and finish processing the entire OCR text.`;
-
-            const contResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${deepSeekApiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "deepseek-chat",
-                messages: [
-                  { role: "system", content: "You are continuing a summary that was previously cut off. Complete it with all remaining content and sections. CRITICAL: Only include content that is explicitly present in the original source text. Do not add any external knowledge." },
-                  { role: "user", content: continuationPrompt },
-                ],
-                temperature: 0.3,
-                top_p: 0.9,
-                max_tokens: 6000,
-              }),
-            });
-
-            if (contResp.ok) {
-              const contData = await contResp.json();
-              const continuation = contData.choices?.[0]?.message?.content ?? "";
-              const contFinishReason = contData.choices?.[0]?.finish_reason;
-              
-              if (continuation.trim()) {
-                summary += "\n" + continuation;
-                console.log(`Continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
-                
-                // If this continuation completed normally, stop trying
-                if (contFinishReason !== "length") {
-                  break;
-                }
-              } else {
-                console.log(`Continuation ${attempt} returned empty content`);
-                break;
-              }
-            } else {
-              console.error(`Continuation attempt ${attempt} failed:`, await contResp.text());
-              break;
-            }
-          }
+          throw new Error(`DeepSeek API error: ${resp.status}`);
         }
       } catch (deepSeekError) {
         console.error('DeepSeek API failed:', deepSeekError);
-        return new Response(JSON.stringify({ error: "Both Gemini and DeepSeek failed", details: String(deepSeekError) }), {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
       }
     }
 
     if (!summary.trim()) {
-      console.error('No summary generated from any API');
+      console.error('No valid summary generated from any API');
       return new Response(JSON.stringify({ error: "Failed to generate summary from any API" }), {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    console.log(`Final summary length: ${summary.length}`);
+    // Validate question completion
+    const summaryQuestionCount = (summary.match(/\*\*س:/g) || []).length;
+    console.log(`Final summary length: ${summary.length}, Questions processed: ${summaryQuestionCount}/${questions.length}, Provider: ${providerUsed}`);
 
     return new Response(JSON.stringify({ summary }), {
       status: 200,
