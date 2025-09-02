@@ -104,8 +104,8 @@ serve(async (req) => {
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
     
     console.log('Available models:');
-    console.log(`- Gemini 1.5 Pro: ${GOOGLE_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
-    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? 'AVAILABLE (fallback)' : 'UNAVAILABLE'}`);
+    console.log(`- DeepSeek R1: ${DEEPSEEK_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
+    console.log(`- Gemini 1.5 Pro: ${GOOGLE_API_KEY ? 'AVAILABLE (fallback)' : 'UNAVAILABLE'}`);
 
     if (!text || typeof text !== "string") {
       console.error('No text provided or text is not a string');
@@ -300,9 +300,112 @@ ${enhancedText}`}`;
     let summary = "";
     let providerUsed = "";
 
-    // Try Gemini first (best available model)
-    if (googleApiKey) {
-      console.log('Attempting to use Gemini 1.5 Pro for summarization...');
+    // Try DeepSeek R1 first (primary model)
+    if (deepSeekApiKey) {
+      console.log('Attempting to use DeepSeek R1 for summarization...');
+      try {
+        const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${deepSeekApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "deepseek-r1",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            temperature: 0,
+            top_p: 0.9,
+            max_tokens: 12000,
+          }),
+        });
+
+        if (resp.ok) {
+          const data = await resp.json();
+          summary = data.choices?.[0]?.message?.content ?? "";
+          providerUsed = "deepseek-r1";
+          console.log(`DeepSeek R1 API responded successfully - Length: ${summary.length}, provider_used: ${providerUsed}`);
+          
+          if (summary.trim()) {
+            // Handle continuation if needed for DeepSeek R1
+            const finishReason = data.choices?.[0]?.finish_reason;
+            if (finishReason === "length" && summary.length > 0) {
+              console.log('DeepSeek R1 summary was truncated, attempting to continue...');
+              
+              for (let attempt = 1; attempt <= 2; attempt++) {
+                console.log(`DeepSeek R1 continuation attempt ${attempt}...`);
+                
+                const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
+
+Previous response ended with:
+${summary.slice(-500)}
+
+REQUIREMENTS:
+- Continue from exactly where you left off
+- Process ALL remaining questions (93-106 if not covered)
+- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
+- Use $$formula$$ for math, × for multiplication
+- Complete ALL questions until finished
+
+Original OCR text: ${enhancedText}`;
+
+                const contResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+                  method: "POST",
+                  headers: {
+                    "Authorization": `Bearer ${deepSeekApiKey}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    model: "deepseek-r1",
+                    messages: [
+                      { role: "system", content: systemPrompt },
+                      { role: "user", content: continuationPrompt },
+                    ],
+                    temperature: 0,
+                    max_tokens: 8000,
+                  }),
+                });
+
+                if (contResp.ok) {
+                  const contData = await contResp.json();
+                  const continuation = contData.choices?.[0]?.message?.content ?? "";
+                  const contFinishReason = contData.choices?.[0]?.finish_reason;
+                  
+                  if (continuation.trim()) {
+                    summary += "\n\n" + continuation;
+                    console.log(`DeepSeek R1 continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
+                    
+                    if (contFinishReason !== "length") {
+                      break;
+                    }
+                  } else {
+                    console.log(`DeepSeek R1 continuation ${attempt} returned empty content`);
+                    break;
+                  }
+                } else {
+                  console.error(`DeepSeek R1 continuation attempt ${attempt} failed:`, await contResp.text());
+                  break;
+                }
+              }
+            }
+          } else {
+            throw new Error("DeepSeek R1 returned empty content");
+          }
+        } else {
+          const txt = await resp.text();
+          console.error('DeepSeek R1 API error:', resp.status, txt);
+          throw new Error(`DeepSeek R1 API error: ${resp.status}`);
+        }
+      } catch (deepSeekError) {
+        console.error('DeepSeek R1 failed, trying Gemini...', deepSeekError);
+      }
+    }
+
+    // Fallback to Gemini if DeepSeek R1 failed or not available
+    if (!summary.trim() && googleApiKey) {
+      console.log('Using Gemini 1.5 Pro as fallback...');
       try {
         const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
           method: "POST",
@@ -484,7 +587,7 @@ Original OCR text: ${enhancedText}`;
       console.log(`Answered questions: ${Array.from(answeredQuestionNumbers).join(', ')}`);
       console.log(`Missing questions: ${missingNumbers.join(', ')}`);
       
-      if (missingNumbers.length > 0 && providerUsed === 'gemini-1.5-pro') {
+      if (missingNumbers.length > 0 && (providerUsed === 'deepseek-r1' || providerUsed === 'gemini-1.5-pro')) {
         // Multi-attempt continuation with safety limit
         const maxAttempts = 4;
         let attempt = 0;
@@ -515,18 +618,46 @@ ${enhancedText.split('\n').filter(line =>
 If you cannot fit all questions in one response, prioritize the lowest numbered questions first.`;
 
           try {
-            const completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: systemPrompt + "\n\n" + completionPrompt }] }],
-                generationConfig: { temperature: 0.2, maxOutputTokens: 8192 }
-              }),
-            });
+            let completionResp;
+            
+            if (providerUsed === 'deepseek-r1') {
+              completionResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${deepSeekApiKey}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  model: "deepseek-r1",
+                  messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: completionPrompt },
+                  ],
+                  temperature: 0,
+                  max_tokens: 8000,
+                }),
+              });
+            } else {
+              completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: systemPrompt + "\n\n" + completionPrompt }] }],
+                  generationConfig: { temperature: 0.2, maxOutputTokens: 8192 }
+                }),
+              });
+            }
 
             if (completionResp.ok) {
-              const completionData = await completionResp.json();
-              const completion = completionData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+              let completion = "";
+              
+              if (providerUsed === 'deepseek-r1') {
+                const completionData = await completionResp.json();
+                completion = completionData.choices?.[0]?.message?.content ?? "";
+              } else {
+                const completionData = await completionResp.json();
+                completion = completionData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+              }
               
               if (completion.trim()) {
                 currentSummary += "\n\n" + completion;
