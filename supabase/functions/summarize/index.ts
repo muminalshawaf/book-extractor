@@ -465,7 +465,7 @@ Original OCR text: ${enhancedText}`;
         }
       }
       
-      const missingNumbers = questions
+      let missingNumbers = questions
         .map(q => convertArabicToEnglishNumber(q.number))
         .filter(num => !answeredQuestionNumbers.has(num));
       
