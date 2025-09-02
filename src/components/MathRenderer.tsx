@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { renderMathContent } from '@/lib/mathRenderer';
+import { renderContent } from '@/lib/mathRenderer';
 import { cn } from '@/lib/utils';
 
 interface MathRendererProps {
@@ -12,7 +12,7 @@ const MathRenderer: React.FC<MathRendererProps> = ({ content, className }) => {
 
   useEffect(() => {
     if (containerRef.current && content) {
-      containerRef.current.innerHTML = renderMathContent(content);
+      renderContent(content, containerRef.current);
     }
   }, [content]);
 

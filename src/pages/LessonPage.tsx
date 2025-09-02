@@ -58,7 +58,24 @@ export default function LessonPage() {
         </div>
 
         {/* Book Viewer */}
-        <BookViewer />
+        <BookViewer
+          bookId={book.id}
+          pages={pages}
+          title={book.title}
+          rtl={book.rtl}
+          labels={{
+            previous: "السابق",
+            next: "التالي",
+            notesTitle: n => `ملاحظات للصفحة ${n}`,
+            autosaves: "حفظ تلقائي محلي",
+            clear: "مسح",
+            copy: "نسخ",
+            toastCopied: "تم نسخ الملاحظة إلى الحافظة",
+            toastCopyFailed: "تعذّر نسخ الملاحظة",
+            toastCleared: "تم مسح الملاحظات لهذه الصفحة",
+            progress: (c, t, p) => `الصفحة ${c} من ${t} • ${p}%`
+          }}
+        />
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { BookPage } from "@/data/enhancedBooks";
+import { BookPage } from "@/components/BookViewer";
 
 export interface BookDef {
   id: string;
