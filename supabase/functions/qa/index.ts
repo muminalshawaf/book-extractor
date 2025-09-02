@@ -60,6 +60,12 @@ For chemistry problems:
 - If units are missing or inconsistent in the provided data, state "insufficient data" instead of guessing
 - For graph-based questions, show step-by-step calculations using the exact coordinates provided
 
+**إلزامية قوية: استخدام بيانات OCR (STRONG OCR MANDATE):**
+- يجب عليك دائماً فحص والاستفادة من بيانات OCR المتوفرة لأي رسوم بيانية أو جداول أو مخططات
+- إذا كانت هناك عناصر بصرية (graphs, charts, tables) في السياق، يجب استخدام البيانات المستخرجة منها
+- لا تتجاهل البيانات الرقمية المتوفرة في العناصر البصرية - استخدمها في الحسابات
+- إذا كان السؤال يشير إلى شكل أو جدول، ابحث عن البيانات المقابلة في معلومات OCR
+
 مانع الافتراضات غير المبررة (NO UNSTATED ASSUMPTIONS MANDATE): 
 - ممنوع منعاً باتاً استخدام أي أرقام أو قيم لم تذكر في السؤال أو السياق
 - ممنوع استخدام عبارات مثل "نفترض" أو "لنفرض" أو "assume" إلا إذا كانت موجودة في السؤال نفسه
