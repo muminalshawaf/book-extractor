@@ -1,220 +1,141 @@
+import katex from 'katex';
 import { marked } from 'marked';
 
-interface MathJaxWindow extends Window {
-  MathJax?: any;
+interface MathBlock {
+  id: string;
+  math: string;
+  displayMode: boolean;
 }
 
-declare const window: MathJaxWindow;
-
-// Initialize MathJax configuration
-let mathJaxInitialized = false;
-
-function initializeMathJax() {
-  if (mathJaxInitialized) return;
-  
-  // Configure MathJax
-  window.MathJax = {
-    tex: {
-      inlineMath: [['$', '$']],
-      displayMath: [['$$', '$$']],
-      processEscapes: true,
-      processEnvironments: true,
-      packages: {'[+]': ['base', 'ams', 'noerrors', 'noundefined']},
-      macros: {
-        'cdot': '\\cdot',
-        'times': '\\times',
-        'text': ['\\mathrm{#1}', 1],
-        'ce': ['\\mathrm{#1}', 1],
-        'chem': ['\\mathrm{#1}', 1]
-      }
-    },
-    options: {
-      ignoreHtmlClass: 'tex2jax_ignore',
-      processHtmlClass: 'tex2jax_process'
-    }
-  };
-
-  // Load MathJax script
-  const script = document.createElement('script');
-  script.src = 'https://polyfill.io/v3/polyfill.min.js?features=es6';
-  script.onload = () => {
-    const mathJaxScript = document.createElement('script');
-    mathJaxScript.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
-    mathJaxScript.async = true;
-    document.head.appendChild(mathJaxScript);
-  };
-  document.head.appendChild(script);
-  
-  mathJaxInitialized = true;
+// Unwrap top-level fenced code blocks that declare markdown (```markdown)
+function unwrapMarkdownFence(input: string): string {
+  const m = input.match(/^\s*```(?:markdown|md|gfm)?\s*\n([\s\S]*?)\n```[\s]*$/i);
+  if (m) return m[1];
+  return input;
 }
 
-// Simple and robust LaTeX cleaning
-function cleanLatex(text: string): string {
-  let cleaned = text;
+export function normalizeAndExtractMath(text: string): { text: string; mathBlocks: MathBlock[] } {
+  let processedText = unwrapMarkdownFence(text || '');
+  const mathBlocks: MathBlock[] = [];
+  let blockIndex = 0;
+
+  // COMPREHENSIVE LaTeX cleaning - fix all problematic patterns
+  console.log('Before LaTeX cleaning:', processedText.substring(0, 200));
   
-  // Fix malformed commands - simple replacements
-  const fixes = [
-    [/\\cdotpatm/g, '\\cdot \\text{atm}'],
-    [/\\cdotp([a-zA-Z]+)/g, '\\cdot \\text{$1}'],
-    [/\\cdot([A-Za-z]+)/g, '\\cdot \\text{$1}'],
-    [/\\times\s*\\cdot/g, '\\times'],
-    [/\\cdot\s*\\times/g, '\\times'],
-    
-    // Fix nested \text{} commands - this is the key fix
-    [/\\text\{([^{}]*?)\\text\{([^{}]*?)\}([^{}]*?)\}/g, '\\text{$1$2$3}'],
-    [/\\text\{([^{}]*?)\\text\{([^{}]*?)\}/g, '\\text{$1$2}'],
-    
-    // Clean up text commands
-    [/\\text\{\s*([^}]*?)\s*\}/g, '\\text{$1}'],
-    [/\\text\{([^}]*)\}\s*\\text\{([^}]*)\}/g, '\\text{$1 $2}'],
-    
-    // Fix common unit patterns
-    [/(\d+\.?\d*)\s*([a-zA-Z]+)/g, '$1 \\text{ $2}'],
-    [/\\text\{([0-9.]+)\s*([a-zA-Z°]+)\}/g, '\\text{$1 $2}'],
-    
-    // Clean up spacing
-    [/\s+/g, ' '],
-    [/\{\s+/g, '{'],
-    [/\s+\}/g, '}']
-  ];
+  // Fix nested \text{} commands first - this is critical
+  processedText = processedText.replace(/\\text\{([^{}]*?)\\text\{([^{}]*?)\}([^{}]*?)\}/g, '\\text{$1$2$3}');
+  processedText = processedText.replace(/\\text\{([^{}]*?)\\text\{([^{}]*?)\}/g, '\\text{$1$2}');
   
-  fixes.forEach(([pattern, replacement]) => {
-    cleaned = cleaned.replace(pattern as RegExp, replacement as string);
+  // Fix malformed LaTeX commands
+  processedText = processedText.replace(/\\cdotpatm/g, '\\cdot\\text{ atm}');
+  processedText = processedText.replace(/\\cdotp([a-zA-Z])/g, '\\cdot\\text{ $1}');
+  processedText = processedText.replace(/\\cdot([a-zA-Z])/g, '\\cdot\\text{$1}');
+  
+  // Clean up spacing and redundant text commands
+  processedText = processedText.replace(/\\text\{\s+/g, '\\text{');
+  processedText = processedText.replace(/\s+\}/g, '}');
+  processedText = processedText.replace(/\\text\{([^}]*)\}\s*\\text\{([^}]*)\}/g, '\\text{$1 $2}');
+  
+  console.log('After LaTeX cleaning:', processedText.substring(0, 200));
+  
+  // Convert LaTeX delimiters to consistent format
+  processedText = processedText.replace(/\\\[([\s\S]*?)\\\]/gs, '$$$$$1$$$$');
+  processedText = processedText.replace(/\\\(([\s\S]*?)\\\)/gs, '$$$1$');
+
+  // Extract math expressions
+  const finalRegex = /(\$\$(?:[\s\S]*?)\$\$|\$[^$]*\$)/g;
+  const markdownReadyContent = processedText.replace(finalRegex, (match) => {
+    const id = `__KATEX_PLACEHOLDER_${blockIndex++}__`;
+    const isDisplayMode = match.startsWith('$$');
+    let math = isDisplayMode ? match.slice(2, -2) : match.slice(1, -1);
+    
+    // Additional cleaning for the extracted math
+    math = math.replace(/\\text\{([^{}]*?)\\text\{([^{}]*?)\}/g, '\\text{$1$2}');
+    math = math.trim();
+    
+    console.log(`Extracted math (${isDisplayMode ? 'display' : 'inline'}):`, math);
+    
+    mathBlocks.push({ id, math, displayMode: isDisplayMode });
+    return `<div id="${id}" class="inline-block"></div>`;
   });
-  
-  return cleaned.trim();
+
+  return { text: markdownReadyContent, mathBlocks };
 }
 
-// Extract and clean math expressions
-function processMathContent(content: string): string {
-  let processed = content;
-  
-  // Process display math $$...$$
-  processed = processed.replace(/\$\$([\s\S]*?)\$\$/g, (match, math) => {
-    const cleanedMath = cleanLatex(math);
-    return `$$${cleanedMath}$$`;
-  });
-  
-  // Process inline math $...$
-  processed = processed.replace(/\$([^$]*?)\$/g, (match, math) => {
-    const cleanedMath = cleanLatex(math);
-    return `$${cleanedMath}$`;
-  });
-  
-  return processed;
-}
-
-// Main rendering function
 export function renderContent(content: string, targetElement: HTMLElement): void {
   if (!targetElement) {
-    console.error('No target element provided for math rendering');
+    console.error('No target element for math rendering');
     return;
   }
+
+  console.log('Starting math rendering for content length:', content?.length || 0);
+
+  const { text: markdownContent, mathBlocks } = normalizeAndExtractMath(content);
   
-  try {
-    // Initialize MathJax if needed
-    initializeMathJax();
-    
-    // Clean the content and process math
-    const processedContent = processMathContent(content || '');
-    
-    // Parse markdown
-    const parsedMarkdown = marked.parse(processedContent, {
-      gfm: true,
-      breaks: true,
-    });
-    
-    // Set the HTML content
-    targetElement.innerHTML = typeof parsedMarkdown === 'string' ? parsedMarkdown : '';
-    
-    // Add classes for styling
-    targetElement.classList.add('tex2jax_process');
-    
-    // Add font family for Arabic content
-    if (targetElement.closest('[dir="rtl"]')) {
-      targetElement.classList.add('font-cairo');
-    }
-    
-    // Render math with MathJax when it's ready
-    if (window.MathJax && window.MathJax.typesetPromise) {
-      window.MathJax.typesetPromise().then(() => {
-        console.log('MathJax rendering completed successfully');
-      }).catch((error: any) => {
-        console.error('MathJax rendering error:', error);
-        // Fallback: show raw LaTeX if MathJax fails
-        fallbackToRawLatex(targetElement);
-      });
-    } else if (window.MathJax && window.MathJax.startup) {
-      window.MathJax.startup.promise.then(() => {
-        return window.MathJax!.typesetPromise();
-      }).then(() => {
-        console.log('MathJax rendering completed successfully');
-      }).catch((error: any) => {
-        console.error('MathJax rendering error:', error);
-        fallbackToRawLatex(targetElement);
-      });
+  console.log('Extracted', mathBlocks.length, 'math blocks');
+  
+  // Parse markdown with proper configuration  
+  const parsedMarkdown = marked.parse(markdownContent, {
+    gfm: true,
+    breaks: true,
+  });
+  
+  targetElement.innerHTML = typeof parsedMarkdown === 'string' ? parsedMarkdown : '';
+  
+  // Add font family for Arabic content
+  if (targetElement.closest('[dir="rtl"]')) {
+    targetElement.classList.add('font-cairo');
+  }
+
+  // Render math expressions with better error handling
+  mathBlocks.forEach((block, index) => {
+    const placeholderEl = targetElement.querySelector(`#${block.id}`) as HTMLElement;
+    if (placeholderEl) {
+      try {
+        console.log(`Rendering math block ${index + 1}:`, block.math);
+        
+        // Force math LTR direction for correct rendering in RTL UIs
+        placeholderEl.setAttribute('dir', 'ltr');
+        placeholderEl.classList.add('katex-container');
+        
+        // Render with KaTeX
+        katex.render(block.math, placeholderEl, {
+          throwOnError: false,
+          displayMode: block.displayMode,
+          errorColor: '#cc0000',
+          macros: {
+            '\\ce': '\\text{#1}',
+            '\\chem': '\\text{#1}'
+          },
+          trust: true,
+          strict: false  // Less strict parsing
+        });
+        
+        console.log(`✅ Successfully rendered math block ${index + 1}`);
+        
+      } catch (error) {
+        console.error(`❌ KaTeX rendering error for block ${index + 1}:`, error);
+        console.error('Problematic math:', block.math);
+        
+        // Fallback to showing the LaTeX code
+        placeholderEl.innerHTML = `
+          <span style="
+            background: #fee; 
+            border: 1px solid #fcc; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-family: monospace; 
+            color: #c00;
+            font-size: 0.9em;
+          ">
+            LaTeX Error: ${block.math}
+          </span>
+        `;
+      }
     } else {
-      // MathJax not ready yet, retry after a delay
-      setTimeout(() => {
-        if (window.MathJax && window.MathJax.typesetPromise) {
-          window.MathJax.typesetPromise().catch(() => {
-            fallbackToRawLatex(targetElement);
-          });
-        }
-      }, 1000);
+      console.warn(`⚠️ Could not find placeholder element for math block ${index + 1}: ${block.id}`);
     }
-    
-  } catch (error) {
-    console.error('Error in math rendering:', error);
-    fallbackToRawLatex(targetElement);
-  }
-}
-
-// Fallback function for when MathJax fails
-function fallbackToRawLatex(targetElement: HTMLElement): void {
-  console.log('Using fallback LaTeX display');
+  });
   
-  // Style LaTeX expressions to be more readable
-  const style = `
-    <style>
-    .latex-fallback { 
-      font-family: 'Courier New', monospace; 
-      background: #f5f5f5; 
-      padding: 2px 4px; 
-      border-radius: 3px; 
-      font-size: 0.9em;
-    }
-    .latex-display { 
-      display: block; 
-      text-align: center; 
-      margin: 10px 0; 
-      padding: 10px; 
-      background: #f9f9f9; 
-      border: 1px solid #ddd; 
-      border-radius: 5px;
-    }
-    </style>
-  `;
-  
-  if (!document.querySelector('#latex-fallback-styles')) {
-    const styleElement = document.createElement('div');
-    styleElement.id = 'latex-fallback-styles';
-    styleElement.innerHTML = style;
-    document.head.appendChild(styleElement);
-  }
-  
-  // Replace math expressions with styled spans
-  let html = targetElement.innerHTML;
-  html = html.replace(/\$\$([^$]*?)\$\$/g, '<span class="latex-fallback latex-display">$$1$$</span>');
-  html = html.replace(/\$([^$]*?)\$/g, '<span class="latex-fallback">$1</span>');
-  
-  targetElement.innerHTML = html;
-}
-
-// Export for backward compatibility
-export function normalizeAndExtractMath(text: string) {
-  return {
-    text: processMathContent(text),
-    mathBlocks: [] // Not needed in new implementation
-  };
+  console.log('✅ Math rendering completed');
 }
