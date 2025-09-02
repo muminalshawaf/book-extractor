@@ -5,6 +5,100 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Function to post-process text and identify/format multiple choice questions
+function postProcessMultipleChoice(rawText: string, sections: any[]): string {
+  console.log('Starting post-processing for multiple choice questions...')
+  
+  // Combine all text from sections to work with
+  const allText = sections.map(section => section.content || '').join('\n')
+  
+  // Try to identify multiple choice patterns in the entire text
+  const lines = allText.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+  
+  const processedSections: string[] = []
+  let i = 0
+  
+  while (i < sections.length) {
+    const section = sections[i]
+    
+    if (section.type === 'exercise' && section.content) {
+      // Look for MC options in the raw text around this question
+      const questionText = section.content.trim()
+      
+      // Search for MC options in subsequent text
+      const mcOptions = findMultipleChoiceOptions(allText, questionText)
+      
+      if (mcOptions.length >= 3) { // Consider it MC if we find at least 3 options
+        // Format as multiple choice
+        let formattedSection = `--- SECTION: ${section.title} ---\n`
+        formattedSection += `Question Text: ${questionText}\n`
+        formattedSection += `Options:\n`
+        mcOptions.forEach(option => {
+          formattedSection += `${option}\n`
+        })
+        processedSections.push(formattedSection)
+        console.log(`Found MC question: ${section.title} with ${mcOptions.length} options`)
+      } else {
+        // Regular question format
+        let sectionText = ''
+        if (section.title && section.type !== 'title') {
+          sectionText += `--- SECTION: ${section.title} ---\n`
+        }
+        sectionText += section.content
+        processedSections.push(sectionText)
+      }
+    } else if (section.content && section.content.trim()) {
+      // Non-exercise sections
+      let sectionText = ''
+      if (section.title && section.type !== 'title') {
+        sectionText += `--- SECTION: ${section.title} ---\n`
+      }
+      sectionText += section.content
+      processedSections.push(sectionText)
+    }
+    i++
+  }
+  
+  return processedSections.join('\n\n')
+}
+
+// Function to find multiple choice options related to a question
+function findMultipleChoiceOptions(fullText: string, questionText: string): string[] {
+  const options: string[] = []
+  
+  // Pattern to match MC options: a. some text, b. some text, etc.
+  const englishMcRegex = /^[a-d]\.\s*(.+)$/gm
+  const arabicMcRegex = /^[أابجد]\.\s*(.+)$/gm
+  
+  // Try to find the question in the full text
+  const questionIndex = fullText.indexOf(questionText)
+  if (questionIndex === -1) return options
+  
+  // Look for options in the text after the question (next 500 characters)
+  const searchText = fullText.substring(questionIndex, questionIndex + 500)
+  
+  // Find English options
+  let match
+  while ((match = englishMcRegex.exec(searchText)) !== null) {
+    const optionText = match[0].trim()
+    if (optionText && !options.includes(optionText)) {
+      options.push(optionText)
+    }
+  }
+  
+  // Find Arabic options if no English ones found
+  if (options.length === 0) {
+    while ((match = arabicMcRegex.exec(searchText)) !== null) {
+      const optionText = match[0].trim()
+      if (optionText && !options.includes(optionText)) {
+        options.push(optionText)
+      }
+    }
+  }
+  
+  return options.slice(0, 4) // Return max 4 options
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -468,7 +562,7 @@ Focus on accuracy and structured context metadata.`
         parsedData = JSON.parse(rawResponse)
         console.log('Successfully parsed JSON response:', parsedData)
         
-        // Handle new structured format with sections and page_context
+         // Handle new structured format with sections and page_context
         if (parsedData.sections && Array.isArray(parsedData.sections)) {
           // Sort sections by order
           const sortedSections = parsedData.sections.sort((a, b) => a.order - b.order)
@@ -476,46 +570,11 @@ Focus on accuracy and structured context metadata.`
           direction = parsedData.direction || direction
           pageContext = parsedData.page_context || null
           
-          // Join section contents with section headers
-          extractedText = sortedSections.map(section => {
-            let sectionText = ''
-            if (section.title && section.type !== 'title') {
-              sectionText += `--- SECTION: ${section.title} ---\n`
-            }
-            
-            // Enhanced handling for exercise sections to capture MC options
-            if (section.type === 'exercise' && section.content) {
-              sectionText += section.content
-              
-              // Look for MC options in subsequent sections or within this section
-              const nextSections = sortedSections.filter(s => s.order > section.order && s.order <= section.order + 4)
-              const mcOptions = []
-              
-              // Check if content contains MC options pattern - more flexible patterns
-              const mcPattern = /^[a-d]\.\s*.+$/gm
-              const arabicMcPattern = /^[أابجد]\.\s*.+$/gm
-              
-              for (const nextSection of nextSections) {
-                if (nextSection.content) {
-                  const matches = [...nextSection.content.matchAll(mcPattern), ...nextSection.content.matchAll(arabicMcPattern)]
-                  if (matches.length > 0) {
-                    mcOptions.push(nextSection.content)
-                    // Mark this section as processed to avoid duplication
-                    nextSection.processed = true
-                  }
-                }
-              }
-              
-              // Add MC options if found
-              if (mcOptions.length > 0) {
-                sectionText += '\n' + mcOptions.join('\n')
-              }
-            } else if (!section.processed) {
-              sectionText += section.content
-            }
-            
-            return sectionText
-          }).filter(text => text.trim() !== '').join('\n\n')
+          // First, get all the raw text combined
+          let rawText = sortedSections.map(section => section.content || '').join('\n')
+          
+          // NEW APPROACH: Post-process the entire text to identify and format multiple choice questions
+          extractedText = postProcessMultipleChoice(rawText, sortedSections)
           
            // Append visual context if visual elements exist
            if (parsedData.visual_elements && Array.isArray(parsedData.visual_elements) && parsedData.visual_elements.length > 0) {
