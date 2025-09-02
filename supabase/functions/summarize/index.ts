@@ -223,35 +223,25 @@ MANDATORY SECTIONS (only include if content exists on the page):
 
 Skip sections if the page does not contain relevant content for that section.`;
 
-    const userPrompt = `${needsDetailedStructure ? `
-# ملخص المحتوى التعليمي
-
+    const userPrompt = `${needsDetailedStructure ? `# ملخص المحتوى التعليمي
 ## المفاهيم والتعاريف
 Analyze the content and extract key concepts and definitions. Format as:
 - **[Arabic term]:** [definition]
-
 ## المصطلحات العلمية
 Extract scientific terminology if present:
 - **[Scientific term]:** [explanation]
-
 ## الصيغ والمعادلات
 List formulas and equations if present:
 | الصيغة | الوصف | المتغيرات |
 |--------|--------|-----------|
 | $$formula$$ | description | variables |
-
 ## الأسئلة والإجابات الكاملة
 Process ALL questions from the OCR text with complete step-by-step solutions:
-
 OCR TEXT:
 ${enhancedText}
-
-CRITICAL: Answer EVERY question found. Do not skip any questions.` : `
-# ملخص الصفحة
-
+CRITICAL: Answer EVERY question found. Do not skip any questions.` : `# ملخص الصفحة
 ## نظرة عامة
 هذه صفحة تحتوي على محتوى تعليمي.
-
 OCR TEXT:
 ${enhancedText}`}`;
 
