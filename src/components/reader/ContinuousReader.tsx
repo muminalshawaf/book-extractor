@@ -1,6 +1,6 @@
 import React, { forwardRef, useImperativeHandle, useRef } from "react";
 import { Virtuoso } from "react-virtuoso";
-import { BookPage } from "@/components/BookViewer";
+import { BookPage } from "@/data/enhancedBooks";
 import { BookPageView } from "@/components/BookPageView";
 import { cn } from "@/lib/utils";
 

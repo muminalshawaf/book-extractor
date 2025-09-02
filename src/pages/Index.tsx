@@ -95,24 +95,10 @@ const Index = () => {
           <TopSearchTabs currentBookId={selectedBook.id} />
         </div>
 
-        <BookViewer
-          bookId={selectedBook.id}
-          pages={pages}
-          title={selectedBook.title}
-          rtl={selectedBook.rtl}
-          labels={{
-            previous: "السابق",
-            next: "التالي",
-            notesTitle: n => `ملاحظات للصفحة ${n}`,
-            autosaves: "حفظ تلقائي محلي",
-            clear: "مسح",
-            copy: "نسخ",
-            toastCopied: "تم نسخ الملاحظة إلى الحافظة",
-            toastCopyFailed: "تعذّر نسخ الملاحظة",
-            toastCleared: "تم مسح الملاحظات لهذه الصفحة",
-            progress: (c, t, p) => `الصفحة ${c} من ${t} • ${p}%`
-          }}
-        />
+        <div className="w-full">
+          {/* BookViewer is now used without props since it gets bookId from route params */}
+          <BookViewer />
+        </div>
       </div>
     </div>
   );
