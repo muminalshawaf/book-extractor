@@ -232,13 +232,6 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
    - Escape special characters: use \\% for percent, \\# for hash
    - Test format: k = $$\\frac{P_1}{C_1} = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}} = \\text{0.03 mol/(L·atm)}$$
    - NEVER use raw text for equations - ALWAYS wrap in $$ $$
-7. **PRECISION PROBLEM-SOLVING FRAMEWORK MANDATE**: For every problem analysis, MUST follow these six steps in order:
-   - **Step 1 - Identify the Core Principle**: State the fundamental scientific or mathematical principle (e.g., "Henry's Law," "Ideal Gas Law," "Colligative Properties"). Explain briefly how this principle applies to the problem.
-   - **Step 2 - Extract and Define Variables**: List ALL given numerical values with their units (e.g., mass = 50 g, volume = 1.00 L). Explicitly state what variable needs to be solved for.
-   - **Step 3 - Select the Formula**: Write down the exact formula or formulas that will be used to solve the problem.
-   - **Step 4 - Outline the Method**: Describe the logical sequence of calculations. For multi-step problems, break down into clear, numbered sub-steps as a roadmap.
-   - **Step 5 - Execute the Calculations**: Perform each calculation step-by-step, showing formula with substituted values. Use clear intermediate results and track all units correctly.
-   - **Step 6 - Formulate Final Answer and Justification**: State the final answer with correct units. Provide concise, logical justification referencing calculated values and explaining the "why" behind the answer.
 
 MANDATORY SECTIONS (only include if content exists on the page):
 - المفاهيم والتعاريف
