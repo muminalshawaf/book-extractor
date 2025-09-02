@@ -364,7 +364,7 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
 }
 \`\`\`
 
-**ZERO TOLERANCE**: Any `false` value will trigger automatic response rejection and regeneration.
+**ZERO TOLERANCE**: Any 'false' value will trigger automatic response rejection and regeneration.
    - ممنوع استخدام عبارات مثل "نفترض" أو "لنفرض" أو "assume" إلا إذا كانت موجودة في السؤال نفسه
    - إذا كانت البيانات ناقصة، اكتب "البيانات غير كافية" واذكر ما هو مفقود تحديداً
    - إذا كان الحل يتطلب قيم غير معطاة، اتركها كرموز (مثل m، V، T) ولا تعوض بأرقام من عندك
