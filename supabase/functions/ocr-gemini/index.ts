@@ -484,10 +484,10 @@ Instructions:
 
 Focus on accuracy and structured context metadata.`
 
-    // Call Google Gemini API
+    // Call Google Gemini API with 2.0 Flash for better visual understanding
     try {
       const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: {
@@ -509,7 +509,7 @@ Focus on accuracy and structured context metadata.`
               temperature: 0.01,
               topK: 1,
               topP: 0.85,
-              maxOutputTokens: 32768, // Increased from 20480 for full page extraction
+              maxOutputTokens: 32768, // Maintained for comprehensive extraction
               response_mime_type: "application/json"
             },
             safetySettings: [
