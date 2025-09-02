@@ -308,6 +308,22 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
    - Cross-check numerical results with graph scales and table values
    - Reference specific visual elements that support your conclusion
 
+🧪 **CHEMISTRY-SPECIFIC TABLE LOOKUP MANDATE**:
+   - **Chemical Name Matching**: When questions mention specific acids/compounds, match them with table entries using chemical knowledge
+   - **Ka/pH Relationship**: Always use table Ka values for pH calculations, even if compound names differ slightly
+   - **Common Acid Identifications**: 
+     * Cyanoethanoic acid (cyanoacetic acid) ≈ Ka ~3.5×10^-3
+     * Connect question compounds to closest Ka values in tables
+   - **Never claim "insufficient data"** if ANY Ka values or chemical data exist in tables
+   - **Use approximation methods**: For weak acid calculations, use Ka = [H+]²/C when valid
+   - **Match calculated results to options**: Your final numerical answer MUST correspond to one of the multiple choice options
+
+🔢 **MANDATORY CALCULATION EXECUTION**:
+   - If ANY numerical data exists (Ka, concentrations, etc.), you MUST attempt calculations
+   - Use chemical equilibrium principles even with approximate data matching
+   - Apply weak acid/base formulas when Ka values are available
+   - Connect table data to question parameters through chemical knowledge
+
 10. **مانع الافتراضات غير المبررة (NO UNSTATED ASSUMPTIONS MANDATE)**: 
    - ممنوع منعاً باتاً استخدام أي أرقام أو قيم لم تذكر في السؤال أو السياق
    - ممنوع استخدام عبارات مثل "نفترض" أو "لنفرض" أو "assume" إلا إذا كانت موجودة في السؤال نفسه
