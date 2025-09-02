@@ -696,17 +696,16 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           console.log('Removed formulas section due to lack of math markers');
         }
         
-        // Remove duplicate content and limit summary size
+        // Remove duplicate content - no character limit to ensure full summaries
         const finalSummary = cleanSummary.split('### نظرة عامة')[0] + 
                            (cleanSummary.includes('### نظرة عامة') ? '### نظرة عامة' + cleanSummary.split('### نظرة عامة')[1] : '');
-        const trimmedSummary = finalSummary.substring(0, 8000); // Limit to 8KB
         
-        localStorage.setItem(sumKey, trimmedSummary);
-        setSummary(trimmedSummary);
+        localStorage.setItem(sumKey, finalSummary);
+        setSummary(finalSummary);
         setSummaryConfidence(0.8);
         
         // Post-process: Check for missing numbered questions and complete them (non-blocking)
-        checkAndCompleteMissingQuestions(trimmedSummary, trimmedText).catch(error => {
+        checkAndCompleteMissingQuestions(finalSummary, trimmedText).catch(error => {
           console.error('Post-processing failed:', error);
         });
         
@@ -716,7 +715,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         callFunction('save-page-summary', {
           book_id: dbBookId,
           page_number: index + 1,
-          summary_md: trimmedSummary,
+          summary_md: finalSummary,
           confidence: 0.8
         }).catch(saveError => {
           console.error('Failed to save summary to database:', saveError);

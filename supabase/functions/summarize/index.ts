@@ -408,22 +408,51 @@ Original OCR text: ${enhancedText}`;
     
     console.log(`Final summary length: ${summary.length}, Questions processed: ${summaryQuestionCount}/${originalQuestionCount}, Provider: ${providerUsed}`);
     
-    // Auto-continuation check: if we're missing questions and have space for more content
-    if (originalQuestionCount > 0 && summaryQuestionCount < originalQuestionCount && summary.length < 14000) {
+    // Robust continuation logic - ensure ALL questions are answered regardless of summary length
+    if (originalQuestionCount > 0 && summaryQuestionCount < originalQuestionCount) {
       console.log(`⚠️ Missing ${originalQuestionCount - summaryQuestionCount} questions, attempting auto-continuation...`);
       
+      // Improved missing question detection - check for both Arabic and English patterns
+      const answeredQuestionNumbers = new Set();
+      const questionPatterns = [
+        /\*\*س:\s*(\d+)[.-]/g,  // **س: 45- or **س: 45.
+        /\*\*س:\s*([٠-٩]+)[.-]/g  // **س: ٤٥- (Arabic numerals)
+      ];
+      
+      for (const pattern of questionPatterns) {
+        let match;
+        pattern.lastIndex = 0;
+        while ((match = pattern.exec(summary)) !== null) {
+          const num = convertArabicToEnglishNumber(match[1]);
+          answeredQuestionNumbers.add(num);
+        }
+      }
+      
       const missingNumbers = questions
-        .map(q => q.number)
-        .filter(num => !summary.includes(`**س: ${num}-`));
+        .map(q => convertArabicToEnglishNumber(q.number))
+        .filter(num => !answeredQuestionNumbers.has(num));
+      
+      console.log(`Detected questions: ${questions.map(q => q.number).join(', ')}`);
+      console.log(`Answered questions: ${Array.from(answeredQuestionNumbers).join(', ')}`);
+      console.log(`Missing questions: ${missingNumbers.join(', ')}`);
       
       if (missingNumbers.length > 0 && providerUsed === 'gemini-1.5-flash') {
-        console.log(`🔄 Auto-continuing to complete missing questions: ${missingNumbers.join(', ')}`);
+        // Multi-attempt continuation with safety limit
+        const maxAttempts = 4;
+        let attempt = 0;
+        let currentSummary = summary;
         
-        const completionPrompt = `COMPLETE THE MISSING QUESTIONS - This is a quality check continuation.
+        while (missingNumbers.length > 0 && attempt < maxAttempts) {
+          attempt++;
+          console.log(`🔄 Auto-continuation attempt ${attempt}/${maxAttempts} for questions: ${missingNumbers.join(', ')}`);
+          
+          const completionPrompt = `COMPLETE THE MISSING QUESTIONS - Continuation ${attempt}/${maxAttempts}
 
-Previous summary is missing these question numbers: ${missingNumbers.join(', ')}
+Previous summary is incomplete. Missing these question numbers: ${missingNumbers.join(', ')}
 
 REQUIREMENTS:
+1. When solving questions, solve them in sequence from the least to the most. Start from question ${Math.min(...missingNumbers.map(n => parseInt(n)))}, then continue sequentially.
+2. Ensure that you answer all the questions despite token limits. Be concise on topics but complete on question solutions.
 - Process ONLY the missing questions: ${missingNumbers.join(', ')}
 - Use EXACT formatting: **س: [number]- [question text]** and **ج:** [complete answer]
 - Use $$formula$$ for math, × for multiplication
@@ -432,31 +461,76 @@ REQUIREMENTS:
 
 Missing questions from OCR text:
 ${enhancedText.split('\n').filter(line => 
-  missingNumbers.some(num => line.includes(`${num}.`) || line.includes(`${num}-`))
-).join('\n')}`;
+  missingNumbers.some(num => line.includes(`${num}.`) || line.includes(`${num}-`) || line.includes(`${num} `))
+).join('\n')}
 
-        try {
-          const completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: systemPrompt + "\n\n" + completionPrompt }] }],
-              generationConfig: { temperature: 0.2, maxOutputTokens: 8000 }
-            }),
-          });
+If you cannot fit all questions in one response, prioritize the lowest numbered questions first.`;
 
-          if (completionResp.ok) {
-            const completionData = await completionResp.json();
-            const completion = completionData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-            
-            if (completion.trim()) {
-              summary += "\n\n" + completion;
-              const finalQuestionCount = (summary.match(/\*\*س:/g) || []).length;
-              console.log(`✅ Auto-continuation completed. Final question count: ${finalQuestionCount}/${originalQuestionCount}`);
+          try {
+            const completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: systemPrompt + "\n\n" + completionPrompt }] }],
+                generationConfig: { temperature: 0.2, maxOutputTokens: 8192 }
+              }),
+            });
+
+            if (completionResp.ok) {
+              const completionData = await completionResp.json();
+              const completion = completionData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+              
+              if (completion.trim()) {
+                currentSummary += "\n\n" + completion;
+                
+                // Re-check what questions are now answered
+                const newAnsweredNumbers = new Set();
+                for (const pattern of questionPatterns) {
+                  let match;
+                  pattern.lastIndex = 0;
+                  while ((match = pattern.exec(currentSummary)) !== null) {
+                    const num = convertArabicToEnglishNumber(match[1]);
+                    newAnsweredNumbers.add(num);
+                  }
+                }
+                
+                // Update missing numbers list
+                const stillMissing = questions
+                  .map(q => convertArabicToEnglishNumber(q.number))
+                  .filter(num => !newAnsweredNumbers.has(num));
+                
+                const answeredThisRound = missingNumbers.filter(num => newAnsweredNumbers.has(num));
+                
+                console.log(`✅ Attempt ${attempt} completed ${answeredThisRound.length} questions: ${answeredThisRound.join(', ')}`);
+                console.log(`Still missing: ${stillMissing.join(', ')}`);
+                
+                // Update for next iteration
+                missingNumbers.splice(0, missingNumbers.length, ...stillMissing);
+                
+                if (stillMissing.length === 0) {
+                  console.log('🎉 All questions completed successfully!');
+                  break;
+                }
+              } else {
+                console.log(`⚠️ Attempt ${attempt} returned empty completion`);
+                break;
+              }
+            } else {
+              console.error(`Completion attempt ${attempt} failed:`, await completionResp.text());
+              break;
             }
+          } catch (completionError) {
+            console.error(`Auto-continuation attempt ${attempt} failed:`, completionError);
+            break;
           }
-        } catch (completionError) {
-          console.error('Auto-continuation failed:', completionError);
+        }
+        
+        summary = currentSummary;
+        const finalQuestionCount = (summary.match(/\*\*س:/g) || []).length;
+        console.log(`✅ Auto-continuation finished after ${attempt} attempts. Final question count: ${finalQuestionCount}/${originalQuestionCount}`);
+        
+        if (missingNumbers.length > 0) {
+          console.log(`⚠️ Still missing ${missingNumbers.length} questions after all attempts: ${missingNumbers.join(', ')}`);
         }
       }
     } else if (summaryQuestionCount >= originalQuestionCount) {
