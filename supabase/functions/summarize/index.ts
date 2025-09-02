@@ -223,13 +223,14 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
 5. **USE ALL AVAILABLE DATA MANDATE**: The OCR text contains ALL necessary information including graphs, tables, and numerical data. Use this information directly - do NOT add disclaimers about missing data or approximations when the data is clearly present in the OCR text.
 6. **MATHJAX RENDERING MANDATE - 100% SUCCESS GUARANTEE**: 
    - ALWAYS use double dollar signs $$equation$$ for display math (never single $)
-   - Use \\text{} for units and text within equations: $$k = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}} = \\text{0.03 mol/(L·atm)}$$
+   - Use \\text{} for units and text within equations: $$k = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}}$$
+   - NEVER nest \\text{} commands: Use \\text{78 g} NOT \\text{78 \\text{g}}
    - Use \\cdot for multiplication: $$a \\cdot b$$ (NEVER use malformed commands)
    - Use \\frac{numerator}{denominator} for ALL fractions, never /
    - Chemical formulas: $$\\text{H}_2\\text{O}$$, $$\\text{CO}_2$$
-   - Always wrap numbers with units in \\text{}: $$\\text{4.0 atm}$$, $$\\text{0.12 mol/L}$$
+   - Numbers with units: $$\\text{4.0 atm}$$, $$\\text{0.12 mol/L}$$ (no nested text)
    - Use \\times for multiplication when needed: $$2 \\times 10^3$$
-   - Example: $$k = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}} = \\text{0.03 mol/(L·atm)}$$
+   - Example: $$\\frac{\\text{78 g}}{\\text{28.01 g/mol}} = \\text{2.78 mol}$$
    - NEVER use raw text for equations - ALWAYS wrap in $$ $$
    - Keep LaTeX simple and clean - avoid complex commands that might break
 

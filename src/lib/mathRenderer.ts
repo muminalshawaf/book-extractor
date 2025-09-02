@@ -60,9 +60,13 @@ function cleanLatex(text: string): string {
     [/\\times\s*\\cdot/g, '\\times'],
     [/\\cdot\s*\\times/g, '\\times'],
     
+    // Fix nested \text{} commands - this is the key fix
+    [/\\text\{([^{}]*?)\\text\{([^{}]*?)\}([^{}]*?)\}/g, '\\text{$1$2$3}'],
+    [/\\text\{([^{}]*?)\\text\{([^{}]*?)\}/g, '\\text{$1$2}'],
+    
     // Clean up text commands
     [/\\text\{\s*([^}]*?)\s*\}/g, '\\text{$1}'],
-    [/\\text\{([^}]*)\}\s*\\text\{([^}]*)\}/g, '\\text{$1$2}'],
+    [/\\text\{([^}]*)\}\s*\\text\{([^}]*)\}/g, '\\text{$1 $2}'],
     
     // Fix common unit patterns
     [/(\d+\.?\d*)\s*([a-zA-Z]+)/g, '$1 \\text{ $2}'],
