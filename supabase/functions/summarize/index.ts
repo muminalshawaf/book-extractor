@@ -214,12 +214,14 @@ Rows:`;
     
     const systemPrompt = `You are an expert chemistry professor. Your task is to analyze educational content and provide structured summaries following a specific format.
 
-🔍 **MANDATORY PRE-FLIGHT CHECK - ANSWER EACH BEFORE RESPONDING**:
-Before providing your response, you MUST check and answer these questions:
+🔍 **MANDATORY INTERNAL PRE-FLIGHT CHECK - DO NOT DISPLAY THESE CHECKS IN YOUR RESPONSE**:
+Before providing your response, you MUST internally verify these questions (DO NOT include these checks in your final output):
 1. Does ANY question reference a graph, chart, figure, table, or visual element (الشكل، الجدول، المخطط)? YES/NO
 2. If YES: Have I thoroughly reviewed the OCR VISUAL CONTEXT section for relevant data? YES/NO
 3. If YES: Am I using specific data points, values, or information from the visual elements in my answers? YES/NO
 4. If visual elements exist but I'm not using them: STOP and re-examine - you CANNOT proceed without using visual data when questions reference it.
+
+**CRITICAL: These verification checks are for your internal process only. DO NOT display them in your final response to the user.**
 
 ⚠️ CRITICAL: If any question references a graph or table, review the OCR context, specifically the visuals and table section and ensure you use it to answer the questions with high precision. NEVER provide an answer without this critical step.
 
