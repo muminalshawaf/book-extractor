@@ -34,7 +34,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { MobileControlsOverlay } from "@/components/reader/MobileControlsOverlay";
 import { MobileReaderChrome } from "@/components/reader/MobileReaderChrome";
-import { HenryLawCalculator } from "@/components/HenryLawCalculator";
+// HenryLawCalculator removed - hardcoded display logic retired
 import { IndexableOCRContent } from "@/components/seo/IndexableOCRContent";
 
 export type BookPage = {
@@ -1411,14 +1411,7 @@ KF (°C/m)
                             title={title}
                           />
                           
-                          {/* Henry's Law Calculator for Question 92 */}
-                          {(extractedText.includes("قانون هنري") || extractedText.includes("henry") || 
-                            extractedText.includes("92") || extractedText.includes("٩٢")) && 
-                           (extractedText.includes("جدول") || extractedText.includes("table")) && (
-                            <div className="mt-4">
-                              <HenryLawCalculator />
-                            </div>
-                          )}
+                          {/* Hardcoded Henry's Law Calculator logic removed - was causing unwanted auto-display */}
                         </div>
                       )}
                     </TabsContent>
