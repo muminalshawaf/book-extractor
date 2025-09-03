@@ -203,27 +203,36 @@ RETURN THIS EXACT JSON STRUCTURE:
        },
        "data_description": "description of data points, trends, patterns",
        "key_values": ["important values, ranges, or measurements shown"],
-       "numeric_data": {
-         "series": [
-           {
-             "label": "series name (e.g., Ar, O2, NO)",
-             "points": [
-               {"x": 5, "y": 0.7, "units": {"x": "atm", "y": "mg/100g"}},
-               {"x": 10, "y": 1.4, "units": {"x": "atm", "y": "mg/100g"}},
-               {"x": 15, "y": 2.1, "units": {"x": "atm", "y": "mg/100g"}}
-             ],
-             "slope": 0.14,
-             "intercept": 0,
-             "relationship": "linear"
-           }
-         ],
-         "axis_ranges": {
-           "x_min": 0, "x_max": 20, "x_unit": "atm",
-           "y_min": 0, "y_max": 3, "y_unit": "mg/100g"
-         },
-         "confidence": 0.95,
-         "extraction_method": "visual_analysis"
-       },
+        "numeric_data": {
+          "series": [
+            {
+              "label": "series name (e.g., NO, Ar, O2, CH4, H2, N2, NaClO3, KNO3, KBr, NaCl, CaCl2, KCl, Ce2(SO4)3)",
+              "points": [
+                {"x": 2, "y": 14, "units": {"x": "atm", "y": "mg/100g"}},
+                {"x": 4, "y": 28, "units": {"x": "atm", "y": "mg/100g"}},
+                {"x": 6, "y": 42, "units": {"x": "atm", "y": "mg/100g"}},
+                {"x": 8, "y": 56, "units": {"x": "atm", "y": "mg/100g"}},
+                {"x": 10, "y": 70, "units": {"x": "atm", "y": "mg/100g"}}
+              ],
+              "slope": 7.0,
+              "intercept": 0,
+              "relationship": "linear|exponential|logarithmic|curved",
+              "trend_description": "increasing linearly with slope 7",
+              "data_extraction_method": "grid_intersection_analysis"
+            }
+          ],
+          "axis_ranges": {
+            "x_min": 0, "x_max": 10, "x_unit": "atm|°C",
+            "y_min": 0, "y_max": 70, "y_unit": "mg/100g|g/100g"
+          },
+          "grid_analysis": {
+            "major_grid_spacing": {"x": 2, "y": 10},
+            "minor_grid_visible": true,
+            "coordinate_precision": "high"
+          },
+          "confidence": 0.95,
+          "extraction_method": "precise_visual_coordinate_analysis"
+        },
        "table_structure": {
          "headers": ["column 1 header", "column 2 header"],
          "rows": [
@@ -391,25 +400,139 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ Preserve technical Arabic chemistry terminology
    ✓ Maintain number formatting (Arabic numerals vs English numerals)
 
-9. **PRECISION NUMERIC EXTRACTION** (Critical for calculation questions):
-    ✓ **GRAPHS**: For each graph/chart, extract EXACT numeric data points:
-      - Read axis tick values precisely (0, 5, 10, 15, 20 atm)
-      - Extract 3-5 reference points per data series/line
-      - Record units for both axes explicitly (atm, mg/100g, %, etc.)
-      - Calculate slopes and intercepts for linear relationships
-      - Map figure titles (الشكل 27-1) to numeric_data arrays
-    ✓ **TABLES**: Extract complete structure with precise values:
-      - Column headers (exactly as written) 
-      - Row data (all filled cells with exact values and units)
-      - Empty/missing cells: Mark cells with "?" symbols or blank spaces as "EMPTY"
-      - For question marks (?): Record as "EMPTY - needs calculation"
-      - Units or context for calculations needed (e.g., Henry's law, dilution formula)
-    ✓ **PIE CHARTS**: Extract exact percentages and labels
-    ✓ **DATA VALIDATION**: Verify extracted numbers make mathematical sense
-    ✓ Note figure captions, titles, or reference numbers (Figure 1, شكل ٢، جدول ٧-١، etc.)
-    ✓ Describe the educational purpose of each visual element
-    ✓ For questions referencing "الشكل", "الجدول", "Table", or "Figure", ensure visual is documented
-    ✓ Mark uncertain interpretations with "estimated": true
+🔥 **CRITICAL GRAPH DATA EXTRACTION PROTOCOL** (MANDATORY FOR CHEMISTRY GRAPHS):
+
+**STEP 1: GRAPH IDENTIFICATION & SETUP**
+✓ Identify graph type: solubility vs pressure, solubility vs temperature, concentration curves
+✓ Read graph title: "الذائبية بدلالة ضغط الغاز", "الذائبية بدلالة درجة الحرارة", etc.
+✓ Extract axis labels with EXACT units: "atm ضغط الغاز", "°C درجة الحرارة", "mg/100g الذائبية"
+✓ Identify all data series labels: NO, Ar, O2, CH4, H2, N2, NaClO3, KNO3, KBr, NaCl, CaCl2, KCl, Ce2(SO4)3
+
+**STEP 2: COORDINATE SYSTEM ANALYSIS**
+✓ **AXIS RANGES**: Read min/max values from both axes precisely
+  - X-axis: 0-10 atm, 0-100°C, etc.
+  - Y-axis: 0-70 mg/100g, 0-240 g/100g, etc.
+✓ **GRID ANALYSIS**: Identify major grid line spacing
+  - Major gridlines every 2 atm, 5°C, 10 mg/100g, etc.
+  - Minor gridlines if visible
+✓ **SCALE VERIFICATION**: Ensure coordinate system accuracy
+
+**STEP 3: DATA POINT EXTRACTION (MINIMUM 5 POINTS PER SERIES)**
+For EACH data series/line, extract coordinates using grid intersection method:
+
+✓ **LINEAR SERIES** (NO, Ar, O2, CH4, H2, N2 in pressure graphs):
+  - Point 1: (2, y1) - read y-value at x=2
+  - Point 2: (4, y2) - read y-value at x=4  
+  - Point 3: (6, y3) - read y-value at x=6
+  - Point 4: (8, y4) - read y-value at x=8
+  - Point 5: (10, y5) - read y-value at x=10
+  - Calculate slope: (y5-y1)/(10-2)
+  - Verify linearity and relationship
+
+✓ **CURVED SERIES** (NaClO3, KNO3, CaCl2 in temperature graphs):
+  - Point 1: (0°C, y1) - initial solubility
+  - Point 2: (20°C, y2) - solubility at 20°C
+  - Point 3: (40°C, y3) - solubility at 40°C
+  - Point 4: (60°C, y4) - solubility at 60°C
+  - Point 5: (80°C, y5) - solubility at 80°C
+  - Point 6: (100°C, y6) - final solubility
+  - Describe curve type: exponential, logarithmic, steep increase, etc.
+
+**STEP 4: PRECISION TECHNIQUES**
+✓ **GRID INTERSECTION METHOD**: 
+  - Follow data line to nearest grid intersection
+  - Read coordinates at major gridline crossings
+  - Interpolate between gridlines for precision
+✓ **VISUAL ESTIMATION**: 
+  - Estimate fractional values between gridlines
+  - Use proportional spacing for accuracy
+✓ **TREND VERIFICATION**: 
+  - Verify data trends make chemical sense
+  - Check for monotonic increases/decreases
+  - Validate against chemical principles
+
+**STEP 5: MATHEMATICAL ANALYSIS**
+✓ **LINEAR RELATIONSHIPS**: Calculate slope, intercept, R² if applicable
+✓ **NON-LINEAR RELATIONSHIPS**: Describe trend (exponential growth, saturation curve, etc.)
+✓ **COMPARATIVE ANALYSIS**: Rank series by solubility at specific conditions
+✓ **UNITS PRESERVATION**: Maintain exact units throughout
+
+**STEP 6: VALIDATION & QUALITY CONTROL**
+✓ **COORDINATE ACCURACY**: ±2% tolerance for visual extraction
+✓ **CHEMICAL LOGIC**: Verify trends align with solubility principles
+✓ **COMPLETENESS CHECK**: Ensure all visible data series captured
+✓ **CROSS-REFERENCE**: Match data to any referenced questions
+
+**EXAMPLE OUTPUT FORMAT FOR CHEMISTRY GRAPHS**:
+```json
+{
+  "type": "graph",
+  "title": "الذائبية بدلالة ضغط الغاز",
+  "description": "Graph showing gas solubility vs pressure for 6 different gases",
+  "axes_labels": {
+    "x_axis": "ضغط الغاز atm",
+    "y_axis": "الذائبية mg/100g من الماء"
+  },
+  "numeric_data": {
+    "series": [
+      {
+        "label": "NO",
+        "points": [
+          {"x": 2, "y": 14, "units": {"x": "atm", "y": "mg/100g"}},
+          {"x": 4, "y": 28, "units": {"x": "atm", "y": "mg/100g"}},
+          {"x": 6, "y": 42, "units": {"x": "atm", "y": "mg/100g"}},
+          {"x": 8, "y": 56, "units": {"x": "atm", "y": "mg/100g"}},
+          {"x": 10, "y": 70, "units": {"x": "atm", "y": "mg/100g"}}
+        ],
+        "slope": 7.0,
+        "intercept": 0,
+        "relationship": "linear",
+        "trend_description": "highest solubility, increases linearly with pressure"
+      },
+      {
+        "label": "Ar", 
+        "points": [
+          {"x": 2, "y": 12, "units": {"x": "atm", "y": "mg/100g"}},
+          {"x": 4, "y": 24, "units": {"x": "atm", "y": "mg/100g"}},
+          {"x": 6, "y": 36, "units": {"x": "atm", "y": "mg/100g"}},
+          {"x": 8, "y": 48, "units": {"x": "atm", "y": "mg/100g"}},
+          {"x": 10, "y": 60, "units": {"x": "atm", "y": "mg/100g"}}
+        ],
+        "slope": 6.0,
+        "intercept": 0,
+        "relationship": "linear",
+        "trend_description": "second highest solubility"
+      }
+    ],
+    "axis_ranges": {
+      "x_min": 0, "x_max": 10, "x_unit": "atm",
+      "y_min": 0, "y_max": 70, "y_unit": "mg/100g"
+    },
+    "grid_analysis": {
+      "major_grid_spacing": {"x": 2, "y": 10},
+      "coordinate_precision": "high",
+      "extraction_method": "grid_intersection_analysis"
+    },
+    "confidence": 0.95
+  },
+  "educational_context": "Demonstrates Henry's Law - gas solubility increases linearly with pressure"
+}
+```
+
+**CHEMISTRY-SPECIFIC REQUIREMENTS**:
+✓ **CHEMICAL FORMULAS**: Preserve exact subscripts/superscripts (H₂, O₂, CO₂, CaCl₂, etc.)
+✓ **UNITS**: Maintain precise scientific units (atm, °C, mg/100g, g/100g, mol/L)
+✓ **TEMPERATURE CURVES**: Recognize typical solubility patterns (most salts increase with T)
+✓ **PRESSURE RELATIONSHIPS**: Apply Henry's Law understanding for gas solubility
+✓ **COMPARATIVE RANKINGS**: Order compounds by solubility at standard conditions
+
+**CRITICAL SUCCESS METRICS FOR GRAPHS**:
+- Extract minimum 5 coordinate points per data series
+- Calculate slopes/trends with ±5% accuracy
+- Preserve all chemical formulas and units exactly
+- Identify all visible data series (typically 3-6 per graph)
+- Cross-reference with any questions mentioning the graph
+- Provide educational context linking to chemistry principles
 
 10. **QUALITY ASSURANCE CHECKS**:
      ✓ Verify no text elements were skipped or overlooked
