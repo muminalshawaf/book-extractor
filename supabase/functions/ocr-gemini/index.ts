@@ -464,7 +464,6 @@ For EACH data series/line, extract coordinates using grid intersection method:
 ✓ **CROSS-REFERENCE**: Match data to any referenced questions
 
 **EXAMPLE OUTPUT FORMAT FOR CHEMISTRY GRAPHS**:
-```json
 {
   "type": "graph",
   "title": "الذائبية بدلالة ضغط الغاز",
@@ -517,7 +516,6 @@ For EACH data series/line, extract coordinates using grid intersection method:
   },
   "educational_context": "Demonstrates Henry's Law - gas solubility increases linearly with pressure"
 }
-```
 
 **CHEMISTRY-SPECIFIC REQUIREMENTS**:
 ✓ **CHEMICAL FORMULAS**: Preserve exact subscripts/superscripts (H₂, O₂, CO₂, CaCl₂, etc.)
