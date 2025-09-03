@@ -111,7 +111,7 @@ serve(async (req) => {
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
     
     console.log('Available models:');
-    console.log(`- Gemini 1.5 Pro: ${GOOGLE_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
+    console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
     console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? 'AVAILABLE (fallback)' : 'UNAVAILABLE'}`);
 
     if (!text || typeof text !== "string") {
@@ -396,11 +396,11 @@ ${enhancedText}`}`;
     let summary = "";
     let providerUsed = "";
 
-    // Try Gemini 1.5 Pro first (primary model)
+    // Try Gemini 2.5 Pro first (primary model)
     if (googleApiKey) {
-      console.log('Attempting to use Gemini 1.5 Pro for summarization...');
+      console.log('Attempting to use Gemini 2.5 Pro for summarization...');
       try {
-        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
+        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -422,14 +422,14 @@ ${enhancedText}`}`;
           const geminiData = await geminiResp.json();
           summary = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
           const finishReason = geminiData.candidates?.[0]?.finishReason;
-          providerUsed = "gemini-1.5-pro";
+          providerUsed = "gemini-2.5-pro";
           
           if (summary.trim()) {
-            console.log(`Gemini 1.5 Pro API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
+            console.log(`Gemini 2.5 Pro API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
             
             // Handle continuation if needed
             if (finishReason === "MAX_TOKENS" && summary.length > 0) {
-              console.log('Gemini 1.5 Pro summary was truncated, attempting to continue...');
+              console.log('Gemini 2.5 Pro summary was truncated, attempting to continue...');
               
               for (let attempt = 1; attempt <= 2; attempt++) {
                 console.log(`Gemini 1.5 Pro continuation attempt ${attempt}...`);
@@ -448,7 +448,7 @@ REQUIREMENTS:
 
 Original OCR text: ${enhancedText}`;
 
-                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
+                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
@@ -646,7 +646,7 @@ Original OCR text: ${enhancedText}`;
       console.log(`Answered questions: ${Array.from(answeredQuestionNumbers).join(', ')}`);
       console.log(`Missing questions: ${missingNumbers.join(', ')}`);
       
-      if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-1.5-pro')) {
+      if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-2.5-pro')) {
         // Multi-attempt continuation with safety limit
         const maxAttempts = 4;
         let attempt = 0;
@@ -697,7 +697,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
                 }),
               });
             } else {
-              completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${googleApiKey}`, {
+              completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
