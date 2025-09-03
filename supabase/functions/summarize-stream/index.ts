@@ -110,7 +110,7 @@ serve(async (req: Request) => {
       return matches.map(match => {
         const num = parseInt(match.replace('.', '').trim());
         return num;
-      }).filter(num => num > 0 && num < 100).sort((a, b) => a - b);
+      }).filter(num => num > 0 && num < 1000).sort((a, b) => a - b); // Increased upper limit to handle OCR numbers like 93-99
     }
 
     const needsDetailedStructure = isContentPage(text);
@@ -178,8 +178,9 @@ ${text}
 
 ### 5) حلول الأسئلة / Questions & Solutions
 **اكتب هذا القسم فقط إذا كانت هناك أسئلة مرقمة (مفاهيمية أو حسابية).**
+**CRITICAL: احتفظ بأرقام الأسئلة الأصلية كما هي في النص - لا تعيد ترقيمها إلى 1,2,3...**
 لكل سؤال مرقم:
-- أعد كتابة السؤال بوضوح
+- أعد كتابة السؤال بوضوح مع الرقم الأصلي (مثل "س: 93-" بدلاً من "س: 1-")
 - إذا كان له أسئلة فرعية (أ/ب/ج، a/b/c، i/ii/iii...)، أجب على كل سؤال فرعي منفصلاً
 - إذا كان حسابياً: اعرض الحل خطوة بخطوة مع المعادلات في LaTeX والجواب النهائي الرقمي مع الوحدات
 - إذا كان مفاهيمياً: قدم إجابة واضحة ومباشرة من النص
@@ -260,8 +261,9 @@ Use LaTeX ($$...$$ for blocks). List variables with meanings and units
 
 ### 5) Questions & Solutions
 **ONLY include this section if there are numbered questions or problems in the text.**
+**CRITICAL: Preserve original question numbers from text - do NOT renumber them to 1,2,3...**
 For each question or problem found:
-- Restate the question clearly
+- Restate the question clearly with original number (e.g., "Q: 93-" instead of "Q: 1-")
 - If it has sub-questions (a/b/c, i/ii/iii...), answer each sub-question separately
 - If conceptual question: provide comprehensive, detailed answer
 - If calculation problem: show step-by-step solution with calculations

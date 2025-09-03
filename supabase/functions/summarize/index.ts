@@ -647,18 +647,37 @@ Original OCR text: ${enhancedText}`;
       console.log(`Detected questions: ${questions.map(q => q.number).join(', ')}`);
       console.log(`Answered questions: ${Array.from(answeredQuestionNumbers).join(', ')}`);
       console.log(`Missing questions: ${missingNumbers.join(', ')}`);
+
+      // Add tolerance for OCR numbering mismatches: if same question count but different numbering
+      const hasSameQuestionCount = questions.length === answeredQuestionNumbers.size && questions.length > 0;
+      if (hasSameQuestionCount && missingNumbers.length === questions.length) {
+        console.log('All questions answered (numbering tolerance applied) ✓');
+        return new Response(JSON.stringify({ summary: completionContent }), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+
+      // Limit auto-continuation - max 3 missing questions and max 2 attempts
+      const maxMissingQuestions = 3;
+      const maxContinuationAttempts = 2;
+      
+      if (missingNumbers.length > maxMissingQuestions) {
+        console.log(`Too many missing questions (${missingNumbers.length}), skipping auto-continuation`);
+        return new Response(JSON.stringify({ summary: completionContent }), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
       
       if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-2.5-pro')) {
         // Multi-attempt continuation with safety limit
-        const maxAttempts = 4;
         let attempt = 0;
         let currentSummary = summary;
         
-        while (missingNumbers.length > 0 && attempt < maxAttempts) {
+        while (missingNumbers.length > 0 && attempt < maxContinuationAttempts) {
           attempt++;
-          console.log(`🔄 Auto-continuation attempt ${attempt}/${maxAttempts} for questions: ${missingNumbers.join(', ')}`);
+          console.log(`🔄 Auto-continuation attempt ${attempt}/${maxContinuationAttempts} for questions: ${missingNumbers.join(', ')}`);
           
-          const completionPrompt = `COMPLETE THE MISSING QUESTIONS - Continuation ${attempt}/${maxAttempts}
+          const completionPrompt = `COMPLETE THE MISSING QUESTIONS - Continuation ${attempt}/${maxContinuationAttempts}
 
 Previous summary is incomplete. Missing these question numbers: ${missingNumbers.join(', ')}
 

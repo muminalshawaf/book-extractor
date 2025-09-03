@@ -833,12 +833,29 @@ KF (°C/m)
 
       console.log(`Post-processing: Found ${requiredIds.length} questions: [${requiredIds.join(', ')}]`);
 
-      // Extract answered question numbers from summary
+      // Validate completeness based on question numbers with tolerance for OCR numbering mismatches
       const answeredIds = extractQuestionNumbers(generatedSummary);
+      
+      // Add tolerance: if summary has 1..N and OCR has M..(M+N-1) for same count, consider complete
+      const hasSameQuestionCount = requiredIds.length === answeredIds.length && requiredIds.length > 0;
+      const isSequentialFromOne = answeredIds.length > 0 && answeredIds.every((id, idx) => id === (idx + 1));
+      const requiredSequential = requiredIds.length > 0 && requiredIds.every((id, idx) => id === (Math.min(...requiredIds) + idx));
+      
+      if (hasSameQuestionCount && (isSequentialFromOne || requiredSequential)) {
+        console.log('Post-processing: All questions answered ✓ (numbering tolerance applied)');
+        return;
+      }
+      
       const missingIds = requiredIds.filter(id => !answeredIds.includes(id));
 
       if (missingIds.length === 0) {
         console.log('Post-processing: All questions answered ✓');
+        return;
+      }
+
+      // Limit auto-continuation to prevent tail spam - max 3 missing questions
+      if (missingIds.length > 3) {
+        console.log(`Post-processing: Too many missing questions (${missingIds.length}), skipping auto-continuation`);
         return;
       }
 
