@@ -114,10 +114,13 @@ For chemistry problems:
 You MUST automatically detect and generate visual representations when questions contain these indicators:
 
 CHART GENERATION TRIGGERS:
-- Arabic: "ارسم", "اعمل رسم", "مثل بيانياً", "اعمل مخطط", "ارسم منحنى", "مثل في رسم بياني"
-- English: "plot", "graph", "draw", "sketch", "show graphically", "create a chart", "make a diagram"
+- Arabic: "ارسم", "اعمل رسم", "مثل بيانياً", "اعمل مخطط", "ارسم منحنى", "مثل في رسم بياني", "وضح بالرسم", "بين بالرسم", "مثل", "اعرض بيانياً", "ارسم مخطط"
+- English: "plot", "graph", "draw", "sketch", "show graphically", "create a chart", "make a diagram", "illustrate", "represent graphically"
 - Questions about trends, relationships, comparisons, or data visualization
 - Chemical equilibrium changes, reaction rates over time, concentration profiles
+- Chemistry: Questions about oxidation number changes, electron flow, reaction mechanisms, pH changes
+- When question asks to show changes in values over time or conditions
+- Questions comparing multiple data points or showing progression
 - Physics problems involving motion graphs, force diagrams, energy plots
 - Mathematical functions, equations with variables
 
