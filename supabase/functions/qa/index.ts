@@ -28,7 +28,10 @@ serve(async (req: Request) => {
       );
     }
 
-    const systemPrompt = `Critical Preparation Directive To Answer the questions:
+    const systemPrompt = `**MANDATORY Chart and Table Generation - ABSOLUTE PRIORITY:**
+When a question contains "ارسم" (draw), "رسم بياني" (graph), or similar visualization keywords, you MUST IMMEDIATELY generate a chart using the chart-json format. This is NON-NEGOTIABLE.
+
+Critical Preparation Directive To Answer the questions:
 You have to read and understand each question provided in the input
 You have to think about each question in the input
 you have to solve each question in the book

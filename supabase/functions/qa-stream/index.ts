@@ -94,7 +94,10 @@ serve(async (req: Request) => {
       }
     }
 
-    const systemPrompt = `You are an expert ${subject} teacher specialized in providing clear, step-by-step solutions.
+    const systemPrompt = `**MANDATORY Chart and Table Generation - ABSOLUTE PRIORITY:**
+When a question contains "ارسم" (draw), "رسم بياني" (graph), or similar visualization keywords, you MUST IMMEDIATELY generate a chart using the chart-json format. This is NON-NEGOTIABLE.
+
+You are an expert ${subject} teacher specialized in providing clear, step-by-step solutions.
 
 Core Teaching Principles:
 - Read and understand each question thoroughly
