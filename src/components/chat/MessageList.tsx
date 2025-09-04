@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import MathRenderer from "@/components/MathRenderer";
-import ChartRenderer from "./ChartRenderer";
 import { Copy, Check, RotateCcw, Share2, ThumbsUp, ThumbsDown, MessageSquareText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -31,63 +30,6 @@ function TypingDots({ rtl = false }: { rtl?: boolean }) {
     </div>
   );
 }
-
-// Component to handle rendering message content with charts
-const MessageContent: React.FC<{ content: string }> = ({ content }) => {
-  const parseContent = (text: string) => {
-    const parts = [];
-    const chartRegex = /```chart-json\n([\s\S]*?)\n```/g;
-    let lastIndex = 0;
-    let match;
-
-    while ((match = chartRegex.exec(text)) !== null) {
-      // Add text before chart
-      if (match.index > lastIndex) {
-        const beforeText = text.slice(lastIndex, match.index);
-        if (beforeText.trim()) {
-          parts.push({ type: 'text', content: beforeText });
-        }
-      }
-
-      // Add chart
-      try {
-        const chartData = JSON.parse(match[1]);
-        parts.push({ type: 'chart', content: chartData });
-      } catch (e) {
-        // If JSON parsing fails, treat as text
-        parts.push({ type: 'text', content: match[0] });
-      }
-
-      lastIndex = match.index + match[0].length;
-    }
-
-    // Add remaining text
-    if (lastIndex < text.length) {
-      const remainingText = text.slice(lastIndex);
-      if (remainingText.trim()) {
-        parts.push({ type: 'text', content: remainingText });
-      }
-    }
-
-    return parts.length > 0 ? parts : [{ type: 'text', content: text }];
-  };
-
-  const parts = parseContent(content);
-
-  return (
-    <div className="text-[13px] leading-relaxed">
-      {parts.map((part, index) => (
-        <div key={index}>
-          {part.type === 'text' ? (
-            <MathRenderer content={part.content} />
-          ) : (
-            <ChartRenderer chartData={part.content} />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-};
 
 const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = false, streamRef, onRegenerate, onEditUser, sidebarSlot }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -225,7 +167,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading, rtl = fals
                         )}
                       </div>
                     ) : (
-                      <MessageContent content={m.content} />
+                      <MathRenderer content={m.content} className="text-[13px] leading-relaxed" />
                     )
                   ) : (
                     <div className="whitespace-pre-wrap text-foreground">{m.content}</div>

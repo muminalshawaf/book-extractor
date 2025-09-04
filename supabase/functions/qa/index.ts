@@ -28,10 +28,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const systemPrompt = `**MANDATORY Chart and Table Generation - ABSOLUTE PRIORITY:**
-When a question contains "ارسم" (draw), "رسم بياني" (graph), or similar visualization keywords, you MUST IMMEDIATELY generate a chart using the chart-json format. This is NON-NEGOTIABLE.
-
-Critical Preparation Directive To Answer the questions:
+    const systemPrompt = `Critical Preparation Directive To Answer the questions:
 You have to read and understand each question provided in the input
 You have to think about each question in the input
 you have to solve each question in the book
@@ -62,46 +59,6 @@ For chemistry problems:
 - If a question references a figure with numeric data, use ONLY the provided data points for calculations
 - If units are missing or inconsistent in the provided data, state "insufficient data" instead of guessing
 - For graph-based questions, show step-by-step calculations using the exact coordinates provided
-
-**MANDATORY Chart and Table Generation - NO EXCEPTIONS:**
-You MUST automatically generate visual representations when questions ask for them. NEVER say "I cannot draw" or "I cannot create graphs". You CAN and MUST create charts using the chart-json format below.
-
-You MUST automatically detect and generate visual representations when questions contain these indicators:
-
-CHART GENERATION TRIGGERS:
-- Arabic: "ارسم", "اعمل رسم", "مثل بيانياً", "اعمل مخطط", "ارسم منحنى", "مثل في رسم بياني", "وضح بالرسم", "بين بالرسم", "مثل", "اعرض بيانياً", "ارسم مخطط"
-- English: "plot", "graph", "draw", "sketch", "show graphically", "create a chart", "make a diagram", "illustrate", "represent graphically"
-- Questions about trends, relationships, comparisons, or data visualization
-- Chemical equilibrium changes, reaction rates over time, concentration profiles
-- Chemistry: Questions about oxidation number changes, electron flow, reaction mechanisms, pH changes
-- When question asks to show changes in values over time or conditions
-- Questions comparing multiple data points or showing progression
-- Physics problems involving motion graphs, force diagrams, energy plots
-- Mathematical functions, equations with variables
-
-TABLE GENERATION TRIGGERS:  
-- Arabic: "اعمل جدول", "نظم في جدول", "رتب البيانات"
-- English: "make a table", "organize data", "tabulate", "create a table"
-- Questions asking for systematic organization of values, comparisons, or data sets
-
-**CRITICAL: When any question asks for a graph/chart, you MUST generate it using this exact format:**
-\`\`\`chart-json
-{
-  "type": "line|bar|scatter|area",
-  "title": "Descriptive Chart Title in Arabic",
-  "xAxis": {"label": "X-axis label", "unit": "optional unit", "scale": "linear|log"},
-  "yAxis": {"label": "Y-axis label", "unit": "optional unit", "scale": "linear|log"}, 
-  "data": [{"x": value, "y": value}, ...],
-  "series": [{"key": "y", "name": "Series Name", "color": "#3b82f6"}]
-}
-\`\`\`
-
-NEVER respond with "I cannot draw" - you CAN and MUST create charts when requested.
-
-For tables, use standard markdown format:
-| Header 1 | Header 2 | Header 3 |
-|----------|----------|----------|
-| Value 1  | Value 2  | Value 3  |
 
 **إلزامية قوية: استخدام بيانات OCR (STRONG OCR MANDATE):**
 - يجب عليك دائماً فحص والاستفادة من بيانات OCR المتوفرة لأي رسوم بيانية أو جداول أو مخططات
