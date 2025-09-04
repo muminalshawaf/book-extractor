@@ -360,10 +360,11 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
 MANDATORY SECTIONS (only include if content exists on the page):
 - المفاهيم والتعاريف
 - المصطلحات العلمية
-- الصيغ والمعادلات  
-- الأسئلة والإجابات الكاملة
+- الصيغ والمعادلات
+${hasActualQuestions ? '- الأسئلة والإجابات الكاملة' : ''}
 
-Skip sections if the page does not contain relevant content for that section.`;
+Skip sections if the page does not contain relevant content for that section.
+CRITICAL: Do NOT generate generic lab procedures, observations, or safety instructions unless they appear as numbered questions in the OCR text.`;
 
     const userPrompt = `${needsDetailedStructure ? `# ملخص المحتوى التعليمي
 ## ملخص المحتوى التعليمي
@@ -385,11 +386,18 @@ Summarize the main ideas and concepts from the page in bullet points:
 - **[Another key concept]:** [brief explanation]
 ## أمثلة توضيحية
 [list examples so the students can relate to the concepts]
-## الأسئلة والإجابات الكاملة
-Process ALL questions from the OCR text with complete step-by-step solutions:
+${hasActualQuestions ? `## الأسئلة والإجابات الكاملة
+Process ONLY the specific numbered questions found in the OCR text. Do NOT generate generic lab procedures or safety instructions.
+
+CRITICAL CONSTRAINTS:
+- Answer ONLY questions that exist as numbered items in the OCR text
+- Do NOT create sections like "إجراءات التجربة والملاحظات" unless they appear as actual questions
+- Do NOT add generic lab safety or cleanup instructions
+- Focus solely on the mathematical and conceptual questions present
+
 OCR TEXT:
 ${enhancedText}
-CRITICAL: Answer EVERY question found. Do not skip any questions.` : `# ملخص الصفحة
+CRITICAL: Answer EVERY numbered question found, but do not invent additional content.` : ''}` : `# ملخص الصفحة
 ## نظرة عامة
 هذه صفحة تحتوي على محتوى تعليمي.
 OCR TEXT:
