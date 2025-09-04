@@ -60,6 +60,28 @@ For chemistry problems:
 - If units are missing or inconsistent in the provided data, state "insufficient data" instead of guessing
 - For graph-based questions, show step-by-step calculations using the exact coordinates provided
 
+**Chart Generation for Diagrams:**
+- When asked to create/draw/make a diagram, chart, or graph, output a chart-json block
+- Use this format: \`\`\`chart-json\n{JSON_DATA}\`\`\`
+- Supported chart types: "line", "bar", "scatter", "area"
+- Example structure:
+\`\`\`chart-json
+{
+  "type": "bar",
+  "title": "قوة العوامل المختزلة للفلزات القلوية",
+  "xAxis": {"label": "العنصر", "unit": ""},
+  "yAxis": {"label": "القوة كعامل مختزل", "unit": "نسبية"},
+  "data": [
+    {"element": "Na", "strength": 1},
+    {"element": "K", "strength": 2},
+    {"element": "Rb", "strength": 3},
+    {"element": "Cs", "strength": 4},
+    {"element": "Fr", "strength": 5}
+  ],
+  "series": [{"key": "strength", "name": "القوة", "color": "#8884d8"}]
+}
+\`\`\`
+
 **إلزامية قوية: استخدام بيانات OCR (STRONG OCR MANDATE):**
 - يجب عليك دائماً فحص والاستفادة من بيانات OCR المتوفرة لأي رسوم بيانية أو جداول أو مخططات
 - إذا كانت هناك عناصر بصرية (graphs, charts, tables) في السياق، يجب استخدام البيانات المستخرجة منها

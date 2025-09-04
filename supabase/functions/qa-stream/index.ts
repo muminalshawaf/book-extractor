@@ -110,6 +110,28 @@ For chemistry problems:
 - If a question references a figure with numeric data, use ONLY the provided data points for calculations
 - For graph-based questions, show step-by-step calculations using the exact coordinates provided
 
+**Chart Generation for Diagrams:**
+- When asked to create/draw/make a diagram, chart, or graph, output a chart-json block
+- Use this format: \`\`\`chart-json\n{JSON_DATA}\`\`\`
+- Supported chart types: "line", "bar", "scatter", "area"
+- Example structure:
+\`\`\`chart-json
+{
+  "type": "bar",
+  "title": "قوة العوامل المختزلة للفلزات القلوية",
+  "xAxis": {"label": "العنصر", "unit": ""},
+  "yAxis": {"label": "القوة كعامل مختزل", "unit": "نسبية"},
+  "data": [
+    {"element": "Na", "strength": 1},
+    {"element": "K", "strength": 2},
+    {"element": "Rb", "strength": 3},
+    {"element": "Cs", "strength": 4},
+    {"element": "Fr", "strength": 5}
+  ],
+  "series": [{"key": "strength", "name": "القوة", "color": "#8884d8"}]
+}
+\`\`\`
+
 **OCR Data Usage (STRONG MANDATE):**
 - Always examine and utilize available OCR data for any graphs, tables, or charts
 - If there are visual elements (graphs, charts, tables) in context, use the extracted data from them
