@@ -155,6 +155,9 @@ serve(async (req) => {
     // Parse questions from OCR text for validation
     const questions = parseQuestions(text);
     console.log(`Found ${questions.length} questions in OCR text`);
+    
+    // Check if there are actual numbered questions (not just generic instructions)
+    const hasActualQuestions = questions.length > 0;
 
     // Build visual elements context
     let visualElementsText = '';
