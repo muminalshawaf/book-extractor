@@ -577,7 +577,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           book_id: dbBookId,
           page_number: index + 1,
           ocr_text: cleanText,
-          ocr_confidence: result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8
+          ocr_confidence: result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8,
+          ocr_json: geminiResult?.rawStructuredData || null
         });
         console.log('OCR text saved successfully for page', index + 1, 'Result:', saveResult);
         
@@ -721,10 +722,24 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         toast.success(rtl ? "تم إنشاء الملخص بنجاح" : "Summary generated successfully");
         
         // Save complete summary to database (async, non-blocking)
+        const summaryJson = {
+          sections: finalSummary.split('###').filter(s => s.trim()).map(section => {
+            const lines = section.trim().split('\n');
+            const title = lines[0]?.replace(/^\d+\)\s*/, '').trim() || '';
+            const content = lines.slice(1).join('\n').trim();
+            return { title, content };
+          }).filter(s => s.title),
+          pageNumber: index + 1,
+          hasQuestions: /\d+\.\s/.test(trimmedText),
+          hasMath: hasMathMarkers,
+          wordCount: finalSummary.split(/\s+/).length
+        };
+        
         callFunction('save-page-summary', {
           book_id: dbBookId,
           page_number: index + 1,
           summary_md: finalSummary,
+          summary_json: summaryJson,
           confidence: 0.8
         }).catch(saveError => {
           console.error('Failed to save summary to database:', saveError);

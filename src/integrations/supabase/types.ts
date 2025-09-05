@@ -36,6 +36,7 @@ export type Database = {
           page_number: number
           slug: string | null
           strict_validated: boolean | null
+          summary_json: Json | null
           summary_md: string | null
           title: string | null
           unit_number: number | null
@@ -63,6 +64,7 @@ export type Database = {
           page_number: number
           slug?: string | null
           strict_validated?: boolean | null
+          summary_json?: Json | null
           summary_md?: string | null
           title?: string | null
           unit_number?: number | null
@@ -90,6 +92,7 @@ export type Database = {
           page_number?: number
           slug?: string | null
           strict_validated?: boolean | null
+          summary_json?: Json | null
           summary_md?: string | null
           title?: string | null
           unit_number?: number | null
