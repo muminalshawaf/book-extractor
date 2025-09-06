@@ -14,6 +14,7 @@ import MathRenderer from "@/components/MathRenderer";
 import { callFunction } from "@/lib/functionsClient";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingProgress } from "@/components/LoadingProgress";
+import { FixPage123 } from "@/components/FixPage123";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { ThumbnailSidebar } from "@/components/ThumbnailSidebar";
 import { FullscreenMode, FullscreenButton, useFullscreen } from "./FullscreenMode";
@@ -1051,6 +1052,7 @@ KF (°C/m)
 
   return (
     <section className={cn("w-full min-h-screen", rtl && "[direction:rtl]")}>
+      <FixPage123 />
       {isMobile ? (
         <div className="min-h-screen">
           <MobileReaderChrome
