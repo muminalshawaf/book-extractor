@@ -378,7 +378,7 @@ CRITICAL: Do NOT generate generic lab procedures, observations, or safety instru
 
     const userPrompt = `${needsDetailedStructure ? `# ملخص المحتوى التعليمي
 ## ملخص المحتوى التعليمي
-[summrize in few sentances what on this page for the student]
+CRITICAL CONSTRAINT: You MUST analyze ONLY the chemistry topic and content that appears in the provided OCR text below. DO NOT generate content about any other chemistry topics. Summarize ONLY what is explicitly present in the OCR text - if it's about oxidation-reduction, write about oxidation-reduction; if it's about kinetics, write about kinetics. NEVER mix topics or create content not in the OCR.
 ## المفاهيم والتعاريف
 Analyze the content and extract key concepts and definitions. Format as:
 - **[Arabic term]:** [definition]
