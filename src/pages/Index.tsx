@@ -8,18 +8,12 @@ import StructuredDataSchemas from "@/components/seo/StructuredDataSchemas";
 import EnhancedSEOBreadcrumb from "@/components/seo/EnhancedSEOBreadcrumb";
 import SEOFAQSchema from "@/components/SEOFAQSchema";
 import TopSearchTabs from "@/components/search/TopSearchTabs";
-import { supabase } from "@/integrations/supabase/client";
-
 const Index = () => {
   const params = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialId = useMemo(() => params.bookId ?? books[0].id, [params.bookId]);
   const [selectedId, setSelectedId] = useState<string>(initialId);
-  const [pageData, setPageData] = useState<any>(null);
-  
-  // Get current page number from URL params for SEO
-  const currentPageNumber = parseInt(searchParams.get('page') || '1');
   
   useEffect(() => {
     if (selectedId !== initialId) setSelectedId(initialId);
@@ -32,33 +26,13 @@ const Index = () => {
       });
     }
   }, [params.bookId, navigate]);
-
-  // Load page data for SEO schema
-  useEffect(() => {
-    const loadPageData = async () => {
-      if (!selectedId || !currentPageNumber) return;
-      
-      try {
-        const { data } = await supabase
-          .from('page_summaries')
-          .select('summary_md, ocr_text, ocr_json, summary_json')
-          .eq('book_id', selectedId)
-          .eq('page_number', currentPageNumber)
-          .maybeSingle();
-        
-        setPageData(data);
-      } catch (error) {
-        console.warn('Failed to load page data for SEO:', error);
-        setPageData(null);
-      }
-    };
-    
-    loadPageData();
-  }, [selectedId, currentPageNumber]);
   
   const selectedBook = useMemo(() => getBookById(selectedId), [selectedId]);
   const enhancedBook = useMemo(() => getEnhancedBookById(selectedId), [selectedId]);
   const pages = useMemo(() => selectedBook.buildPages(), [selectedBook]);
+  
+  // Get current page number from URL params for SEO
+  const currentPageNumber = parseInt(searchParams.get('page') || '1');
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -97,7 +71,6 @@ const Index = () => {
       ...(selectedBook.keywords || [])
     ].filter(Boolean)
   } as const;
-  
   return (
     <div className="min-h-screen bg-background">
       {/* Enhanced SEO Components */}
@@ -107,16 +80,7 @@ const Index = () => {
         pageTitle={selectedBook.title}
         totalPages={pages.length}
       />
-      <StructuredDataSchemas 
-        book={enhancedBook} 
-        pageNumber={currentPageNumber}
-        pageContent={pageData ? {
-          summary: pageData.summary_md,
-          ocrText: pageData.ocr_text,
-          ocrJson: pageData.ocr_json,
-          summaryJson: pageData.summary_json
-        } : undefined}
-      />
+      <StructuredDataSchemas book={enhancedBook} pageNumber={currentPageNumber} />
       <SEOFAQSchema />
       <EnhancedSEOBreadcrumb book={enhancedBook} pageNumber={currentPageNumber} />
       

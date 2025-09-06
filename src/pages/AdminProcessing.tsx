@@ -241,19 +241,7 @@ const AdminProcessing = () => {
                 ocr_text: ocrText,
                 summary_md: summary,
                 ocr_confidence: ocrConfidence,
-                confidence: summaryConfidence,
-                ocr_json: ocrResult?.rawStructuredData || null,
-                summary_json: summary ? {
-                  sections: summary.split('###').filter(s => s.trim()).map(section => {
-                    const lines = section.trim().split('\n');
-                    const title = lines[0]?.replace(/^\d+\)\s*/, '').trim() || '';
-                    const content = lines.slice(1).join('\n').trim();
-                    return { title, content };
-                  }).filter(s => s.title),
-                  pageNumber: pageNum,
-                  hasQuestions: /\d+\.\s/.test(ocrText),
-                  wordCount: summary.split(/\s+/).length
-                } : null
+                confidence: summaryConfidence
               });
 
               addLog(`Page ${pageNum}: Saved to database`);

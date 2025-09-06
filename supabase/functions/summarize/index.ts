@@ -16,12 +16,11 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
                                    text.includes('اختيار من متعدد') ||
                                    /[أاب][.\)]\s*.*[ب][.\)]\s*.*[ج][.\)]\s*.*[د][.\)]/s.test(text);
   
-  // More specific regex patterns that avoid matching section headers
+  // Enhanced regex patterns for Arabic and English question numbers with various formats
   const questionPatterns = [
-    // Match questions that have substantial content and clear question structure
-    /^(\d{2,3})\.\s+([^٠-٩\d\n](?:[^\n]*?\n?)*?)(?=^\d{2,3}\.|$)/gm, // Multi-digit numbers like 23. 24. 25.
-    /^([٩٠-٩٩]+[٠-٩]*)\.\s+([^٠-٩\d\n](?:[^\n]*?\n?)*?)(?=^[٩٠-٩٩]+[٠-٩]*\.|$)/gm, // Arabic numbers 90+
-    /^(١٠[٠-٦])\.\s+([^٠-٩\d\n](?:[^\n]*?\n?)*?)(?=^١٠[٠-٦]\.|$)/gm, // Arabic 100-106
+    /(\d+)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=\d+\.|$))/gm, // English numbers: 93. question text
+    /([٩٠-٩٩]+[٠-٩]*)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=[٩٠-٩٩]+[٠-٩]*\.|$))/gm, // Arabic numbers: ٩٣. question text
+    /(١٠[٠-٦])\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=١٠[٠-٦]\.|$))/gm, // Arabic 100-106: ١٠٠. ١٠١. etc.
   ];
   
   for (const pattern of questionPatterns) {
@@ -31,11 +30,7 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
       const questionNumber = match[1].trim();
       const questionText = match[2].trim();
       
-      // Additional filters to avoid section headers and short matches
-      if (questionText.length > 20 && 
-          !questionText.includes('تحليل المسألة') && 
-          !questionText.includes('حساب المطلوب') &&
-          !questionText.includes('تقويم الإجابة')) {
+      if (questionText.length > 10) { // Filter out very short matches
         questions.push({
           number: questionNumber,
           text: questionText,
@@ -160,12 +155,6 @@ serve(async (req) => {
     // Parse questions from OCR text for validation
     const questions = parseQuestions(text);
     console.log(`Found ${questions.length} questions in OCR text`);
-    
-    // Extract question numbers for prompt generation
-    const questionNumbers = questions.map(q => q.number);
-    
-    // Check if there are actual numbered questions (not just generic instructions)
-    const hasActualQuestions = questions.length > 0;
 
     // Build visual elements context
     let visualElementsText = '';
@@ -223,18 +212,14 @@ Rows:`;
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
     console.log(`Multiple choice detected: ${hasMultipleChoice}`);
     
-    const systemPrompt = `You are an expert chemistry professor. GROUNDING RULE: You can ONLY answer questions that are physically present in the provided OCR text. DO NOT invent, create, or imagine ANY questions that are not explicitly written in the text. If a question number is mentioned but the actual question text is not provided, you MUST NOT answer it. ONLY answer questions where you can see both the question number AND the complete question text in the OCR input. This is absolutely critical - NO EXCEPTIONS.
+    const systemPrompt = `You are an expert chemistry professor. Your task is to analyze educational content and provide structured summaries following a specific format.
 
-Your task is to analyze educational content and provide structured summaries following a specific format.
-
-🔍 **MANDATORY INTERNAL PRE-FLIGHT CHECK - DO NOT DISPLAY THESE CHECKS IN YOUR RESPONSE**:
-Before providing your response, you MUST internally verify these questions (DO NOT include these checks in your final output):
+🔍 **MANDATORY PRE-FLIGHT CHECK - ANSWER EACH BEFORE RESPONDING**:
+Before providing your response, you MUST check and answer these questions:
 1. Does ANY question reference a graph, chart, figure, table, or visual element (الشكل، الجدول، المخطط)? YES/NO
 2. If YES: Have I thoroughly reviewed the OCR VISUAL CONTEXT section for relevant data? YES/NO
 3. If YES: Am I using specific data points, values, or information from the visual elements in my answers? YES/NO
 4. If visual elements exist but I'm not using them: STOP and re-examine - you CANNOT proceed without using visual data when questions reference it.
-
-**CRITICAL: These verification checks are for your internal process only. DO NOT display them in your final response to the user.**
 
 ⚠️ CRITICAL: If any question references a graph or table, review the OCR context, specifically the visuals and table section and ensure you use it to answer the questions with high precision. NEVER provide an answer without this critical step.
 
@@ -256,7 +241,7 @@ ${hasMultipleChoice ? `
 
 CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
 1. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence from lowest to highest number. If you see questions 45, 102, 46, you MUST answer them as: 45, then 46, then 102. This is MANDATORY and non-negotiable.
-2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found in the text. NO EXCEPTIONS. NEVER MAKE UP QUESTIONS that are not strictly in the text. Be concise on explanatory topics if needed, but NEVER skip questions.
+2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found in the text. NO EXCEPTIONS. Be concise on explanatory topics if needed, but NEVER skip questions.
 3. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles before providing them.
 4. **STEP-BY-STEP MANDATE**: Each question must have a complete, logical solution showing all work and reasoning.
 5. **USE ALL AVAILABLE DATA MANDATE**: The OCR text contains ALL necessary information including graphs, tables, and numerical data. Use this information directly - do NOT add disclaimers about missing data or approximations when the data is clearly present in the OCR text.
@@ -373,15 +358,14 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
 MANDATORY SECTIONS (only include if content exists on the page):
 - المفاهيم والتعاريف
 - المصطلحات العلمية
-- الصيغ والمعادلات
-${hasActualQuestions ? '- الأسئلة والإجابات الكاملة' : ''}
+- الصيغ والمعادلات  
+- الأسئلة والإجابات الكاملة
 
-Skip sections if the page does not contain relevant content for that section.
-CRITICAL: Do NOT generate generic lab procedures, observations, or safety instructions unless they appear as numbered questions in the OCR text.`;
+Skip sections if the page does not contain relevant content for that section.`;
 
     const userPrompt = `${needsDetailedStructure ? `# ملخص المحتوى التعليمي
 ## ملخص المحتوى التعليمي
-CRITICAL CONSTRAINT: You MUST analyze ONLY the chemistry topic and content that appears in the provided OCR text below. DO NOT generate content about any other chemistry topics. Summarize ONLY what is explicitly present in the OCR text - if it's about oxidation-reduction, write about oxidation-reduction; if it's about kinetics, write about kinetics. NEVER mix topics or create content not in the OCR.
+[summrize in few sentances what on this page for the student]
 ## المفاهيم والتعاريف
 Analyze the content and extract key concepts and definitions. Format as:
 - **[Arabic term]:** [definition]
@@ -399,19 +383,11 @@ Summarize the main ideas and concepts from the page in bullet points:
 - **[Another key concept]:** [brief explanation]
 ## أمثلة توضيحية
 [list examples so the students can relate to the concepts]
-${hasActualQuestions ? `## الأسئلة والإجابات الكاملة
-Process ONLY these specific question numbers that were detected in the OCR text: ${questionNumbers.join(', ')}
-
-CRITICAL CONSTRAINTS:
-- Answer ONLY questions ${questionNumbers.join(', ')} that exist in the OCR text below
-- Do NOT generate content for any other question numbers
-- Do NOT create sections like "إجراءات التجربة والملاحظات" unless they appear as actual questions
-- Do NOT add generic lab safety or cleanup instructions
-- Focus solely on the mathematical and conceptual questions present
-
+## الأسئلة والإجابات الكاملة
+Process ALL questions from the OCR text with complete step-by-step solutions:
 OCR TEXT:
 ${enhancedText}
-CRITICAL: Answer ONLY questions ${questionNumbers.join(', ')} found in the OCR text above. Do not reference or create content for any other question numbers.` : ''}` : `# ملخص الصفحة
+CRITICAL: Answer EVERY question found. Do not skip any questions.` : `# ملخص الصفحة
 ## نظرة عامة
 هذه صفحة تحتوي على محتوى تعليمي.
 OCR TEXT:
@@ -437,8 +413,6 @@ ${enhancedText}`}`;
             ],
             generationConfig: {
               temperature: 0,
-              topP: 0.2,
-              topK: 1,
               maxOutputTokens: 16000,
             }
           }),
@@ -487,8 +461,6 @@ Original OCR text: ${enhancedText}`;
                     ],
                     generationConfig: {
                       temperature: 0,
-                      topP: 0.2,
-                      topK: 1,
                       maxOutputTokens: 12000,
                     }
                   }),
@@ -546,7 +518,7 @@ Original OCR text: ${enhancedText}`;
               { role: "user", content: userPrompt },
             ],
             temperature: 0,
-            top_p: 0.2,
+            top_p: 0.9,
             max_tokens: 12000,
           }),
         });
@@ -593,7 +565,6 @@ Original OCR text: ${enhancedText}`;
                       { role: "user", content: continuationPrompt },
                     ],
                     temperature: 0,
-                    top_p: 0.2,
                     max_tokens: 8000,
                   }),
                 });
@@ -647,26 +618,6 @@ Original OCR text: ${enhancedText}`;
     
     console.log(`Final summary length: ${summary.length}, Questions processed: ${summaryQuestionCount}/${originalQuestionCount}, Provider: ${providerUsed}`);
     
-    // Create debug data for troubleshooting
-    const debugData = {
-      ocrText: text,
-      enhancedText: enhancedText,
-      systemPrompt: systemPrompt,
-      userPrompt: userPrompt,
-      visualElements: ocrData?.rawStructuredData?.visual_elements || [],
-      questions: questions,
-      apiPayload: {
-        model: providerUsed === 'gemini-2.5-pro' ? 'gemini-2.5-pro' : 'deepseek-chat',
-        systemPromptLength: systemPrompt.length,
-        userPromptLength: userPrompt.length,
-        totalLength: systemPrompt.length + userPrompt.length,
-        temperature: 0,
-        maxTokens: providerUsed === 'gemini-2.5-pro' ? 16000 : 12000
-      },
-      pageNumber: page,
-      bookId: title
-    };
-    
     // Robust continuation logic - ensure ALL questions are answered regardless of summary length
     if (originalQuestionCount > 0 && summaryQuestionCount < originalQuestionCount) {
       console.log(`⚠️ Missing ${originalQuestionCount - summaryQuestionCount} questions, attempting auto-continuation...`);
@@ -694,37 +645,18 @@ Original OCR text: ${enhancedText}`;
       console.log(`Detected questions: ${questions.map(q => q.number).join(', ')}`);
       console.log(`Answered questions: ${Array.from(answeredQuestionNumbers).join(', ')}`);
       console.log(`Missing questions: ${missingNumbers.join(', ')}`);
-
-      // Add tolerance for OCR numbering mismatches: if same question count but different numbering
-      const hasSameQuestionCount = questions.length === answeredQuestionNumbers.size && questions.length > 0;
-      if (hasSameQuestionCount && missingNumbers.length === questions.length) {
-        console.log('All questions answered (numbering tolerance applied) ✓');
-        return new Response(JSON.stringify({ summary: summary }), {
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
-      }
-
-      // Limit auto-continuation - max 3 missing questions and max 2 attempts
-      const maxMissingQuestions = 3;
-      const maxContinuationAttempts = 2;
-      
-      if (missingNumbers.length > maxMissingQuestions) {
-        console.log(`Too many missing questions (${missingNumbers.length}), skipping auto-continuation`);
-        return new Response(JSON.stringify({ summary: completionContent }), {
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
-      }
       
       if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-2.5-pro')) {
         // Multi-attempt continuation with safety limit
+        const maxAttempts = 4;
         let attempt = 0;
         let currentSummary = summary;
         
-        while (missingNumbers.length > 0 && attempt < maxContinuationAttempts) {
+        while (missingNumbers.length > 0 && attempt < maxAttempts) {
           attempt++;
-          console.log(`🔄 Auto-continuation attempt ${attempt}/${maxContinuationAttempts} for questions: ${missingNumbers.join(', ')}`);
+          console.log(`🔄 Auto-continuation attempt ${attempt}/${maxAttempts} for questions: ${missingNumbers.join(', ')}`);
           
-          const completionPrompt = `COMPLETE THE MISSING QUESTIONS - Continuation ${attempt}/${maxContinuationAttempts}
+          const completionPrompt = `COMPLETE THE MISSING QUESTIONS - Continuation ${attempt}/${maxAttempts}
 
 Previous summary is incomplete. Missing these question numbers: ${missingNumbers.join(', ')}
 
@@ -843,10 +775,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
       console.log('✅ All questions appear to be processed successfully');
     }
 
-    return new Response(JSON.stringify({ 
-      summary,
-      debugData: debugData 
-    }), {
+    return new Response(JSON.stringify({ summary }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

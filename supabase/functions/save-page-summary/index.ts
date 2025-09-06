@@ -22,9 +22,7 @@ Deno.serve(async (req) => {
       ocr_text, 
       summary_md, 
       ocr_confidence, 
-      confidence,
-      ocr_json,
-      summary_json
+      confidence 
     } = requestBody
 
     console.log(`Saving summary for book ${book_id}, page ${page_number}`)
@@ -66,8 +64,6 @@ Deno.serve(async (req) => {
       summary_md,
       ocr_confidence: ocr_confidence || 0.8,
       confidence: confidence || 0.8,
-      ocr_json: ocr_json || null,
-      summary_json: summary_json || null,
       updated_at: new Date().toISOString()
     }
     

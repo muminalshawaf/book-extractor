@@ -110,7 +110,7 @@ serve(async (req: Request) => {
       return matches.map(match => {
         const num = parseInt(match.replace('.', '').trim());
         return num;
-      }).filter(num => num > 0 && num < 1000).sort((a, b) => a - b); // Increased upper limit to handle OCR numbers like 93-99
+      }).filter(num => num > 0 && num < 100).sort((a, b) => a - b);
     }
 
     const needsDetailedStructure = isContentPage(text);
@@ -178,9 +178,8 @@ ${text}
 
 ### 5) حلول الأسئلة / Questions & Solutions
 **اكتب هذا القسم فقط إذا كانت هناك أسئلة مرقمة (مفاهيمية أو حسابية).**
-**CRITICAL: احتفظ بأرقام الأسئلة الأصلية كما هي في النص - لا تعيد ترقيمها إلى 1,2,3...**
 لكل سؤال مرقم:
-- أعد كتابة السؤال بوضوح مع الرقم الأصلي (مثل "س: 93-" بدلاً من "س: 1-")
+- أعد كتابة السؤال بوضوح
 - إذا كان له أسئلة فرعية (أ/ب/ج، a/b/c، i/ii/iii...)، أجب على كل سؤال فرعي منفصلاً
 - إذا كان حسابياً: اعرض الحل خطوة بخطوة مع المعادلات في LaTeX والجواب النهائي الرقمي مع الوحدات
 - إذا كان مفاهيمياً: قدم إجابة واضحة ومباشرة من النص
@@ -261,9 +260,8 @@ Use LaTeX ($$...$$ for blocks). List variables with meanings and units
 
 ### 5) Questions & Solutions
 **ONLY include this section if there are numbered questions or problems in the text.**
-**CRITICAL: Preserve original question numbers from text - do NOT renumber them to 1,2,3...**
 For each question or problem found:
-- Restate the question clearly with original number (e.g., "Q: 93-" instead of "Q: 1-")
+- Restate the question clearly
 - If it has sub-questions (a/b/c, i/ii/iii...), answer each sub-question separately
 - If conceptual question: provide comprehensive, detailed answer
 - If calculation problem: show step-by-step solution with calculations
@@ -320,7 +318,7 @@ Constraints:
         messages: [
           {
             role: 'system',
-            content: 'You are an expert educational teacher and content analyzer. GROUNDING RULE: You can ONLY answer questions that are physically present in the provided OCR text. DO NOT invent, create, or imagine ANY questions that are not explicitly written in the text. If a question number is mentioned but the actual question text is not provided, you MUST NOT answer it. ONLY answer questions where you can see both the question number AND the complete question text in the OCR input. This is absolutely critical - NO EXCEPTIONS.'
+            content: 'You are an expert educational teacher and content analyzer. CRITICAL: Answer ALL questions using your full educational knowledge. NEVER say content is "not mentioned" - always provide complete educational answers. When text content is provided, use it as reference but supplement with your teaching expertise to give comprehensive answers to all questions.'
           },
           {
             role: 'user',
@@ -328,8 +326,8 @@ Constraints:
           }
         ],
         stream: true,
-        temperature: 0.0,
-        top_p: 0.2,
+        temperature: 0.2,
+        top_p: 0.9,
         max_tokens: 2000,
       }),
     });

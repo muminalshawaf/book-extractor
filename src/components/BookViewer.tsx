@@ -10,11 +10,10 @@ import { runLocalOcr } from '@/lib/ocr/localOcr';
 import { removeBackgroundFromBlob, captionImageFromBlob } from '@/lib/vision';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
-
 import { callFunction } from "@/lib/functionsClient";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingProgress } from "@/components/LoadingProgress";
-import { BatchContentFixer } from "@/components/seo/BatchContentFixer";
+import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { ThumbnailSidebar } from "@/components/ThumbnailSidebar";
 import { FullscreenMode, FullscreenButton, useFullscreen } from "./FullscreenMode";
 import { ZoomControls, ZoomMode } from "@/components/ZoomControls";
@@ -24,7 +23,6 @@ import { EnhancedSummary } from "@/components/EnhancedSummary";
 import { ImprovedErrorHandler } from "@/components/ImprovedErrorHandler";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { TouchGestureHandler } from "@/components/TouchGestureHandler";
-import { SummarizationDebugModal } from "@/components/SummarizationDebugModal";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -36,7 +34,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { MobileControlsOverlay } from "@/components/reader/MobileControlsOverlay";
 import { MobileReaderChrome } from "@/components/reader/MobileReaderChrome";
-// HenryLawCalculator removed - hardcoded display logic retired
+import { HenryLawCalculator } from "@/components/HenryLawCalculator";
 import { IndexableOCRContent } from "@/components/seo/IndexableOCRContent";
 
 export type BookPage = {
@@ -162,10 +160,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [controlsOpen, setControlsOpen] = useState(true);
   const [insightTab, setInsightTab] = useState<'summary' | 'qa'>('summary');
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  // Debug modal state
-  const [debugModalOpen, setDebugModalOpen] = useState(false);
-  const [lastDebugData, setLastDebugData] = useState<any>(null);
 
   // Navigation functions with URL sync
   const updatePageInUrl = useCallback((pageIndex: number) => {
@@ -474,18 +468,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const extractTextFromPage = async (force = false) => {
     if (ocrLoading) return;
     
-    // Create operation snapshot to prevent race conditions
-    const opId = `ocr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const snapshot = {
-      opId,
-      bookId: dbBookId,
-      pageNumber: index + 1,
-      ocrKey,
-      sumKey
-    };
-    
-    console.log(`OCR Operation ${opId}: Starting for book ${snapshot.bookId}, page ${snapshot.pageNumber}`);
-    
     // Skip database check if force is true
     if (!force) {
       // Check if we already have OCR text in database
@@ -493,8 +475,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         const { data: existingData, error } = await supabase
           .from('page_summaries')
           .select('ocr_text, ocr_confidence, confidence, confidence_meta')
-          .eq('book_id', snapshot.bookId)
-          .eq('page_number', snapshot.pageNumber)
+          .eq('book_id', dbBookId)
+          .eq('page_number', index + 1)
           .maybeSingle();
 
         console.log('Checking database for existing OCR text for page', index + 1, 'Result:', existingData);
@@ -595,8 +577,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           book_id: dbBookId,
           page_number: index + 1,
           ocr_text: cleanText,
-          ocr_confidence: result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8,
-          ocr_json: geminiResult?.rawStructuredData || null
+          ocr_confidence: result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8
         });
         console.log('OCR text saved successfully for page', index + 1, 'Result:', saveResult);
         
@@ -616,11 +597,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       setOcrProgress(100);
       toast.success(rtl ? "تم استخراج النص بنجاح" : "Text extracted successfully");
       
-      // Generate summary asynchronously without blocking using snapshot
+      // Generate summary asynchronously without blocking
       setTimeout(() => {
         toast.info(rtl ? "جاري توليد الملخص في الخلفية..." : "Generating summary in background...");
-        summarizeExtractedText(cleanText, force, snapshot).catch(error => {
-          console.error(`OCR Operation ${snapshot.opId}: Background summary generation failed:`, error);
+        summarizeExtractedText(cleanText, force).catch(error => {
+          console.error('Background summary generation failed:', error);
           toast.error(rtl ? "فشل في توليد الملخص" : "Summary generation failed");
         });
       }, 100);
@@ -644,50 +625,35 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummLoading(false);
   };
 
-  const summarizeExtractedText = async (text?: string, force = false, providedSnapshot?: any) => {
-    // Use provided text or fall back to state, but prioritize provided text
-    const textToSummarize = text?.trim() || extractedText;
-    if (!textToSummarize?.trim()) {
+  const summarizeExtractedText = async (text: string = extractedText, force = false) => {
+    if (!text?.trim()) {
       toast.error(rtl ? "لا يوجد نص لتلخيصه" : "No text to summarize");
       return;
     }
     
-    // Create operation snapshot to prevent race conditions
-    const snapshot = providedSnapshot || {
-      opId: `summary_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      bookId: dbBookId,
-      pageNumber: index + 1,
-      ocrKey,
-      sumKey
-    };
-    
-    console.log(`Summary Operation ${snapshot.opId}: Starting for book ${snapshot.bookId}, page ${snapshot.pageNumber}`);
-    
     // Check for mathematical content markers in OCR text
-    const hasMathMarkers = /[∫∑∏√∂∇∆λπθΩαβγδεζηκμνξρστφχψω]|[=+\-×÷<>≤≥≠]|\d+\s*[×÷]\s*\d+|[a-zA-Z]\s*=\s*[a-zA-Z0-9]/.test(textToSummarize);
+    const hasMathMarkers = /[∫∑∏√∂∇∆λπθΩαβγδεζηκμνξρστφχψω]|[=+\-×÷<>≤≥≠]|\d+\s*[×÷]\s*\d+|[a-zA-Z]\s*=\s*[a-zA-Z0-9]/.test(text);
     console.log('Math markers detected in OCR:', hasMathMarkers);
     
-    // Skip database check if force is true - COMPLETELY BYPASS ALL CACHE
+    // Skip database check if force is true
     if (!force) {
       // First check if summary already exists in database
       try {
         const { data: existingData, error } = await supabase
           .from('page_summaries')
           .select('summary_md')
-          .eq('book_id', snapshot.bookId)
-          .eq('page_number', snapshot.pageNumber)
+          .eq('book_id', dbBookId)
+          .eq('page_number', index + 1)
           .maybeSingle();
         
         if (!error && existingData?.summary_md?.trim()) {
-          console.log(`Summary Operation ${snapshot.opId}: Found existing summary in database, streaming it...`);
+          console.log('Found existing summary in database, streaming it...');
           await streamExistingSummary(existingData.summary_md);
           return;
         }
       } catch (dbError) {
-        console.warn(`Summary Operation ${snapshot.opId}: Failed to check existing summary:`, dbError);
+        console.warn('Failed to check existing summary:', dbError);
       }
-    } else {
-      console.log('🚀 FORCE MODE: Bypassing ALL cache - generating fresh summary...');
     }
     
     setSummLoading(true);
@@ -695,28 +661,14 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummary("");
     
     try {
-      console.log('🔍 DEBUGGING SUMMARIZATION INPUT:');
-      console.log('📝 Text parameter passed:', text ? text.substring(0, 200) + '...' : 'NONE');
-      console.log('📊 State extractedText:', extractedText ? extractedText.substring(0, 200) + '...' : 'NONE');
-      console.log('✅ Final textToSummarize:', textToSummarize.substring(0, 200) + '...');
-      console.log('📏 Final text length:', textToSummarize.length);
-      console.log('🎯 Text contains تقويم الفصل 3?', textToSummarize.includes('تقويم الفصل 3'));
-      console.log('❌ Text contains سرعة التفاعل?', textToSummarize.includes('سرعة التفاعل'));
-      console.log('🔢 Questions 49-63 present?', /(4[9]|5[0-9]|6[0-3])\s*-/.test(textToSummarize));
-      console.log('❌ Questions 45-50 present?', /(4[5-8]|50)\s*-/.test(textToSummarize));
+      console.log('Starting summary generation for text:', text.substring(0, 100));
       
-      const trimmedText = textToSummarize.trim();
+      const trimmedText = text.trim();
       
       // Use the working summarize function directly
       console.log('Calling summarize function with thorough verification...');
       setSummaryProgress(10);
       toast.info(rtl ? "جاري التوليد مع التحقق الشامل - قد يستغرق عدة دقائق..." : "Generating with thorough verification - this may take several minutes...");
-      
-      console.log('🚀 CALLING SUMMARIZE FUNCTION WITH:');
-      console.log('📝 Text being sent (first 300 chars):', trimmedText.substring(0, 300));
-      console.log('🌐 Language:', 'ar');
-      console.log('📄 Page:', index + 1);
-      console.log('📚 Title:', title);
       
       const summaryResult = await callFunction('summarize', {
         text: trimmedText,
@@ -728,22 +680,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             page_title: title || 'Unknown',
             page_type: 'content',
             has_formulas: hasMathMarkers,
-            has_questions: /\d+\.\s/.test(trimmedText) || /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(trimmedText),
-            has_examples: /مثال|example/i.test(trimmedText)
+            has_questions: /\d+\.\s/.test(text) || /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(text),
+            has_examples: /مثال|example/i.test(text)
           }
         }
       }, { timeout: 240000, retries: 3 }); // 4 minutes timeout, 3 retries with direct fetch
-      
-      // Capture debug data for troubleshooting
-      if (summaryResult?.debugData) {
-        setLastDebugData(summaryResult.debugData);
-        console.log('📊 Debug data captured for page', index + 1);
-      }
-      
-      console.log('📥 SUMMARIZE FUNCTION RETURNED:');
-      console.log('✅ Summary preview (first 300 chars):', summaryResult?.summary?.substring(0, 300));
-      console.log('🔢 Summary mentions questions 45-50?', summaryResult?.summary?.includes('45-') || summaryResult?.summary?.includes('46-') || summaryResult?.summary?.includes('47-') || summaryResult?.summary?.includes('48-') || summaryResult?.summary?.includes('49-') || summaryResult?.summary?.includes('50-'));
-      console.log('✅ Summary mentions تقويم الفصل?', summaryResult?.summary?.includes('تقويم الفصل'));
       
       console.log('Summary result:', summaryResult);
 
@@ -779,25 +720,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         
         toast.success(rtl ? "تم إنشاء الملخص بنجاح" : "Summary generated successfully");
         
-        // Save complete summary to database using snapshot (async, non-blocking)
-        const summaryJson = {
-          sections: finalSummary.split('###').filter(s => s.trim()).map(section => {
-            const lines = section.trim().split('\n');
-            const title = lines[0]?.replace(/^\d+\)\s*/, '').trim() || '';
-            const content = lines.slice(1).join('\n').trim();
-            return { title, content };
-          }).filter(s => s.title),
-          pageNumber: snapshot.pageNumber,
-          hasQuestions: /\d+\.\s/.test(trimmedText),
-          hasMath: hasMathMarkers,
-          wordCount: finalSummary.split(/\s+/).length
-        };
-        
+        // Save complete summary to database (async, non-blocking)
         callFunction('save-page-summary', {
           book_id: dbBookId,
           page_number: index + 1,
           summary_md: finalSummary,
-          summary_json: summaryJson,
           confidence: 0.8
         }).catch(saveError => {
           console.error('Failed to save summary to database:', saveError);
@@ -818,36 +745,24 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
   const forceRegenerate = async () => {
     try {
-      console.log('🔄 FORCE REGENERATE: Starting complete reset...');
-      
-      // Clear ALL state immediately 
+      // Clear existing data
       setExtractedText("");
       setSummary("");
-      setOcrQuality(0);
-      setSummaryConfidence(0);
+      localStorage.removeItem(ocrKey);
+      localStorage.removeItem(sumKey);
       
-      // Clear ALL localStorage cache for this page
-      const pageKeys = [ocrKey, sumKey, `ocr_quality_${dbBookId}_${index + 1}`, `summary_confidence_${dbBookId}_${index + 1}`];
-      pageKeys.forEach(key => {
-        localStorage.removeItem(key);
-        console.log('🗑️ Cleared localStorage:', key);
-      });
-      
-      // Clear database cached data by deleting the record - MORE THOROUGH DELETION
+      // Clear database cached data by deleting the record
       try {
-        console.log('🗑️ FORCE DELETE: Removing ALL cached data for page', index + 1);
-        const { error: deleteError, count } = await supabase
+        const { error: deleteError } = await supabase
           .from('page_summaries')
-          .delete({ count: 'exact' })
+          .delete()
           .eq('book_id', dbBookId)
           .eq('page_number', index + 1);
           
-        console.log('🗑️ DELETE RESULT:', { error: deleteError, deletedRows: count });
-        
         if (deleteError) {
           console.warn('Failed to delete cached data:', deleteError);
         } else {
-          console.log(`✅ Successfully deleted ${count} cached records for force regeneration`);
+          console.log('Cleared cached data for force regeneration');
         }
       } catch (deleteErr) {
         console.warn('Failed to clear database cache:', deleteErr);
@@ -860,50 +775,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     } catch (error) {
       console.error('Force regenerate error:', error);
       toast.error(rtl ? "فشل في إعادة التوليد" : "Failed to regenerate content");
-    }
-  };
-
-  const regeneratePageSummary = async () => {
-    try {
-      console.log(`🔥 REGENERATE: Starting for book ${dbBookId}, page ${index + 1}`);
-      
-      // Use the edge function to clear incorrect summary
-      const response = await supabase.functions.invoke('regenerate-page-summary', {
-        body: { 
-          book_id: dbBookId, 
-          page_number: index + 1 
-        }
-      });
-
-      console.log('🔥 REGENERATE: Edge function response:', response);
-
-      if (response.error) {
-        console.error('🔥 REGENERATE: Error from edge function:', response.error);
-        toast.error(rtl ? "فشل في إعادة توليد الملخص" : "Failed to regenerate summary");
-        return;
-      }
-
-      // Clear local cache
-      localStorage.removeItem(sumKey);
-      console.log('🔥 REGENERATE: Cleared local cache');
-      
-      // Clear summary state
-      setSummary('');
-      console.log('🔥 REGENERATE: Cleared summary state');
-      
-      toast.success(rtl ? "تم حذف الملخص الخاطئ وسيتم إعادة توليده" : "Cleared incorrect summary, will regenerate");
-
-      // Trigger regeneration if we have extracted text
-      if (extractedText) {
-        console.log('🔥 REGENERATE: Triggering regeneration with existing text');
-        await summarizeExtractedText(extractedText, true);
-      } else {
-        console.log('🔥 REGENERATE: No extracted text, running OCR first');
-        await extractTextFromPage(true);
-      }
-    } catch (error) {
-      console.error('🔥 REGENERATE: Critical error:', error);
-      toast.error(rtl ? "فشل في إعادة توليد الملخص" : "Failed to regenerate summary");
     }
   };
 
@@ -962,29 +833,12 @@ KF (°C/m)
 
       console.log(`Post-processing: Found ${requiredIds.length} questions: [${requiredIds.join(', ')}]`);
 
-      // Validate completeness based on question numbers with tolerance for OCR numbering mismatches
+      // Extract answered question numbers from summary
       const answeredIds = extractQuestionNumbers(generatedSummary);
-      
-      // Add tolerance: if summary has 1..N and OCR has M..(M+N-1) for same count, consider complete
-      const hasSameQuestionCount = requiredIds.length === answeredIds.length && requiredIds.length > 0;
-      const isSequentialFromOne = answeredIds.length > 0 && answeredIds.every((id, idx) => id === (idx + 1));
-      const requiredSequential = requiredIds.length > 0 && requiredIds.every((id, idx) => id === (Math.min(...requiredIds) + idx));
-      
-      if (hasSameQuestionCount && (isSequentialFromOne || requiredSequential)) {
-        console.log('Post-processing: All questions answered ✓ (numbering tolerance applied)');
-        return;
-      }
-      
       const missingIds = requiredIds.filter(id => !answeredIds.includes(id));
 
       if (missingIds.length === 0) {
         console.log('Post-processing: All questions answered ✓');
-        return;
-      }
-
-      // Limit auto-continuation to prevent tail spam - max 3 missing questions
-      if (missingIds.length > 3) {
-        console.log(`Post-processing: Too many missing questions (${missingIds.length}), skipping auto-continuation`);
         return;
       }
 
@@ -1164,30 +1018,6 @@ KF (°C/m)
                       {rtl ? "لخص هذه الصفحة" : "Summarize this page"}
                     </Button>
                     
-                    {/* Debug Button */}
-                    {lastDebugData && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setDebugModalOpen(true)}
-                        className="w-full mt-2"
-                      >
-                        🐛 Debug Last Request
-                      </Button>
-                    )}
-                    
-                    {/* Regenerate Summary Button */}
-                    {summary && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={regeneratePageSummary}
-                        className="w-full mt-2"
-                      >
-                        🔄 Regenerate Summary
-                      </Button>
-                    )}
-                    
                     {/* Add Table Data Button - Only show on page 50 */}
                     {index + 1 === 50 && (
                       <Button 
@@ -1211,9 +1041,13 @@ KF (°C/m)
                               localStorage.setItem(sumKey, newSummary);
                             } catch {}
                           }}
-                           onRegenerate={() => {
-                             regeneratePageSummary();
-                           }}
+                          onRegenerate={() => {
+                            if (extractedText) {
+                              summarizeExtractedText(extractedText);
+                            } else {
+                              toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
+                            }
+                          }}
                           isRegenerating={summLoading}
                           confidence={ocrQuality ?? summaryConfidence}
                           pageNumber={index + 1}
@@ -1281,14 +1115,15 @@ KF (°C/m)
             </DrawerContent>
           </Drawer>
           
-            {/* Batch Content Fixer */}
-            <div className="px-4 mb-4">
-              <BatchContentFixer 
-                bookId={dbBookId}
-                totalPages={pages.length}
-                rtl={rtl}
-              />
-            </div>
+          {/* OCR Content for Mobile */}
+          <div className="px-4">
+            <IndexableOCRContent
+              ocrText={extractedText}
+              pageNumber={index + 1}
+              rtl={rtl}
+              onForceRegenerate={forceRegenerate}
+            />
+          </div>
         </div>
       ) : (
         <div className="min-h-screen flex gap-4">
@@ -1562,9 +1397,13 @@ KF (°C/m)
                                 localStorage.setItem(sumKey, newSummary);
                               } catch {}
                             }}
-                             onRegenerate={() => {
-                               regeneratePageSummary();
-                             }}
+                            onRegenerate={() => {
+                              if (extractedText) {
+                                summarizeExtractedText(extractedText);
+                              } else {
+                                toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
+                              }
+                            }}
                             isRegenerating={summLoading}
                             confidence={ocrQuality ?? summaryConfidence}
                             pageNumber={index + 1}
@@ -1572,7 +1411,14 @@ KF (°C/m)
                             title={title}
                           />
                           
-                          {/* Hardcoded Henry's Law Calculator logic removed - was causing unwanted auto-display */}
+                          {/* Henry's Law Calculator for Question 92 */}
+                          {(extractedText.includes("قانون هنري") || extractedText.includes("henry") || 
+                            extractedText.includes("92") || extractedText.includes("٩٢")) && 
+                           (extractedText.includes("جدول") || extractedText.includes("table")) && (
+                            <div className="mt-4">
+                              <HenryLawCalculator />
+                            </div>
+                          )}
                         </div>
                       )}
                     </TabsContent>
@@ -1609,13 +1455,6 @@ KF (°C/m)
           </div>
         </div>
       )}
-      
-      {/* Debug Modal */}
-      <SummarizationDebugModal
-        isOpen={debugModalOpen}
-        onClose={() => setDebugModalOpen(false)}
-        debugData={lastDebugData}
-      />
     </section>
   );
 };

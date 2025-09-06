@@ -1,1 +1,0 @@
-DELETE FROM page_summaries WHERE page_number = 122 AND book_id = 'chem12-1-3';

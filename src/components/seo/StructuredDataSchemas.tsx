@@ -8,8 +8,6 @@ interface StructuredDataSchemasProps {
   pageContent?: {
     summary?: string;
     ocrText?: string;
-    ocrJson?: any;
-    summaryJson?: any;
   };
 }
 
@@ -208,57 +206,8 @@ export default function StructuredDataSchemas({
     }
   } : null;
 
-  // Questions Schema from structured JSON
-  const questionsSchema = pageContent?.summaryJson?.sections && book ? {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    "name": `أسئلة الصفحة ${pageNumber} - ${book.title}`,
-    "numberOfItems": pageContent.summaryJson.sections.filter((s: any) => s.title.includes('سؤال') || s.title.includes('حل')).length,
-    "itemListElement": pageContent.summaryJson.sections
-      .filter((s: any) => s.title.includes('سؤال') || s.title.includes('حل') || /\d+\)\s/.test(s.title))
-      .slice(0, 10) // Limit for performance
-      .map((section: any, index: number) => ({
-        "@type": "Question",
-        "position": index + 1,
-        "name": section.title.replace(/^\d+\)\s*/, ''),
-        "text": section.content.slice(0, 200),
-        "inLanguage": "ar-SA",
-        "educationalUse": "assessment"
-      }))
-  } : null;
-
-  // Structured OCR Schema from JSON
-  const structuredOcrSchema = pageContent?.ocrJson && book && pageContent.ocrJson.sections ? {
-    "@context": "https://schema.org",
-    "@type": "ItemList", 
-    "name": `محتوى منظم - الصفحة ${pageNumber}`,
-    "numberOfItems": Math.min(pageContent.ocrJson.sections.length, 5),
-    "itemListElement": pageContent.ocrJson.sections.slice(0, 5).map((section: any, index: number) => ({
-      "@type": "CreativeWork",
-      "position": index + 1,
-      "name": section.title || `قسم ${index + 1}`,
-      "text": section.content?.slice(0, 150) || '',
-      "inLanguage": "ar-SA"
-    }))
-  } : null;
-
-  // Enhanced Article Schema with structured content
-  const enhancedArticleSchema = pageContent?.summaryJson && lesson && book ? {
-    ...articleSchema,
-    "text": pageContent.summaryJson.sections?.map((s: any) => s.content).join(' ').slice(0, 500),
-    "wordCount": pageContent.summaryJson.wordCount || 0,
-    "about": {
-      "@type": "Thing", 
-      "name": lesson.arabicKeywords.join(", ")
-    },
-    "hasPart": pageContent.summaryJson.hasQuestions ? [
-      {
-        "@type": "Quiz",
-        "name": "أسئلة الصفحة",
-        "inLanguage": "ar-SA"
-      }
-    ] : undefined
-  } : pageContent?.summary && lesson && book ? {
+  // Enhanced Article Schema with content
+  const enhancedArticleSchema = pageContent?.summary && lesson && book ? {
     ...articleSchema,
     "text": pageContent.summary,
     "wordCount": pageContent.summary.split(/\s+/).length,
@@ -275,14 +224,8 @@ export default function StructuredDataSchemas({
     ...(courseSchema ? [courseSchema] : []),
     ...(learningResourceSchema ? [learningResourceSchema] : []),
     ...(enhancedArticleSchema ? [enhancedArticleSchema] : []),
-    ...(creativeWorkSchema ? [creativeWorkSchema] : []),
-    ...(questionsSchema && questionsSchema.itemListElement.length > 0 ? [questionsSchema] : []),
-    ...(structuredOcrSchema ? [structuredOcrSchema] : [])
-  ].filter(schema => {
-    // Hard cap: Remove schema if JSON stringified version exceeds 8KB
-    const size = JSON.stringify(schema).length;
-    return size < 8000;
-  });
+    ...(creativeWorkSchema ? [creativeWorkSchema] : [])
+  ];
 
   return (
     <>
