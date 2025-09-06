@@ -639,8 +639,10 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummLoading(false);
   };
 
-  const summarizeExtractedText = async (text: string = extractedText, force = false, providedSnapshot?: any) => {
-    if (!text?.trim()) {
+  const summarizeExtractedText = async (text?: string, force = false, providedSnapshot?: any) => {
+    // Use provided text or fall back to state, but prioritize provided text
+    const textToSummarize = text?.trim() || extractedText;
+    if (!textToSummarize?.trim()) {
       toast.error(rtl ? "لا يوجد نص لتلخيصه" : "No text to summarize");
       return;
     }
@@ -657,7 +659,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     console.log(`Summary Operation ${snapshot.opId}: Starting for book ${snapshot.bookId}, page ${snapshot.pageNumber}`);
     
     // Check for mathematical content markers in OCR text
-    const hasMathMarkers = /[∫∑∏√∂∇∆λπθΩαβγδεζηκμνξρστφχψω]|[=+\-×÷<>≤≥≠]|\d+\s*[×÷]\s*\d+|[a-zA-Z]\s*=\s*[a-zA-Z0-9]/.test(text);
+    const hasMathMarkers = /[∫∑∏√∂∇∆λπθΩαβγδεζηκμνξρστφχψω]|[=+\-×÷<>≤≥≠]|\d+\s*[×÷]\s*\d+|[a-zA-Z]\s*=\s*[a-zA-Z0-9]/.test(textToSummarize);
     console.log('Math markers detected in OCR:', hasMathMarkers);
     
     // Skip database check if force is true
@@ -686,9 +688,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummary("");
     
     try {
-      console.log('Starting summary generation for text:', text.substring(0, 100));
+      console.log('Starting summary generation for text:', textToSummarize.substring(0, 100));
+      console.log('Full OCR text being sent to summarize function:', {
+        textLength: textToSummarize.length,
+        textPreview: textToSummarize.substring(0, 200),
+        isFromParameter: !!text,
+        isFromState: !text && !!extractedText
+      });
       
-      const trimmedText = text.trim();
+      const trimmedText = textToSummarize.trim();
       
       // Use the working summarize function directly
       console.log('Calling summarize function with thorough verification...');
@@ -705,8 +713,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             page_title: title || 'Unknown',
             page_type: 'content',
             has_formulas: hasMathMarkers,
-            has_questions: /\d+\.\s/.test(text) || /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(text),
-            has_examples: /مثال|example/i.test(text)
+            has_questions: /\d+\.\s/.test(trimmedText) || /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(trimmedText),
+            has_examples: /مثال|example/i.test(trimmedText)
           }
         }
       }, { timeout: 240000, retries: 3 }); // 4 minutes timeout, 3 retries with direct fetch
