@@ -816,6 +816,44 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     }
   };
 
+  const regeneratePageSummary = async () => {
+    try {
+      console.log(`Regenerating summary for book ${dbBookId}, page ${index + 1}`);
+      
+      // Use the edge function to clear incorrect summary
+      const response = await supabase.functions.invoke('regenerate-page-summary', {
+        body: { 
+          book_id: dbBookId, 
+          page_number: index + 1 
+        }
+      });
+
+      if (response.error) {
+        console.error('Error regenerating summary:', response.error);
+        toast.error(rtl ? "فشل في إعادة توليد الملخص" : "Failed to regenerate summary");
+        return;
+      }
+
+      // Clear local cache
+      localStorage.removeItem(sumKey);
+      
+      // Clear summary state
+      setSummary('');
+      
+      toast.success(rtl ? "تم حذف الملخص الخاطئ وسيتم إعادة توليده" : "Cleared incorrect summary, will regenerate");
+
+      // Trigger regeneration if we have extracted text
+      if (extractedText) {
+        await summarizeExtractedText(extractedText, true);
+      } else {
+        toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
+      }
+    } catch (error) {
+      console.error('Error regenerating summary:', error);
+      toast.error(rtl ? "فشل في إعادة توليد الملخص" : "Failed to regenerate summary");
+    }
+  };
+
   // Function to add table data and run summarization
   const addTableDataAndSummarize = async () => {
     const tableData = `
@@ -1096,13 +1134,9 @@ KF (°C/m)
                               localStorage.setItem(sumKey, newSummary);
                             } catch {}
                           }}
-                          onRegenerate={() => {
-                            if (extractedText) {
-                              summarizeExtractedText(extractedText);
-                            } else {
-                              toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
-                            }
-                          }}
+                           onRegenerate={() => {
+                             regeneratePageSummary();
+                           }}
                           isRegenerating={summLoading}
                           confidence={ocrQuality ?? summaryConfidence}
                           pageNumber={index + 1}
@@ -1452,13 +1486,9 @@ KF (°C/m)
                                 localStorage.setItem(sumKey, newSummary);
                               } catch {}
                             }}
-                            onRegenerate={() => {
-                              if (extractedText) {
-                                summarizeExtractedText(extractedText);
-                              } else {
-                                toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
-                              }
-                            }}
+                             onRegenerate={() => {
+                               regeneratePageSummary();
+                             }}
                             isRegenerating={summLoading}
                             confidence={ocrQuality ?? summaryConfidence}
                             pageNumber={index + 1}
