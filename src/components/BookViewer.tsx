@@ -818,7 +818,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
   const regeneratePageSummary = async () => {
     try {
-      console.log(`Regenerating summary for book ${dbBookId}, page ${index + 1}`);
+      console.log(`🔥 REGENERATE: Starting for book ${dbBookId}, page ${index + 1}`);
       
       // Use the edge function to clear incorrect summary
       const response = await supabase.functions.invoke('regenerate-page-summary', {
@@ -828,28 +828,34 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         }
       });
 
+      console.log('🔥 REGENERATE: Edge function response:', response);
+
       if (response.error) {
-        console.error('Error regenerating summary:', response.error);
+        console.error('🔥 REGENERATE: Error from edge function:', response.error);
         toast.error(rtl ? "فشل في إعادة توليد الملخص" : "Failed to regenerate summary");
         return;
       }
 
       // Clear local cache
       localStorage.removeItem(sumKey);
+      console.log('🔥 REGENERATE: Cleared local cache');
       
       // Clear summary state
       setSummary('');
+      console.log('🔥 REGENERATE: Cleared summary state');
       
       toast.success(rtl ? "تم حذف الملخص الخاطئ وسيتم إعادة توليده" : "Cleared incorrect summary, will regenerate");
 
       // Trigger regeneration if we have extracted text
       if (extractedText) {
+        console.log('🔥 REGENERATE: Triggering regeneration with existing text');
         await summarizeExtractedText(extractedText, true);
       } else {
-        toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
+        console.log('🔥 REGENERATE: No extracted text, running OCR first');
+        await extractTextFromPage(true);
       }
     } catch (error) {
-      console.error('Error regenerating summary:', error);
+      console.error('🔥 REGENERATE: Critical error:', error);
       toast.error(rtl ? "فشل في إعادة توليد الملخص" : "Failed to regenerate summary");
     }
   };

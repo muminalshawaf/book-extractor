@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.ocr-deepseek]
 verify_jwt = false
+
+[functions.regenerate-page-summary]
+verify_jwt = false
