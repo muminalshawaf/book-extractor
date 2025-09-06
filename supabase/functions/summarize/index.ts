@@ -246,7 +246,7 @@ ${hasMultipleChoice ? `
 
 CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
 1. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence from lowest to highest number. If you see questions 45, 102, 46, you MUST answer them as: 45, then 46, then 102. This is MANDATORY and non-negotiable.
-2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found in the text. NO EXCEPTIONS. Be concise on explanatory topics if needed, but NEVER skip questions.
+2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found in the text. NO EXCEPTIONS. NEVER MAKE UP QUESTIONS that are not strictly in the text. Be concise on explanatory topics if needed, but NEVER skip questions.
 3. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles before providing them.
 4. **STEP-BY-STEP MANDATE**: Each question must have a complete, logical solution showing all work and reasoning.
 5. **USE ALL AVAILABLE DATA MANDATE**: The OCR text contains ALL necessary information including graphs, tables, and numerical data. Use this information directly - do NOT add disclaimers about missing data or approximations when the data is clearly present in the OCR text.
@@ -426,6 +426,8 @@ ${enhancedText}`}`;
             ],
             generationConfig: {
               temperature: 0,
+              topP: 0.2,
+              topK: 1,
               maxOutputTokens: 16000,
             }
           }),
@@ -474,6 +476,8 @@ Original OCR text: ${enhancedText}`;
                     ],
                     generationConfig: {
                       temperature: 0,
+                      topP: 0.2,
+                      topK: 1,
                       maxOutputTokens: 12000,
                     }
                   }),
@@ -531,7 +535,7 @@ Original OCR text: ${enhancedText}`;
               { role: "user", content: userPrompt },
             ],
             temperature: 0,
-            top_p: 0.9,
+            top_p: 0.2,
             max_tokens: 12000,
           }),
         });
@@ -578,6 +582,7 @@ Original OCR text: ${enhancedText}`;
                       { role: "user", content: continuationPrompt },
                     ],
                     temperature: 0,
+                    top_p: 0.2,
                     max_tokens: 8000,
                   }),
                 });

@@ -320,7 +320,7 @@ Constraints:
         messages: [
           {
             role: 'system',
-            content: 'You are an expert educational teacher and content analyzer. CRITICAL: Answer ALL questions using your full educational knowledge. NEVER say content is "not mentioned" - always provide complete educational answers. When text content is provided, use it as reference but supplement with your teaching expertise to give comprehensive answers to all questions.'
+            content: 'You are an expert educational teacher and content analyzer. CRITICAL: You MUST answer every single question found in the text. NO EXCEPTIONS. NEVER MAKE UP QUESTIONS that are not strictly in the text. Answer ALL questions using your full educational knowledge. NEVER say content is "not mentioned" - always provide complete educational answers. When text content is provided, use it as reference but supplement with your teaching expertise to give comprehensive answers to all questions.'
           },
           {
             role: 'user',
@@ -328,8 +328,8 @@ Constraints:
           }
         ],
         stream: true,
-        temperature: 0.2,
-        top_p: 0.9,
+        temperature: 0.0,
+        top_p: 0.2,
         max_tokens: 2000,
       }),
     });
