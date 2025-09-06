@@ -10,7 +10,7 @@ import { runLocalOcr } from '@/lib/ocr/localOcr';
 import { removeBackgroundFromBlob, captionImageFromBlob } from '@/lib/vision';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
-import { TestRegenerate } from "@/components/TestRegenerate";
+
 import { callFunction } from "@/lib/functionsClient";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingProgress } from "@/components/LoadingProgress";
@@ -1051,7 +1051,6 @@ KF (°C/m)
 
   return (
     <section className={cn("w-full min-h-screen", rtl && "[direction:rtl]")}>
-      <TestRegenerate />
       {isMobile ? (
         <div className="min-h-screen">
           <MobileReaderChrome
