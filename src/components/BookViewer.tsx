@@ -688,13 +688,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummary("");
     
     try {
-      console.log('Starting summary generation for text:', textToSummarize.substring(0, 100));
-      console.log('Full OCR text being sent to summarize function:', {
-        textLength: textToSummarize.length,
-        textPreview: textToSummarize.substring(0, 200),
-        isFromParameter: !!text,
-        isFromState: !text && !!extractedText
-      });
+      console.log('🔍 DEBUGGING SUMMARIZATION INPUT:');
+      console.log('📝 Text parameter passed:', text ? text.substring(0, 200) + '...' : 'NONE');
+      console.log('📊 State extractedText:', extractedText ? extractedText.substring(0, 200) + '...' : 'NONE');
+      console.log('✅ Final textToSummarize:', textToSummarize.substring(0, 200) + '...');
+      console.log('📏 Final text length:', textToSummarize.length);
+      console.log('🎯 Text contains تقويم الفصل 3?', textToSummarize.includes('تقويم الفصل 3'));
+      console.log('❌ Text contains سرعة التفاعل?', textToSummarize.includes('سرعة التفاعل'));
+      console.log('🔢 Questions 49-63 present?', /(4[9]|5[0-9]|6[0-3])\s*-/.test(textToSummarize));
+      console.log('❌ Questions 45-50 present?', /(4[5-8]|50)\s*-/.test(textToSummarize));
       
       const trimmedText = textToSummarize.trim();
       
@@ -702,6 +704,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       console.log('Calling summarize function with thorough verification...');
       setSummaryProgress(10);
       toast.info(rtl ? "جاري التوليد مع التحقق الشامل - قد يستغرق عدة دقائق..." : "Generating with thorough verification - this may take several minutes...");
+      
+      console.log('🚀 CALLING SUMMARIZE FUNCTION WITH:');
+      console.log('📝 Text being sent (first 300 chars):', trimmedText.substring(0, 300));
+      console.log('🌐 Language:', 'ar');
+      console.log('📄 Page:', index + 1);
+      console.log('📚 Title:', title);
       
       const summaryResult = await callFunction('summarize', {
         text: trimmedText,
@@ -718,6 +726,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           }
         }
       }, { timeout: 240000, retries: 3 }); // 4 minutes timeout, 3 retries with direct fetch
+      
+      console.log('📥 SUMMARIZE FUNCTION RETURNED:');
+      console.log('✅ Summary preview (first 300 chars):', summaryResult?.summary?.substring(0, 300));
+      console.log('🔢 Summary mentions questions 45-50?', summaryResult?.summary?.includes('45-') || summaryResult?.summary?.includes('46-') || summaryResult?.summary?.includes('47-') || summaryResult?.summary?.includes('48-') || summaryResult?.summary?.includes('49-') || summaryResult?.summary?.includes('50-'));
+      console.log('✅ Summary mentions تقويم الفصل?', summaryResult?.summary?.includes('تقويم الفصل'));
       
       console.log('Summary result:', summaryResult);
 
