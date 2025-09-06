@@ -397,17 +397,18 @@ Summarize the main ideas and concepts from the page in bullet points:
 ## أمثلة توضيحية
 [list examples so the students can relate to the concepts]
 ${hasActualQuestions ? `## الأسئلة والإجابات الكاملة
-Process ONLY the specific numbered questions found in the OCR text. Do NOT generate generic lab procedures or safety instructions.
+Process ONLY these specific question numbers that were detected in the OCR text: ${questionNumbers.join(', ')}
 
 CRITICAL CONSTRAINTS:
-- Answer ONLY questions that exist as numbered items in the OCR text
+- Answer ONLY questions ${questionNumbers.join(', ')} that exist in the OCR text below
+- Do NOT generate content for any other question numbers
 - Do NOT create sections like "إجراءات التجربة والملاحظات" unless they appear as actual questions
 - Do NOT add generic lab safety or cleanup instructions
 - Focus solely on the mathematical and conceptual questions present
 
 OCR TEXT:
 ${enhancedText}
-CRITICAL: Answer EVERY numbered question found, but do not invent additional content.` : ''}` : `# ملخص الصفحة
+CRITICAL: Answer ONLY questions ${questionNumbers.join(', ')} found in the OCR text above. Do not reference or create content for any other question numbers.` : ''}` : `# ملخص الصفحة
 ## نظرة عامة
 هذه صفحة تحتوي على محتوى تعليمي.
 OCR TEXT:
