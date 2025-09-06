@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Enhanced question parsing function with MC detection
+// Enhanced question parsing function with context-aware detection
 function parseQuestions(text: string): Array<{number: string, text: string, fullMatch: string, isMultipleChoice: boolean}> {
   const questions = [];
   
@@ -16,11 +16,30 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
                                    text.includes('اختيار من متعدد') ||
                                    /[أاب][.\)]\s*.*[ب][.\)]\s*.*[ج][.\)]\s*.*[د][.\)]/s.test(text);
   
+  // Focus question detection on exercise/question sections only
+  const questionSectionIndicators = [
+    'أسئلة', 'تمارين', 'مسائل', 'اختبار', 'تقويم',
+    'questions', 'exercises', 'problems', 'test', 'assessment'
+  ];
+  
+  // Check if we're in a question section
+  const hasQuestionSection = questionSectionIndicators.some(indicator => 
+    text.toLowerCase().includes(indicator.toLowerCase())
+  );
+  
+  // Instructional keywords that indicate steps in worked examples, not questions
+  const instructionalKeywords = [
+    'تحليل المسألة', 'حساب المطلوب', 'التطبيق', 'الحل', 'الخطوة',
+    'analyze', 'calculate', 'apply', 'solution', 'step',
+    'اتبع الخطوات', 'طريقة الحل', 'المعطيات', 'المطلوب إيجاد',
+    'follow steps', 'solution method', 'given', 'find'
+  ];
+  
   // Enhanced regex patterns for Arabic and English question numbers with various formats
   const questionPatterns = [
-    /(\d+)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=\d+\.|$))/gm, // English numbers: 93. question text
-    /([٩٠-٩٩]+[٠-٩]*)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=[٩٠-٩٩]+[٠-٩]*\.|$))/gm, // Arabic numbers: ٩٣. question text
-    /(١٠[٠-٦])\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=١٠[٠-٦]\.|$))/gm, // Arabic 100-106: ١٠٠. ١٠١. etc.
+    /(\d+)[.\-]\s*([^٠-٩\d]+(?:[^\.]*?)(?=\d+[.\-]|$))/gm,
+    /([٩٠-٩٩]+[٠-٩]*)[.\-]\s*([^٠-٩\d]+(?:[^\.]*?)(?=[٩٠-٩٩]+[٠-٩]*[.\-]|$))/gm,
+    /(١٠[٠-٦])[.\-]\s*([^٠-٩\d]+(?:[^\.]*?)(?=١٠[٠-٦][.\-]|$))/gm,
   ];
   
   for (const pattern of questionPatterns) {
@@ -30,7 +49,22 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
       const questionNumber = match[1].trim();
       const questionText = match[2].trim();
       
-      if (questionText.length > 10) { // Filter out very short matches
+      // Only consider as question if:
+      // 1. Text is substantial (>10 chars)
+      // 2. Contains question indicators OR we're in a question section
+      // 3. Does NOT contain instructional keywords
+      // 4. Contains question marks or interrogative words
+      const hasQuestionMarkers = questionText.includes('؟') || 
+                                questionText.includes('?') ||
+                                /^(ما|متى|أين|كيف|لماذا|ماذا|من|اشرح|وضح|قارن|حدد|احسب|what|when|where|how|why|explain|compare|calculate)/i.test(questionText);
+      
+      const hasInstructionalKeywords = instructionalKeywords.some(keyword => 
+        questionText.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      if (questionText.length > 10 && 
+          (hasQuestionMarkers || hasQuestionSection) && 
+          !hasInstructionalKeywords) {
         questions.push({
           number: questionNumber,
           text: questionText,
@@ -244,12 +278,13 @@ ${hasMultipleChoice ? `
 - Use × (NOT \\cdot or \\cdotp) for multiplication
 - Bold all section headers with **Header**
 
-CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
-1. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence from lowest to highest number. If you see questions 45, 102, 46, you MUST answer them as: 45, then 46, then 102. This is MANDATORY and non-negotiable.
-2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found in the text. NO EXCEPTIONS. Be concise on explanatory topics if needed, but NEVER skip questions.
-3. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles before providing them.
-4. **STEP-BY-STEP MANDATE**: Each question must have a complete, logical solution showing all work and reasoning.
-5. **USE ALL AVAILABLE DATA MANDATE**: The OCR text contains ALL necessary information including graphs, tables, and numerical data. Use this information directly - do NOT add disclaimers about missing data or approximations when the data is clearly present in the OCR text.
+QUESTION SCOPE FILTER - CRITICAL CONTEXT AWARENESS:
+1. **QUESTION CONTEXT MANDATE**: Only process numbered items that are ACTUAL QUESTIONS in dedicated exercise/problem sections. Do NOT process numbered steps in worked examples, instructional procedures, or method explanations.
+2. **EXERCISE SECTION FOCUS**: Look for questions only in sections labeled with indicators like "أسئلة", "تمارين", "مسائل", "exercises", "problems", "questions".
+3. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence from lowest to highest number. If you see questions 45, 102, 46, you MUST answer them as: 45, then 46, then 102. This is MANDATORY and non-negotiable.
+4. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles before providing them.
+5. **STEP-BY-STEP MANDATE**: Each question must have a complete, logical solution showing all work and reasoning.
+6. **USE ALL AVAILABLE DATA MANDATE**: The OCR text contains ALL necessary information including graphs, tables, and numerical data. Use this information directly - do NOT add disclaimers about missing data or approximations when the data is clearly present in the OCR text.
 6. **MATHJAX RENDERING MANDATE - 100% SUCCESS GUARANTEE**: 
    - ALWAYS use double dollar signs $$equation$$ for display math (never single $)
    - Use \\text{} for units and text within equations: $$k = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}}$$
@@ -390,17 +425,19 @@ Summarize the main ideas and concepts from the page in bullet points:
 ## أمثلة توضيحية
 [list examples so the students can relate to the concepts]
 ${hasActualQuestions ? `## الأسئلة والإجابات الكاملة
-Process ONLY the specific numbered questions found in the OCR text. Do NOT generate generic lab procedures or safety instructions.
+Process ONLY the specific numbered questions found in exercise/question sections. Do NOT process numbered steps from worked examples or instructional procedures.
 
 CRITICAL CONSTRAINTS:
-- Answer ONLY questions that exist as numbered items in the OCR text
+- Answer ONLY questions that exist in dedicated exercise/question sections
+- Do NOT process numbered steps from worked examples (like "مثال 3-5")
+- Do NOT process instructional steps that contain keywords like "تحليل المسألة", "حساب المطلوب", "الحل"
 - Do NOT create sections like "إجراءات التجربة والملاحظات" unless they appear as actual questions
 - Do NOT add generic lab safety or cleanup instructions
 - Focus solely on the mathematical and conceptual questions present
 
-OCR TEXT:
+FILTERED QUESTION TEXT (exercise sections only):
 ${enhancedText}
-CRITICAL: Answer EVERY numbered question found, but do not invent additional content.` : ''}` : `# ملخص الصفحة
+CRITICAL: Answer ONLY the actual practice questions found in exercise sections, not instructional steps.` : ''}` : `# ملخص الصفحة
 ## نظرة عامة
 هذه صفحة تحتوي على محتوى تعليمي.
 OCR TEXT:
@@ -701,10 +738,25 @@ REQUIREMENTS:
 - Provide complete step-by-step solutions
 - Do NOT repeat questions already answered
 
-Missing questions from OCR text:
-${enhancedText.split('\n').filter(line => 
-  missingNumbers.some(num => line.includes(`${num}.`) || line.includes(`${num}-`) || line.includes(`${num} `))
-).join('\n')}
+Missing questions from exercise sections (filtered):
+${enhancedText.split('\n').filter(line => {
+  // Only include lines that contain the missing numbers and are likely actual questions
+  const containsNumber = missingNumbers.some(num => line.includes(`${num}.`) || line.includes(`${num}-`) || line.includes(`${num} `));
+  if (!containsNumber) return false;
+  
+  // Exclude lines that contain instructional keywords
+  const instructionalKeywords = [
+    'تحليل المسألة', 'حساب المطلوب', 'التطبيق', 'الحل', 'الخطوة',
+    'analyze', 'calculate', 'apply', 'solution', 'step',
+    'اتبع الخطوات', 'طريقة الحل', 'المعطيات', 'المطلوب إيجاد'
+  ];
+  
+  const hasInstructionalKeywords = instructionalKeywords.some(keyword => 
+    line.toLowerCase().includes(keyword.toLowerCase())
+  );
+  
+  return !hasInstructionalKeywords;
+}).join('\n')}
 
 If you cannot fit all questions in one response, prioritize the lowest numbered questions first.`;
 
