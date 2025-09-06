@@ -1176,6 +1176,18 @@ KF (°C/m)
                       </Button>
                     )}
                     
+                    {/* Regenerate Summary Button */}
+                    {summary && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={regeneratePageSummary}
+                        className="w-full mt-2"
+                      >
+                        🔄 Regenerate Summary
+                      </Button>
+                    )}
+                    
                     {/* Add Table Data Button - Only show on page 50 */}
                     {index + 1 === 50 && (
                       <Button 
