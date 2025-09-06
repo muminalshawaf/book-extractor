@@ -16,11 +16,12 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
                                    text.includes('اختيار من متعدد') ||
                                    /[أاب][.\)]\s*.*[ب][.\)]\s*.*[ج][.\)]\s*.*[د][.\)]/s.test(text);
   
-  // Enhanced regex patterns for Arabic and English question numbers with various formats
+  // More specific regex patterns that avoid matching section headers
   const questionPatterns = [
-    /(\d+)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=\d+\.|$))/gm, // English numbers: 93. question text
-    /([٩٠-٩٩]+[٠-٩]*)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=[٩٠-٩٩]+[٠-٩]*\.|$))/gm, // Arabic numbers: ٩٣. question text
-    /(١٠[٠-٦])\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=١٠[٠-٦]\.|$))/gm, // Arabic 100-106: ١٠٠. ١٠١. etc.
+    // Match questions that have substantial content and clear question structure
+    /^(\d{2,3})\.\s+([^٠-٩\d\n](?:[^\n]*?\n?)*?)(?=^\d{2,3}\.|$)/gm, // Multi-digit numbers like 23. 24. 25.
+    /^([٩٠-٩٩]+[٠-٩]*)\.\s+([^٠-٩\d\n](?:[^\n]*?\n?)*?)(?=^[٩٠-٩٩]+[٠-٩]*\.|$)/gm, // Arabic numbers 90+
+    /^(١٠[٠-٦])\.\s+([^٠-٩\d\n](?:[^\n]*?\n?)*?)(?=^١٠[٠-٦]\.|$)/gm, // Arabic 100-106
   ];
   
   for (const pattern of questionPatterns) {
@@ -30,7 +31,11 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
       const questionNumber = match[1].trim();
       const questionText = match[2].trim();
       
-      if (questionText.length > 10) { // Filter out very short matches
+      // Additional filters to avoid section headers and short matches
+      if (questionText.length > 20 && 
+          !questionText.includes('تحليل المسألة') && 
+          !questionText.includes('حساب المطلوب') &&
+          !questionText.includes('تقويم الإجابة')) {
         questions.push({
           number: questionNumber,
           text: questionText,
