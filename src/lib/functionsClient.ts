@@ -36,7 +36,6 @@ export async function callFunction<T = any>(
       
       // Don't retry timeout errors for summarize function
       if (name === 'summarize' && (err.message?.includes('TIMEOUT_ERROR') || err.message?.includes('504'))) {
-        console.log(`Summarize function timed out, this may be expected for complex pages`);
         throw err;
       }
       

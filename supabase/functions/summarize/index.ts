@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Strict question parsing that only detects actual exercise questions
+// Enhanced question parsing function with MC detection
 function parseQuestions(text: string): Array<{number: string, text: string, fullMatch: string, isMultipleChoice: boolean}> {
   const questions = [];
   
@@ -16,79 +16,37 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
                                    text.includes('اختيار من متعدد') ||
                                    /[أاب][.\)]\s*.*[ب][.\)]\s*.*[ج][.\)]\s*.*[د][.\)]/s.test(text);
   
-  // Split text into lines and track sections
-  const lines = text.split('\n');
-  let inExerciseSection = false;
-  
-  // Look for exercise section indicators
-  const exerciseSectionRegex = /(?:مسائل تدريبية|تمارين|أسئلة|exercises|questions|practice|problems)/i;
-  
-  // Keywords that indicate instructional steps (not questions)
-  const instructionalKeywords = [
-    'تحليل المسألة', 'حساب المطلوب', 'تقويم الإجابة', 'الحل', 'الخطوة',
-    'المعطيات', 'المطلوب إيجاد', 'طريقة الحل', 'اتبع الخطوات',
-    'analyze', 'calculate', 'solution', 'step', 'method', 'given', 'find'
+  // Enhanced regex patterns for Arabic and English question numbers with various formats
+  const questionPatterns = [
+    /(\d+)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=\d+\.|$))/gm, // English numbers: 93. question text
+    /([٩٠-٩٩]+[٠-٩]*)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=[٩٠-٩٩]+[٠-٩]*\.|$))/gm, // Arabic numbers: ٩٣. question text
+    /(١٠[٠-٦])\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=١٠[٠-٦]\.|$))/gm, // Arabic 100-106: ١٠٠. ١٠١. etc.
   ];
   
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    
-    // Check if we've entered an exercise section
-    if (exerciseSectionRegex.test(line)) {
-      inExerciseSection = true;
-      continue;
-    }
-    
-    // Reset if we hit a new section that's clearly not exercises
-    if (line.startsWith('--- SECTION:') && !exerciseSectionRegex.test(line)) {
-      inExerciseSection = false;
-    }
-    
-    // Only process lines in exercise sections
-    if (!inExerciseSection) {
-      continue;
-    }
-    
-    // Look for numbered questions in format "number. question text"
-    const questionMatch = line.match(/^(\d+)\.\s*(.+)/);
-    if (questionMatch) {
-      const questionNumber = questionMatch[1];
-      const questionText = questionMatch[2].trim();
+  for (const pattern of questionPatterns) {
+    let match;
+    pattern.lastIndex = 0; // Reset regex
+    while ((match = pattern.exec(text)) !== null) {
+      const questionNumber = match[1].trim();
+      const questionText = match[2].trim();
       
-      // Exclude instructional steps
-      const hasInstructionalKeyword = instructionalKeywords.some(keyword => 
-        questionText.toLowerCase().includes(keyword.toLowerCase())
-      );
-      
-      if (hasInstructionalKeyword) {
-        continue;
-      }
-      
-      // Only consider as actual question if it has:
-      // 1. Chemical formulas/equations OR
-      // 2. Question markers (?, interrogative words) OR  
-      // 3. Multiple choice indicators
-      const hasChemicalContent = /[A-Z][a-z]?[\d₀-₉]*[⁺⁻²³⁴⁵⁶⁷⁸⁹]*|→|↔|\+|\(aq\)|\(g\)|\(s\)|\(l\)/g.test(questionText);
-      const hasQuestionMarkers = questionText.includes('؟') || 
-                                questionText.includes('?') ||
-                                /^(ما|متى|أين|كيف|لماذا|ماذا|من|اشرح|وضح|قارن|حدد|احسب|what|when|where|how|why|explain|compare|calculate)/i.test(questionText);
-      const hasMultipleChoiceIndicators = /[أابج][.\)]\s*.*[بج][.\)]\s*.*[جد][.\)]/.test(questionText);
-      
-      // Must have substantial content and be an actual question
-      if (questionText.length > 10 && 
-          (hasChemicalContent || hasQuestionMarkers || hasMultipleChoiceIndicators)) {
+      if (questionText.length > 10) { // Filter out very short matches
         questions.push({
           number: questionNumber,
           text: questionText,
-          fullMatch: questionMatch[0],
-          isMultipleChoice: isMultipleChoiceSection || hasMultipleChoiceIndicators
+          fullMatch: match[0],
+          isMultipleChoice: isMultipleChoiceSection
         });
       }
     }
   }
   
   // Sort questions by their numeric value
-  questions.sort((a, b) => parseInt(a.number) - parseInt(b.number));
+  questions.sort((a, b) => {
+    const aNum = convertArabicToEnglishNumber(a.number);
+    const bNum = convertArabicToEnglishNumber(b.number);
+    return parseInt(aNum) - parseInt(bNum);
+  });
   
   // Remove duplicates
   const unique = questions.filter((question, index, self) => 
@@ -286,13 +244,12 @@ ${hasMultipleChoice ? `
 - Use × (NOT \\cdot or \\cdotp) for multiplication
 - Bold all section headers with **Header**
 
-QUESTION SCOPE FILTER - CRITICAL CONTEXT AWARENESS:
-1. **QUESTION CONTEXT MANDATE**: Only process numbered items that are ACTUAL QUESTIONS in dedicated exercise/problem sections. Do NOT process numbered steps in worked examples, instructional procedures, or method explanations.
-2. **EXERCISE SECTION FOCUS**: Look for questions only in sections labeled with indicators like "أسئلة", "تمارين", "مسائل", "exercises", "problems", "questions".
-3. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence from lowest to highest number. If you see questions 45, 102, 46, you MUST answer them as: 45, then 46, then 102. This is MANDATORY and non-negotiable.
-4. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles before providing them.
-5. **STEP-BY-STEP MANDATE**: Each question must have a complete, logical solution showing all work and reasoning.
-6. **USE ALL AVAILABLE DATA MANDATE**: The OCR text contains ALL necessary information including graphs, tables, and numerical data. Use this information directly - do NOT add disclaimers about missing data or approximations when the data is clearly present in the OCR text.
+CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
+1. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence from lowest to highest number. If you see questions 45, 102, 46, you MUST answer them as: 45, then 46, then 102. This is MANDATORY and non-negotiable.
+2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found in the text. NO EXCEPTIONS. Be concise on explanatory topics if needed, but NEVER skip questions.
+3. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles before providing them.
+4. **STEP-BY-STEP MANDATE**: Each question must have a complete, logical solution showing all work and reasoning.
+5. **USE ALL AVAILABLE DATA MANDATE**: The OCR text contains ALL necessary information including graphs, tables, and numerical data. Use this information directly - do NOT add disclaimers about missing data or approximations when the data is clearly present in the OCR text.
 6. **MATHJAX RENDERING MANDATE - 100% SUCCESS GUARANTEE**: 
    - ALWAYS use double dollar signs $$equation$$ for display math (never single $)
    - Use \\text{} for units and text within equations: $$k = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}}$$
@@ -433,19 +390,17 @@ Summarize the main ideas and concepts from the page in bullet points:
 ## أمثلة توضيحية
 [list examples so the students can relate to the concepts]
 ${hasActualQuestions ? `## الأسئلة والإجابات الكاملة
-Process ONLY the specific numbered questions found in exercise/question sections. Do NOT process numbered steps from worked examples or instructional procedures.
+Process ONLY the specific numbered questions found in the OCR text. Do NOT generate generic lab procedures or safety instructions.
 
 CRITICAL CONSTRAINTS:
-- Answer ONLY questions that exist in dedicated exercise/question sections
-- Do NOT process numbered steps from worked examples (like "مثال 3-5")
-- Do NOT process instructional steps that contain keywords like "تحليل المسألة", "حساب المطلوب", "الحل"
+- Answer ONLY questions that exist as numbered items in the OCR text
 - Do NOT create sections like "إجراءات التجربة والملاحظات" unless they appear as actual questions
 - Do NOT add generic lab safety or cleanup instructions
 - Focus solely on the mathematical and conceptual questions present
 
-FILTERED QUESTION TEXT (exercise sections only):
+OCR TEXT:
 ${enhancedText}
-CRITICAL: Answer ONLY the actual practice questions found in exercise sections, not instructional steps.` : ''}` : `# ملخص الصفحة
+CRITICAL: Answer EVERY numbered question found, but do not invent additional content.` : ''}` : `# ملخص الصفحة
 ## نظرة عامة
 هذه صفحة تحتوي على محتوى تعليمي.
 OCR TEXT:
@@ -725,50 +680,6 @@ Original OCR text: ${enhancedText}`;
       }
       
       if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-2.5-pro')) {
-        // First, validate that we actually have exercise content for missing questions
-        const filteredExerciseContent = enhancedText.split('\n').filter(line => {
-          const trimmedLine = line.trim();
-          
-          // Only include lines that contain the missing numbers in a question format
-          const containsQuestionNumber = missingNumbers.some(num => {
-            // Look for exact question number format: "number. " at start of line
-            return new RegExp(`^${num}\\.\s+`).test(trimmedLine);
-          });
-          
-          if (!containsQuestionNumber) return false;
-          
-          // Exclude lines that contain instructional keywords
-          const instructionalKeywords = [
-            'تحليل المسألة', 'حساب المطلوب', 'التطبيق', 'الحل', 'الخطوة', 'تقويم الإجابة',
-            'analyze', 'calculate', 'apply', 'solution', 'step', 'evaluation',
-            'اتبع الخطوات', 'طريقة الحل', 'المعطيات', 'المطلوب إيجاد', 'خطوات وزن'
-          ];
-          
-          const hasInstructionalKeywords = instructionalKeywords.some(keyword => 
-            trimmedLine.toLowerCase().includes(keyword.toLowerCase())
-          );
-          
-          // Only include if it's actually in an exercise section
-          const exerciseSectionRegex = /(?:مسائل تدريبية|تمارين|أسئلة|exercises|questions|practice)/i;
-          const isInExerciseContext = exerciseSectionRegex.test(line) || 
-            enhancedText.includes('مسائل تدريبية'); // Check if document has exercise section
-          
-          // Must have chemical content or question markers to be considered a real question
-          const hasChemicalContent = /[A-Z][a-z]?[\d₀-₉]*[⁺⁻²³⁴⁵⁶⁷⁸⁹]*|→|↔|\+|\(aq\)|\(g\)|\(s\)|\(l\)/g.test(trimmedLine);
-          const hasQuestionMarkers = trimmedLine.includes('؟') || trimmedLine.includes('?') ||
-            /^(ما|متى|أين|كيف|لماذا|ماذا|من|اشرح|وضح|قارن|حدد|احسب)/i.test(trimmedLine);
-          
-          return !hasInstructionalKeywords && isInExerciseContext && (hasChemicalContent || hasQuestionMarkers);
-        }).join('\n');
-        
-        // If no actual exercise content found for missing questions, skip auto-continuation
-        if (filteredExerciseContent.trim().length < 50) {
-          console.log(`No actual exercise content found for missing questions: ${missingNumbers.join(', ')}. Skipping auto-continuation to prevent hallucination.`);
-          return new Response(JSON.stringify({ summary: completionContent }), {
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          });
-        }
-        
         // Multi-attempt continuation with safety limit
         let attempt = 0;
         let currentSummary = summary;
@@ -790,41 +701,10 @@ REQUIREMENTS:
 - Provide complete step-by-step solutions
 - Do NOT repeat questions already answered
 
-Missing questions from exercise sections (filtered):
-${enhancedText.split('\n').filter(line => {
-  const trimmedLine = line.trim();
-  
-  // Only include lines that contain the missing numbers in a question format
-  const containsQuestionNumber = missingNumbers.some(num => {
-    // Look for exact question number format: "number. " at start of line
-    return new RegExp(`^${num}\\.\s+`).test(trimmedLine);
-  });
-  
-  if (!containsQuestionNumber) return false;
-  
-  // Exclude lines that contain instructional keywords
-  const instructionalKeywords = [
-    'تحليل المسألة', 'حساب المطلوب', 'التطبيق', 'الحل', 'الخطوة', 'تقويم الإجابة',
-    'analyze', 'calculate', 'apply', 'solution', 'step', 'evaluation',
-    'اتبع الخطوات', 'طريقة الحل', 'المعطيات', 'المطلوب إيجاد', 'خطوات وزن'
-  ];
-  
-  const hasInstructionalKeywords = instructionalKeywords.some(keyword => 
-    trimmedLine.toLowerCase().includes(keyword.toLowerCase())
-  );
-  
-  // Only include if it's actually in an exercise section
-  const exerciseSectionRegex = /(?:مسائل تدريبية|تمارين|أسئلة|exercises|questions|practice)/i;
-  const isInExerciseContext = exerciseSectionRegex.test(line) || 
-    enhancedText.includes('مسائل تدريبية'); // Check if document has exercise section
-  
-  // Must have chemical content or question markers to be considered a real question
-  const hasChemicalContent = /[A-Z][a-z]?[\d₀-₉]*[⁺⁻²³⁴⁵⁶⁷⁸⁹]*|→|↔|\+|\(aq\)|\(g\)|\(s\)|\(l\)/g.test(trimmedLine);
-  const hasQuestionMarkers = trimmedLine.includes('؟') || trimmedLine.includes('?') ||
-    /^(ما|متى|أين|كيف|لماذا|ماذا|من|اشرح|وضح|قارن|حدد|احسب)/i.test(trimmedLine);
-  
-  return !hasInstructionalKeywords && isInExerciseContext && (hasChemicalContent || hasQuestionMarkers);
-}).join('\n')}
+Missing questions from OCR text:
+${enhancedText.split('\n').filter(line => 
+  missingNumbers.some(num => line.includes(`${num}.`) || line.includes(`${num}-`) || line.includes(`${num} `))
+).join('\n')}
 
 If you cannot fit all questions in one response, prioritize the lowest numbered questions first.`;
 
