@@ -6,9 +6,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Enhanced question parsing function with MC detection
+// Strict question parsing that only identifies actual exercise questions
 function parseQuestions(text: string): Array<{number: string, text: string, fullMatch: string, isMultipleChoice: boolean}> {
   const questions = [];
+  
+  // First, identify if there are actual exercise/question sections
+  const exerciseSectionPatterns = [
+    /أسئلة\s*(?:الفصل|التمارين|الاختيار|المراجعة)/i,
+    /تمارين\s*(?:الفصل|ومسائل|الوحدة)/i,
+    /المسائل\s*(?:والتمارين|التدريبية)/i,
+    /Questions?\s*(?:and\s*)?Problems?/i,
+    /Exercise[s]?\s*(?:\d+)?/i,
+    /Practice\s*Problems?/i
+  ];
+  
+  const hasExerciseSection = exerciseSectionPatterns.some(pattern => pattern.test(text));
   
   // Check if this is a multiple choice section
   const isMultipleChoiceSection = text.includes('أسئلة الاختيار من متعدد') || 
@@ -16,21 +28,56 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
                                    text.includes('اختيار من متعدد') ||
                                    /[أاب][.\)]\s*.*[ب][.\)]\s*.*[ج][.\)]\s*.*[د][.\)]/s.test(text);
   
-  // Enhanced regex patterns for Arabic and English question numbers with various formats
+  // Only proceed if we found actual exercise sections OR multiple choice
+  if (!hasExerciseSection && !isMultipleChoiceSection) {
+    console.log('No exercise sections detected, likely instructional content only');
+    return [];
+  }
+  
+  // Instructional keywords that indicate this is NOT a question
+  const instructionalKeywords = [
+    'الخطوة', 'خطوة', 'step', 'تحليل', 'analysis', 'حل', 'solution',
+    'الطريقة', 'method', 'approach', 'مثال', 'example', 'نوجد', 'نحسب',
+    'نستخدم', 'نطبق', 'نضع', 'نعوض', 'المطلوب', 'المعطى', 'given',
+    'required', 'المعادلة', 'equation', 'القانون', 'law', 'التعريف'
+  ];
+  
+  // Enhanced patterns that look for actual question markers
   const questionPatterns = [
-    /(\d+)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=\d+\.|$))/gm, // English numbers: 93. question text
-    /([٩٠-٩٩]+[٠-٩]*)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=[٩٠-٩٩]+[٠-٩]*\.|$))/gm, // Arabic numbers: ٩٣. question text
-    /(١٠[٠-٦])\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=١٠[٠-٦]\.|$))/gm, // Arabic 100-106: ١٠٠. ١٠١. etc.
+    /(\d+)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=\d+\.|$))/gm,
+    /([٠-٩]+)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=[٠-٩]+\.|$))/gm
   ];
   
   for (const pattern of questionPatterns) {
     let match;
-    pattern.lastIndex = 0; // Reset regex
+    pattern.lastIndex = 0;
     while ((match = pattern.exec(text)) !== null) {
       const questionNumber = match[1].trim();
       const questionText = match[2].trim();
       
-      if (questionText.length > 10) { // Filter out very short matches
+      // Skip if too short or contains instructional keywords
+      if (questionText.length < 20) continue;
+      
+      const hasInstructionalKeywords = instructionalKeywords.some(keyword => 
+        questionText.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      if (hasInstructionalKeywords) {
+        console.log(`Skipping instructional content for number ${questionNumber}: ${questionText.substring(0, 50)}...`);
+        continue;
+      }
+      
+      // Look for question markers
+      const hasQuestionMarker = /[؟?]/.test(questionText) ||
+        /^(?:اشرح|وضح|قارن|احسب|أوجد|حدد|ما|ماذا|كيف|لماذا|أين|متى|هل)/i.test(questionText.trim()) ||
+        /^(?:explain|compare|calculate|find|determine|what|how|why|where|when|is)/i.test(questionText.trim());
+      
+      // Check if it's in an exercise context (near exercise headers)
+      const beforeContext = text.substring(Math.max(0, match.index - 200), match.index);
+      const inExerciseContext = exerciseSectionPatterns.some(pattern => pattern.test(beforeContext)) ||
+                                isMultipleChoiceSection;
+      
+      if (hasQuestionMarker && inExerciseContext) {
         questions.push({
           number: questionNumber,
           text: questionText,
@@ -53,7 +100,7 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
     index === self.findIndex(q => q.number === question.number)
   );
   
-  console.log(`Parsed ${unique.length} questions from OCR text:`, 
+  console.log(`Parsed ${unique.length} actual questions from OCR text:`, 
     unique.map(q => q.number).join(', '));
   
   return unique;
@@ -244,12 +291,12 @@ ${hasMultipleChoice ? `
 - Use × (NOT \\cdot or \\cdotp) for multiplication
 - Bold all section headers with **Header**
 
-CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
-1. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence from lowest to highest number. If you see questions 45, 102, 46, you MUST answer them as: 45, then 46, then 102. This is MANDATORY and non-negotiable.
-2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found in the text. NO EXCEPTIONS. Be concise on explanatory topics if needed, but NEVER skip questions.
-3. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles before providing them.
-4. **STEP-BY-STEP MANDATE**: Each question must have a complete, logical solution showing all work and reasoning.
-5. **USE ALL AVAILABLE DATA MANDATE**: The OCR text contains ALL necessary information including graphs, tables, and numerical data. Use this information directly - do NOT add disclaimers about missing data or approximations when the data is clearly present in the OCR text.
+CONTENT PROCESSING GUIDELINES:  
+1. **CONTENT SCOPE FILTER**: Only process content that appears in ACTUAL exercise/question sections. Do NOT create questions from instructional examples, worked solutions, or step-by-step demonstrations.
+2. **SEQUENTIAL ORDER**: When actual questions exist, solve them in numerical order from lowest to highest.
+3. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles.
+4. **STEP-BY-STEP MANDATE**: Each actual question must have a complete, logical solution showing all work and reasoning.
+5. **USE ALL AVAILABLE DATA**: Use information from graphs, tables, and numerical data when referenced by actual questions.
 6. **MATHJAX RENDERING MANDATE - 100% SUCCESS GUARANTEE**: 
    - ALWAYS use double dollar signs $$equation$$ for display math (never single $)
    - Use \\text{} for units and text within equations: $$k = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}}$$
@@ -625,21 +672,21 @@ Original OCR text: ${enhancedText}`;
       });
     }
 
-    // Validate question completion and trigger auto-continuation if needed
+    // Validate question completion - only continue if actual exercise questions exist
     const summaryQuestionCount = (summary.match(/\*\*س:/g) || []).length;
     const originalQuestionCount = questions.length;
     
     console.log(`Final summary length: ${summary.length}, Questions processed: ${summaryQuestionCount}/${originalQuestionCount}, Provider: ${providerUsed}`);
     
-    // Robust continuation logic - ensure ALL questions are answered regardless of summary length
+    // Only attempt auto-continuation if there are legitimate exercise questions that were missed
     if (originalQuestionCount > 0 && summaryQuestionCount < originalQuestionCount) {
-      console.log(`⚠️ Missing ${originalQuestionCount - summaryQuestionCount} questions, attempting auto-continuation...`);
+      console.log(`Missing ${originalQuestionCount - summaryQuestionCount} questions - checking if they are legitimate exercises...`);
       
-      // Improved missing question detection - check for both Arabic and English patterns
+      // Check if missing questions have actual question content
       const answeredQuestionNumbers = new Set();
       const questionPatterns = [
-        /\*\*س:\s*(\d+)[.-]/g,  // **س: 45- or **س: 45.
-        /\*\*س:\s*([٠-٩]+)[.-]/g  // **س: ٤٥- (Arabic numerals)
+        /\*\*س:\s*(\d+)[.-]/g,
+        /\*\*س:\s*([٠-٩]+)[.-]/g
       ];
       
       for (const pattern of questionPatterns) {
@@ -651,62 +698,40 @@ Original OCR text: ${enhancedText}`;
         }
       }
       
-      let missingNumbers = questions
+      const missingNumbers = questions
         .map(q => convertArabicToEnglishNumber(q.number))
         .filter(num => !answeredQuestionNumbers.has(num));
       
+      // Verify that missing questions have actual content in the OCR
+      const legitimateMissing = missingNumbers.filter(num => {
+        const questionContent = questions.find(q => 
+          convertArabicToEnglishNumber(q.number) === num
+        );
+        return questionContent && questionContent.text.length > 30; // Has substantial content
+      });
+      
       console.log(`Detected questions: ${questions.map(q => q.number).join(', ')}`);
       console.log(`Answered questions: ${Array.from(answeredQuestionNumbers).join(', ')}`);
-      console.log(`Missing questions: ${missingNumbers.join(', ')}`);
-
-      // Add tolerance for OCR numbering mismatches: if same question count but different numbering
-      const hasSameQuestionCount = questions.length === answeredQuestionNumbers.size && questions.length > 0;
-      if (hasSameQuestionCount && missingNumbers.length === questions.length) {
-        console.log('All questions answered (numbering tolerance applied) ✓');
-        return new Response(JSON.stringify({ summary: completionContent }), {
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
-      }
-
-      // Limit auto-continuation - max 3 missing questions and max 2 attempts
-      const maxMissingQuestions = 3;
-      const maxContinuationAttempts = 2;
+      console.log(`Legitimate missing: ${legitimateMissing.join(', ')}`);
       
-      if (missingNumbers.length > maxMissingQuestions) {
-        console.log(`Too many missing questions (${missingNumbers.length}), skipping auto-continuation`);
-        return new Response(JSON.stringify({ summary: completionContent }), {
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
-      }
-      
-      if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-2.5-pro')) {
-        // Multi-attempt continuation with safety limit
-        let attempt = 0;
-        let currentSummary = summary;
+      // Only continue if there are legitimate missing questions and they are few
+      if (legitimateMissing.length > 0 && legitimateMissing.length <= 2) {
+        console.log(`🔄 Attempting to complete ${legitimateMissing.length} legitimate missing questions: ${legitimateMissing.join(', ')}`);
         
-        while (missingNumbers.length > 0 && attempt < maxContinuationAttempts) {
-          attempt++;
-          console.log(`🔄 Auto-continuation attempt ${attempt}/${maxContinuationAttempts} for questions: ${missingNumbers.join(', ')}`);
-          
-          const completionPrompt = `COMPLETE THE MISSING QUESTIONS - Continuation ${attempt}/${maxContinuationAttempts}
+        const missingQuestionContent = questions
+          .filter(q => legitimateMissing.includes(convertArabicToEnglishNumber(q.number)))
+          .map(q => `${q.number}. ${q.text}`).join('\n\n');
+        
+        if (missingQuestionContent.trim()) {
+          const completionPrompt = `Complete these specific questions that were not addressed:
 
-Previous summary is incomplete. Missing these question numbers: ${missingNumbers.join(', ')}
+${missingQuestionContent}
 
 REQUIREMENTS:
-1. When solving questions, solve them in sequence from the least to the most. Start from question ${Math.min(...missingNumbers.map(n => parseInt(n)))}, then continue sequentially.
-2. Ensure that you answer all the questions despite token limits. Be concise on topics but complete on question solutions.
-- Process ONLY the missing questions: ${missingNumbers.join(', ')}
 - Use EXACT formatting: **س: [number]- [question text]** and **ج:** [complete answer]
 - Use $$formula$$ for math, × for multiplication
 - Provide complete step-by-step solutions
-- Do NOT repeat questions already answered
-
-Missing questions from OCR text:
-${enhancedText.split('\n').filter(line => 
-  missingNumbers.some(num => line.includes(`${num}.`) || line.includes(`${num}-`) || line.includes(`${num} `))
-).join('\n')}
-
-If you cannot fit all questions in one response, prioritize the lowest numbered questions first.`;
+- Only answer the questions shown above`;
 
           try {
             let completionResp;
@@ -725,21 +750,21 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
                     { role: "user", content: completionPrompt },
                   ],
                   temperature: 0,
-                  max_tokens: 8000,
+                  max_tokens: 6000,
                 }),
               });
-            } else {
+            } else if (googleApiKey) {
               completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   contents: [{ parts: [{ text: systemPrompt + "\n\n" + completionPrompt }] }],
-                  generationConfig: { temperature: 0, maxOutputTokens: 8000 }
+                  generationConfig: { temperature: 0, maxOutputTokens: 6000 }
                 }),
               });
             }
 
-            if (completionResp.ok) {
+            if (completionResp && completionResp.ok) {
               let completion = "";
               
               if (providerUsed === 'deepseek-chat') {
@@ -751,60 +776,21 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
               }
               
               if (completion.trim()) {
-                currentSummary += "\n\n" + completion;
-                
-                // Re-check what questions are now answered
-                const newAnsweredNumbers = new Set();
-                for (const pattern of questionPatterns) {
-                  let match;
-                  pattern.lastIndex = 0;
-                  while ((match = pattern.exec(currentSummary)) !== null) {
-                    const num = convertArabicToEnglishNumber(match[1]);
-                    newAnsweredNumbers.add(num);
-                  }
-                }
-                
-                // Update missing numbers list
-                const stillMissing = questions
-                  .map(q => convertArabicToEnglishNumber(q.number))
-                  .filter(num => !newAnsweredNumbers.has(num));
-                
-                const answeredThisRound = missingNumbers.filter(num => newAnsweredNumbers.has(num));
-                
-                console.log(`✅ Attempt ${attempt} completed ${answeredThisRound.length} questions: ${answeredThisRound.join(', ')}`);
-                console.log(`Still missing: ${stillMissing.join(', ')}`);
-                
-                // Update for next iteration
-                missingNumbers.splice(0, missingNumbers.length, ...stillMissing);
-                
-                if (stillMissing.length === 0) {
-                  console.log('🎉 All questions completed successfully!');
-                  break;
-                }
-              } else {
-                console.log(`⚠️ Attempt ${attempt} returned empty completion`);
-                break;
+                summary += "\n\n" + completion;
+                console.log(`✅ Successfully completed missing questions`);
               }
-            } else {
-              console.error(`Completion attempt ${attempt} failed:`, await completionResp.text());
-              break;
             }
           } catch (completionError) {
-            console.error(`Auto-continuation attempt ${attempt} failed:`, completionError);
-            break;
+            console.error('Auto-continuation failed:', completionError);
           }
         }
-        
-        summary = currentSummary;
-        const finalQuestionCount = (summary.match(/\*\*س:/g) || []).length;
-        console.log(`✅ Auto-continuation finished after ${attempt} attempts. Final question count: ${finalQuestionCount}/${originalQuestionCount}`);
-        
-        if (missingNumbers.length > 0) {
-          console.log(`⚠️ Still missing ${missingNumbers.length} questions after all attempts: ${missingNumbers.join(', ')}`);
-        }
+      } else {
+        console.log('No legitimate missing questions found or too many to auto-complete');
       }
-    } else if (summaryQuestionCount >= originalQuestionCount) {
+    } else if (summaryQuestionCount >= originalQuestionCount && originalQuestionCount > 0) {
       console.log('✅ All questions appear to be processed successfully');
+    } else {
+      console.log('✅ No exercise questions detected - content processed successfully');
     }
 
     return new Response(JSON.stringify({ summary }), {
