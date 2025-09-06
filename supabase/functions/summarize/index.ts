@@ -215,7 +215,9 @@ Rows:`;
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
     console.log(`Multiple choice detected: ${hasMultipleChoice}`);
     
-    const systemPrompt = `You are an expert chemistry professor. Your task is to analyze educational content and provide structured summaries following a specific format.
+    const systemPrompt = `You are an expert chemistry professor. GROUNDING RULE: You can ONLY answer questions that are physically present in the provided OCR text. DO NOT invent, create, or imagine ANY questions that are not explicitly written in the text. If a question number is mentioned but the actual question text is not provided, you MUST NOT answer it. ONLY answer questions where you can see both the question number AND the complete question text in the OCR input. This is absolutely critical - NO EXCEPTIONS.
+
+Your task is to analyze educational content and provide structured summaries following a specific format.
 
 🔍 **MANDATORY INTERNAL PRE-FLIGHT CHECK - DO NOT DISPLAY THESE CHECKS IN YOUR RESPONSE**:
 Before providing your response, you MUST internally verify these questions (DO NOT include these checks in your final output):
