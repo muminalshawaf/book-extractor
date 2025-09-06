@@ -24,6 +24,7 @@ import { EnhancedSummary } from "@/components/EnhancedSummary";
 import { ImprovedErrorHandler } from "@/components/ImprovedErrorHandler";
 import { AccessibilityPanel } from "@/components/AccessibilityPanel";
 import { TouchGestureHandler } from "@/components/TouchGestureHandler";
+import { SummarizationDebugModal } from "@/components/SummarizationDebugModal";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -161,6 +162,10 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [controlsOpen, setControlsOpen] = useState(true);
   const [insightTab, setInsightTab] = useState<'summary' | 'qa'>('summary');
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Debug modal state
+  const [debugModalOpen, setDebugModalOpen] = useState(false);
+  const [lastDebugData, setLastDebugData] = useState<any>(null);
 
   // Navigation functions with URL sync
   const updatePageInUrl = useCallback((pageIndex: number) => {
@@ -729,6 +734,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         }
       }, { timeout: 240000, retries: 3 }); // 4 minutes timeout, 3 retries with direct fetch
       
+      // Capture debug data for troubleshooting
+      if (summaryResult?.debugData) {
+        setLastDebugData(summaryResult.debugData);
+        console.log('📊 Debug data captured for page', index + 1);
+      }
+      
       console.log('📥 SUMMARIZE FUNCTION RETURNED:');
       console.log('✅ Summary preview (first 300 chars):', summaryResult?.summary?.substring(0, 300));
       console.log('🔢 Summary mentions questions 45-50?', summaryResult?.summary?.includes('45-') || summaryResult?.summary?.includes('46-') || summaryResult?.summary?.includes('47-') || summaryResult?.summary?.includes('48-') || summaryResult?.summary?.includes('49-') || summaryResult?.summary?.includes('50-'));
@@ -1153,6 +1164,18 @@ KF (°C/m)
                       {rtl ? "لخص هذه الصفحة" : "Summarize this page"}
                     </Button>
                     
+                    {/* Debug Button */}
+                    {lastDebugData && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDebugModalOpen(true)}
+                        className="w-full mt-2"
+                      >
+                        🐛 Debug Last Request
+                      </Button>
+                    )}
+                    
                     {/* Add Table Data Button - Only show on page 50 */}
                     {index + 1 === 50 && (
                       <Button 
@@ -1574,6 +1597,13 @@ KF (°C/m)
           </div>
         </div>
       )}
+      
+      {/* Debug Modal */}
+      <SummarizationDebugModal
+        isOpen={debugModalOpen}
+        onClose={() => setDebugModalOpen(false)}
+        debugData={lastDebugData}
+      />
     </section>
   );
 };

@@ -647,6 +647,26 @@ Original OCR text: ${enhancedText}`;
     
     console.log(`Final summary length: ${summary.length}, Questions processed: ${summaryQuestionCount}/${originalQuestionCount}, Provider: ${providerUsed}`);
     
+    // Create debug data for troubleshooting
+    const debugData = {
+      ocrText: text,
+      enhancedText: enhancedText,
+      systemPrompt: systemPrompt,
+      userPrompt: userPrompt,
+      visualElements: ocrData?.rawStructuredData?.visual_elements || [],
+      questions: questions,
+      apiPayload: {
+        model: providerUsed === 'gemini-2.5-pro' ? 'gemini-2.5-pro' : 'deepseek-chat',
+        systemPromptLength: systemPrompt.length,
+        userPromptLength: userPrompt.length,
+        totalLength: systemPrompt.length + userPrompt.length,
+        temperature: 0,
+        maxTokens: providerUsed === 'gemini-2.5-pro' ? 16000 : 12000
+      },
+      pageNumber: page,
+      bookId: title
+    };
+    
     // Robust continuation logic - ensure ALL questions are answered regardless of summary length
     if (originalQuestionCount > 0 && summaryQuestionCount < originalQuestionCount) {
       console.log(`⚠️ Missing ${originalQuestionCount - summaryQuestionCount} questions, attempting auto-continuation...`);
@@ -823,7 +843,10 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
       console.log('✅ All questions appear to be processed successfully');
     }
 
-    return new Response(JSON.stringify({ summary }), {
+    return new Response(JSON.stringify({ 
+      summary,
+      debugData: debugData 
+    }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
