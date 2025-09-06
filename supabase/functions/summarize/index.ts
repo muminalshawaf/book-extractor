@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Enhanced question parsing function with context-aware detection
+// Strict question parsing that only detects actual exercise questions
 function parseQuestions(text: string): Array<{number: string, text: string, fullMatch: string, isMultipleChoice: boolean}> {
   const questions = [];
   
@@ -16,71 +16,79 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
                                    text.includes('اختيار من متعدد') ||
                                    /[أاب][.\)]\s*.*[ب][.\)]\s*.*[ج][.\)]\s*.*[د][.\)]/s.test(text);
   
-  // Focus question detection on exercise/question sections only
-  const questionSectionIndicators = [
-    'أسئلة', 'تمارين', 'مسائل', 'اختبار', 'تقويم',
-    'questions', 'exercises', 'problems', 'test', 'assessment'
-  ];
+  // Split text into lines and track sections
+  const lines = text.split('\n');
+  let inExerciseSection = false;
   
-  // Check if we're in a question section
-  const hasQuestionSection = questionSectionIndicators.some(indicator => 
-    text.toLowerCase().includes(indicator.toLowerCase())
-  );
+  // Look for exercise section indicators
+  const exerciseSectionRegex = /(?:مسائل تدريبية|تمارين|أسئلة|exercises|questions|practice|problems)/i;
   
-  // Instructional keywords that indicate steps in worked examples, not questions
+  // Keywords that indicate instructional steps (not questions)
   const instructionalKeywords = [
-    'تحليل المسألة', 'حساب المطلوب', 'التطبيق', 'الحل', 'الخطوة',
-    'analyze', 'calculate', 'apply', 'solution', 'step',
-    'اتبع الخطوات', 'طريقة الحل', 'المعطيات', 'المطلوب إيجاد',
-    'follow steps', 'solution method', 'given', 'find'
+    'تحليل المسألة', 'حساب المطلوب', 'تقويم الإجابة', 'الحل', 'الخطوة',
+    'المعطيات', 'المطلوب إيجاد', 'طريقة الحل', 'اتبع الخطوات',
+    'analyze', 'calculate', 'solution', 'step', 'method', 'given', 'find'
   ];
   
-  // Enhanced regex patterns for Arabic and English question numbers with various formats
-  const questionPatterns = [
-    /(\d+)[.\-]\s*([^٠-٩\d]+(?:[^\.]*?)(?=\d+[.\-]|$))/gm,
-    /([٩٠-٩٩]+[٠-٩]*)[.\-]\s*([^٠-٩\d]+(?:[^\.]*?)(?=[٩٠-٩٩]+[٠-٩]*[.\-]|$))/gm,
-    /(١٠[٠-٦])[.\-]\s*([^٠-٩\d]+(?:[^\.]*?)(?=١٠[٠-٦][.\-]|$))/gm,
-  ];
-  
-  for (const pattern of questionPatterns) {
-    let match;
-    pattern.lastIndex = 0; // Reset regex
-    while ((match = pattern.exec(text)) !== null) {
-      const questionNumber = match[1].trim();
-      const questionText = match[2].trim();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    // Check if we've entered an exercise section
+    if (exerciseSectionRegex.test(line)) {
+      inExerciseSection = true;
+      continue;
+    }
+    
+    // Reset if we hit a new section that's clearly not exercises
+    if (line.startsWith('--- SECTION:') && !exerciseSectionRegex.test(line)) {
+      inExerciseSection = false;
+    }
+    
+    // Only process lines in exercise sections
+    if (!inExerciseSection) {
+      continue;
+    }
+    
+    // Look for numbered questions in format "number. question text"
+    const questionMatch = line.match(/^(\d+)\.\s*(.+)/);
+    if (questionMatch) {
+      const questionNumber = questionMatch[1];
+      const questionText = questionMatch[2].trim();
       
-      // Only consider as question if:
-      // 1. Text is substantial (>10 chars)
-      // 2. Contains question indicators OR we're in a question section
-      // 3. Does NOT contain instructional keywords
-      // 4. Contains question marks or interrogative words
-      const hasQuestionMarkers = questionText.includes('؟') || 
-                                questionText.includes('?') ||
-                                /^(ما|متى|أين|كيف|لماذا|ماذا|من|اشرح|وضح|قارن|حدد|احسب|what|when|where|how|why|explain|compare|calculate)/i.test(questionText);
-      
-      const hasInstructionalKeywords = instructionalKeywords.some(keyword => 
+      // Exclude instructional steps
+      const hasInstructionalKeyword = instructionalKeywords.some(keyword => 
         questionText.toLowerCase().includes(keyword.toLowerCase())
       );
       
+      if (hasInstructionalKeyword) {
+        continue;
+      }
+      
+      // Only consider as actual question if it has:
+      // 1. Chemical formulas/equations OR
+      // 2. Question markers (?, interrogative words) OR  
+      // 3. Multiple choice indicators
+      const hasChemicalContent = /[A-Z][a-z]?[\d₀-₉]*[⁺⁻²³⁴⁵⁶⁷⁸⁹]*|→|↔|\+|\(aq\)|\(g\)|\(s\)|\(l\)/g.test(questionText);
+      const hasQuestionMarkers = questionText.includes('؟') || 
+                                questionText.includes('?') ||
+                                /^(ما|متى|أين|كيف|لماذا|ماذا|من|اشرح|وضح|قارن|حدد|احسب|what|when|where|how|why|explain|compare|calculate)/i.test(questionText);
+      const hasMultipleChoiceIndicators = /[أابج][.\)]\s*.*[بج][.\)]\s*.*[جد][.\)]/.test(questionText);
+      
+      // Must have substantial content and be an actual question
       if (questionText.length > 10 && 
-          (hasQuestionMarkers || hasQuestionSection) && 
-          !hasInstructionalKeywords) {
+          (hasChemicalContent || hasQuestionMarkers || hasMultipleChoiceIndicators)) {
         questions.push({
           number: questionNumber,
           text: questionText,
-          fullMatch: match[0],
-          isMultipleChoice: isMultipleChoiceSection
+          fullMatch: questionMatch[0],
+          isMultipleChoice: isMultipleChoiceSection || hasMultipleChoiceIndicators
         });
       }
     }
   }
   
   // Sort questions by their numeric value
-  questions.sort((a, b) => {
-    const aNum = convertArabicToEnglishNumber(a.number);
-    const bNum = convertArabicToEnglishNumber(b.number);
-    return parseInt(aNum) - parseInt(bNum);
-  });
+  questions.sort((a, b) => parseInt(a.number) - parseInt(b.number));
   
   // Remove duplicates
   const unique = questions.filter((question, index, self) => 
@@ -717,6 +725,50 @@ Original OCR text: ${enhancedText}`;
       }
       
       if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-2.5-pro')) {
+        // First, validate that we actually have exercise content for missing questions
+        const filteredExerciseContent = enhancedText.split('\n').filter(line => {
+          const trimmedLine = line.trim();
+          
+          // Only include lines that contain the missing numbers in a question format
+          const containsQuestionNumber = missingNumbers.some(num => {
+            // Look for exact question number format: "number. " at start of line
+            return new RegExp(`^${num}\\.\s+`).test(trimmedLine);
+          });
+          
+          if (!containsQuestionNumber) return false;
+          
+          // Exclude lines that contain instructional keywords
+          const instructionalKeywords = [
+            'تحليل المسألة', 'حساب المطلوب', 'التطبيق', 'الحل', 'الخطوة', 'تقويم الإجابة',
+            'analyze', 'calculate', 'apply', 'solution', 'step', 'evaluation',
+            'اتبع الخطوات', 'طريقة الحل', 'المعطيات', 'المطلوب إيجاد', 'خطوات وزن'
+          ];
+          
+          const hasInstructionalKeywords = instructionalKeywords.some(keyword => 
+            trimmedLine.toLowerCase().includes(keyword.toLowerCase())
+          );
+          
+          // Only include if it's actually in an exercise section
+          const exerciseSectionRegex = /(?:مسائل تدريبية|تمارين|أسئلة|exercises|questions|practice)/i;
+          const isInExerciseContext = exerciseSectionRegex.test(line) || 
+            enhancedText.includes('مسائل تدريبية'); // Check if document has exercise section
+          
+          // Must have chemical content or question markers to be considered a real question
+          const hasChemicalContent = /[A-Z][a-z]?[\d₀-₉]*[⁺⁻²³⁴⁵⁶⁷⁸⁹]*|→|↔|\+|\(aq\)|\(g\)|\(s\)|\(l\)/g.test(trimmedLine);
+          const hasQuestionMarkers = trimmedLine.includes('؟') || trimmedLine.includes('?') ||
+            /^(ما|متى|أين|كيف|لماذا|ماذا|من|اشرح|وضح|قارن|حدد|احسب)/i.test(trimmedLine);
+          
+          return !hasInstructionalKeywords && isInExerciseContext && (hasChemicalContent || hasQuestionMarkers);
+        }).join('\n');
+        
+        // If no actual exercise content found for missing questions, skip auto-continuation
+        if (filteredExerciseContent.trim().length < 50) {
+          console.log(`No actual exercise content found for missing questions: ${missingNumbers.join(', ')}. Skipping auto-continuation to prevent hallucination.`);
+          return new Response(JSON.stringify({ summary: completionContent }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        }
+        
         // Multi-attempt continuation with safety limit
         let attempt = 0;
         let currentSummary = summary;
@@ -740,22 +792,38 @@ REQUIREMENTS:
 
 Missing questions from exercise sections (filtered):
 ${enhancedText.split('\n').filter(line => {
-  // Only include lines that contain the missing numbers and are likely actual questions
-  const containsNumber = missingNumbers.some(num => line.includes(`${num}.`) || line.includes(`${num}-`) || line.includes(`${num} `));
-  if (!containsNumber) return false;
+  const trimmedLine = line.trim();
+  
+  // Only include lines that contain the missing numbers in a question format
+  const containsQuestionNumber = missingNumbers.some(num => {
+    // Look for exact question number format: "number. " at start of line
+    return new RegExp(`^${num}\\.\s+`).test(trimmedLine);
+  });
+  
+  if (!containsQuestionNumber) return false;
   
   // Exclude lines that contain instructional keywords
   const instructionalKeywords = [
-    'تحليل المسألة', 'حساب المطلوب', 'التطبيق', 'الحل', 'الخطوة',
-    'analyze', 'calculate', 'apply', 'solution', 'step',
-    'اتبع الخطوات', 'طريقة الحل', 'المعطيات', 'المطلوب إيجاد'
+    'تحليل المسألة', 'حساب المطلوب', 'التطبيق', 'الحل', 'الخطوة', 'تقويم الإجابة',
+    'analyze', 'calculate', 'apply', 'solution', 'step', 'evaluation',
+    'اتبع الخطوات', 'طريقة الحل', 'المعطيات', 'المطلوب إيجاد', 'خطوات وزن'
   ];
   
   const hasInstructionalKeywords = instructionalKeywords.some(keyword => 
-    line.toLowerCase().includes(keyword.toLowerCase())
+    trimmedLine.toLowerCase().includes(keyword.toLowerCase())
   );
   
-  return !hasInstructionalKeywords;
+  // Only include if it's actually in an exercise section
+  const exerciseSectionRegex = /(?:مسائل تدريبية|تمارين|أسئلة|exercises|questions|practice)/i;
+  const isInExerciseContext = exerciseSectionRegex.test(line) || 
+    enhancedText.includes('مسائل تدريبية'); // Check if document has exercise section
+  
+  // Must have chemical content or question markers to be considered a real question
+  const hasChemicalContent = /[A-Z][a-z]?[\d₀-₉]*[⁺⁻²³⁴⁵⁶⁷⁸⁹]*|→|↔|\+|\(aq\)|\(g\)|\(s\)|\(l\)/g.test(trimmedLine);
+  const hasQuestionMarkers = trimmedLine.includes('؟') || trimmedLine.includes('?') ||
+    /^(ما|متى|أين|كيف|لماذا|ماذا|من|اشرح|وضح|قارن|حدد|احسب)/i.test(trimmedLine);
+  
+  return !hasInstructionalKeywords && isInExerciseContext && (hasChemicalContent || hasQuestionMarkers);
 }).join('\n')}
 
 If you cannot fit all questions in one response, prioritize the lowest numbered questions first.`;
