@@ -95,14 +95,21 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
           const timeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('TIMEOUT_ERROR')), 90000) // 90 second timeout
           );
+          
+          // Create batch operation ID for logging
+          const batchOpId = `batch_${Date.now()}_${pageNum}`;
+          console.log(`Batch Operation ${batchOpId}: Processing book ${bookId}, page ${pageNum}`);
 
           const processPromise = callFunction('summarize', {
             book_id: bookId,
             page_number: pageNum,
-            force_regenerate: true
+            force_regenerate: true,
+            batch_operation_id: batchOpId
           }, { timeout: 85000 }); // 85 second function timeout
 
           await Promise.race([processPromise, timeoutPromise]);
+          
+          console.log(`Batch Operation ${batchOpId}: Successfully completed`);
           
           processedCount++;
           toast.success(

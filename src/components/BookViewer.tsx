@@ -468,6 +468,18 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const extractTextFromPage = async (force = false) => {
     if (ocrLoading) return;
     
+    // Create operation snapshot to prevent race conditions
+    const opId = `ocr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const snapshot = {
+      opId,
+      bookId: dbBookId,
+      pageNumber: index + 1,
+      ocrKey,
+      sumKey
+    };
+    
+    console.log(`OCR Operation ${opId}: Starting for book ${snapshot.bookId}, page ${snapshot.pageNumber}`);
+    
     // Skip database check if force is true
     if (!force) {
       // Check if we already have OCR text in database
@@ -475,8 +487,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         const { data: existingData, error } = await supabase
           .from('page_summaries')
           .select('ocr_text, ocr_confidence, confidence, confidence_meta')
-          .eq('book_id', dbBookId)
-          .eq('page_number', index + 1)
+          .eq('book_id', snapshot.bookId)
+          .eq('page_number', snapshot.pageNumber)
           .maybeSingle();
 
         console.log('Checking database for existing OCR text for page', index + 1, 'Result:', existingData);
@@ -598,11 +610,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       setOcrProgress(100);
       toast.success(rtl ? "تم استخراج النص بنجاح" : "Text extracted successfully");
       
-      // Generate summary asynchronously without blocking
+      // Generate summary asynchronously without blocking using snapshot
       setTimeout(() => {
         toast.info(rtl ? "جاري توليد الملخص في الخلفية..." : "Generating summary in background...");
-        summarizeExtractedText(cleanText, force).catch(error => {
-          console.error('Background summary generation failed:', error);
+        summarizeExtractedText(cleanText, force, snapshot).catch(error => {
+          console.error(`OCR Operation ${snapshot.opId}: Background summary generation failed:`, error);
           toast.error(rtl ? "فشل في توليد الملخص" : "Summary generation failed");
         });
       }, 100);
@@ -626,11 +638,22 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummLoading(false);
   };
 
-  const summarizeExtractedText = async (text: string = extractedText, force = false) => {
+  const summarizeExtractedText = async (text: string = extractedText, force = false, providedSnapshot?: any) => {
     if (!text?.trim()) {
       toast.error(rtl ? "لا يوجد نص لتلخيصه" : "No text to summarize");
       return;
     }
+    
+    // Create operation snapshot to prevent race conditions
+    const snapshot = providedSnapshot || {
+      opId: `summary_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      bookId: dbBookId,
+      pageNumber: index + 1,
+      ocrKey,
+      sumKey
+    };
+    
+    console.log(`Summary Operation ${snapshot.opId}: Starting for book ${snapshot.bookId}, page ${snapshot.pageNumber}`);
     
     // Check for mathematical content markers in OCR text
     const hasMathMarkers = /[∫∑∏√∂∇∆λπθΩαβγδεζηκμνξρστφχψω]|[=+\-×÷<>≤≥≠]|\d+\s*[×÷]\s*\d+|[a-zA-Z]\s*=\s*[a-zA-Z0-9]/.test(text);
@@ -643,17 +666,17 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         const { data: existingData, error } = await supabase
           .from('page_summaries')
           .select('summary_md')
-          .eq('book_id', dbBookId)
-          .eq('page_number', index + 1)
+          .eq('book_id', snapshot.bookId)
+          .eq('page_number', snapshot.pageNumber)
           .maybeSingle();
         
         if (!error && existingData?.summary_md?.trim()) {
-          console.log('Found existing summary in database, streaming it...');
+          console.log(`Summary Operation ${snapshot.opId}: Found existing summary in database, streaming it...`);
           await streamExistingSummary(existingData.summary_md);
           return;
         }
       } catch (dbError) {
-        console.warn('Failed to check existing summary:', dbError);
+        console.warn(`Summary Operation ${snapshot.opId}: Failed to check existing summary:`, dbError);
       }
     }
     
@@ -721,7 +744,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         
         toast.success(rtl ? "تم إنشاء الملخص بنجاح" : "Summary generated successfully");
         
-        // Save complete summary to database (async, non-blocking)
+        // Save complete summary to database using snapshot (async, non-blocking)
         const summaryJson = {
           sections: finalSummary.split('###').filter(s => s.trim()).map(section => {
             const lines = section.trim().split('\n');
@@ -729,7 +752,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
             const content = lines.slice(1).join('\n').trim();
             return { title, content };
           }).filter(s => s.title),
-          pageNumber: index + 1,
+          pageNumber: snapshot.pageNumber,
           hasQuestions: /\d+\.\s/.test(trimmedText),
           hasMath: hasMathMarkers,
           wordCount: finalSummary.split(/\s+/).length

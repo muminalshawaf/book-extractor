@@ -161,6 +161,9 @@ serve(async (req) => {
     const questions = parseQuestions(text);
     console.log(`Found ${questions.length} questions in OCR text`);
     
+    // Extract question numbers for prompt generation
+    const questionNumbers = questions.map(q => q.number);
+    
     // Check if there are actual numbered questions (not just generic instructions)
     const hasActualQuestions = questions.length > 0;
 
@@ -676,7 +679,7 @@ Original OCR text: ${enhancedText}`;
       const hasSameQuestionCount = questions.length === answeredQuestionNumbers.size && questions.length > 0;
       if (hasSameQuestionCount && missingNumbers.length === questions.length) {
         console.log('All questions answered (numbering tolerance applied) ✓');
-        return new Response(JSON.stringify({ summary: completionContent }), {
+        return new Response(JSON.stringify({ summary: summary }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
       }
