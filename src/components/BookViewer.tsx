@@ -14,7 +14,7 @@ import MathRenderer from "@/components/MathRenderer";
 import { callFunction } from "@/lib/functionsClient";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingProgress } from "@/components/LoadingProgress";
-import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
+import { BatchContentFixer } from "@/components/seo/BatchContentFixer";
 import { ThumbnailSidebar } from "@/components/ThumbnailSidebar";
 import { FullscreenMode, FullscreenButton, useFullscreen } from "./FullscreenMode";
 import { ZoomControls, ZoomMode } from "@/components/ZoomControls";
@@ -1246,15 +1246,14 @@ KF (°C/m)
             </DrawerContent>
           </Drawer>
           
-          {/* OCR Content for Mobile */}
-          <div className="px-4">
-            <IndexableOCRContent
-              ocrText={extractedText}
-              pageNumber={index + 1}
-              rtl={rtl}
-              onForceRegenerate={forceRegenerate}
-            />
-          </div>
+            {/* Batch Content Fixer */}
+            <div className="px-4 mb-4">
+              <BatchContentFixer 
+                bookId={dbBookId}
+                totalPages={pages.length}
+                rtl={rtl}
+              />
+            </div>
         </div>
       ) : (
         <div className="min-h-screen flex gap-4">
