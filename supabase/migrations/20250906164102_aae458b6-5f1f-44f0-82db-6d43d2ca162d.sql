@@ -1,0 +1,1 @@
+DELETE FROM page_summaries WHERE id = '24fa312e-d38e-4f85-a7cd-0593a1ba6c07';
