@@ -662,7 +662,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     const hasMathMarkers = /[∫∑∏√∂∇∆λπθΩαβγδεζηκμνξρστφχψω]|[=+\-×÷<>≤≥≠]|\d+\s*[×÷]\s*\d+|[a-zA-Z]\s*=\s*[a-zA-Z0-9]/.test(textToSummarize);
     console.log('Math markers detected in OCR:', hasMathMarkers);
     
-    // Skip database check if force is true
+    // Skip database check if force is true - COMPLETELY BYPASS ALL CACHE
     if (!force) {
       // First check if summary already exists in database
       try {
@@ -681,6 +681,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       } catch (dbError) {
         console.warn(`Summary Operation ${snapshot.opId}: Failed to check existing summary:`, dbError);
       }
+    } else {
+      console.log('🚀 FORCE MODE: Bypassing ALL cache - generating fresh summary...');
     }
     
     setSummLoading(true);
@@ -805,24 +807,36 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
   const forceRegenerate = async () => {
     try {
-      // Clear existing data
+      console.log('🔄 FORCE REGENERATE: Starting complete reset...');
+      
+      // Clear ALL state immediately 
       setExtractedText("");
       setSummary("");
-      localStorage.removeItem(ocrKey);
-      localStorage.removeItem(sumKey);
+      setOcrQuality(0);
+      setSummaryConfidence(0);
       
-      // Clear database cached data by deleting the record
+      // Clear ALL localStorage cache for this page
+      const pageKeys = [ocrKey, sumKey, `ocr_quality_${dbBookId}_${index + 1}`, `summary_confidence_${dbBookId}_${index + 1}`];
+      pageKeys.forEach(key => {
+        localStorage.removeItem(key);
+        console.log('🗑️ Cleared localStorage:', key);
+      });
+      
+      // Clear database cached data by deleting the record - MORE THOROUGH DELETION
       try {
-        const { error: deleteError } = await supabase
+        console.log('🗑️ FORCE DELETE: Removing ALL cached data for page', index + 1);
+        const { error: deleteError, count } = await supabase
           .from('page_summaries')
-          .delete()
+          .delete({ count: 'exact' })
           .eq('book_id', dbBookId)
           .eq('page_number', index + 1);
           
+        console.log('🗑️ DELETE RESULT:', { error: deleteError, deletedRows: count });
+        
         if (deleteError) {
           console.warn('Failed to delete cached data:', deleteError);
         } else {
-          console.log('Cleared cached data for force regeneration');
+          console.log(`✅ Successfully deleted ${count} cached records for force regeneration`);
         }
       } catch (deleteErr) {
         console.warn('Failed to clear database cache:', deleteErr);
