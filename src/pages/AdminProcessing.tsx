@@ -16,7 +16,7 @@ import { enhancedBooks } from "@/data/enhancedBooks";
 import DynamicSEOHead from "@/components/seo/DynamicSEOHead";
 import { ProcessingVerification } from "@/components/ProcessingVerification";
 import { cleanOcrText } from "@/lib/ocr/ocrTextCleaner";
-import { runQualityGate } from "@/lib/processing/qualityGate";
+import { runQualityGate, type QualityGateOptions, type QualityResult } from "@/lib/processing/qualityGate";
 import { 
   DEFAULT_PROCESSING_CONFIG,
   ProcessingConfig,
@@ -36,9 +36,18 @@ interface ProcessingStatus {
   nonContentSkipped: number;
   repairAttempts: number;
   repairSuccesses: number;
+  qualityPasses: number;
+  qualityFailures: number;
+  averageQuality: number;
   startTime?: Date;
   lastActivity?: Date;
   logs: string[];
+}
+
+interface QualityGateMetrics {
+  pageNumber: number;
+  qualityResult?: QualityResult;
+  timestamp: Date;
 }
 
 interface PageProcessingResult {
@@ -64,7 +73,16 @@ const AdminProcessing = () => {
   const [skipProcessed, setSkipProcessed] = useState(true);
   const [processingConfig, setProcessingConfig] = useState<ProcessingConfig>(DEFAULT_PROCESSING_CONFIG);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showQualitySettings, setShowQualitySettings] = useState(false);
   const [pageResults, setPageResults] = useState<PageProcessingResult[]>([]);
+  const [qualityMetrics, setQualityMetrics] = useState<QualityGateMetrics[]>([]);
+  const [qualityGateOptions, setQualityGateOptions] = useState<QualityGateOptions>({
+    minOcrConfidence: 0.3,
+    minSummaryConfidence: 0.6,
+    enableRepair: true,
+    repairThreshold: 0.7,
+    maxRepairAttempts: 1
+  });
   const [status, setStatus] = useState<ProcessingStatus>({
     isRunning: false,
     currentPage: 0,
@@ -75,6 +93,9 @@ const AdminProcessing = () => {
     nonContentSkipped: 0,
     repairAttempts: 0,
     repairSuccesses: 0,
+    qualityPasses: 0,
+    qualityFailures: 0,
+    averageQuality: 0,
     logs: []
   });
 
@@ -126,6 +147,7 @@ const AdminProcessing = () => {
 
     isRunningRef.current = true;
     setPageResults([]);
+    setQualityMetrics([]);
     setStatus({
       isRunning: true,
       currentPage: 0,
@@ -136,6 +158,9 @@ const AdminProcessing = () => {
       nonContentSkipped: 0,
       repairAttempts: 0,
       repairSuccesses: 0,
+      qualityPasses: 0,
+      qualityFailures: 0,
+      averageQuality: 0,
       startTime: new Date(),
       logs: []
     });
@@ -351,7 +376,8 @@ const AdminProcessing = () => {
                     pageNumber: pageNum,
                     bookTitle: selectedBook.title,
                     language: 'ar'
-                  }
+                  },
+                  qualityGateOptions
                 );
                 
                 // Check if processing was stopped during quality gate
@@ -361,6 +387,30 @@ const AdminProcessing = () => {
                 }
                 
                 summaryConfidence = qualityResult.summaryConfidence;
+                
+                // Store quality metrics for real-time display
+                setQualityMetrics(prev => [...prev, {
+                  pageNumber: pageNum,
+                  qualityResult,
+                  timestamp: new Date()
+                }]);
+                
+                // Update quality statistics
+                setStatus(prev => {
+                  const newQualityPasses = prev.qualityPasses + (qualityResult.passed ? 1 : 0);
+                  const newQualityFailures = prev.qualityFailures + (qualityResult.passed ? 0 : 1);
+                  const totalQualityChecks = newQualityPasses + newQualityFailures;
+                  const newAverageQuality = totalQualityChecks > 0 
+                    ? (prev.averageQuality * (totalQualityChecks - 1) + qualityResult.summaryConfidence) / totalQualityChecks
+                    : 0;
+                  
+                  return {
+                    ...prev,
+                    qualityPasses: newQualityPasses,
+                    qualityFailures: newQualityFailures,
+                    averageQuality: newAverageQuality
+                  };
+                });
                 
                 if (qualityResult.repairAttempted) {
                   setStatus(prev => ({ 
@@ -686,14 +736,24 @@ const AdminProcessing = () => {
                   <Settings className="w-5 h-5" />
                   Processing Configuration
                 </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-                  disabled={status.isRunning}
-                >
-                  {showAdvancedSettings ? 'Hide' : 'Show'} Advanced
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowQualitySettings(!showQualitySettings)}
+                    disabled={status.isRunning}
+                  >
+                    Quality Gate
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                    disabled={status.isRunning}
+                  >
+                    {showAdvancedSettings ? 'Hide' : 'Show'} Advanced
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -852,6 +912,125 @@ const AdminProcessing = () => {
                   </Alert>
                 </div>
               )}
+
+              {/* Quality Gate Settings */}
+              {showQualitySettings && (
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Shield className="w-4 h-4 text-blue-600" />
+                    <h4 className="font-medium text-blue-600">Quality Gate Configuration</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Min OCR Confidence</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={1}
+                        step={0.1}
+                        value={qualityGateOptions.minOcrConfidence}
+                        onChange={(e) =>
+                          setQualityGateOptions(prev => ({ 
+                            ...prev, 
+                            minOcrConfidence: Math.max(0, Math.min(1, parseFloat(e.target.value) || 0)) 
+                          }))
+                        }
+                        disabled={status.isRunning}
+                      />
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Minimum OCR quality to proceed (0.0-1.0)
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Min Summary Confidence</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={1}
+                        step={0.1}
+                        value={qualityGateOptions.minSummaryConfidence}
+                        onChange={(e) =>
+                          setQualityGateOptions(prev => ({ 
+                            ...prev, 
+                            minSummaryConfidence: Math.max(0, Math.min(1, parseFloat(e.target.value) || 0)) 
+                          }))
+                        }
+                        disabled={status.isRunning}
+                      />
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Minimum summary quality to accept (0.0-1.0)
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Repair Threshold</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={1}
+                        step={0.1}
+                        value={qualityGateOptions.repairThreshold}
+                        onChange={(e) =>
+                          setQualityGateOptions(prev => ({ 
+                            ...prev, 
+                            repairThreshold: Math.max(0, Math.min(1, parseFloat(e.target.value) || 0)) 
+                          }))
+                        }
+                        disabled={status.isRunning}
+                      />
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Quality below this triggers repair (0.0-1.0)
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Max Repair Attempts</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={3}
+                        value={qualityGateOptions.maxRepairAttempts}
+                        onChange={(e) =>
+                          setQualityGateOptions(prev => ({ 
+                            ...prev, 
+                            maxRepairAttempts: Math.max(0, Math.min(3, parseInt(e.target.value) || 0)) 
+                          }))
+                        }
+                        disabled={status.isRunning}
+                      />
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Maximum repair attempts per page (0-3)
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <label className="text-sm font-medium">Enable Repair</label>
+                      <div className="text-xs text-muted-foreground">
+                        Automatically repair low-quality summaries
+                      </div>
+                    </div>
+                    <Switch
+                      checked={qualityGateOptions.enableRepair}
+                      onCheckedChange={(checked) =>
+                        setQualityGateOptions(prev => ({ ...prev, enableRepair: checked }))
+                      }
+                      disabled={status.isRunning}
+                    />
+                  </div>
+                  
+                  <Alert>
+                    <Shield className="w-4 h-4" />
+                    <AlertDescription>
+                      <strong>Quality Gate:</strong> Monitors summary quality using coverage, structure, length, and repetition metrics. 
+                      Summaries below the repair threshold are automatically improved.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -938,30 +1117,69 @@ const AdminProcessing = () => {
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <div className="flex items-center justify-center gap-1 text-green-600">
-                      <CheckCircle className="w-4 h-4" />
-                      <span className="font-semibold">{status.processed}</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <div className="flex items-center justify-center gap-1 text-green-600">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="font-semibold">{status.processed}</span>
+                      </div>
+                      <p className="text-xs text-green-600">Processed</p>
                     </div>
-                    <p className="text-xs text-green-600">Processed</p>
+                    
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <div className="flex items-center justify-center gap-1 text-blue-600">
+                        <RefreshCw className="w-4 h-4" />
+                        <span className="font-semibold">{status.skipped}</span>
+                      </div>
+                      <p className="text-xs text-blue-600">Skipped</p>
+                    </div>
+                    
+                    <div className="text-center p-3 bg-red-50 rounded-lg">
+                      <div className="flex items-center justify-center gap-1 text-red-600">
+                        <XCircle className="w-4 h-4" />
+                        <span className="font-semibold">{status.errors}</span>
+                      </div>
+                      <p className="text-xs text-red-600">Errors</p>
+                    </div>
+                    
+                    <div className="text-center p-3 bg-purple-50 rounded-lg">
+                      <div className="flex items-center justify-center gap-1 text-purple-600">
+                        <RefreshCw className="w-4 h-4" />
+                        <span className="font-semibold">{status.repairAttempts}</span>
+                      </div>
+                      <p className="text-xs text-purple-600">Repairs</p>
+                    </div>
                   </div>
                   
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <div className="flex items-center justify-center gap-1 text-blue-600">
-                      <RefreshCw className="w-4 h-4" />
-                      <span className="font-semibold">{status.skipped}</span>
+                  {/* Quality Gate Metrics */}
+                  {processingConfig.enableQualityGate && (
+                    <div className="space-y-2 p-3 bg-blue-50 rounded-lg">
+                      <div className="flex items-center gap-2 text-blue-600">
+                        <Shield className="w-4 h-4" />
+                        <span className="font-semibold text-sm">Quality Gate</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-green-600 font-semibold">{status.qualityPasses}</span>
+                          <span className="text-muted-foreground"> passed</span>
+                        </div>
+                        <div>
+                          <span className="text-red-600 font-semibold">{status.qualityFailures}</span>
+                          <span className="text-muted-foreground"> failed</span>
+                        </div>
+                        <div>
+                          <span className="text-purple-600 font-semibold">{status.repairSuccesses}</span>
+                          <span className="text-muted-foreground"> repaired</span>
+                        </div>
+                        <div>
+                          <span className="text-blue-600 font-semibold">{(status.averageQuality * 100).toFixed(0)}%</span>
+                          <span className="text-muted-foreground"> avg quality</span>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs text-blue-600">Skipped</p>
-                  </div>
-                  
-                  <div className="text-center p-3 bg-red-50 rounded-lg">
-                    <div className="flex items-center justify-center gap-1 text-red-600">
-                      <XCircle className="w-4 h-4" />
-                      <span className="font-semibold">{status.errors}</span>
-                    </div>
-                    <p className="text-xs text-red-600">Errors</p>
-                  </div>
+                  )}
                 </div>
 
                 {status.startTime && (
@@ -969,6 +1187,76 @@ const AdminProcessing = () => {
                     Started at {status.startTime.toLocaleTimeString()}
                   </p>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Quality Metrics Details */}
+          {processingConfig.enableQualityGate && qualityMetrics.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="w-5 h-5" />
+                  Quality Gate Metrics
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {qualityMetrics.slice(-5).map((metric) => { // Show last 5 pages
+                    if (!metric.qualityResult) return null;
+                    const qr = metric.qualityResult;
+                    
+                    return (
+                      <div key={metric.pageNumber} className={`p-3 rounded-lg border ${
+                        qr.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                      }`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium">Page {metric.pageNumber}</span>
+                          <div className="flex items-center gap-2">
+                            {qr.passed ? (
+                              <Badge variant="secondary" className="bg-green-100 text-green-800">Passed</Badge>
+                            ) : (
+                              <Badge variant="destructive" className="bg-red-100 text-red-800">Failed</Badge>
+                            )}
+                            <span className="text-sm text-muted-foreground">
+                              {(qr.summaryConfidence * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-4 gap-2 text-xs">
+                          <div>
+                            <span className="text-muted-foreground">Coverage:</span>
+                            <span className="ml-1 font-medium">{(qr.confidenceMeta.coverage * 100).toFixed(0)}%</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Length:</span>
+                            <span className="ml-1 font-medium">{(qr.confidenceMeta.lengthFit * 100).toFixed(0)}%</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Structure:</span>
+                            <span className="ml-1 font-medium">{(qr.confidenceMeta.structure * 100).toFixed(0)}%</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">OCR Quality:</span>
+                            <span className="ml-1 font-medium">{(qr.confidenceMeta.ocrQuality * 100).toFixed(0)}%</span>
+                          </div>
+                        </div>
+                        
+                        {qr.repairAttempted && (
+                          <div className="mt-2 text-xs">
+                            <Badge variant="outline" className={qr.repairSuccessful ? "text-green-600" : "text-red-600"}>
+                              Repair {qr.repairSuccessful ? 'Success' : 'Failed'}
+                              {qr.repairSuccessful && qr.repairedConfidence && 
+                                ` → ${(qr.repairedConfidence * 100).toFixed(1)}%`
+                              }
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
           )}
