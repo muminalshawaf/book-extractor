@@ -199,7 +199,9 @@ export function generateProcessingStats(
     ? summarySuccesses.reduce((sum, p) => sum + p.summaryConfidence, 0) / summarySuccesses.length
     : 0;
     
-  const totalTime = processedPages.reduce((sum, p) => sum + p.processingTimeMs, 0);
+  const totalTime = processedPages.length > 0 
+    ? processedPages.reduce((sum, p) => sum + Math.max(0, p.processingTimeMs), 0)
+    : 0;
   
   return {
     totalPages: processedPages.length,

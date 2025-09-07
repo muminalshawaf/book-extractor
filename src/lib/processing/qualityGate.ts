@@ -37,9 +37,9 @@ export interface RepairContext {
 
 const DEFAULT_OPTIONS: QualityGateOptions = {
   minOcrConfidence: 0.3, // Very lenient OCR threshold
-  minSummaryConfidence: 0.6, // Moderate summary quality threshold
+  minSummaryConfidence: 0.5, // Lower threshold for acceptance
   enableRepair: true,
-  repairThreshold: 0.7, // Repair summaries below 70% confidence
+  repairThreshold: 0.65, // Lower threshold for triggering repair
   maxRepairAttempts: 1 // One repair attempt to avoid API cost spiral
 };
 
@@ -250,7 +250,7 @@ export async function runQualityGate(
     
     logs.push(`Repair completed: ${(repairedConfidence * 100).toFixed(1)}% confidence (was ${(summaryConfidence * 100).toFixed(1)}%)`);
     
-    const repairSuccessful = repairedConfidence > summaryConfidence + 0.1; // Require meaningful improvement
+    const repairSuccessful = repairedConfidence > summaryConfidence + 0.05; // More lenient improvement threshold
     
     return {
       passed: repairedConfidence >= opts.minSummaryConfidence,

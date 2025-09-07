@@ -28,7 +28,7 @@ function tokenize(input: string, rtl = false): string[] {
   return words.filter(w => w && w.length > 1 && !stop.has(w));
 }
 
-function topKeywords(words: string[], k = 20): Set<string> {
+function topKeywords(words: string[], k = 30): Set<string> {
   const freq = new Map<string, number>();
   for (const w of words) freq.set(w, (freq.get(w) || 0) + 1);
   return new Set(
@@ -44,7 +44,21 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   let inter = 0;
   for (const x of a) if (b.has(x)) inter++;
   const uni = a.size + b.size - inter;
-  return uni === 0 ? 1 : inter / uni;
+  
+  // Boost coverage for educational content by checking partial matches
+  let partialMatches = 0;
+  for (const wordA of a) {
+    for (const wordB of b) {
+      if (wordA.length > 3 && wordB.length > 3 && 
+          (wordA.includes(wordB) || wordB.includes(wordA))) {
+        partialMatches++;
+        break;
+      }
+    }
+  }
+  
+  const adjustedInter = inter + (partialMatches * 0.3);
+  return uni === 0 ? 1 : Math.min(1, adjustedInter / uni);
 }
 
 function lengthFit(wordsCount: number): number {

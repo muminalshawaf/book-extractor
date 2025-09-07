@@ -197,8 +197,9 @@ const AdminProcessing = () => {
           addLog(`Page ${pageNum}: Reprocessing existing data`);
         }
 
+        let pageStartTime = Date.now(); // Declare here so catch block can access it
+
         try {
-          const pageStartTime = Date.now();
           
           // Get page image URL
           const pages = selectedBook.buildPages();
@@ -564,7 +565,7 @@ const AdminProcessing = () => {
             summaryConfidence: 0,
             repairAttempted: false,
             repairSuccessful: false,
-            processingTimeMs: Date.now() - (status.startTime?.getTime() || 0)
+            processingTimeMs: Date.now() - pageStartTime
           }]);
           setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
         }
