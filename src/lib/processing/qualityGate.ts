@@ -1,6 +1,6 @@
 // Quality Gate with Repair Mechanism for Summary Processing
 
-import { calculateSummaryConfidence, type ConfidenceMeta } from '@/lib/confidence';
+import { calculateSummaryConfidence, type ConfidenceMeta, type KeywordAnalysis, type ConceptAnalysis, analyzeKeywords, analyzeConcepts } from '@/lib/confidence';
 import { callFunction } from '@/lib/functionsClient';
 
 export interface QualityGateOptions {
@@ -25,14 +25,16 @@ export interface QualityResult {
   networkError?: boolean; // Flag for network-related failures
 }
 
-export interface RepairContext {
+interface RepairContext {
   originalText: string;
   originalSummary: string;
-  ocrData?: any;
-  pageNumber: number;
-  bookTitle: string;
-  language: string;
   confidenceMeta: ConfidenceMeta;
+  keywordAnalysis: KeywordAnalysis;
+  conceptAnalysis?: ConceptAnalysis;
+  ocrData?: any;
+  pageNumber?: number;
+  bookTitle?: string;
+  language?: string;
 }
 
 const DEFAULT_OPTIONS: QualityGateOptions = {
@@ -44,119 +46,109 @@ const DEFAULT_OPTIONS: QualityGateOptions = {
 };
 
 function generateRepairPrompt(context: RepairContext): string {
-  const { originalText, originalSummary, confidenceMeta, pageNumber, bookTitle, language } = context;
+  const { originalText, originalSummary, confidenceMeta, keywordAnalysis, conceptAnalysis, ocrData, pageNumber, bookTitle, language } = context;
   
-  const issues: string[] = [];
+  // Analyze what's missing or problematic
+  const issues = [];
+  if (confidenceMeta.coverage < 0.6) issues.push('خطف المحتوى الأساسي من النص (coverage too low)');
+  if (confidenceMeta.lengthFit < 0.7) issues.push('طول الملخص غير مناسب (length issues)');
+  if (confidenceMeta.structure < 0.6) issues.push('بنية الملخص تحتاج تحسين (structure needs improvement)');
+  if (confidenceMeta.repetitionPenalty < 0.8) issues.push('تكرار مفرط في المحتوى (too much repetition)');
+  if (confidenceMeta.conceptOverlap < 0.5 && conceptAnalysis) issues.push('مفاهيم أساسية مفقودة (missing key concepts)');
   
-  if (confidenceMeta.coverage < 0.6) {
-    issues.push("المحتوى المستخرج لا يغطي النص الأصلي بشكل كافٍ");
+  const lang = language || 'ar';
+  const isArabic = lang === 'ar';
+  
+  // Build missing content guidance
+  const missingKeywords = keywordAnalysis.missingKeywords.slice(0, 10);
+  const missingConcepts = conceptAnalysis?.missingConcepts.slice(0, 5) || [];
+  
+  let contentGuidance = '';
+  if (missingKeywords.length > 0) {
+    contentGuidance += `\n\n**مصطلحات مفقودة يجب تضمينها (Missing Keywords to Include):**\n${missingKeywords.join(', ')}`;
   }
-  
-  if (confidenceMeta.lengthFit < 0.5) {
-    if (originalSummary.split(/\s+/).length < 50) {
-      issues.push("الملخص قصير جداً ولا يشمل التفاصيل المهمة");
-    } else {
-      issues.push("الملخص طويل جداً ويحتاج إلى تركيز أكثر");
-    }
+  if (missingConcepts.length > 0) {
+    contentGuidance += `\n\n**مفاهيم مفقودة يجب شرحها (Missing Concepts to Explain):**\n${missingConcepts.join(', ')}`;
   }
-  
-  if (confidenceMeta.structure < 0.5) {
-    issues.push("تنسيق الملخص يحتاج إلى تحسين (عناوين، نقاط، ترقيم)");
-  }
-  
-  if (confidenceMeta.repetitionPenalty < 0.7) {
-    issues.push("يوجد تكرار مفرط في المحتوى");
-  }
-  
-  const issueDescription = issues.length > 0 
-    ? `\n\nالمشاكل المحددة في الملخص الحالي:\n${issues.map(issue => `- ${issue}`).join('\n')}`
-    : '';
 
-  if (language === 'ar') {
-    return `أنت محرر خبير للمحتوى التعليمي. المهمة: تحسين ملخص صفحة من كتاب مدرسي.
+  return `You are an expert Arabic chemistry professor. The following summary has quality issues that need immediate repair.
 
-معلومات الصفحة:
-- الكتاب: ${bookTitle}
-- رقم الصفحة: ${pageNumber}
-- جودة النص الأصلي: ${(confidenceMeta.ocrQuality * 100).toFixed(1)}%
-- تقييم التغطية: ${(confidenceMeta.coverage * 100).toFixed(1)}%${issueDescription}
+**IDENTIFIED ISSUES:**
+${issues.join('\n- ')}
 
-النص الأصلي المستخرج:
-${originalText}
+**COVERAGE ANALYSIS:**
+- Keyword coverage: ${(confidenceMeta.coverage * 100).toFixed(1)}% (target: >60%)
+- Concept coverage: ${(confidenceMeta.conceptOverlap * 100).toFixed(1)}% (target: >50%)
+- Length fitness: ${(confidenceMeta.lengthFit * 100).toFixed(1)}% (target: >70%)
+- Structure quality: ${(confidenceMeta.structure * 100).toFixed(1)}% (target: >60%)
+- Content uniqueness: ${(confidenceMeta.repetitionPenalty * 100).toFixed(1)}% (target: >80%)
 
-الملخص الحالي (يحتاج تحسين):
+${contentGuidance}
+
+**REPAIR INSTRUCTIONS:**
+1. **MANDATORY COVERAGE IMPROVEMENT**: Include MORE terms and concepts from the original OCR text, especially: ${missingKeywords.slice(0, 5).join(', ')}
+2. **MANDATORY CONCEPT INTEGRATION**: Explain these missing concepts: ${missingConcepts.slice(0, 3).join(', ')}
+3. **MANDATORY COMPLETENESS**: Answer ALL questions found in the OCR text - NO EXCEPTIONS
+4. **MANDATORY STRUCTURE**: Use clear headers (##, ###) and bullet points for organization
+5. **MANDATORY PRECISION**: All chemistry formulas, calculations, and facts must be accurate
+6. **MANDATORY INTEGRATION**: If visual elements exist (graphs, tables), use their data actively
+7. **PROHIBITED**: Do not add disclaimers about "insufficient data" - use all available information
+8. **PROHIBITED**: Do not skip or summarize questions - provide complete step-by-step solutions
+
+**FOCUS AREAS FOR IMPROVEMENT:**
+${confidenceMeta.coverage < 0.6 ? '- **CRITICAL**: Increase keyword coverage by including more OCR terms\n' : ''}${confidenceMeta.conceptOverlap < 0.5 ? '- **CRITICAL**: Add missing concept explanations\n' : ''}${confidenceMeta.structure < 0.6 ? '- **IMPORTANT**: Improve structure with clear headers and organization\n' : ''}${confidenceMeta.repetitionPenalty < 0.8 ? '- **IMPORTANT**: Eliminate repetitive content\n' : ''}
+
+**VISUAL ELEMENTS CONTEXT:**
+${ocrData?.rawStructuredData?.visual_elements ? 
+  JSON.stringify(ocrData.rawStructuredData.visual_elements, null, 2) : 
+  'No visual elements detected'}
+
+**ORIGINAL OCR TEXT:**
+${originalText.substring(0, 2000)}${originalText.length > 2000 ? '...' : ''}
+
+**CURRENT SUMMARY (TO BE IMPROVED):**
 ${originalSummary}
 
-المطلوب: إنتاج ملخص محسّن يلتزم بالمعايير التالية:
-1. تغطية شاملة للمفاهيم الرئيسية من النص الأصلي
-2. طول مناسب (150-300 كلمة)
-3. تنسيق واضح مع عناوين فرعية ونقاط
-4. استخدام المصطلحات العلمية الصحيحة
-5. تجنب التكرار
-6. شرح الأمثلة والتمارين بوضوح
-7. استخراج وشرح جميع الأسئلة المرقمة
-
-تنسيق الإخراج:
-- استخدم العناوين (##) للمواضيع الرئيسية
-- استخدم النقاط (-) للتفاصيل
-- اكتب الأسئلة في قسم منفصل
-- استخدم **النص العريض** للمصطلحات المهمة
-
-الملخص المحسّن:`;
-  } else {
-    return `You are an expert educational content editor. Task: Improve a textbook page summary.
-
-Page Information:
-- Book: ${bookTitle}
-- Page: ${pageNumber}  
-- Original text quality: ${(confidenceMeta.ocrQuality * 100).toFixed(1)}%
-- Coverage assessment: ${(confidenceMeta.coverage * 100).toFixed(1)}%${issueDescription}
-
-Original extracted text:
-${originalText}
-
-Current summary (needs improvement):
-${originalSummary}
-
-Required: Produce an improved summary that meets these standards:
-1. Comprehensive coverage of key concepts from the original text
-2. Appropriate length (150-300 words)
-3. Clear formatting with subheadings and bullet points
-4. Correct scientific terminology usage
-5. Avoid repetition
-6. Clear explanation of examples and exercises
-7. Extract and explain all numbered questions
-
-Output format:
-- Use headings (##) for main topics
-- Use bullet points (-) for details
-- Write questions in a separate section
-- Use **bold text** for important terms
-
-Improved summary:`;
-  }
+**OUTPUT REQUIREMENTS:**
+- Respond ONLY with the improved summary in markdown format
+- NO explanations, NO meta-commentary, NO justifications
+- Start directly with the improved content
+- Ensure the improved summary addresses ALL identified issues above`;
 }
 
 export async function runQualityGate(
   ocrText: string,
   summaryMd: string,
   ocrConfidence: number,
-  context: Omit<RepairContext, 'originalSummary' | 'confidenceMeta'>,
+  context: Omit<RepairContext, 'originalSummary' | 'confidenceMeta' | 'keywordAnalysis' | 'conceptAnalysis'>,
   options: Partial<QualityGateOptions> = {}
 ): Promise<QualityResult> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const logs: string[] = [];
   
-  // Calculate initial confidence
-  const { score: summaryConfidence, meta: confidenceMeta } = calculateSummaryConfidence(
+  console.log('🛡️ Quality Gate: Starting enhanced analysis...');
+  logs.push('Starting enhanced quality gate analysis with keyword and concept analysis');
+  
+  // Calculate initial confidence with enhanced analysis
+  const { score: summaryConfidence, meta: confidenceMeta, keywordAnalysis, conceptAnalysis } = calculateSummaryConfidence(
     ocrText,
     summaryMd,
     ocrConfidence,
-    context.language === 'ar'
+    context.language === 'ar',
+    {
+      topK: 25, // Analyze more keywords
+      enableStemming: true,
+      enableSynonyms: true,
+      enableConcepts: true
+    }
   );
   
-  logs.push(`Initial confidence: OCR ${(ocrConfidence * 100).toFixed(1)}%, Summary ${(summaryConfidence * 100).toFixed(1)}%`);
-  logs.push(`Confidence breakdown: Coverage ${(confidenceMeta.coverage * 100).toFixed(1)}%, Length ${(confidenceMeta.lengthFit * 100).toFixed(1)}%, Structure ${(confidenceMeta.structure * 100).toFixed(1)}%`);
+  console.log(`🛡️ Quality Gate: Enhanced scores - OCR: ${(ocrConfidence * 100).toFixed(1)}%, Summary: ${(summaryConfidence * 100).toFixed(1)}%, Concepts: ${(confidenceMeta.conceptOverlap * 100).toFixed(1)}%`);
+  logs.push(`Enhanced quality scores: OCR ${(ocrConfidence * 100).toFixed(1)}%, Summary ${(summaryConfidence * 100).toFixed(1)}%, Concept overlap ${(confidenceMeta.conceptOverlap * 100).toFixed(1)}%`);
+  logs.push(`Keyword analysis: ${keywordAnalysis.commonKeywords.length}/${keywordAnalysis.ocrKeywords.size} keywords matched, ${keywordAnalysis.missingKeywords.length} missing`);
+  if (conceptAnalysis) {
+    logs.push(`Concept analysis: ${conceptAnalysis.extractedConcepts.length} concepts found, ${conceptAnalysis.missingConcepts.length} missing`);
+  }
   
   // Check if OCR quality is too low to proceed
   if (ocrConfidence < opts.minOcrConfidence) {
@@ -207,9 +199,15 @@ export async function runQualityGate(
   
   try {
     const repairContext: RepairContext = {
-      ...context,
+      originalText: context.originalText,
       originalSummary: summaryMd,
-      confidenceMeta
+      confidenceMeta,
+      keywordAnalysis,
+      conceptAnalysis,
+      ocrData: context.ocrData,
+      pageNumber: context.pageNumber,
+      bookTitle: context.bookTitle,
+      language: context.language
     };
     
     const repairPrompt = generateRepairPrompt(repairContext);
@@ -245,7 +243,13 @@ export async function runQualityGate(
       ocrText,
       repairedSummary,
       ocrConfidence,
-      context.language === 'ar'
+      context.language === 'ar',
+      {
+        topK: 25,
+        enableStemming: true,
+        enableSynonyms: true,
+        enableConcepts: true
+      }
     );
     
     logs.push(`Repair completed: ${(repairedConfidence * 100).toFixed(1)}% confidence (was ${(summaryConfidence * 100).toFixed(1)}%)`);

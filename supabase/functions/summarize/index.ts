@@ -208,6 +208,43 @@ Rows:`;
     // Enhanced text with visual context
     const enhancedText = text + visualElementsText;
 
+    // Implement two-pass summarization for better concept coverage
+    const { text: conceptsText = '', lang: conceptsLang = "ar", isConceptExtraction = false } = await req.json();
+    
+    // Check if this is a concept extraction pass
+    if (isConceptExtraction) {
+      console.log('Running CONCEPT EXTRACTION pass...');
+      const conceptExtractionPrompt = `You are an expert educational content analyzer. Extract structured concepts from this chemistry text.
+
+TASK: Analyze the text and identify:
+1. Key concepts and definitions
+2. Chemical formulas and equations
+3. Important numerical data and constants
+4. Question topics and themes
+5. Main learning objectives
+
+OUTPUT FORMAT (JSON only):
+{
+  "key_concepts": ["concept1", "concept2", ...],
+  "definitions": [{"term": "...", "definition": "..."}],
+  "formulas": [{"formula": "...", "description": "..."}],
+  "numerical_data": [{"value": "...", "context": "..."}],
+  "question_topics": ["topic1", "topic2", ...],
+  "learning_objectives": ["objective1", "objective2", ...]
+}
+
+TEXT TO ANALYZE:
+${enhancedText}`;
+
+      // Return concept extraction result
+      return new Response(JSON.stringify({ 
+        concepts: conceptExtractionPrompt 
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     // Create optimized prompt for question processing
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
     console.log(`Multiple choice detected: ${hasMultipleChoice}`);
