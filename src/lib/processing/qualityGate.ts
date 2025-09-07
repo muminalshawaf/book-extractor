@@ -213,21 +213,29 @@ export async function runQualityGate(
     };
     
     const repairPrompt = generateRepairPrompt(repairContext);
+    logs.push(`Generated repair prompt (${repairPrompt.length} chars)`);
     
-    // Use the same summarization function but with repair prompt
-    const repairResult = await callFunction('summarize', {
-      text: repairPrompt,
-      lang: context.language,
-      page: context.pageNumber,
-      title: context.bookTitle,
-      ocrData: context.ocrData,
-      isRepair: true // Signal this is a repair attempt
-    }, { timeout: 180000, retries: 1 });
+    // Use shorter timeout to prevent hanging
+    const repairResult = await Promise.race([
+      callFunction('summarize', {
+        text: repairPrompt,
+        lang: context.language,
+        page: context.pageNumber,
+        title: context.bookTitle,
+        ocrData: context.ocrData,
+        isRepair: true // Signal this is a repair attempt
+      }, { timeout: 60000, retries: 1 }), // Reduced timeout to 60 seconds
+      
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Repair timeout after 60 seconds')), 60000)
+      )
+    ]);
     
+    logs.push(`Repair call completed, checking result...`);
     const repairedSummary = repairResult.summary || '';
     
     if (!repairedSummary || repairedSummary.length < 50) {
-      logs.push('Repair failed: empty or too short result');
+      logs.push(`Repair failed: empty or too short result (${repairedSummary.length} chars)`);
       return {
         passed: false,
         ocrConfidence,
@@ -272,12 +280,27 @@ export async function runQualityGate(
     
     logs.push(`Repair failed with error: ${errorMessage}`);
     
+    // Handle timeout specifically
+    if (errorMessage.includes('timeout') || errorMessage.includes('Repair timeout')) {
+      logs.push('Repair timed out - proceeding with original summary');
+      return {
+        passed: summaryConfidence >= opts.minSummaryConfidence * 0.9, // Slightly lower bar for timeouts
+        ocrConfidence,
+        summaryConfidence,
+        confidenceMeta,
+        needsRepair: true,
+        repairAttempted: true,
+        repairSuccessful: false,
+        logs,
+        networkError: true
+      };
+    }
+    
     // For network failures, we should still allow processing to continue
     // Check both the main error and nested context errors (Supabase structure)
     if (fullErrorInfo.includes('failed to send a request') || 
         fullErrorInfo.includes('failed to fetch') ||
         fullErrorInfo.includes('network') ||
-        fullErrorInfo.includes('timeout') ||
         fullErrorInfo.includes('functionsfetcherror')) {
       logs.push('Network error detected - allowing processing to continue with original summary');
       return {
