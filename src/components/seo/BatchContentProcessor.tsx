@@ -90,55 +90,119 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
           continue;
         }
 
-        try {
-          // Process with shorter timeout to prevent CF timeouts
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('TIMEOUT_ERROR')), 90000) // 90 second timeout
-          );
+        // Try processing with retry logic
+        let retryCount = 0;
+        const maxRetries = 1;
+        let pageSuccess = false;
 
-          const processPromise = callFunction('summarize', {
-            book_id: bookId,
-            page_number: pageNum,
-            force_regenerate: true
-          }, { timeout: 85000 }); // 85 second function timeout
-
-          await Promise.race([processPromise, timeoutPromise]);
-          
-          processedCount++;
-          toast.success(
-            rtl 
-              ? `تم معالجة الصفحة ${pageNum}` 
-              : `Processed page ${pageNum}`
-          );
-
-          // Minimal delay to prevent API rate limits
-          await new Promise(resolve => setTimeout(resolve, 500));
-
-        } catch (error) {
-          errorCount++;
-          console.error(`Error processing page ${pageNum}:`, error);
-          
-          // Handle timeout errors specifically
-          if (error instanceof Error && (
-            error.message.includes('TIMEOUT_ERROR') || 
-            error.message.includes('504') ||
-            error.message.includes('timeout')
-          )) {
-            toast.error(
-              rtl 
-                ? `الصفحة ${pageNum}: انتهت مهلة المعالجة - حاول صفحة واحدة في المرة` 
-                : `Page ${pageNum}: Processing timeout - try one page at a time`
+        while (retryCount <= maxRetries && !pageSuccess) {
+          try {
+            // Process with shorter timeout to prevent CF timeouts
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('TIMEOUT_ERROR')), 90000) // 90 second timeout
             );
-          } else {
-            toast.error(
+
+            const processPromise = callFunction('summarize', {
+              book_id: bookId,
+              page_number: pageNum,
+              force_regenerate: true
+            }, { timeout: 85000 }); // 85 second function timeout
+
+            // Check for "Processing Frozen" status by monitoring the process
+            const result = await Promise.race([processPromise, timeoutPromise]);
+            
+            // Verify the page was actually processed by checking if content was saved
+            const { data: verification } = await supabase
+              .from('page_summaries')
+              .select('id, ocr_text, summary_md')
+              .eq('book_id', bookId)
+              .eq('page_number', pageNum)
+              .maybeSingle();
+
+            if (!verification?.ocr_text && !verification?.summary_md) {
+              throw new Error('PROCESSING_FROZEN');
+            }
+            
+            pageSuccess = true;
+            processedCount++;
+            toast.success(
               rtl 
-                ? `خطأ في معالجة الصفحة ${pageNum}` 
-                : `Error processing page ${pageNum}`
+                ? `تم معالجة الصفحة ${pageNum}` 
+                : `Processed page ${pageNum}`
             );
+
+            // Minimal delay to prevent API rate limits
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+          } catch (error) {
+            retryCount++;
+            console.error(`Error processing page ${pageNum} (attempt ${retryCount}):`, error);
+            
+            const isFinalAttempt = retryCount > maxRetries;
+            
+            // Handle different error types
+            if (error instanceof Error) {
+              if (error.message.includes('TIMEOUT_ERROR') || 
+                  error.message.includes('504') ||
+                  error.message.includes('timeout')) {
+                
+                if (isFinalAttempt) {
+                  toast.error(
+                    rtl 
+                      ? `الصفحة ${pageNum}: انتهت مهلة المعالجة بعد المحاولة الثانية` 
+                      : `Page ${pageNum}: Processing timeout after retry`
+                  );
+                } else {
+                  toast.warning(
+                    rtl 
+                      ? `الصفحة ${pageNum}: انتهت مهلة المعالجة، جاري المحاولة مرة أخرى...` 
+                      : `Page ${pageNum}: Timeout, retrying...`
+                  );
+                  await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retry
+                }
+                
+              } else if (error.message.includes('PROCESSING_FROZEN')) {
+                
+                if (isFinalAttempt) {
+                  toast.error(
+                    rtl 
+                      ? `الصفحة ${pageNum}: المعالجة متجمدة بعد المحاولة الثانية` 
+                      : `Page ${pageNum}: Processing frozen after retry`
+                  );
+                } else {
+                  toast.warning(
+                    rtl 
+                      ? `الصفحة ${pageNum}: المعالجة متجمدة، جاري المحاولة مرة أخرى...` 
+                      : `Page ${pageNum}: Processing frozen, retrying...`
+                  );
+                  await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retry
+                }
+                
+              } else {
+                
+                if (isFinalAttempt) {
+                  toast.error(
+                    rtl 
+                      ? `خطأ في معالجة الصفحة ${pageNum} بعد المحاولة الثانية` 
+                      : `Error processing page ${pageNum} after retry`
+                  );
+                } else {
+                  toast.warning(
+                    rtl 
+                      ? `خطأ في الصفحة ${pageNum}، جاري المحاولة مرة أخرى...` 
+                      : `Page ${pageNum} error, retrying...`
+                  );
+                  await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retry
+                }
+              }
+            }
+            
+            if (isFinalAttempt) {
+              errorCount++;
+              // Continue with next page after final failed attempt
+              break;
+            }
           }
-          
-          // Continue with next page instead of stopping
-          continue;
         }
       }
 
