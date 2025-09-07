@@ -1411,14 +1411,6 @@ KF (°C/m)
                             title={title}
                           />
                           
-                          {/* Henry's Law Calculator for Question 92 */}
-                          {(extractedText.includes("قانون هنري") || extractedText.includes("henry") || 
-                            extractedText.includes("92") || extractedText.includes("٩٢")) && 
-                           (extractedText.includes("جدول") || extractedText.includes("table")) && (
-                            <div className="mt-4">
-                              <HenryLawCalculator />
-                            </div>
-                          )}
                         </div>
                       )}
                     </TabsContent>
