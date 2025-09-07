@@ -7,13 +7,24 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Play, Square, RefreshCw, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { ArrowLeft, Play, Square, RefreshCw, CheckCircle, XCircle, Clock, Settings, Zap, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { callFunction } from "@/lib/functionsClient";
 import { enhancedBooks } from "@/data/enhancedBooks";
 import DynamicSEOHead from "@/components/seo/DynamicSEOHead";
 import { ProcessingVerification } from "@/components/ProcessingVerification";
+import { cleanOcrText } from "@/lib/ocr/ocrTextCleaner";
+import { runQualityGate } from "@/lib/processing/qualityGate";
+import { 
+  DEFAULT_PROCESSING_CONFIG,
+  ProcessingConfig,
+  addJitteredDelay,
+  detectNonContentPage,
+  generateProcessingStats,
+  formatProcessingStats
+} from "@/lib/processing/processingUtils";
 
 interface ProcessingStatus {
   isRunning: boolean;
@@ -22,9 +33,24 @@ interface ProcessingStatus {
   processed: number;
   skipped: number;
   errors: number;
+  nonContentSkipped: number;
+  repairAttempts: number;
+  repairSuccesses: number;
   startTime?: Date;
   lastActivity?: Date;
   logs: string[];
+}
+
+interface PageProcessingResult {
+  pageNumber: number;
+  isContent: boolean;
+  ocrSuccess: boolean;
+  ocrConfidence: number;
+  summarySuccess: boolean;
+  summaryConfidence: number;
+  repairAttempted: boolean;
+  repairSuccessful: boolean;
+  processingTimeMs: number;
 }
 
 const AdminProcessing = () => {
@@ -36,6 +62,9 @@ const AdminProcessing = () => {
   const [startPage, setStartPage] = useState(1);
   const [endPage, setEndPage] = useState(10);
   const [skipProcessed, setSkipProcessed] = useState(true);
+  const [processingConfig, setProcessingConfig] = useState<ProcessingConfig>(DEFAULT_PROCESSING_CONFIG);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [pageResults, setPageResults] = useState<PageProcessingResult[]>([]);
   const [status, setStatus] = useState<ProcessingStatus>({
     isRunning: false,
     currentPage: 0,
@@ -43,6 +72,9 @@ const AdminProcessing = () => {
     processed: 0,
     skipped: 0,
     errors: 0,
+    nonContentSkipped: 0,
+    repairAttempts: 0,
+    repairSuccesses: 0,
     logs: []
   });
 
@@ -93,6 +125,7 @@ const AdminProcessing = () => {
     const totalPagesToProcess = validEndPage - validStartPage + 1;
 
     isRunningRef.current = true;
+    setPageResults([]);
     setStatus({
       isRunning: true,
       currentPage: 0,
@@ -100,11 +133,15 @@ const AdminProcessing = () => {
       processed: 0,
       skipped: 0,
       errors: 0,
+      nonContentSkipped: 0,
+      repairAttempts: 0,
+      repairSuccesses: 0,
       startTime: new Date(),
       logs: []
     });
 
-    addLog(`Starting processing for ${selectedBook.title} (pages ${validStartPage}-${validEndPage}, ${totalPagesToProcess} pages total)`);
+    addLog(`🚀 Starting enhanced processing for ${selectedBook.title} (pages ${validStartPage}-${validEndPage})`);
+    addLog(`⚙️ Config: OCR cleaning: ${processingConfig.enableOcrCleaning}, Quality gate: ${processingConfig.enableQualityGate}, Jittered delay: ${processingConfig.enableJitteredDelay}`);
 
     try {
       for (let pageNum = validStartPage; pageNum <= validEndPage; pageNum++) {
@@ -136,12 +173,14 @@ const AdminProcessing = () => {
         }
 
         try {
+          const pageStartTime = Date.now();
+          
           // Get page image URL
           const pages = selectedBook.buildPages();
           const pageImage = pages[pageNum - 1];
           
           if (!pageImage) {
-            addLog(`Page ${pageNum}: No image found - skipping`);
+            addLog(`❌ Page ${pageNum}: No image found - skipping`);
             setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
             continue;
           }
@@ -152,7 +191,7 @@ const AdminProcessing = () => {
           let ocrResult = null; // Store full OCR result for summary context
 
           if (!ocrText || !skipProcessed) {
-            addLog(`Page ${pageNum}: Extracting text...`);
+            addLog(`🔍 Page ${pageNum}: Extracting text...`);
             
             try {
               // Try Gemini OCR first
@@ -163,50 +202,126 @@ const AdminProcessing = () => {
               
               // Check if processing was stopped during OCR
               if (!isRunningRef.current) {
-                addLog("Processing stopped during OCR");
+                addLog("⏹️ Processing stopped during OCR");
                 break;
               }
               
               ocrText = ocrResult.text || '';
               ocrConfidence = ocrResult.confidence || 0.8;
-              addLog(`Page ${pageNum}: OCR completed (confidence: ${(ocrConfidence * 100).toFixed(1)}%)`);
-            } catch (ocrError) {
-                // Fallback to Gemini Pro Vision OCR
+              addLog(`✅ Page ${pageNum}: OCR completed (${(ocrConfidence * 100).toFixed(1)}% confidence, ${ocrText.length} chars)`);
+              
+              // Try alternative OCR if confidence is low and enabled
+              if (processingConfig.alternativeOcrMode && ocrConfidence < processingConfig.ocrModeThreshold) {
+                addLog(`🔄 Page ${pageNum}: Low OCR confidence, trying fallback...`);
                 try {
-                  addLog(`Page ${pageNum}: Gemini Flash OCR failed, trying Gemini Pro Vision fallback...`);
                   const fallbackResult = await callFunction('ocr-fallback', {
                     imageUrl: pageImage.src,
                     language: 'ar'
-                  }, { timeout: 90000, retries: 1 }); // 1.5 minute timeout for fallback OCR
+                  }, { timeout: 90000, retries: 1 });
+                  
+                  if (!isRunningRef.current) break;
+                  
+                  const fallbackText = fallbackResult.text || '';
+                  const fallbackConfidence = fallbackResult.confidence || 0.6;
+                  
+                  // Use fallback if it's better
+                  if (fallbackConfidence > ocrConfidence || fallbackText.length > ocrText.length * 1.2) {
+                    ocrText = fallbackText;
+                    ocrConfidence = fallbackConfidence;
+                    ocrResult = fallbackResult;
+                    addLog(`🎯 Page ${pageNum}: Fallback OCR better (${(fallbackConfidence * 100).toFixed(1)}% confidence)`);
+                  }
+                } catch (fallbackError) {
+                  addLog(`⚠️ Page ${pageNum}: Fallback OCR failed, using original`);
+                }
+              }
+              
+            } catch (ocrError) {
+              // Fallback to Gemini Pro Vision OCR
+              try {
+                addLog(`🔄 Page ${pageNum}: Gemini Flash OCR failed, trying Gemini Pro Vision fallback...`);
+                const fallbackResult = await callFunction('ocr-fallback', {
+                  imageUrl: pageImage.src,
+                  language: 'ar'
+                }, { timeout: 90000, retries: 1 }); // 1.5 minute timeout for fallback OCR
                 
                 // Check if processing was stopped during fallback OCR
                 if (!isRunningRef.current) {
-                  addLog("Processing stopped during fallback OCR");
+                  addLog("⏹️ Processing stopped during fallback OCR");
                   break;
                 }
                 
                 ocrText = fallbackResult.text || '';
                 ocrConfidence = fallbackResult.confidence || 0.6;
                 ocrResult = fallbackResult; // Store fallback result
-                addLog(`Page ${pageNum}: DeepSeek OCR completed (confidence: ${(ocrConfidence * 100).toFixed(1)}%)`);
+                addLog(`✅ Page ${pageNum}: Fallback OCR completed (${(ocrConfidence * 100).toFixed(1)}% confidence)`);
               } catch (fallbackError) {
-                addLog(`Page ${pageNum}: OCR failed - ${fallbackError.message || fallbackError}`);
+                addLog(`❌ Page ${pageNum}: All OCR methods failed - ${fallbackError.message || fallbackError}`);
+                setPageResults(prev => [...prev, {
+                  pageNumber: pageNum,
+                  isContent: true,
+                  ocrSuccess: false,
+                  ocrConfidence: 0,
+                  summarySuccess: false,
+                  summaryConfidence: 0,
+                  repairAttempted: false,
+                  repairSuccessful: false,
+                  processingTimeMs: Date.now() - pageStartTime
+                }]);
                 setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
                 continue;
               }
             }
           }
 
+          // Clean OCR text if enabled
+          let cleanedOcrText = ocrText;
+          if (processingConfig.enableOcrCleaning && ocrText) {
+            const cleaningResult = cleanOcrText(ocrText, { detectLanguage: 'ar' });
+            cleanedOcrText = cleaningResult.cleanedText;
+            if (cleaningResult.improvements.length > 0) {
+              addLog(`🧹 Page ${pageNum}: Text cleaned - ${cleaningResult.improvements.join(', ')}`);
+            }
+          }
+
+          // Detect non-content pages and skip if enabled
+          if (processingConfig.skipNonContentPages && cleanedOcrText) {
+            const contentCheck = detectNonContentPage(cleanedOcrText);
+            if (contentCheck.isNonContent) {
+              addLog(`⏭️ Page ${pageNum}: Detected ${contentCheck.pageType} page (${(contentCheck.confidence * 100).toFixed(1)}% confidence) - ${contentCheck.reason}`);
+              setPageResults(prev => [...prev, {
+                pageNumber: pageNum,
+                isContent: false,
+                ocrSuccess: true,
+                ocrConfidence,
+                summarySuccess: false,
+                summaryConfidence: 0,
+                repairAttempted: false,
+                repairSuccessful: false,
+                processingTimeMs: Date.now() - pageStartTime
+              }]);
+              setStatus(prev => ({ ...prev, nonContentSkipped: prev.nonContentSkipped + 1 }));
+              
+              // Add jittered delay even for skipped pages
+              if (processingConfig.enableJitteredDelay) {
+                await addJitteredDelay(processingConfig.minDelayMs / 2, processingConfig.maxDelayMs / 2);
+              }
+              continue;
+            }
+          }
+
           // Generate summary if no summary exists or if we're not skipping processed pages
           let summary = (skipProcessed ? existingData?.summary_md : '') || '';
           let summaryConfidence = 0.8;
+          let qualityResult = null;
+          let finalSummary = summary;
 
-          if ((!summary && ocrText) || (!skipProcessed && ocrText)) {
-            addLog(`Page ${pageNum}: Generating summary...`);
+          if ((!summary && cleanedOcrText) || (!skipProcessed && cleanedOcrText)) {
+            addLog(`📝 Page ${pageNum}: Generating summary...`);
             
             try {
               const summaryResult = await callFunction('summarize', {
-                text: ocrText,
+                text: cleanedOcrText, // Use cleaned text
                 lang: 'ar',
                 page: pageNum,
                 title: selectedBook.title,
@@ -215,61 +330,176 @@ const AdminProcessing = () => {
               
               // Check if processing was stopped during summary generation
               if (!isRunningRef.current) {
-                addLog("Processing stopped during summary generation");
+                addLog("⏹️ Processing stopped during summary generation");
                 break;
               }
               
               summary = summaryResult.summary || '';
-              summaryConfidence = 0.8; // Set default confidence since summarize function doesn't return it
-              addLog(`Page ${pageNum}: Summary generated successfully`);
+              addLog(`✅ Page ${pageNum}: Initial summary generated (${summary.length} chars)`);
+              
+              // Run quality gate if enabled
+              if (processingConfig.enableQualityGate && summary) {
+                addLog(`🛡️ Page ${pageNum}: Running quality gate...`);
+                
+                qualityResult = await runQualityGate(
+                  cleanedOcrText,
+                  summary,
+                  ocrConfidence,
+                  {
+                    originalText: cleanedOcrText,
+                    ocrData: ocrResult,
+                    pageNumber: pageNum,
+                    bookTitle: selectedBook.title,
+                    language: 'ar'
+                  }
+                );
+                
+                // Check if processing was stopped during quality gate
+                if (!isRunningRef.current) {
+                  addLog("⏹️ Processing stopped during quality gate");
+                  break;
+                }
+                
+                summaryConfidence = qualityResult.summaryConfidence;
+                
+                if (qualityResult.repairAttempted) {
+                  setStatus(prev => ({ 
+                    ...prev, 
+                    repairAttempts: prev.repairAttempts + 1,
+                    repairSuccesses: prev.repairSuccesses + (qualityResult.repairSuccessful ? 1 : 0)
+                  }));
+                  
+                  if (qualityResult.repairSuccessful && qualityResult.repairedSummary) {
+                    finalSummary = qualityResult.repairedSummary;
+                    summaryConfidence = qualityResult.repairedConfidence || summaryConfidence;
+                    addLog(`🔧 Page ${pageNum}: Summary repaired successfully (${(summaryConfidence * 100).toFixed(1)}% confidence)`);
+                  } else {
+                    finalSummary = summary;
+                    addLog(`⚠️ Page ${pageNum}: Summary repair failed, using original`);
+                  }
+                } else if (qualityResult.passed) {
+                  finalSummary = summary;
+                  addLog(`✅ Page ${pageNum}: Summary quality acceptable (${(summaryConfidence * 100).toFixed(1)}% confidence)`);
+                } else {
+                  finalSummary = summary;
+                  addLog(`⚠️ Page ${pageNum}: Summary below quality threshold but no repair attempted`);
+                }
+                
+                // Log quality gate details if rich logging enabled
+                if (processingConfig.richLogging) {
+                  qualityResult.logs.forEach(log => addLog(`📊 Page ${pageNum}: ${log}`));
+                }
+              } else {
+                finalSummary = summary;
+                summaryConfidence = 0.8; // Default confidence
+              }
+              
             } catch (summaryError) {
-              addLog(`Page ${pageNum}: Summary generation failed - ${summaryError.message || summaryError}`);
+              addLog(`❌ Page ${pageNum}: Summary generation failed - ${summaryError.message || summaryError}`);
+              setPageResults(prev => [...prev, {
+                pageNumber: pageNum,
+                isContent: true,
+                ocrSuccess: true,
+                ocrConfidence,
+                summarySuccess: false,
+                summaryConfidence: 0,
+                repairAttempted: false,
+                repairSuccessful: false,
+                processingTimeMs: Date.now() - pageStartTime
+              }]);
+              setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
+              continue;
+            }
+          } else {
+            finalSummary = summary;
+          }
+
+          // Save to database if we have new content or if we're reprocessing
+          const shouldSave = (cleanedOcrText && !existingData?.ocr_text) || 
+                           (finalSummary && !existingData?.summary_md) || 
+                           !skipProcessed;
+          
+          if (shouldSave) {
+            try {
+              await callFunction('save-page-summary', {
+                book_id: selectedBookId,
+                page_number: pageNum,
+                ocr_text: cleanedOcrText || ocrText, // Save cleaned text
+                summary_md: finalSummary,
+                ocr_confidence: ocrConfidence,
+                confidence: summaryConfidence
+              });
+
+              addLog(`💾 Page ${pageNum}: Saved to database`);
+            } catch (saveError) {
+              addLog(`❌ Page ${pageNum}: Failed to save - ${saveError.message}`);
+              setPageResults(prev => [...prev, {
+                pageNumber: pageNum,
+                isContent: true,
+                ocrSuccess: true,
+                ocrConfidence,
+                summarySuccess: false,
+                summaryConfidence,
+                repairAttempted: qualityResult?.repairAttempted || false,
+                repairSuccessful: qualityResult?.repairSuccessful || false,
+                processingTimeMs: Date.now() - pageStartTime
+              }]);
               setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
               continue;
             }
           }
 
-          // Save to database if we have new content or if we're reprocessing
-          if ((ocrText && !existingData?.ocr_text) || 
-              (summary && !existingData?.summary_md) || 
-              !skipProcessed) {
-            
-            try {
-              await callFunction('save-page-summary', {
-                book_id: selectedBookId,
-                page_number: pageNum,
-                ocr_text: ocrText,
-                summary_md: summary,
-                ocr_confidence: ocrConfidence,
-                confidence: summaryConfidence
-              });
-
-              addLog(`Page ${pageNum}: Saved to database`);
-            } catch (saveError) {
-              addLog(`Page ${pageNum}: Failed to save to database - ${saveError.message}`);
-              setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
-            }
-          }
+          // Record successful processing
+          setPageResults(prev => [...prev, {
+            pageNumber: pageNum,
+            isContent: true,
+            ocrSuccess: true,
+            ocrConfidence,
+            summarySuccess: !!finalSummary,
+            summaryConfidence,
+            repairAttempted: qualityResult?.repairAttempted || false,
+            repairSuccessful: qualityResult?.repairSuccessful || false,
+            processingTimeMs: Date.now() - pageStartTime
+          }]);
 
           setStatus(prev => ({ ...prev, processed: prev.processed + 1 }));
 
-          // Small delay to prevent overwhelming the APIs
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Add jittered delay to prevent overwhelming APIs
+          if (processingConfig.enableJitteredDelay) {
+            await addJitteredDelay(processingConfig.minDelayMs, processingConfig.maxDelayMs);
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
 
         } catch (error) {
-          addLog(`Page ${pageNum}: Error - ${error.message || error}`);
+          addLog(`❌ Page ${pageNum}: Error - ${error.message || error}`);
+          setPageResults(prev => [...prev, {
+            pageNumber: pageNum,
+            isContent: true,
+            ocrSuccess: false,
+            ocrConfidence: 0,
+            summarySuccess: false,
+            summaryConfidence: 0,
+            repairAttempted: false,
+            repairSuccessful: false,
+            processingTimeMs: Date.now() - (status.startTime?.getTime() || 0)
+          }]);
           setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
         }
       }
 
       if (isRunningRef.current) {
         const duration = Date.now() - (status.startTime?.getTime() || 0);
-        addLog(`Processing completed in ${Math.round(duration / 1000)}s`);
+        const stats = generateProcessingStats(pageResults);
+        const statsText = formatProcessingStats(stats);
+        
+        addLog(`🎉 Processing completed in ${Math.round(duration / 1000)}s`);
+        addLog(statsText);
         toast.success("Book processing completed successfully!");
       }
 
     } catch (error) {
-      addLog(`Fatal error: ${error}`);
+      addLog(`💥 Fatal error: ${error}`);
       toast.error("Processing failed with fatal error");
     } finally {
       isRunningRef.current = false;
@@ -280,7 +510,7 @@ const AdminProcessing = () => {
   const stopProcessing = () => {
     isRunningRef.current = false;
     setStatus(prev => ({ ...prev, isRunning: false }));
-    addLog("Processing stopped by user");
+    addLog("⏹️ Processing stopped by user");
     toast.info("Processing stopped");
   };
 
@@ -445,6 +675,183 @@ const AdminProcessing = () => {
                   Entire book
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Advanced Processing Settings */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  Processing Configuration
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                  disabled={status.isRunning}
+                >
+                  {showAdvancedSettings ? 'Hide' : 'Show'} Advanced
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Basic Settings */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Zap className="w-4 h-4" />
+                      OCR Text Cleaning
+                    </label>
+                    <div className="text-xs text-muted-foreground">
+                      Fix hyphenation, merge lines, normalize text
+                    </div>
+                  </div>
+                  <Switch
+                    checked={processingConfig.enableOcrCleaning}
+                    onCheckedChange={(checked) =>
+                      setProcessingConfig(prev => ({ ...prev, enableOcrCleaning: checked }))
+                    }
+                    disabled={status.isRunning}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Shield className="w-4 h-4" />
+                      Quality Gate & Repair
+                    </label>
+                    <div className="text-xs text-muted-foreground">
+                      Auto-repair low quality summaries
+                    </div>
+                  </div>
+                  <Switch
+                    checked={processingConfig.enableQualityGate}
+                    onCheckedChange={(checked) =>
+                      setProcessingConfig(prev => ({ ...prev, enableQualityGate: checked }))
+                    }
+                    disabled={status.isRunning}
+                  />
+                </div>
+              </div>
+
+              {showAdvancedSettings && (
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <label className="text-sm font-medium">Jittered Delays</label>
+                        <div className="text-xs text-muted-foreground">
+                          Random delays between API calls
+                        </div>
+                      </div>
+                      <Switch
+                        checked={processingConfig.enableJitteredDelay}
+                        onCheckedChange={(checked) =>
+                          setProcessingConfig(prev => ({ ...prev, enableJitteredDelay: checked }))
+                        }
+                        disabled={status.isRunning}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <label className="text-sm font-medium">Skip Non-Content</label>
+                        <div className="text-xs text-muted-foreground">
+                          Skip TOC, cover, index pages
+                        </div>
+                      </div>
+                      <Switch
+                        checked={processingConfig.skipNonContentPages}
+                        onCheckedChange={(checked) =>
+                          setProcessingConfig(prev => ({ ...prev, skipNonContentPages: checked }))
+                        }
+                        disabled={status.isRunning}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <label className="text-sm font-medium">Alternative OCR</label>
+                        <div className="text-xs text-muted-foreground">
+                          Try multiple OCR engines
+                        </div>
+                      </div>
+                      <Switch
+                        checked={processingConfig.alternativeOcrMode}
+                        onCheckedChange={(checked) =>
+                          setProcessingConfig(prev => ({ ...prev, alternativeOcrMode: checked }))
+                        }
+                        disabled={status.isRunning}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <label className="text-sm font-medium">Rich Logging</label>
+                        <div className="text-xs text-muted-foreground">
+                          Detailed processing logs
+                        </div>
+                      </div>
+                      <Switch
+                        checked={processingConfig.richLogging}
+                        onCheckedChange={(checked) =>
+                          setProcessingConfig(prev => ({ ...prev, richLogging: checked }))
+                        }
+                        disabled={status.isRunning}
+                      />
+                    </div>
+                  </div>
+
+                  {processingConfig.enableJitteredDelay && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Min Delay (ms)</label>
+                        <Input
+                          type="number"
+                          min={100}
+                          max={5000}
+                          value={processingConfig.minDelayMs}
+                          onChange={(e) =>
+                            setProcessingConfig(prev => ({ 
+                              ...prev, 
+                              minDelayMs: Math.max(100, parseInt(e.target.value) || 100) 
+                            }))
+                          }
+                          disabled={status.isRunning}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Max Delay (ms)</label>
+                        <Input
+                          type="number"
+                          min={processingConfig.minDelayMs}
+                          max={10000}
+                          value={processingConfig.maxDelayMs}
+                          onChange={(e) =>
+                            setProcessingConfig(prev => ({ 
+                              ...prev, 
+                              maxDelayMs: Math.max(prev.minDelayMs, parseInt(e.target.value) || 1000) 
+                            }))
+                          }
+                          disabled={status.isRunning}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <Alert>
+                    <CheckCircle className="w-4 h-4" />
+                    <AlertDescription>
+                      <strong>Enhanced Processing:</strong> These settings improve summarization quality through text cleaning, 
+                      quality gates with automatic repair, intelligent page detection, and adaptive API pacing.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
             </CardContent>
           </Card>
 
