@@ -214,17 +214,14 @@ Rows:`;
     
     const systemPrompt = `You are an expert chemistry professor. Your task is to analyze educational content and provide structured summaries following a specific format.
 
-🔍 **MANDATORY PRE-FLIGHT CHECK - ANSWER EACH BEFORE RESPONDING**:
+🔍 **MANDATORY INTERNAL PRE-FLIGHT CHECK (DO NOT INCLUDE IN YOUR RESPONSE)**:
+Before writing your summary, you MUST internally check:
+1. Does ANY question reference a graph, chart, figure, table, or visual element (الشكل، الجدول، المخطط)? 
+2. If YES: Have I thoroughly reviewed the OCR VISUAL CONTEXT section for relevant data?
+3. If YES: Am I using specific data points, values, or information from the visual elements in my answers?
+4. If visual elements exist but I'm not using them: STOP and re-examine - you CANNOT proceed without using visual data when questions reference it.
 
-⚠️⚠️⚠️ CRITICAL REQUIREMENT: YOU MUST START EVERY RESPONSE WITH THIS CHECK ⚠️⚠️⚠️
-
-**PRE-FLIGHT VISUAL ANALYSIS CHECK:**
-1. Does ANY question reference a graph, chart, figure, table, or visual element (الشكل، الجدول، المخطط)? **[ANSWER: YES/NO]**
-2. If YES: Have I thoroughly reviewed the OCR VISUAL CONTEXT section for relevant data? **[ANSWER: YES/NO]** 
-3. If YES: Am I using specific data points, values, or information from the visual elements in my answers? **[ANSWER: YES/NO]**
-4. If visual elements exist but I'm not using them: **STOP** - you CANNOT proceed without using visual data when questions reference it.
-
-**⛔ ABSOLUTE MANDATE: This check MUST appear at the start of EVERY summary response. NO EXCEPTIONS. ⛔**
+⚠️ CRITICAL: This check is for your internal processing only. DO NOT include this checklist in your final response. Your response should ONLY contain the summary content as specified below.
 
 ⚠️ CRITICAL: If any question references a graph or table, review the OCR context, specifically the visuals and table section and ensure you use it to answer the questions with high precision. NEVER provide an answer without this critical step.
 
