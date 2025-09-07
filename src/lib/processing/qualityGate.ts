@@ -265,16 +265,20 @@ export async function runQualityGate(
       logs
     };
     
-  } catch (error) {
+  } catch (error: any) {
     const errorMessage = error?.message || String(error);
+    const contextError = error?.context?.value?.message || error?.value?.context?.value?.message || '';
+    const fullErrorInfo = `${errorMessage} ${contextError}`.toLowerCase();
+    
     logs.push(`Repair failed with error: ${errorMessage}`);
     
     // For network failures, we should still allow processing to continue
-    // Rather than completely blocking the quality gate
-    if (errorMessage.includes('Failed to send a request') || 
-        errorMessage.includes('Failed to fetch') ||
-        errorMessage.includes('network') ||
-        errorMessage.includes('timeout')) {
+    // Check both the main error and nested context errors (Supabase structure)
+    if (fullErrorInfo.includes('failed to send a request') || 
+        fullErrorInfo.includes('failed to fetch') ||
+        fullErrorInfo.includes('network') ||
+        fullErrorInfo.includes('timeout') ||
+        fullErrorInfo.includes('functionsfetcherror')) {
       logs.push('Network error detected - allowing processing to continue with original summary');
       return {
         passed: summaryConfidence >= opts.minSummaryConfidence * 0.8, // Lower bar for network failures
