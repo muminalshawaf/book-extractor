@@ -102,8 +102,9 @@ serve(async (req) => {
   try {
     console.log('Summarize function started');
     
-    const { text, lang = "ar", page, title, ocrData = null } = await req.json();
-    console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title} }`);
+    const requestBody = await req.json();
+    const { text, lang = "ar", page, title, ocrData = null, isConceptExtraction = false } = requestBody;
+    console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title}, isConceptExtraction: ${isConceptExtraction} }`);
     
     // Log model usage priority
     // Model selection already logged above
@@ -207,9 +208,6 @@ Rows:`;
 
     // Enhanced text with visual context
     const enhancedText = text + visualElementsText;
-
-    // Implement two-pass summarization for better concept coverage
-    const { text: conceptsText = '', lang: conceptsLang = "ar", isConceptExtraction = false } = await req.json();
     
     // Check if this is a concept extraction pass
     if (isConceptExtraction) {
