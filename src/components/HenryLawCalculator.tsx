@@ -28,7 +28,6 @@ export const HenryLawCalculator: React.FC<HenryLawCalculatorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-right">
           <Badge variant="secondary">سؤال {questionNumber}</Badge>
-          حل جدول قانون هنري
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
