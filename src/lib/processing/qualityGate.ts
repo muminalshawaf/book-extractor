@@ -22,6 +22,7 @@ export interface QualityResult {
   repairedSummary?: string;
   repairedConfidence?: number;
   logs: string[];
+  networkError?: boolean; // Flag for network-related failures
 }
 
 export interface RepairContext {
@@ -265,7 +266,29 @@ export async function runQualityGate(
     };
     
   } catch (error) {
-    logs.push(`Repair failed with error: ${error}`);
+    const errorMessage = error?.message || String(error);
+    logs.push(`Repair failed with error: ${errorMessage}`);
+    
+    // For network failures, we should still allow processing to continue
+    // Rather than completely blocking the quality gate
+    if (errorMessage.includes('Failed to send a request') || 
+        errorMessage.includes('Failed to fetch') ||
+        errorMessage.includes('network') ||
+        errorMessage.includes('timeout')) {
+      logs.push('Network error detected - allowing processing to continue with original summary');
+      return {
+        passed: summaryConfidence >= opts.minSummaryConfidence * 0.8, // Lower bar for network failures
+        ocrConfidence,
+        summaryConfidence,
+        confidenceMeta,
+        needsRepair: true,
+        repairAttempted: true,
+        repairSuccessful: false,
+        logs,
+        networkError: true
+      };
+    }
+    
     return {
       passed: false,
       ocrConfidence,

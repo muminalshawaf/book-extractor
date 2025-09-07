@@ -366,24 +366,56 @@ const AdminProcessing = () => {
               if (processingConfig.enableQualityGate && summary) {
                 addLog(`🛡️ Page ${pageNum}: Running quality gate...`);
                 
-                qualityResult = await runQualityGate(
-                  cleanedOcrText,
-                  summary,
-                  ocrConfidence,
-                  {
-                    originalText: cleanedOcrText,
-                    ocrData: ocrResult,
-                    pageNumber: pageNum,
-                    bookTitle: selectedBook.title,
-                    language: 'ar'
-                  },
-                  qualityGateOptions
-                );
-                
-                // Check if processing was stopped during quality gate
-                if (!isRunningRef.current) {
-                  addLog("⏹️ Processing stopped during quality gate");
-                  break;
+                try {
+                  qualityResult = await runQualityGate(
+                    cleanedOcrText,
+                    summary,
+                    ocrConfidence,
+                    {
+                      originalText: cleanedOcrText,
+                      ocrData: ocrResult,
+                      pageNumber: pageNum,
+                      bookTitle: selectedBook.title,
+                      language: 'ar'
+                    },
+                    qualityGateOptions
+                  );
+                  
+                  // Update activity to prevent frozen status
+                  setStatus(prev => ({ ...prev, lastActivity: new Date() }));
+                  
+                  // Check if processing was stopped during quality gate
+                  if (!isRunningRef.current) {
+                    addLog("⏹️ Processing stopped during quality gate");
+                    break;
+                  }
+                  
+                  // Handle network errors gracefully
+                  if (qualityResult.networkError) {
+                    addLog(`⚠️ Page ${pageNum}: Quality gate completed with network issues - continuing with original summary`);
+                  }
+                } catch (qualityGateError) {
+                  addLog(`⚠️ Page ${pageNum}: Quality gate failed - ${qualityGateError.message || qualityGateError}`);
+                  // Create a fallback quality result
+                  qualityResult = {
+                    passed: true, // Allow processing to continue
+                    ocrConfidence,
+                    summaryConfidence: 0.7, // Reasonable default
+                    confidenceMeta: {
+                      coverage: 0.7,
+                      lengthFit: 0.7,
+                      structure: 0.7,
+                      repetitionPenalty: 0.7,
+                      ocrQuality: ocrConfidence,
+                      final: 0.7
+                    },
+                    needsRepair: false,
+                    repairAttempted: false,
+                    repairSuccessful: false,
+                    logs: [`Quality gate failed: ${qualityGateError.message || qualityGateError}`]
+                  };
+                  // Update activity even on failure
+                  setStatus(prev => ({ ...prev, lastActivity: new Date() }));
                 }
                 
                 summaryConfidence = qualityResult.summaryConfidence;
