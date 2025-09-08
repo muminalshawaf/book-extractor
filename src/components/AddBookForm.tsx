@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Loader2, ChevronDown } from "lucide-react";
 import { callFunction } from "@/lib/functionsClient";
 
 interface NewBookData {
@@ -27,6 +28,7 @@ interface AddBookFormProps {
 
 const AddBookForm: React.FC<AddBookFormProps> = ({ rtl = false, onBookAdded }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const [formData, setFormData] = useState<NewBookData>({
     subject: "",
     totalPages: 50,
@@ -227,16 +229,25 @@ const AddBookForm: React.FC<AddBookFormProps> = ({ rtl = false, onBookAdded }) =
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-center">
-          إضافة كتاب جديد إلى المكتبة والقارئ
-        </CardTitle>
-        <p className="text-sm text-muted-foreground text-center">
-          سيتم حفظ الكتاب في قاعدة البيانات وإنشاء جميع الصفحات في القارئ مع معالجة المحتوى
-        </p>
-      </CardHeader>
-      
-      <CardContent className="space-y-6">
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CardHeader>
+          <CollapsibleTrigger asChild>
+            <div className="flex items-center justify-between w-full cursor-pointer">
+              <div>
+                <CardTitle className="text-2xl font-bold">
+                  إضافة كتاب جديد إلى المكتبة والقارئ
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  سيتم حفظ الكتاب في قاعدة البيانات وإنشاء جميع الصفحات في القارئ مع معالجة المحتوى
+                </p>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            </div>
+          </CollapsibleTrigger>
+        </CardHeader>
+        
+        <CollapsibleContent>
+          <CardContent className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="subject">المادة الدراسية *</Label>
           <Select 
@@ -429,6 +440,8 @@ const AddBookForm: React.FC<AddBookFormProps> = ({ rtl = false, onBookAdded }) =
           </div>
         )}
       </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 };
