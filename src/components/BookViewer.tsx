@@ -745,6 +745,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
   const forceRegenerate = async () => {
     try {
+      console.log('Force regenerate - starting comprehensive processing...');
+      
       // Clear existing data
       setExtractedText("");
       setSummary("");
@@ -768,13 +770,181 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         console.warn('Failed to clear database cache:', deleteErr);
       }
       
-      // Force regenerate OCR and summary
-      await extractTextFromPage(true);
+      // Set loading states
+      setOcrLoading(true);
+      setSummLoading(true);
       
-      toast.success(rtl ? "تم إعادة توليد النص والملخص بنجاح" : "Successfully regenerated OCR and summary");
+      const pageNum = index + 1;
+      const pageStartTime = Date.now();
+      
+      try {
+        // Get current page image
+        const pageImage = pages[index];
+        if (!pageImage) {
+          throw new Error(`No image found for page ${pageNum}`);
+        }
+        
+        console.log(`🔍 Page ${pageNum}: Starting comprehensive OCR extraction...`);
+        
+        // 1. OCR EXTRACTION WITH FALLBACK (following AdminProcessing pattern)
+        let ocrText = '';
+        let ocrConfidence = 0.8;
+        let ocrResult = null;
+        
+        try {
+          // Try Gemini OCR first
+          ocrResult = await callFunction('ocr-gemini', {
+            imageUrl: pageImage.src,
+            language: 'ar'
+          }, { timeout: 60000, retries: 1 });
+          
+          ocrText = ocrResult.text || '';
+          ocrConfidence = ocrResult.confidence || 0.8;
+          console.log(`✅ Page ${pageNum}: OCR completed (${(ocrConfidence * 100).toFixed(1)}% confidence, ${ocrText.length} chars)`);
+          
+        } catch (ocrError) {
+          console.log(`🔄 Page ${pageNum}: Primary OCR failed, trying fallback...`);
+          try {
+            const fallbackResult = await callFunction('ocr-fallback', {
+              imageUrl: pageImage.src,
+              language: 'ar'
+            }, { timeout: 90000, retries: 1 });
+            
+            ocrText = fallbackResult.text || '';
+            ocrConfidence = fallbackResult.confidence || 0.6;
+            ocrResult = fallbackResult;
+            console.log(`✅ Page ${pageNum}: Fallback OCR completed (${(ocrConfidence * 100).toFixed(1)}% confidence)`);
+          } catch (fallbackError) {
+            throw new Error(`All OCR methods failed: ${fallbackError.message}`);
+          }
+        }
+        
+        if (!ocrText) {
+          throw new Error('No text extracted from OCR');
+        }
+        
+        // 2. TEXT CLEANING (following AdminProcessing pattern)
+        let cleanedOcrText = ocrText;
+        try {
+          const { cleanOcrText } = await import('@/lib/ocr/ocrTextCleaner');
+          const cleaningResult = cleanOcrText(ocrText, { detectLanguage: 'ar' });
+          cleanedOcrText = cleaningResult.cleanedText;
+          if (cleaningResult.improvements.length > 0) {
+            console.log(`🧹 Page ${pageNum}: Text cleaned - ${cleaningResult.improvements.join(', ')}`);
+          }
+        } catch (cleaningError) {
+          console.warn('Text cleaning failed, using original:', cleaningError);
+        }
+        
+        // Update OCR in UI
+        setExtractedText(cleanedOcrText);
+        setOcrLoading(false);
+        
+        // 3. SUMMARY GENERATION WITH QUALITY GATE (following AdminProcessing pattern)
+        console.log(`📝 Page ${pageNum}: Generating summary with quality gate...`);
+        
+        const summaryResult = await callFunction('summarize', {
+          text: cleanedOcrText,
+          lang: 'ar',
+          page: pageNum,
+          title: title,
+          ocrData: ocrResult
+        }, { timeout: 180000, retries: 1 });
+        
+        let summary = summaryResult.summary || '';
+        let summaryConfidence = 0.8;
+        let finalSummary = summary;
+        
+        if (!summary) {
+          throw new Error('No summary generated');
+        }
+        
+        console.log(`✅ Page ${pageNum}: Initial summary generated (${summary.length} chars)`);
+        
+        // 4. QUALITY GATE AND AUTO-REPAIR (following AdminProcessing pattern)
+        try {
+          const { runQualityGate } = await import('@/lib/processing/qualityGate');
+          
+          console.log(`🛡️ Page ${pageNum}: Running quality gate...`);
+          
+          const qualityResult = await runQualityGate(
+            cleanedOcrText,
+            summary,
+            ocrConfidence,
+            {
+              originalText: cleanedOcrText,
+              ocrData: ocrResult,
+              pageNumber: pageNum,
+              bookTitle: title,
+              language: 'ar'
+            },
+            {
+              minOcrConfidence: 0.3,
+              minSummaryConfidence: 0.6,
+              enableRepair: true,
+              repairThreshold: 0.7,
+              maxRepairAttempts: 2
+            }
+          );
+          
+          summaryConfidence = qualityResult.summaryConfidence;
+          
+          if (qualityResult.repairAttempted) {
+            if (qualityResult.repairSuccessful && qualityResult.repairedSummary) {
+              finalSummary = qualityResult.repairedSummary;
+              summaryConfidence = qualityResult.repairedConfidence || summaryConfidence;
+              console.log(`🔧 Page ${pageNum}: Summary repaired successfully (${(summaryConfidence * 100).toFixed(1)}% confidence)`);
+            } else {
+              console.log(`⚠️ Page ${pageNum}: Summary repair failed, using original`);
+            }
+          } else if (qualityResult.passed) {
+            console.log(`✅ Page ${pageNum}: Summary quality acceptable (${(summaryConfidence * 100).toFixed(1)}% confidence)`);
+          } else {
+            console.log(`⚠️ Page ${pageNum}: Summary below quality threshold but no repair attempted`);
+          }
+          
+          // Log quality gate details
+          qualityResult.logs.forEach(log => console.log(`📊 Page ${pageNum}: ${log}`));
+          
+        } catch (qualityError) {
+          console.warn(`⚠️ Page ${pageNum}: Quality gate failed - ${qualityError.message}`, qualityError);
+        }
+        
+        // Update summary in UI
+        setSummary(finalSummary);
+        setSummLoading(false);
+        
+        // 5. SAVE TO DATABASE (following AdminProcessing pattern)
+        console.log(`💾 Page ${pageNum}: Saving to database...`);
+        
+        await callFunction('save-page-summary', {
+          book_id: dbBookId,
+          page_number: pageNum,
+          ocr_text: cleanedOcrText,
+          summary_md: finalSummary,
+          ocr_confidence: ocrConfidence,
+          confidence: summaryConfidence
+        });
+        
+        // Update localStorage cache
+        localStorage.setItem(ocrKey, cleanedOcrText);
+        localStorage.setItem(sumKey, finalSummary);
+        
+        const processingTime = Date.now() - pageStartTime;
+        console.log(`🎉 Page ${pageNum}: Comprehensive processing completed in ${Math.round(processingTime / 1000)}s`);
+        
+        toast.success(rtl ? "تم إعادة توليد النص والملخص بنجاح مع فحص الجودة" : "Successfully regenerated OCR and summary with quality checks");
+        
+      } catch (processingError) {
+        console.error(`❌ Page ${pageNum}: Processing error:`, processingError);
+        throw processingError;
+      }
+      
     } catch (error) {
       console.error('Force regenerate error:', error);
-      toast.error(rtl ? "فشل في إعادة التوليد" : "Failed to regenerate content");
+      setOcrLoading(false);
+      setSummLoading(false);
+      toast.error(rtl ? `فشل في إعادة التوليد: ${error.message}` : `Failed to regenerate content: ${error.message}`);
     }
   };
 
