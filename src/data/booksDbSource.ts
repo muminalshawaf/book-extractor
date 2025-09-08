@@ -55,8 +55,8 @@ function convertDbBookToLocalFormat(dbBook: BookData): BookWithPages {
             ? dbBook.base_page_url 
             : `https://www.${dbBook.base_page_url}`;
           
-          // Generate zero-padded page numbers (00001, 00002, etc.)
-          const pageNumber = (i + 1).toString().padStart(5, '0');
+          // Generate zero-padded page numbers (00000, 00001, etc.)
+          const pageNumber = i.toString().padStart(5, '0');
           const pageUrl = `${baseUrl}/${pageNumber}.webp`;
           
           return {
