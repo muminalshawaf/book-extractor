@@ -665,26 +665,75 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       
       const trimmedText = text.trim();
       
-      // Use the working summarize function directly
-      console.log('Calling summarize function with thorough verification...');
+      // Use progressive timeout strategy for better reliability
+      console.log('Calling summarize function with progressive timeout strategy...');
       setSummaryProgress(10);
-      toast.info(rtl ? "جاري التوليد مع التحقق الشامل - قد يستغرق عدة دقائق..." : "Generating with thorough verification - this may take several minutes...");
+      toast.info(rtl ? "جاري التوليد مع التحقق الشامل..." : "Generating with thorough verification...");
       
-      const summaryResult = await callFunction('summarize', {
-        text: trimmedText,
-        lang: 'ar',
-        page: index + 1,
-        title: title,
-        ocrData: {
-          pageContext: {
-            page_title: title || 'Unknown',
-            page_type: 'content',
-            has_formulas: hasMathMarkers,
-            has_questions: /\d+\.\s/.test(text) || /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(text),
-            has_examples: /مثال|example/i.test(text)
+      let summaryResult;
+      
+      // First attempt with shorter timeout
+      try {
+        console.log('Attempt 1: Using 60s timeout...');
+        summaryResult = await callFunction('summarize', {
+          text: trimmedText,
+          lang: 'ar',
+          page: index + 1,
+          title: title,
+          ocrData: {
+            pageContext: {
+              page_title: title || 'Unknown',
+              page_type: 'content',
+              has_formulas: hasMathMarkers,
+              has_questions: /\d+\.\s/.test(text) || /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(text),
+              has_examples: /مثال|example/i.test(text)
+            }
+          }
+        }, { timeout: 60000, retries: 1 });
+        
+      } catch (firstError) {
+        console.log('First attempt failed, trying with longer timeout...', firstError);
+        setSummaryProgress(30);
+        toast.info(rtl ? "المحاولة الأولى فشلت، جاري المحاولة بوقت أطول..." : "First attempt failed, trying with longer timeout...");
+        
+        // Second attempt with longer timeout
+        try {
+          console.log('Attempt 2: Using 180s timeout...');
+          summaryResult = await callFunction('summarize', {
+            text: trimmedText,
+            lang: 'ar',
+            page: index + 1,
+            title: title,
+            ocrData: {
+              pageContext: {
+                page_title: title || 'Unknown',
+                page_type: 'content',
+                has_formulas: hasMathMarkers,
+                has_questions: /\d+\.\s/.test(text) || /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(text),
+                has_examples: /مثال|example/i.test(text)
+              }
+            }
+          }, { timeout: 180000, retries: 2 });
+          
+        } catch (secondError) {
+          console.error('Both summarization attempts failed:', { firstError, secondError });
+          
+          // Provide specific error message based on error type
+          if (secondError.message?.includes('Failed to fetch') || secondError.message?.includes('Failed to send a request')) {
+            throw new Error(rtl ? 
+              'فشل في الاتصال بخدمة التلخيص. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.' : 
+              'Failed to connect to summarization service. Please check your internet connection and try again.'
+            );
+          } else if (secondError.message?.includes('timeout') || secondError.message?.includes('TIMEOUT')) {
+            throw new Error(rtl ? 
+              'انتهت مهلة التلخيص. النص قد يكون طويلاً جداً. يرجى المحاولة مرة أخرى.' : 
+              'Summarization timed out. The text may be too long. Please try again.'
+            );
+          } else {
+            throw secondError;
           }
         }
-      }, { timeout: 240000, retries: 3 }); // 4 minutes timeout, 3 retries with direct fetch
+      }
       
       console.log('Summary result:', summaryResult);
 
