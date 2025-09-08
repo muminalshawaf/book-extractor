@@ -67,7 +67,7 @@ interface PageProcessingResult {
 const AdminProcessing = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const initialBookId = searchParams.get('bookId') || enhancedBooks[0]?.id;
+  const initialBookId = searchParams.get('bookId') || '';
   const [availableBooks, setAvailableBooks] = React.useState(enhancedBooks);
 
   const [selectedBookId, setSelectedBookId] = useState(initialBookId);
@@ -139,13 +139,22 @@ const AdminProcessing = () => {
         )];
         
         setAvailableBooks(allBooks);
+        
+        // Set default selected book if none is selected and books are available
+        if (!selectedBookId && allBooks.length > 0) {
+          const bookFromParams = searchParams.get('bookId');
+          const defaultBook = bookFromParams ? 
+            allBooks.find(b => b.id === bookFromParams) || allBooks[0] : 
+            allBooks[0];
+          setSelectedBookId(defaultBook.id);
+        }
       } catch (error) {
         console.error('Failed to load books:', error);
       }
     };
     
     loadBooks();
-  }, []);
+  }, [selectedBookId, searchParams]);
 
   // Update end page when book changes
   React.useEffect(() => {
@@ -718,8 +727,8 @@ const AdminProcessing = () => {
                 <SelectTrigger>
                   <SelectValue placeholder="Select a book" />
                 </SelectTrigger>
-                <SelectContent>
-                  {enhancedBooks.map((book) => (
+                <SelectContent className="z-50 bg-background border shadow-lg max-h-60 overflow-y-auto">
+                  {availableBooks.map((book) => (
                     <SelectItem key={book.id} value={book.id}>
                       {book.title} ({book.totalPages} pages)
                     </SelectItem>
