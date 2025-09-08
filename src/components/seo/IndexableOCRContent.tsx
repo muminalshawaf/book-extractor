@@ -28,13 +28,14 @@ export const IndexableOCRContent: React.FC<IndexableOCRContentProps> = ({
         <span>{rtl ? `محتوى الصفحة ${pageNumber} (نص مستخرج)` : `Page ${pageNumber} Content (Extracted Text)`}</span>
         {onForceRegenerate && (
           <div 
-            className="cursor-pointer hover:text-primary"
+            className="cursor-pointer hover:text-primary transition-colors"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              console.log('Force regenerate clicked - clearing OCR, summary, and cache then reprocessing...');
               onForceRegenerate();
             }}
-            title={rtl ? "إعادة استخراج النص وإنشاء الملخص" : "Force extract text and regenerate summary"}
+            title={rtl ? "حذف البيانات من قاعدة البيانات ومسح التخزين المؤقت وإعادة المعالجة" : "Delete database data, clear cache, and restart processing"}
           >
             <Sparkles className="h-4 w-4 ml-2" />
           </div>
