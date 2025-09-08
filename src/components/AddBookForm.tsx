@@ -35,15 +35,15 @@ const AddBookForm = () => {
   });
 
   const subjects = [
-    { value: "Mathematics", label: "Mathematics / رياضيات", arabic: "رياضيات" },
-    { value: "Physics", label: "Physics / فيزياء", arabic: "فيزياء" },
-    { value: "Chemistry", label: "Chemistry / كيمياء", arabic: "كيمياء" },
-    { value: "Biology", label: "Biology / أحياء", arabic: "أحياء" },
-    { value: "Arabic", label: "Arabic / عربي", arabic: "عربي" },
-    { value: "English", label: "English / إنجليزي", arabic: "إنجليزي" },
-    { value: "History", label: "History / تاريخ", arabic: "تاريخ" },
-    { value: "Geography", label: "Geography / جغرافيا", arabic: "جغرافيا" },
-    { value: "Islamic Studies", label: "Islamic Studies / تربية إسلامية", arabic: "تربية إسلامية" },
+    { value: "Mathematics", label: "Mathematics / رياضيات", arabic: "الرياضيات" },
+    { value: "Physics", label: "Physics / فيزياء", arabic: "الفيزياء" },
+    { value: "Chemistry", label: "Chemistry / كيمياء", arabic: "الكيمياء" },
+    { value: "Biology", label: "Biology / أحياء", arabic: "الأحياء" },
+    { value: "Arabic", label: "Arabic / عربي", arabic: "العربية" },
+    { value: "English", label: "English / إنجليزي", arabic: "الإنجليزية" },
+    { value: "History", label: "History / تاريخ", arabic: "التاريخ" },
+    { value: "Geography", label: "Geography / جغرافيا", arabic: "الجغرافيا" },
+    { value: "Islamic Studies", label: "Islamic Studies / تربية إسلامية", arabic: "التربية الإسلامية" },
     { value: "Custom", label: "مادة مخصصة / Custom Subject", arabic: "مادة مخصصة" }
   ];
 
@@ -89,24 +89,6 @@ const AddBookForm = () => {
       // Fallback: just remove everything after the last slash
       return url.substring(0, url.lastIndexOf('/'));
     }
-  };
-
-  // Generate page pattern detection
-  const generatePagePattern = (url: string) => {
-    if (!url) return "page-{n}.jpg";
-    
-    const filename = url.split('/').pop() || "";
-    
-    // Try to detect common patterns
-    if (filename.includes('page-1')) {
-      return filename.replace('1', '{n}');
-    } else if (filename.includes('-1.')) {
-      return filename.replace('-1.', '-{n}.');
-    } else if (/\d+/.test(filename)) {
-      return filename.replace(/\d+/, '{n}');
-    }
-    
-    return "page-{n}.jpg";
   };
 
   // Validation function
@@ -188,7 +170,7 @@ const AddBookForm = () => {
       const result = await callFunction('admin-add-book', bookData);
       
       if (result.success) {
-        toast.success(`تم إضافة الكتاب "${bookTitle}" بنجاح!`);
+        toast.success(`تم إضافة الكتاب "${bookTitle}" بنجاح إلى قاعدة البيانات!`);
         
         // Reset form
         setFormData({
@@ -203,12 +185,12 @@ const AddBookForm = () => {
           description: ""
         });
       } else {
-        throw new Error(result.error || 'فشل في إضافة الكتاب');
+        throw new Error(result.error || 'فشل في إضافة الكتاب إلى قاعدة البيانات');
       }
 
     } catch (error: any) {
       console.error("خطأ في إضافة الكتاب:", error);
-      toast.error(error.message || "حدث خطأ أثناء إضافة الكتاب");
+      toast.error(error.message || "حدث خطأ أثناء إضافة الكتاب إلى قاعدة البيانات");
     } finally {
       setIsLoading(false);
     }
@@ -220,10 +202,14 @@ const AddBookForm = () => {
         <CardTitle className="text-2xl font-bold text-center">
           إضافة كتاب جديد إلى المكتبة
         </CardTitle>
+        <p className="text-sm text-muted-foreground text-center">
+          سيتم حفظ الكتاب في قاعدة البيانات وسيظهر فوراً في المكتبة
+        </p>
       </CardHeader>
+      
       <CardContent className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="subject">المادة الدراسية</Label>
+          <Label htmlFor="subject">المادة الدراسية *</Label>
           <Select 
             value={formData.subject} 
             onValueChange={(value) => handleInputChange('subject', value)}
@@ -231,7 +217,7 @@ const AddBookForm = () => {
             <SelectTrigger>
               <SelectValue placeholder="اختر المادة الدراسية" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-50 bg-background border shadow-lg">
               {subjects.map((subject) => (
                 <SelectItem key={subject.value} value={subject.value}>
                   {subject.label}
@@ -244,7 +230,7 @@ const AddBookForm = () => {
         {formData.subject === "Custom" && (
           <>
             <div className="space-y-2">
-              <Label htmlFor="customSubjectEn">اسم المادة (بالإنجليزية)</Label>
+              <Label htmlFor="customSubjectEn">اسم المادة (بالإنجليزية) *</Label>
               <Input
                 id="customSubjectEn"
                 type="text"
@@ -252,17 +238,19 @@ const AddBookForm = () => {
                 onChange={(e) => handleInputChange('customSubjectEn', e.target.value)}
                 placeholder="Subject Name in English"
                 className="dir-ltr"
+                required={formData.subject === "Custom"}
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="customSubjectAr">اسم المادة (بالعربية)</Label>
+              <Label htmlFor="customSubjectAr">اسم المادة (بالعربية) *</Label>
               <Input
                 id="customSubjectAr"
                 type="text"
                 value={formData.customSubjectAr}
                 onChange={(e) => handleInputChange('customSubjectAr', e.target.value)}
                 placeholder="اسم المادة بالعربية"
+                required={formData.subject === "Custom"}
               />
             </div>
           </>
@@ -270,7 +258,7 @@ const AddBookForm = () => {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="grade">الصف الدراسي</Label>
+            <Label htmlFor="grade">الصف الدراسي *</Label>
             <Select 
               value={formData.grade.toString()} 
               onValueChange={(value) => handleInputChange('grade', parseInt(value))}
@@ -278,7 +266,7 @@ const AddBookForm = () => {
               <SelectTrigger>
                 <SelectValue placeholder="اختر الصف" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-50 bg-background border shadow-lg max-h-60 overflow-y-auto">
                 {Array.from({length: 12}, (_, i) => (
                   <SelectItem key={i + 1} value={(i + 1).toString()}>
                     الصف {i + 1}
@@ -289,7 +277,7 @@ const AddBookForm = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="semester">الفصل الدراسي</Label>
+            <Label htmlFor="semester">الفصل الدراسي *</Label>
             <Select 
               value={formData.semester.toString()} 
               onValueChange={(value) => handleInputChange('semester', parseInt(value))}
@@ -297,7 +285,7 @@ const AddBookForm = () => {
               <SelectTrigger>
                 <SelectValue placeholder="اختر الفصل" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-50 bg-background border shadow-lg">
                 <SelectItem value="1">الفصل الأول</SelectItem>
                 <SelectItem value="2">الفصل الثاني</SelectItem>
               </SelectContent>
@@ -306,7 +294,7 @@ const AddBookForm = () => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="totalPages">عدد الصفحات الإجمالي</Label>
+          <Label htmlFor="totalPages">عدد الصفحات الإجمالي *</Label>
           <Input
             id="totalPages"
             type="number"
@@ -314,11 +302,15 @@ const AddBookForm = () => {
             max="1000"
             value={formData.totalPages}
             onChange={(e) => handleInputChange('totalPages', parseInt(e.target.value) || 1)}
+            required
           />
+          <p className="text-xs text-muted-foreground">
+            العدد الإجمالي لصفحات الكتاب (1-1000)
+          </p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="firstPageUrl">رابط الصفحة الأولى</Label>
+          <Label htmlFor="firstPageUrl">رابط الصفحة الأولى *</Label>
           <Input
             id="firstPageUrl"
             type="url"
@@ -326,6 +318,7 @@ const AddBookForm = () => {
             onChange={(e) => handleInputChange('firstPageUrl', e.target.value)}
             placeholder="https://example.com/book/page-1.jpg"
             className="dir-ltr"
+            required
           />
           <p className="text-sm text-muted-foreground">
             سيتم توليد روابط باقي الصفحات تلقائياً بناءً على هذا الرابط
@@ -341,39 +334,46 @@ const AddBookForm = () => {
             onChange={(e) => handleInputChange('description', e.target.value)}
             placeholder="وصف مختصر عن محتوى الكتاب"
           />
+          <p className="text-xs text-muted-foreground">
+            وصف قصير يساعد في تصنيف وفهرسة الكتاب
+          </p>
         </div>
 
         {formData.subject && formData.grade && formData.semester && (
-          <div className="p-4 bg-muted rounded-lg">
-            <div className="space-y-2">
-              <Label htmlFor="bookId">معرف الكتاب / Book ID</Label>
-              <Input
-                id="bookId"
-                type="text"
-                value={formData.customBookId || generateBookId(formData.subject === "Custom" ? formData.customSubjectEn || "custom" : formData.subject, formData.grade, formData.semester)}
-                onChange={(e) => handleInputChange('customBookId', e.target.value)}
-                placeholder={generateBookId(formData.subject === "Custom" ? formData.customSubjectEn || "custom" : formData.subject, formData.grade, formData.semester)}
-                className="dir-ltr font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                يمكنك تعديل معرف الكتاب أو استخدام المعرف المُولد تلقائياً
-              </p>
-            </div>
-            <div className="mt-4">
-              <p className="text-sm font-medium mb-2">معاينة عنوان الكتاب:</p>
-              <p className="text-sm">{generateBookTitle(formData.subject, formData.grade, formData.semester, formData.customSubjectAr)}</p>
-            </div>
-            {formData.firstPageUrl && (
-              <div className="mt-4">
-                <p className="text-sm font-medium mb-2">معاينة روابط الصفحات:</p>
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <div>الصفحة 1: {extractBaseUrl(formData.firstPageUrl)}/page-1.jpg</div>
-                  <div>الصفحة 2: {extractBaseUrl(formData.firstPageUrl)}/page-2.jpg</div>
-                  <div>الصفحة 3: {extractBaseUrl(formData.firstPageUrl)}/page-3.jpg</div>
-                  <div>...</div>
-                </div>
+          <div className="p-4 bg-muted rounded-lg border">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="bookId">معرف الكتاب / Book ID</Label>
+                <Input
+                  id="bookId"
+                  type="text"
+                  value={formData.customBookId || generateBookId(formData.subject === "Custom" ? formData.customSubjectEn || "custom" : formData.subject, formData.grade, formData.semester)}
+                  onChange={(e) => handleInputChange('customBookId', e.target.value)}
+                  placeholder={generateBookId(formData.subject === "Custom" ? formData.customSubjectEn || "custom" : formData.subject, formData.grade, formData.semester)}
+                  className="dir-ltr font-mono"
+                />
+                <p className="text-xs text-muted-foreground">
+                  معرف فريد للكتاب - يُستخدم في الروابط والمراجع
+                </p>
               </div>
-            )}
+              
+              <div className="space-y-2">
+                <p className="text-sm font-medium">معاينة عنوان الكتاب:</p>
+                <p className="text-sm p-2 bg-background border rounded">{generateBookTitle(formData.subject, formData.grade, formData.semester, formData.customSubjectAr)}</p>
+              </div>
+              
+              {formData.firstPageUrl && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">معاينة روابط الصفحات:</p>
+                  <div className="text-xs text-muted-foreground space-y-1 p-2 bg-background border rounded">
+                    <div>الصفحة 1: {extractBaseUrl(formData.firstPageUrl)}/page-1.jpg</div>
+                    <div>الصفحة 2: {extractBaseUrl(formData.firstPageUrl)}/page-2.jpg</div>
+                    <div>الصفحة 3: {extractBaseUrl(formData.firstPageUrl)}/page-3.jpg</div>
+                    <div className="text-muted-foreground/70">... وهكذا حتى الصفحة {formData.totalPages}</div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -381,16 +381,24 @@ const AddBookForm = () => {
           onClick={addBookToLibrary} 
           disabled={isLoading}
           className="w-full"
+          size="lg"
         >
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              جاري إضافة الكتاب...
+              جاري إضافة الكتاب إلى قاعدة البيانات...
             </>
           ) : (
             "إضافة الكتاب إلى المكتبة"
           )}
         </Button>
+
+        {formData.subject && formData.grade && formData.semester && (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-200">
+            <p className="font-medium mb-1">ملاحظة هامة:</p>
+            <p>سيتم حفظ الكتاب في قاعدة البيانات وسيظهر فوراً في المكتبة والبحث</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
