@@ -171,7 +171,7 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
               </div>
               <div className={cn("flex items-center gap-2 flex-wrap", rtl && "flex-row-reverse justify-end")}>
                 <span className="text-sm text-muted-foreground">{rtl ? "الصف" : "Grade"}</span>
-                {[10,11,12].map((g) => <GradeChip key={g} value={g} />)}
+                {Array.from({length: 12}, (_, i) => i + 1).map((g) => <GradeChip key={g} value={g} />)}
               </div>
               <div className={cn("flex items-center gap-2 flex-wrap", rtl && "flex-row-reverse justify-end")}>
                 <span className="text-sm text-muted-foreground">{rtl ? "الفصل" : "Semester"}</span>
