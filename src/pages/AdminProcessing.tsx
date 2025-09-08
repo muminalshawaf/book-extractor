@@ -25,6 +25,7 @@ import {
   generateProcessingStats,
   formatProcessingStats
 } from "@/lib/processing/processingUtils";
+import AddBookForm from "@/components/AddBookForm";
 
 interface ProcessingStatus {
   isRunning: boolean;
@@ -638,6 +639,9 @@ const AdminProcessing = () => {
         </div>
 
         <div className="space-y-6">
+          {/* Add New Book to Library */}
+          <AddBookForm />
+
           {/* Verification Tests */}
           <ProcessingVerification />
 
