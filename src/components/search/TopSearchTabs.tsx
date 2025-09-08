@@ -43,10 +43,11 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
   }, []);
 
   const subjects = useMemo(() => {
+    if (booksLoading || books.length === 0) return [];
     const set = new Set<string>();
     books.forEach(b => b.subject && set.add(b.subject));
     return Array.from(set).sort();
-  }, [books]);
+  }, [books, booksLoading]);
 
   const filteredBooks = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -178,13 +179,24 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
                 {[1,2,3].map((s) => <SemesterChip key={s} value={s} />)}
               </div>
               <div>
-                <Select value={subject ?? undefined} onValueChange={(v) => setSubject(v)}>
-                  <SelectTrigger aria-label={rtl ? "المادة" : "Subject"}>
-                    <SelectValue placeholder={rtl ? "كل المواد" : "All subjects"} />
+                <Select value={subject ?? undefined} onValueChange={(v) => setSubject(v)} disabled={booksLoading || subjects.length === 0}>
+                  <SelectTrigger aria-label={rtl ? "المادة" : "Subject"} className="bg-background">
+                    <SelectValue placeholder={booksLoading ? (rtl ? "جاري التحميل..." : "Loading...") : (rtl ? "كل المواد" : "All subjects")} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-50 bg-background border shadow-lg">
                     {subjects.map((s) => (
-                      <SelectItem key={s} value={s}>{s === 'Physics' ? 'الفيزياء' : s === 'Chemistry' ? 'الكيمياء' : s === 'Mathematics' ? 'الرياضيات' : s === 'Sample' ? 'عينة' : s}</SelectItem>
+                      <SelectItem key={s} value={s} className="bg-background hover:bg-accent">
+                        {s === 'Physics' ? 'الفيزياء' : 
+                         s === 'Chemistry' ? 'الكيمياء' : 
+                         s === 'Mathematics' ? 'الرياضيات' : 
+                         s === 'Biology' ? 'الأحياء' :
+                         s === 'Arabic' ? 'العربية' :
+                         s === 'English' ? 'الإنجليزية' :
+                         s === 'History' ? 'التاريخ' :
+                         s === 'Geography' ? 'الجغرافيا' :
+                         s === 'Islamic Studies' ? 'التربية الإسلامية' :
+                         s === 'Sample' ? 'عينة' : s}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
