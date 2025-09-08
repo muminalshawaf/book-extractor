@@ -31,13 +31,17 @@ export type Database = {
           lesson_title: string | null
           meta_description: string | null
           ocr_confidence: number | null
+          ocr_json: Json | null
           ocr_text: string | null
           page_number: number
           slug: string | null
+          strict_validated: boolean | null
+          summary_json: Json | null
           summary_md: string | null
           title: string | null
           unit_number: number | null
           updated_at: string
+          validation_meta: Json | null
         }
         Insert: {
           arabic_keywords?: string[] | null
@@ -55,13 +59,17 @@ export type Database = {
           lesson_title?: string | null
           meta_description?: string | null
           ocr_confidence?: number | null
+          ocr_json?: Json | null
           ocr_text?: string | null
           page_number: number
           slug?: string | null
+          strict_validated?: boolean | null
+          summary_json?: Json | null
           summary_md?: string | null
           title?: string | null
           unit_number?: number | null
           updated_at?: string
+          validation_meta?: Json | null
         }
         Update: {
           arabic_keywords?: string[] | null
@@ -79,13 +87,17 @@ export type Database = {
           lesson_title?: string | null
           meta_description?: string | null
           ocr_confidence?: number | null
+          ocr_json?: Json | null
           ocr_text?: string | null
           page_number?: number
           slug?: string | null
+          strict_validated?: boolean | null
+          summary_json?: Json | null
           summary_md?: string | null
           title?: string | null
           unit_number?: number | null
           updated_at?: string
+          validation_meta?: Json | null
         }
         Relationships: []
       }
