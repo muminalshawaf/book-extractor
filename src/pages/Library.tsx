@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { books, BookDef } from "@/data/books";
+import { books as fallbackBooks, BookDef } from "@/data/books";
+import { fetchBooks, BookWithPages } from "@/data/booksDbSource";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,30 @@ export default function Library() {
   const [tab, setTab] = useState<"library" | "content">("library");
   const [loading, setLoading] = useState(false);
   const [contentHits, setContentHits] = useState<ContentHit[]>([]);
+  const [books, setBooks] = useState<BookWithPages[]>([]);
+  const [booksLoading, setBooksLoading] = useState(true);
+
+  // Load books from database
+  useEffect(() => {
+    const loadBooks = async () => {
+      try {
+        setBooksLoading(true);
+        const dbBooks = await fetchBooks();
+        setBooks(dbBooks);
+      } catch (error) {
+        console.error('Failed to load books from database:', error);
+        // Fallback to local books
+        setBooks(fallbackBooks.map(book => ({
+          ...book,
+          semester_range: book.semester?.toString() || "1"
+        })) as BookWithPages[]);
+      } finally {
+        setBooksLoading(false);
+      }
+    };
+
+    loadBooks();
+  }, []);
 
   useEffect(() => {
     const next = new URLSearchParams();
@@ -42,19 +67,27 @@ export default function Library() {
     const set = new Set<string>();
     books.forEach(b => b.subject && set.add(b.subject));
     return Array.from(set).sort();
-  }, []);
+  }, [books]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return books.filter(b => {
       if (grade && b.grade !== grade) return false;
-      if (semester && b.semester !== semester) return false;
+      if (semester) {
+        const bookSemester = b.semester_range ? parseInt(b.semester_range) : null;
+        if (bookSemester !== semester) return false;
+      }
       if (subject && b.subject !== subject) return false;
       if (!term) return true;
-      const hay = [b.title, b.subject, ...(b.keywords ?? [])].join(" ").toLowerCase();
+      const hay = [
+        b.title, 
+        b.subject, 
+        b.subject_ar,
+        b.description
+      ].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(term);
     });
-  }, [q, grade, semester, subject]);
+  }, [q, grade, semester, subject, books]);
 
   // Debounced content search
   useEffect(() => {
@@ -66,11 +99,15 @@ export default function Library() {
       setLoading(true);
       try {
         const allowed = books
-          .filter(b => (
-            (!grade || b.grade === grade) &&
-            (!semester || b.semester === semester) &&
-            (!subject || b.subject === subject)
-          ))
+          .filter(b => {
+            if (grade && b.grade !== grade) return false;
+            if (semester) {
+              const bookSemester = b.semester_range ? parseInt(b.semester_range) : null;
+              if (bookSemester !== semester) return false;
+            }
+            if (subject && b.subject !== subject) return false;
+            return true;
+          })
           .map(b => b.id);
 
         let query = (supabase as any)
@@ -88,7 +125,7 @@ export default function Library() {
     };
     t = setTimeout(run, 300);
     return () => clearTimeout(t);
-  }, [q, tab, grade, semester, subject]);
+  }, [q, tab, grade, semester, subject, books]);
 
   const GradeChip = ({ value }: { value: number }) => (
     <Button
@@ -112,13 +149,13 @@ export default function Library() {
     </Button>
   );
 
-  const BookCard = ({ book }: { book: BookDef }) => (
+  const BookCard = ({ book }: { book: BookWithPages }) => (
     <Link to={`/book/${book.id}`} className="block group">
       <Card className="transition hover:shadow-md">
         <CardContent className="p-3">
           <AspectRatio ratio={3/4}>
             <img
-              src={(book.buildPages?.()[0]?.src) || book.cover || "/placeholder.svg"}
+              src={(book.buildPages?.()[0]?.src) || book.cover_image_url || "/placeholder.svg"}
               alt={`${book.title} cover`}
               loading="lazy"
               className="h-full w-full object-cover rounded-md"
@@ -127,9 +164,20 @@ export default function Library() {
           <div className="mt-3 space-y-1">
             <h3 className="text-sm font-medium line-clamp-2">{book.title}</h3>
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              {book.subject && <Badge variant="secondary">{book.subject === 'Physics' ? 'الفيزياء' : book.subject === 'Chemistry' ? 'الكيمياء' : book.subject === 'Sample' ? 'عينة' : book.subject}</Badge>}
+              {book.subject && (
+                <Badge variant="secondary">
+                  {book.subject_ar || (book.subject === 'Physics' ? 'الفيزياء' : 
+                   book.subject === 'Chemistry' ? 'الكيمياء' : 
+                   book.subject === 'Mathematics' ? 'الرياضيات' :
+                   book.subject === 'Sample' ? 'عينة' : book.subject)}
+                </Badge>
+              )}
               {book.grade && <Badge variant="outline">الصف {book.grade}</Badge>}
-              {book.semester && <Badge variant="outline">الفصل {book.semester}</Badge>}
+              {book.semester_range && (
+                <Badge variant="outline">
+                  الفصل {book.semester_range}
+                </Badge>
+              )}
             </div>
           </div>
         </CardContent>
@@ -197,32 +245,66 @@ export default function Library() {
                     <SelectValue placeholder="كل المواد" />
                   </SelectTrigger>
                   <SelectContent>
-                    {subjects.map((s) => (
-                      <SelectItem key={s} value={s}>{s === 'Physics' ? 'الفيزياء' : s === 'Chemistry' ? 'الكيمياء' : s === 'Sample' ? 'عينة' : s}</SelectItem>
-                    ))}
+                    {subjects.map((s) => {
+                      const bookWithSubject = books.find(b => b.subject === s);
+                      const displayName = bookWithSubject?.subject_ar || 
+                        (s === 'Physics' ? 'الفيزياء' : 
+                         s === 'Chemistry' ? 'الكيمياء' : 
+                         s === 'Mathematics' ? 'الرياضيات' :
+                         s === 'Sample' ? 'عينة' : s);
+                      return (
+                        <SelectItem key={s} value={s}>{displayName}</SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => { setQ(""); setGrade(null); setSemester(null); setSubject(null); }}>مسح</Button>
-                <Link to={`/book/${books[0].id}`} className="ml-auto">
-                  <Button variant="secondary" className="gap-2"><BookOpen className="h-4 w-4" /> فتح الكتاب الحالي</Button>
-                </Link>
+                {books.length > 0 && (
+                  <Link to={`/book/${books[0].id}`} className="ml-auto">
+                    <Button variant="secondary" className="gap-2"><BookOpen className="h-4 w-4" /> فتح الكتاب الحالي</Button>
+                  </Link>
+                )}
               </div>
             </div>
           </section>
 
           <section className="mt-6">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">عدد النتائج: {filtered.length}</span>
+              <span className="text-sm text-muted-foreground">
+                {booksLoading ? 'جاري تحميل الكتب...' : `عدد النتائج: ${filtered.length}`}
+              </span>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {filtered.map((b) => (
-                <BookCard key={b.id} book={b} />
-              ))}
-            </div>
+            {booksLoading ? (
+              <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="aspect-[3/4] bg-muted rounded-md"></div>
+                    <div className="mt-3 space-y-2">
+                      <div className="h-4 bg-muted rounded w-3/4"></div>
+                      <div className="flex gap-2">
+                        <div className="h-3 bg-muted rounded w-16"></div>
+                        <div className="h-3 bg-muted rounded w-12"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {filtered.map((b) => (
+                  <BookCard key={b.id} book={b} />
+                ))}
+                {filtered.length === 0 && !booksLoading && (
+                  <div className="col-span-full text-center py-12 text-muted-foreground">
+                    لا توجد كتب تطابق معايير البحث
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         </TabsContent>
 
@@ -259,9 +341,18 @@ export default function Library() {
                     <SelectValue placeholder="كل المواد" />
                   </SelectTrigger>
                   <SelectContent>
-                    {subjects.map((s) => (
-                      <SelectItem key={s} value={s}>{s === 'Physics' ? 'الفيزياء' : s === 'Chemistry' ? 'الكيمياء' : s === 'Sample' ? 'عينة' : s}</SelectItem>
-                    ))}
+                    {subjects.map((s) => {
+                      // Find a book with this subject to get the Arabic name
+                      const bookWithSubject = books.find(b => b.subject === s);
+                      const displayName = bookWithSubject?.subject_ar || 
+                        (s === 'Physics' ? 'الفيزياء' : 
+                         s === 'Chemistry' ? 'الكيمياء' : 
+                         s === 'Mathematics' ? 'الرياضيات' :
+                         s === 'Sample' ? 'عينة' : s);
+                      return (
+                        <SelectItem key={s} value={s}>{displayName}</SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -293,9 +384,14 @@ export default function Library() {
                     aria-label={`فتح صفحة ${h.page_number} في ${bk?.title || h.book_id}`}
                   >
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Badge variant="secondary">{bk?.subject === 'Physics' ? 'الفيزياء' : bk?.subject === 'Chemistry' ? 'الكيمياء' : bk?.subject || '—'}</Badge>
+                      <Badge variant="secondary">
+                        {bk?.subject_ar || (bk?.subject === 'Physics' ? 'الفيزياء' : 
+                         bk?.subject === 'Chemistry' ? 'الكيمياء' : 
+                         bk?.subject === 'Mathematics' ? 'الرياضيات' :
+                         bk?.subject || '—')}
+                      </Badge>
                       <span>الصف {bk?.grade ?? '—'}</span>
-                      <span>الفصل {bk?.semester ?? '—'}</span>
+                      <span>الفصل {(bk?.semester_range) ?? '—'}</span>
                       <span>صفحة {h.page_number}</span>
                     </div>
                     <div className="text-sm mt-1">
