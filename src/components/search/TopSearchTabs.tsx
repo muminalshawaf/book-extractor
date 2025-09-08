@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { books } from "@/data/books";
+import { fetchBooks, BookWithPages } from "@/data/booksDbSource";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -23,24 +23,42 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
   const [loading, setLoading] = useState(false);
   const [contentHits, setContentHits] = useState<ContentHit[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [books, setBooks] = useState<BookWithPages[]>([]);
+  const [booksLoading, setBooksLoading] = useState(true);
+
+  // Load books from database
+  useEffect(() => {
+    const loadBooks = async () => {
+      try {
+        setBooksLoading(true);
+        const fetchedBooks = await fetchBooks();
+        setBooks(fetchedBooks);
+      } catch (error) {
+        console.error('Error loading books in search:', error);
+      } finally {
+        setBooksLoading(false);
+      }
+    };
+    loadBooks();
+  }, []);
 
   const subjects = useMemo(() => {
     const set = new Set<string>();
     books.forEach(b => b.subject && set.add(b.subject));
     return Array.from(set).sort();
-  }, []);
+  }, [books]);
 
   const filteredBooks = useMemo(() => {
     const term = q.trim().toLowerCase();
     return books.filter(b => {
       if (grade && b.grade !== grade) return false;
-      if (semester && b.semester !== semester) return false;
+      if (semester && !b.semester_range.includes(semester.toString())) return false;
       if (subject && b.subject !== subject) return false;
       if (!term) return true;
-      const hay = [b.title, b.subject, ...(b.keywords ?? [])].join(" ").toLowerCase();
+      const hay = [b.title, b.subject].join(" ").toLowerCase();
       return hay.includes(term);
     });
-  }, [q, grade, semester, subject]);
+  }, [q, grade, semester, subject, books]);
 
   useEffect(() => {
     let t: any;
@@ -181,16 +199,30 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
             </div>
 
             <div className="mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-2">
-              {filteredBooks.slice(0, 12).map((b) => (
-                <button key={b.id} type="button" onClick={() => openBook(b.id)} className="text-right border rounded-md p-2 hover:bg-accent/60 transition">
-                  <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2 gap-y-1">
-                    {b.subject && <Badge variant="secondary">{b.subject === 'Physics' ? 'الفيزياء' : b.subject === 'Chemistry' ? 'الكيمياء' : b.subject === 'Mathematics' ? 'الرياضيات' : b.subject === 'Sample' ? 'عينة' : b.subject}</Badge>}
-                    {b.grade && <Badge variant="outline">{rtl ? `الصف ${b.grade}` : `Grade ${b.grade}`}</Badge>}
-                    {b.semester && <Badge variant="outline">{rtl ? `الفصل ${b.semester}` : `Sem ${b.semester}`}</Badge>}
+              {booksLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="border rounded-md p-2 animate-pulse">
+                    <div className="space-y-2">
+                      <div className="flex gap-1">
+                        <div className="h-4 bg-muted rounded w-12"></div>
+                        <div className="h-4 bg-muted rounded w-8"></div>
+                      </div>
+                      <div className="h-8 bg-muted rounded"></div>
+                    </div>
                   </div>
-                  <div className="text-sm mt-1 line-clamp-2">{b.title}</div>
-                </button>
-              ))}
+                ))
+              ) : (
+                filteredBooks.slice(0, 12).map((b) => (
+                  <button key={b.id} type="button" onClick={() => openBook(b.id)} className="text-right border rounded-md p-2 hover:bg-accent/60 transition">
+                    <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2 gap-y-1">
+                      {b.subject && <Badge variant="secondary">{b.subject === 'Physics' ? 'الفيزياء' : b.subject === 'Chemistry' ? 'الكيمياء' : b.subject === 'Mathematics' ? 'الرياضيات' : b.subject === 'Sample' ? 'عينة' : b.subject}</Badge>}
+                      {b.grade && <Badge variant="outline">{rtl ? `الصف ${b.grade}` : `Grade ${b.grade}`}</Badge>}
+                      {b.semester_range && <Badge variant="outline">{rtl ? `الفصل ${b.semester_range}` : `Sem ${b.semester_range}`}</Badge>}
+                    </div>
+                    <div className="text-sm mt-1 line-clamp-2">{b.title}</div>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </TabsContent>
