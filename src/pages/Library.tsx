@@ -231,7 +231,7 @@ export default function Library() {
 
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm text-muted-foreground flex items-center gap-1"><Filter className="h-4 w-4" /> الصف</span>
-                {[10,11,12].map((g) => <GradeChip key={g} value={g} />)}
+                {[1,2,3,4,5,6,7,8,9,10,11,12].map((g) => <GradeChip key={g} value={g} />)}
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
@@ -327,7 +327,7 @@ export default function Library() {
 
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm text-muted-foreground flex items-center gap-1"><Filter className="h-4 w-4" /> الصف</span>
-                {[10,11,12].map((g) => <GradeChip key={g} value={g} />)}
+                {[1,2,3,4,5,6,7,8,9,10,11,12].map((g) => <GradeChip key={g} value={g} />)}
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
