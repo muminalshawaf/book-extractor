@@ -17,6 +17,7 @@ interface NewBookData {
   semester: number;
   customSubjectEn?: string;
   customSubjectAr?: string;
+  customBookId?: string;
 }
 
 const AddBookForm = () => {
@@ -28,7 +29,8 @@ const AddBookForm = () => {
     grade: 12,
     semester: 1,
     customSubjectEn: "",
-    customSubjectAr: ""
+    customSubjectAr: "",
+    customBookId: ""
   });
 
   const subjects = [
@@ -150,7 +152,7 @@ const AddBookForm = () => {
     
     try {
       // Generate book details
-      const bookId = generateBookId(formData.subject === "Custom" ? formData.customSubjectEn! : formData.subject, formData.grade, formData.semester);
+      const bookId = formData.customBookId || generateBookId(formData.subject === "Custom" ? formData.customSubjectEn! : formData.subject, formData.grade, formData.semester);
       const bookTitle = generateBookTitle(formData.subject, formData.grade, formData.semester, formData.customSubjectAr);
       
       // Check if book already exists
@@ -207,7 +209,8 @@ const AddBookForm = () => {
         grade: 12,
         semester: 1,
         customSubjectEn: "",
-        customSubjectAr: ""
+        customSubjectAr: "",
+        customBookId: ""
       });
 
     } catch (error) {
@@ -334,12 +337,24 @@ const AddBookForm = () => {
 
         {formData.subject && formData.grade && formData.semester && (
           <div className="p-4 bg-muted rounded-lg">
-            <p className="text-sm font-medium mb-2">معاينة معرف الكتاب:</p>
-            <code className="text-sm bg-background p-2 rounded border">
-              {generateBookId(formData.subject === "Custom" ? formData.customSubjectEn || "custom" : formData.subject, formData.grade, formData.semester)}
-            </code>
-            <p className="text-sm font-medium mb-2 mt-3">معاينة عنوان الكتاب:</p>
-            <p className="text-sm">{generateBookTitle(formData.subject, formData.grade, formData.semester, formData.customSubjectAr)}</p>
+            <div className="space-y-2">
+              <Label htmlFor="bookId">معرف الكتاب / Book ID</Label>
+              <Input
+                id="bookId"
+                type="text"
+                value={formData.customBookId || generateBookId(formData.subject === "Custom" ? formData.customSubjectEn || "custom" : formData.subject, formData.grade, formData.semester)}
+                onChange={(e) => handleInputChange('customBookId', e.target.value)}
+                placeholder={generateBookId(formData.subject === "Custom" ? formData.customSubjectEn || "custom" : formData.subject, formData.grade, formData.semester)}
+                className="dir-ltr font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                يمكنك تعديل معرف الكتاب أو استخدام المعرف المُولد تلقائياً
+              </p>
+            </div>
+            <div className="mt-4">
+              <p className="text-sm font-medium mb-2">معاينة عنوان الكتاب:</p>
+              <p className="text-sm">{generateBookTitle(formData.subject, formData.grade, formData.semester, formData.customSubjectAr)}</p>
+            </div>
           </div>
         )}
 
