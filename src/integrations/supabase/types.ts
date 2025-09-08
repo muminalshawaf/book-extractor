@@ -25,6 +25,7 @@ export type Database = {
           semester_range: string
           slug: string | null
           subject: string
+          subject_ar: string | null
           title: string
           total_pages: number | null
           updated_at: string
@@ -39,6 +40,7 @@ export type Database = {
           semester_range: string
           slug?: string | null
           subject: string
+          subject_ar?: string | null
           title: string
           total_pages?: number | null
           updated_at?: string
@@ -53,6 +55,7 @@ export type Database = {
           semester_range?: string
           slug?: string | null
           subject?: string
+          subject_ar?: string | null
           title?: string
           total_pages?: number | null
           updated_at?: string

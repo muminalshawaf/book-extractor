@@ -5,6 +5,7 @@ export interface BookData {
   id: string;
   title: string;
   subject: string;
+  subject_ar?: string;
   grade: number;
   semester_range: string;
   description?: string;

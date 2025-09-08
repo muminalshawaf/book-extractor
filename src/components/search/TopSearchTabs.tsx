@@ -44,9 +44,15 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
 
   const subjects = useMemo(() => {
     if (booksLoading || books.length === 0) return [];
-    const set = new Set<string>();
-    books.forEach(b => b.subject && set.add(b.subject));
-    return Array.from(set).sort();
+    const subjectMap = new Map<string, string>();
+    books.forEach(b => {
+      if (b.subject) {
+        // Use Arabic name if available, otherwise use English
+        const displayName = b.subject_ar || b.subject;
+        subjectMap.set(b.subject, displayName);
+      }
+    });
+    return Array.from(subjectMap.entries()).map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
   }, [books, booksLoading]);
 
   const filteredBooks = useMemo(() => {
@@ -185,17 +191,8 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
                   </SelectTrigger>
                   <SelectContent className="z-50 bg-background border shadow-lg">
                     {subjects.map((s) => (
-                      <SelectItem key={s} value={s} className="bg-background hover:bg-accent">
-                        {s === 'Physics' ? 'الفيزياء' : 
-                         s === 'Chemistry' ? 'الكيمياء' : 
-                         s === 'Mathematics' ? 'الرياضيات' : 
-                         s === 'Biology' ? 'الأحياء' :
-                         s === 'Arabic' ? 'العربية' :
-                         s === 'English' ? 'الإنجليزية' :
-                         s === 'History' ? 'التاريخ' :
-                         s === 'Geography' ? 'الجغرافيا' :
-                         s === 'Islamic Studies' ? 'التربية الإسلامية' :
-                         s === 'Sample' ? 'عينة' : s}
+                      <SelectItem key={s.value} value={s.value} className="bg-background hover:bg-accent">
+                        {s.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -227,7 +224,7 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
                 filteredBooks.slice(0, 12).map((b) => (
                   <button key={b.id} type="button" onClick={() => openBook(b.id)} className="text-right border rounded-md p-2 hover:bg-accent/60 transition">
                     <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2 gap-y-1">
-                      {b.subject && <Badge variant="secondary">{b.subject === 'Physics' ? 'الفيزياء' : b.subject === 'Chemistry' ? 'الكيمياء' : b.subject === 'Mathematics' ? 'الرياضيات' : b.subject === 'Sample' ? 'عينة' : b.subject}</Badge>}
+                      {b.subject && <Badge variant="secondary">{b.subject_ar || b.subject}</Badge>}
                       {b.grade && <Badge variant="outline">{rtl ? `الصف ${b.grade}` : `Grade ${b.grade}`}</Badge>}
                       {b.semester_range && <Badge variant="outline">{rtl ? `الفصل ${b.semester_range}` : `Sem ${b.semester_range}`}</Badge>}
                     </div>

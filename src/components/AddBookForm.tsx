@@ -173,6 +173,8 @@ const AddBookForm = () => {
         book_id: bookId,
         title: bookTitle,
         subject: formData.subject === "Custom" ? formData.customSubjectEn : formData.subject,
+        subject_ar: formData.subject === "Custom" ? formData.customSubjectAr : 
+                    subjects.find(s => s.value === formData.subject)?.arabic,
         grade: formData.grade,
         semester_range: formData.semester.toString(),
         description: formData.description || undefined,
