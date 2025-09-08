@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      books: {
+        Row: {
+          base_page_url: string | null
+          cover_image_url: string | null
+          created_at: string
+          description: string | null
+          grade: number
+          id: string
+          semester_range: string
+          slug: string | null
+          subject: string
+          title: string
+          total_pages: number | null
+          updated_at: string
+        }
+        Insert: {
+          base_page_url?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          grade: number
+          id: string
+          semester_range: string
+          slug?: string | null
+          subject: string
+          title: string
+          total_pages?: number | null
+          updated_at?: string
+        }
+        Update: {
+          base_page_url?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          grade?: number
+          id?: string
+          semester_range?: string
+          slug?: string | null
+          subject?: string
+          title?: string
+          total_pages?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       page_summaries: {
         Row: {
           arabic_keywords: string[] | null
@@ -99,7 +144,15 @@ export type Database = {
           updated_at?: string
           validation_meta?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_page_summaries_book_id"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       security_audit_logs: {
         Row: {

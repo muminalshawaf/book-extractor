@@ -11,25 +11,27 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('Save page summary function started')
+    console.log('Admin add book function started')
     
     const requestBody = await req.json()
     console.log('Request body received:', JSON.stringify(requestBody))
     
     const { 
       book_id, 
-      page_number, 
-      ocr_text, 
-      summary_md, 
-      ocr_confidence, 
-      confidence 
+      title,
+      subject,
+      grade,
+      semester_range,
+      description,
+      base_page_url,
+      total_pages
     } = requestBody
 
-    console.log(`Saving summary for book ${book_id}, page ${page_number}`)
+    console.log(`Adding book: ${book_id}`)
 
     // Validate required fields
-    if (!book_id || !page_number) {
-      throw new Error('Missing required fields: book_id and page_number are required')
+    if (!book_id || !title || !subject || !grade || !semester_range) {
+      throw new Error('Missing required fields: book_id, title, subject, grade, and semester_range are required')
     }
 
     // Create Supabase client with service role key for database writes
@@ -57,43 +59,24 @@ Deno.serve(async (req) => {
       }
     )
 
-    // Ensure book exists before creating page summary
-    const { error: bookError } = await supabaseAdmin
-      .from('books')
-      .upsert({
-        id: book_id,
-        title: `كتاب ${book_id}`, // Default title, can be updated later
-        subject: book_id.includes('chemistry') ? 'Chemistry' : 
-                 book_id.includes('physics') ? 'Physics' : 
-                 book_id.includes('math') ? 'Mathematics' : 'Unknown',
-        grade: parseInt(book_id.match(/(\d+)/)?.[1] || '12'),
-        semester_range: book_id.includes('-') ? book_id.split('-').pop() || '1' : '1'
-      }, { 
-        onConflict: 'id',
-        ignoreDuplicates: true 
-      })
-
-    if (bookError && !bookError.message.includes('duplicate key')) {
-      console.error('Error ensuring book exists:', bookError)
-      // Continue anyway - the book might already exist
-    }
-
-    const upsertData = {
-      book_id,
-      page_number,
-      ocr_text,
-      summary_md,
-      ocr_confidence: ocr_confidence || 0.8,
-      confidence: confidence || 0.8,
+    const bookData = {
+      id: book_id,
+      title,
+      subject,
+      grade: parseInt(grade),
+      semester_range,
+      description,
+      base_page_url,
+      total_pages: total_pages ? parseInt(total_pages) : null,
       updated_at: new Date().toISOString()
     }
     
-    console.log('Attempting upsert with data:', JSON.stringify(upsertData))
+    console.log('Attempting upsert with data:', JSON.stringify(bookData))
 
     const { data, error } = await supabaseAdmin
-      .from('page_summaries')
-      .upsert(upsertData, { 
-        onConflict: 'book_id,page_number',
+      .from('books')
+      .upsert(bookData, { 
+        onConflict: 'id',
         ignoreDuplicates: false
       })
       .select()
@@ -108,14 +91,14 @@ Deno.serve(async (req) => {
       throw new Error(`Database error: ${error.message}`)
     }
 
-    console.log(`Successfully saved page summary for page ${page_number}`, data)
+    console.log(`Successfully added/updated book: ${book_id}`, data)
 
     return new Response(JSON.stringify({ success: true, data }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
   } catch (error) {
-    console.error('Error in save-page-summary function:', error)
+    console.error('Error in admin-add-book function:', error)
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

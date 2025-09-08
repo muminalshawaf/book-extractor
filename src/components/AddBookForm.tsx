@@ -1,36 +1,37 @@
 import React, { useState } from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { BookOpen, Plus, Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import { enhancedBooks } from "@/data/enhancedBooks";
+import { Loader2 } from "lucide-react";
+import { callFunction } from "@/lib/functionsClient";
 
 interface NewBookData {
   subject: string;
-  firstPageUrl: string;
   totalPages: number;
+  firstPageUrl: string;
   grade: number;
   semester: number;
   customSubjectEn?: string;
   customSubjectAr?: string;
   customBookId?: string;
+  description?: string;
 }
 
 const AddBookForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<NewBookData>({
     subject: "",
+    totalPages: 50,
     firstPageUrl: "",
-    totalPages: 1,
     grade: 12,
     semester: 1,
     customSubjectEn: "",
     customSubjectAr: "",
-    customBookId: ""
+    customBookId: "",
+    description: ""
   });
 
   const subjects = [
@@ -53,101 +54,110 @@ const AddBookForm = () => {
     }));
   };
 
+  // Generate Book ID from subject, grade, and semester
   const generateBookId = (subject: string, grade: number, semester: number) => {
     const subjectCode = subject.toLowerCase().replace(/\s+/g, '');
     return `${subjectCode}${grade}-${semester}`;
   };
 
+  // Generate Book Title in Arabic
   const generateBookTitle = (subject: string, grade: number, semester: number, customSubjectAr?: string) => {
+    let subjectInArabic;
+    
     if (subject === "Custom" && customSubjectAr) {
-      return `كتاب ${customSubjectAr} الصف ${grade} (الفصل ${semester})`;
+      subjectInArabic = customSubjectAr;
+    } else {
+      const subjectObj = subjects.find(s => s.value === subject);
+      subjectInArabic = subjectObj?.arabic || subject;
     }
-    const subjectObj = subjects.find(s => s.value === subject);
-    const arabicSubject = subjectObj?.arabic || subject;
-    return `كتاب ${arabicSubject} الصف ${grade} (الفصل ${semester})`;
+    
+    return `كتاب ${subjectInArabic} - الصف ${grade} - الفصل ${semester}`;
   };
 
-  const extractBaseUrl = (firstPageUrl: string) => {
+  // Extract base URL from first page URL
+  const extractBaseUrl = (url: string) => {
+    if (!url) return "";
+    
     try {
-      const url = new URL(firstPageUrl);
-      const pathParts = url.pathname.split('/');
-      const fileName = pathParts[pathParts.length - 1];
-      
-      // Remove the filename to get the base directory
-      const basePath = pathParts.slice(0, -1).join('/');
-      return url.origin + basePath + '/';
-    } catch (error) {
-      throw new Error("Invalid URL format");
+      // Remove the filename from the URL to get the base directory
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/');
+      pathParts.pop(); // Remove the filename
+      urlObj.pathname = pathParts.join('/');
+      return urlObj.toString().replace(/\/$/, ''); // Remove trailing slash
+    } catch {
+      // Fallback: just remove everything after the last slash
+      return url.substring(0, url.lastIndexOf('/'));
     }
   };
 
-  const generatePagePattern = (firstPageUrl: string, totalPages: number) => {
-    try {
-      const url = new URL(firstPageUrl);
-      const pathParts = url.pathname.split('/');
-      const fileName = pathParts[pathParts.length - 1];
-      
-      // Extract pattern from filename (e.g., "kitab-alfizya3-12025-2.webp" -> "kitab-alfizya3-12025-")
-      const match = fileName.match(/^(.+?)(\d+)(\.[^.]+)$/);
-      if (!match) {
-        throw new Error("Cannot detect page numbering pattern from filename");
-      }
-      
-      const prefix = match[1];
-      const extension = match[3];
-      
-      return { prefix, extension };
-    } catch (error) {
-      throw new Error("Invalid page URL pattern");
+  // Generate page pattern detection
+  const generatePagePattern = (url: string) => {
+    if (!url) return "page-{n}.jpg";
+    
+    const filename = url.split('/').pop() || "";
+    
+    // Try to detect common patterns
+    if (filename.includes('page-1')) {
+      return filename.replace('1', '{n}');
+    } else if (filename.includes('-1.')) {
+      return filename.replace('-1.', '-{n}.');
+    } else if (/\d+/.test(filename)) {
+      return filename.replace(/\d+/, '{n}');
     }
+    
+    return "page-{n}.jpg";
   };
 
+  // Validation function
   const validateForm = () => {
     if (!formData.subject) {
-      toast.error("Please select a subject");
-      return false;
+      return "يرجى اختيار المادة الدراسية";
     }
     
     if (formData.subject === "Custom") {
-      if (!formData.customSubjectEn || !formData.customSubjectAr) {
-        toast.error("Please enter both English and Arabic names for the custom subject");
-        return false;
+      if (!formData.customSubjectEn?.trim()) {
+        return "يرجى إدخال اسم المادة باللغة الإنجليزية";
+      }
+      if (!formData.customSubjectAr?.trim()) {
+        return "يرجى إدخال اسم المادة باللغة العربية";
       }
     }
     
-    if (!formData.firstPageUrl) {
-      toast.error("Please provide the first page URL");
-      return false;
+    if (!formData.firstPageUrl?.trim()) {
+      return "يرجى إدخال رابط الصفحة الأولى";
     }
     
     if (formData.totalPages < 1 || formData.totalPages > 1000) {
-      toast.error("Number of pages must be between 1 and 1000");
-      return false;
+      return "عدد الصفحات يجب أن يكون بين 1 و 1000";
     }
     
     if (formData.grade < 1 || formData.grade > 12) {
-      toast.error("Grade must be between 1 and 12");
-      return false;
+      return "الصف الدراسي يجب أن يكون بين 1 و 12";
     }
     
-    if (formData.semester < 1 || formData.semester > 3) {
-      toast.error("Semester must be 1, 2, or 3");
-      return false;
+    if (formData.semester < 1 || formData.semester > 2) {
+      return "الفصل الدراسي يجب أن يكون 1 أو 2";
     }
-
+    
+    // Validate URL format
     try {
       new URL(formData.firstPageUrl);
     } catch {
-      toast.error("Please provide a valid URL");
-      return false;
+      return "رابط الصفحة الأولى غير صالح";
     }
-
-    return true;
+    
+    return null;
   };
 
+  // Function to add book to database
   const addBookToLibrary = async () => {
-    if (!validateForm()) return;
-
+    const validationError = validateForm();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -155,98 +165,121 @@ const AddBookForm = () => {
       const bookId = formData.customBookId || generateBookId(formData.subject === "Custom" ? formData.customSubjectEn! : formData.subject, formData.grade, formData.semester);
       const bookTitle = generateBookTitle(formData.subject, formData.grade, formData.semester, formData.customSubjectAr);
       
-      // Check if book already exists
-      const existingBook = enhancedBooks.find(book => book.id === bookId);
-      if (existingBook) {
-        toast.error(`Book with ID "${bookId}" already exists in the library`);
-        return;
-      }
-
-      // Extract URL patterns
+      // Extract base URL for page generation
       const baseUrl = extractBaseUrl(formData.firstPageUrl);
-      const { prefix, extension } = generatePagePattern(formData.firstPageUrl, formData.totalPages);
       
-      // Get subject info
-      const finalSubject = formData.subject === "Custom" ? formData.customSubjectEn! : formData.subject;
-      const finalSubjectArabic = formData.subject === "Custom" ? formData.customSubjectAr! : 
-        (subjects.find(s => s.value === formData.subject)?.arabic || formData.subject);
-      
-      // Create new book object
-      const newBook = {
-        id: bookId,
+      // Prepare book data for database
+      const bookData = {
+        book_id: bookId,
         title: bookTitle,
-        slug: `${finalSubjectArabic}-${formData.semester}`,
-        rtl: true,
-        grade: 12, // Default to grade 12, can be made configurable
-        semester: formData.semester,
-        subject: finalSubject,
-        subjectArabic: finalSubjectArabic,
-        cover: "/placeholder.svg",
-        totalPages: formData.totalPages,
-        description: `كتاب ${finalSubjectArabic} للصف ${formData.grade} - الفصل الدراسي ${formData.semester}`,
-        keywords: [finalSubjectArabic, finalSubject, `Grade ${formData.grade}`, `Semester ${formData.semester}`, "نظام المسارات"],
-        buildPages: () => {
-          return Array.from({ length: formData.totalPages }, (_, i) => ({
-            src: `${baseUrl}${prefix}${i + 2}${extension}`,
-            alt: `صفحة كتاب ${finalSubjectArabic} ${i + 2}`,
-          }));
-        },
-        lessons: []
+        subject: formData.subject === "Custom" ? formData.customSubjectEn : formData.subject,
+        grade: formData.grade,
+        semester_range: formData.semester.toString(),
+        description: formData.description || undefined,
+        base_page_url: baseUrl,
+        total_pages: formData.totalPages
       };
 
-      // Here we would normally update the books file, but since we can't modify read-only files,
-      // we'll show the user the generated book configuration
-      console.log("Generated book configuration:", newBook);
-      
-      toast.success(`Book "${bookTitle}" configuration generated successfully!`);
-      toast.info("Book configuration logged to console. In a production environment, this would be added to the library automatically.");
-      
-      // Reset form
-      setFormData({
-        subject: "",
-        firstPageUrl: "",
-        totalPages: 1,
-        grade: 12,
-        semester: 1,
-        customSubjectEn: "",
-        customSubjectAr: "",
-        customBookId: ""
-      });
+      console.log("Adding book to database:", bookData);
 
-    } catch (error) {
-      console.error("Error adding book:", error);
-      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Call the admin add book function
+      const result = await callFunction('admin-add-book', bookData);
+      
+      if (result.success) {
+        toast.success(`تم إضافة الكتاب "${bookTitle}" بنجاح!`);
+        
+        // Reset form
+        setFormData({
+          subject: "",
+          totalPages: 50,
+          firstPageUrl: "",
+          grade: 12,
+          semester: 1,
+          customSubjectEn: "",
+          customSubjectAr: "",
+          customBookId: "",
+          description: ""
+        });
+      } else {
+        throw new Error(result.error || 'فشل في إضافة الكتاب');
+      }
+
+    } catch (error: any) {
+      console.error("خطأ في إضافة الكتاب:", error);
+      toast.error(error.message || "حدث خطأ أثناء إضافة الكتاب");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Card className="w-full">
+    <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BookOpen className="h-5 w-5" />
+        <CardTitle className="text-2xl font-bold text-center">
           إضافة كتاب جديد إلى المكتبة
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <Alert>
-          <AlertDescription>
-            استخدم هذا النموذج لإضافة كتاب جديد إلى المكتبة. تأكد من صحة رابط الصفحة الأولى ونمط ترقيم الصفحات.
-          </AlertDescription>
-        </Alert>
+        <div className="space-y-2">
+          <Label htmlFor="subject">المادة الدراسية</Label>
+          <Select 
+            value={formData.subject} 
+            onValueChange={(value) => handleInputChange('subject', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="اختر المادة الدراسية" />
+            </SelectTrigger>
+            <SelectContent>
+              {subjects.map((subject) => (
+                <SelectItem key={subject.value} value={subject.value}>
+                  {subject.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {formData.subject === "Custom" && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="customSubjectEn">اسم المادة (بالإنجليزية)</Label>
+              <Input
+                id="customSubjectEn"
+                type="text"
+                value={formData.customSubjectEn}
+                onChange={(e) => handleInputChange('customSubjectEn', e.target.value)}
+                placeholder="Subject Name in English"
+                className="dir-ltr"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="customSubjectAr">اسم المادة (بالعربية)</Label>
+              <Input
+                id="customSubjectAr"
+                type="text"
+                value={formData.customSubjectAr}
+                onChange={(e) => handleInputChange('customSubjectAr', e.target.value)}
+                placeholder="اسم المادة بالعربية"
+              />
+            </div>
+          </>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="subject">المادة / Subject *</Label>
-            <Select value={formData.subject} onValueChange={(value) => handleInputChange('subject', value)}>
+            <Label htmlFor="grade">الصف الدراسي</Label>
+            <Select 
+              value={formData.grade.toString()} 
+              onValueChange={(value) => handleInputChange('grade', parseInt(value))}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="اختر المادة..." />
+                <SelectValue placeholder="اختر الصف" />
               </SelectTrigger>
               <SelectContent>
-                {subjects.map(subject => (
-                  <SelectItem key={subject.value} value={subject.value}>
-                    {subject.label}
+                {Array.from({length: 12}, (_, i) => (
+                  <SelectItem key={i + 1} value={(i + 1).toString()}>
+                    الصف {i + 1}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -254,85 +287,58 @@ const AddBookForm = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="grade">الصف / Grade *</Label>
-            <Input
-              id="grade"
-              type="number"
-              min="1"
-              max="12"
-              value={formData.grade}
-              onChange={(e) => handleInputChange('grade', parseInt(e.target.value) || 12)}
-              placeholder="مثال: 12"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="semester">الفصل الدراسي / Semester *</Label>
-            <Select value={formData.semester.toString()} onValueChange={(value) => handleInputChange('semester', parseInt(value))}>
+            <Label htmlFor="semester">الفصل الدراسي</Label>
+            <Select 
+              value={formData.semester.toString()} 
+              onValueChange={(value) => handleInputChange('semester', parseInt(value))}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="اختر الفصل..." />
+                <SelectValue placeholder="اختر الفصل" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="1">الفصل الأول</SelectItem>
                 <SelectItem value="2">الفصل الثاني</SelectItem>
-                <SelectItem value="3">الفصل الثالث</SelectItem>
               </SelectContent>
             </Select>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="totalPages">عدد الصفحات / Total Pages *</Label>
-            <Input
-              id="totalPages"
-              type="number"
-              min="1"
-              max="1000"
-              value={formData.totalPages}
-              onChange={(e) => handleInputChange('totalPages', parseInt(e.target.value) || 1)}
-              placeholder="مثال: 200"
-            />
-          </div>
         </div>
 
-        {formData.subject === "Custom" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
-            <div className="space-y-2">
-              <Label htmlFor="customSubjectEn">Subject Name (English) *</Label>
-              <Input
-                id="customSubjectEn"
-                type="text"
-                value={formData.customSubjectEn || ""}
-                onChange={(e) => handleInputChange('customSubjectEn', e.target.value)}
-                placeholder="e.g., Computer Science"
-                className="dir-ltr"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="customSubjectAr">اسم المادة (عربي) *</Label>
-              <Input
-                id="customSubjectAr"
-                type="text"
-                value={formData.customSubjectAr || ""}
-                onChange={(e) => handleInputChange('customSubjectAr', e.target.value)}
-                placeholder="مثال: علوم الحاسوب"
-              />
-            </div>
-          </div>
-        )}
+        <div className="space-y-2">
+          <Label htmlFor="totalPages">عدد الصفحات الإجمالي</Label>
+          <Input
+            id="totalPages"
+            type="number"
+            min="1"
+            max="1000"
+            value={formData.totalPages}
+            onChange={(e) => handleInputChange('totalPages', parseInt(e.target.value) || 1)}
+          />
+        </div>
 
         <div className="space-y-2">
-          <Label htmlFor="firstPageUrl">رابط الصفحة الأولى / First Page URL *</Label>
+          <Label htmlFor="firstPageUrl">رابط الصفحة الأولى</Label>
           <Input
             id="firstPageUrl"
             type="url"
             value={formData.firstPageUrl}
             onChange={(e) => handleInputChange('firstPageUrl', e.target.value)}
-            placeholder="https://example.com/books/subject/page-2.webp"
+            placeholder="https://example.com/book/page-1.jpg"
             className="dir-ltr"
           />
           <p className="text-sm text-muted-foreground">
-            مثال: https://ksa.idros.ai/books/math12-1-3/math12-3-1-2.webp
+            سيتم توليد روابط باقي الصفحات تلقائياً بناءً على هذا الرابط
           </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="description">وصف الكتاب (اختياري)</Label>
+          <Input
+            id="description"
+            type="text"
+            value={formData.description}
+            onChange={(e) => handleInputChange('description', e.target.value)}
+            placeholder="وصف مختصر عن محتوى الكتاب"
+          />
         </div>
 
         {formData.subject && formData.grade && formData.semester && (
@@ -355,6 +361,17 @@ const AddBookForm = () => {
               <p className="text-sm font-medium mb-2">معاينة عنوان الكتاب:</p>
               <p className="text-sm">{generateBookTitle(formData.subject, formData.grade, formData.semester, formData.customSubjectAr)}</p>
             </div>
+            {formData.firstPageUrl && (
+              <div className="mt-4">
+                <p className="text-sm font-medium mb-2">معاينة روابط الصفحات:</p>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div>الصفحة 1: {extractBaseUrl(formData.firstPageUrl)}/page-1.jpg</div>
+                  <div>الصفحة 2: {extractBaseUrl(formData.firstPageUrl)}/page-2.jpg</div>
+                  <div>الصفحة 3: {extractBaseUrl(formData.firstPageUrl)}/page-3.jpg</div>
+                  <div>...</div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -366,13 +383,10 @@ const AddBookForm = () => {
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              جاري الإضافة...
+              جاري إضافة الكتاب...
             </>
           ) : (
-            <>
-              <Plus className="mr-2 h-4 w-4" />
-              إضافة الكتاب إلى المكتبة
-            </>
+            "إضافة الكتاب إلى المكتبة"
           )}
         </Button>
       </CardContent>
