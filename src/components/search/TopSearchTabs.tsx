@@ -46,13 +46,16 @@ export function TopSearchTabs({ rtl = true, currentBookId }: TopSearchTabsProps)
     if (booksLoading || books.length === 0) return [];
     const subjectMap = new Map<string, string>();
     books.forEach(b => {
-      if (b.subject) {
-        // Use Arabic name if available, otherwise use English
-        const displayName = b.subject_ar || b.subject;
-        subjectMap.set(b.subject, displayName);
+      if (b.subject && b.subject_ar) {
+        // Map English subject to Arabic for filtering
+        subjectMap.set(b.subject, b.subject_ar);
       }
     });
-    return Array.from(subjectMap.entries()).map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+    // Return Arabic names for display, but keep English values for filtering
+    return Array.from(subjectMap.entries()).map(([englishValue, arabicLabel]) => ({ 
+      value: englishValue, 
+      label: arabicLabel 
+    })).sort((a, b) => a.label.localeCompare(b.label, 'ar'));
   }, [books, booksLoading]);
 
   const filteredBooks = useMemo(() => {
