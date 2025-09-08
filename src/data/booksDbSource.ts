@@ -78,7 +78,7 @@ export async function fetchBooks(): Promise<BookWithPages[]> {
     const { data: dbBooks, error } = await supabase
       .from('books')
       .select('*')
-      .order('grade, semester_range, subject');
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching books from database:', error);
@@ -96,13 +96,16 @@ export async function fetchBooks(): Promise<BookWithPages[]> {
     // Convert database books to local format
     const booksWithPages = dbBooks.map(convertDbBookToLocalFormat);
     
-    // Merge with local books (prioritize database books)
+    // Merge with local books (prioritize database books) - newest first
     const allBookIds = new Set(booksWithPages.map(book => book.id));
     const additionalLocalBooks = localBooks
       .filter(book => !allBookIds.has(book.id))
       .map(convertLocalBookToDbFormat);
     
-    return [...booksWithPages, ...additionalLocalBooks];
+    // Sort all books - database books first (newest first), then local books
+    const allBooks = [...booksWithPages, ...additionalLocalBooks];
+    
+    return allBooks;
     
   } catch (err) {
     console.error('Error in fetchBooks:', err);

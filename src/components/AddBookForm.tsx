@@ -20,7 +20,12 @@ interface NewBookData {
   description?: string;
 }
 
-const AddBookForm = () => {
+interface AddBookFormProps {
+  rtl?: boolean;
+  onBookAdded?: (bookId: string) => void;
+}
+
+const AddBookForm: React.FC<AddBookFormProps> = ({ rtl = false, onBookAdded }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<NewBookData>({
     subject: "",
@@ -132,7 +137,7 @@ const AddBookForm = () => {
     return null;
   };
 
-  // Function to add book to database
+  // Function to add book to database and process all pages
   const addBookToLibrary = async () => {
     const validationError = validateForm();
     if (validationError) {
@@ -164,33 +169,56 @@ const AddBookForm = () => {
         total_pages: formData.totalPages
       };
 
-      console.log("Adding book to database:", bookData);
-
-      // Call the admin add book function
+      console.log("Adding complete book with data:", bookData);
+      
+      // Step 1: Add book to database
+      toast.loading('إضافة الكتاب إلى قاعدة البيانات...', { id: 'book-addition' });
       const result = await callFunction('admin-add-book', bookData);
       
-      if (result.success) {
-        toast.success(`تم إضافة الكتاب "${bookTitle}" بنجاح إلى قاعدة البيانات!`);
-        
-        // Reset form
-        setFormData({
-          subject: "",
-          totalPages: 50,
-          firstPageUrl: "",
-          grade: 12,
-          semester: 1,
-          customSubjectEn: "",
-          customSubjectAr: "",
-          customBookId: "",
-          description: ""
-        });
-      } else {
+      if (!result.success) {
         throw new Error(result.error || 'فشل في إضافة الكتاب إلى قاعدة البيانات');
       }
+      
+      console.log('Book added to database:', result);
+      
+      // Step 2: Start processing all pages for the reader
+      toast.loading('بدء معالجة صفحات الكتاب للقارئ...', { id: 'book-addition' });
+      
+      const processingResult = await callFunction('process-complete-book', {
+        book_id: bookId,
+        total_pages: formData.totalPages,
+        base_page_url: baseUrl
+      });
+      
+      console.log('Book processing started:', processingResult);
+      
+      toast.success(`تم إضافة الكتاب "${bookTitle}" بنجاح وبدء معالجة الصفحات`, { id: 'book-addition' });
+      
+      // Navigate to admin processing page for this book
+      if (onBookAdded) {
+        onBookAdded(bookId);
+      } else {
+        // Fallback navigation
+        const url = `/admin/processing?bookId=${bookId}`;
+        window.location.href = url;
+      }
+      
+      // Reset form
+      setFormData({
+        subject: "",
+        totalPages: 50,
+        firstPageUrl: "",
+        grade: 12,
+        semester: 1,
+        customSubjectEn: "",
+        customSubjectAr: "",
+        customBookId: "",
+        description: ""
+      });
 
     } catch (error: any) {
       console.error("خطأ في إضافة الكتاب:", error);
-      toast.error(error.message || "حدث خطأ أثناء إضافة الكتاب إلى قاعدة البيانات");
+      toast.error(error.message || "حدث خطأ أثناء إضافة الكتاب إلى قاعدة البيانات", { id: 'book-addition' });
     } finally {
       setIsLoading(false);
     }
@@ -200,10 +228,10 @@ const AddBookForm = () => {
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center">
-          إضافة كتاب جديد إلى المكتبة
+          إضافة كتاب جديد إلى المكتبة والقارئ
         </CardTitle>
         <p className="text-sm text-muted-foreground text-center">
-          سيتم حفظ الكتاب في قاعدة البيانات وسيظهر فوراً في المكتبة
+          سيتم حفظ الكتاب في قاعدة البيانات وإنشاء جميع الصفحات في القارئ مع معالجة المحتوى
         </p>
       </CardHeader>
       
@@ -389,14 +417,14 @@ const AddBookForm = () => {
               جاري إضافة الكتاب إلى قاعدة البيانات...
             </>
           ) : (
-            "إضافة الكتاب إلى المكتبة"
+            "إضافة الكتاب إلى المكتبة والقارئ"
           )}
         </Button>
 
         {formData.subject && formData.grade && formData.semester && (
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-200">
             <p className="font-medium mb-1">ملاحظة هامة:</p>
-            <p>سيتم حفظ الكتاب في قاعدة البيانات وسيظهر فوراً في المكتبة والبحث</p>
+            <p>سيتم حفظ الكتاب في قاعدة البيانات وإنشاء جميع الصفحات في القارئ مع بدء معالجة المحتوى تلقائياً</p>
           </div>
         )}
       </CardContent>

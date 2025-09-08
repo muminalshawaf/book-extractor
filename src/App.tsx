@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { books } from "@/data/books";
 import { enhancedBooks } from "@/data/enhancedBooks";
+import { fetchBooks } from "@/data/booksDbSource";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Library from "./pages/Library";
@@ -17,6 +18,24 @@ import GlobalSearch from "./components/search/GlobalSearch";
 const queryClient = new QueryClient();
 
 const App = () => {
+  const [allBooks, setAllBooks] = React.useState(books);
+
+  // Fetch books from database on app start
+  React.useEffect(() => {
+    const loadBooks = async () => {
+      try {
+        const dbBooks = await fetchBooks();
+        if (dbBooks.length > 0) {
+          setAllBooks(dbBooks);
+        }
+      } catch (error) {
+        console.error('Failed to load books from database:', error);
+      }
+    };
+    
+    loadBooks();
+  }, []);
+
   // Add error boundary logging
   React.useEffect(() => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
@@ -50,7 +69,7 @@ const App = () => {
         <BrowserRouter>
           <GlobalSearch />
           <Routes>
-            <Route path="/" element={<Navigate to={`/book/${books[0].id}`} replace />} />
+            <Route path="/" element={<Navigate to={`/book/${allBooks[0]?.id || books[0].id}`} replace />} />
             <Route path="/library" element={<Library />} />
             <Route path="/book/:bookId" element={<Index />} />
             <Route path="/admin/processing" element={<AdminProcessing />} />

@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { books, getBookById } from "@/data/books";
+import { getBookById } from "@/data/booksDbSource";
 import { getEnhancedBookById } from "@/data/enhancedBooks";
 import BookViewer from "@/components/BookViewer";
 import { useMemo, useEffect, useState } from "react";
@@ -12,24 +12,60 @@ const Index = () => {
   const params = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialId = useMemo(() => params.bookId ?? books[0].id, [params.bookId]);
-  const [selectedId, setSelectedId] = useState<string>(initialId);
-  
+  const [currentBook, setCurrentBook] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load book from database or local data
   useEffect(() => {
-    if (selectedId !== initialId) setSelectedId(initialId);
-  }, [initialId]);
-  
-  useEffect(() => {
-    if (params.bookId && !books.some(b => b.id === params.bookId)) {
-      navigate(`/book/${books[0].id}`, {
-        replace: true
-      });
-    }
+    const loadBook = async () => {
+      try {
+        setLoading(true);
+        const bookId = params.bookId;
+        if (bookId) {
+          const book = await getBookById(bookId);
+          if (book) {
+            setCurrentBook(book);
+          } else {
+            // Navigate to first available book
+            navigate('/library', { replace: true });
+          }
+        } else {
+          navigate('/library', { replace: true });
+        }
+      } catch (error) {
+        console.error('Error loading book:', error);
+        navigate('/library', { replace: true });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadBook();
   }, [params.bookId, navigate]);
-  
-  const selectedBook = useMemo(() => getBookById(selectedId), [selectedId]);
-  const enhancedBook = useMemo(() => getEnhancedBookById(selectedId), [selectedId]);
-  const pages = useMemo(() => selectedBook.buildPages(), [selectedBook]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>جاري تحميل الكتاب...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentBook) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p>لم يتم العثور على الكتاب المطلوب</p>
+        </div>
+      </div>
+    );
+  }
+
+  const enhancedBook = getEnhancedBookById(currentBook.id);
+  const pages = currentBook.buildPages();
   
   // Get current page number from URL params for SEO
   const currentPageNumber = parseInt(searchParams.get('page') || '1');
@@ -37,9 +73,9 @@ const Index = () => {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": ["Book", "EducationalResource"],
-    name: selectedBook.title,
-    description: `كتاب ${selectedBook.title} للصف ${selectedBook.grade || 12} الفصل ${selectedBook.semester || 1} - المنهج السعودي مع ملخصات ذكية وبحث متقدم`,
-    educationalLevel: `الصف ${selectedBook.grade || 12}`,
+    name: currentBook.title,
+    description: `كتاب ${currentBook.title} للصف ${currentBook.grade || 12} الفصل ${currentBook.semester_range || 1} - المنهج السعودي مع ملخصات ذكية وبحث متقدم`,
+    educationalLevel: `الصف ${currentBook.grade || 12}`,
     educationalUse: "دراسة ذاتية، تعلم، مراجعة",
     audience: {
       "@type": "EducationalAudience",
@@ -54,21 +90,22 @@ const Index = () => {
     },
     about: {
       "@type": "Thing",
-      name: selectedBook.subject === 'Physics' ? 'الفيزياء' : 
-             selectedBook.subject === 'Chemistry' ? 'الكيمياء' : 
-             selectedBook.subject === 'Mathematics' ? 'الرياضيات' : selectedBook.subject
+      name: currentBook.subject === 'Physics' ? 'الفيزياء' : 
+             currentBook.subject === 'Chemistry' ? 'الكيمياء' : 
+             currentBook.subject === 'Mathematics' ? 'الرياضيات' : 
+             currentBook.subject_ar || currentBook.subject
     },
     keywords: [
       "المنهج السعودي",
-      `الصف ${selectedBook.grade || 12}`,
-      `الفصل ${selectedBook.semester || 1}`,
-      selectedBook.subject === 'Physics' ? 'الفيزياء' : 
-      selectedBook.subject === 'Chemistry' ? 'الكيمياء' : 
-      selectedBook.subject === 'Mathematics' ? 'الرياضيات' : selectedBook.subject,
+      `الصف ${currentBook.grade || 12}`,
+      `الفصل ${currentBook.semester_range || 1}`,
+      currentBook.subject === 'Physics' ? 'الفيزياء' : 
+      currentBook.subject === 'Chemistry' ? 'الكيمياء' : 
+      currentBook.subject === 'Mathematics' ? 'الرياضيات' : 
+      currentBook.subject_ar || currentBook.subject,
       "ملخصات",
       "شرح",
-      "تعليم",
-      ...(selectedBook.keywords || [])
+      "تعليم"
     ].filter(Boolean)
   } as const;
   return (
@@ -77,7 +114,7 @@ const Index = () => {
       <DynamicSEOHead 
         book={enhancedBook} 
         pageNumber={currentPageNumber}
-        pageTitle={selectedBook.title}
+        pageTitle={currentBook.title}
         totalPages={pages.length}
       />
       <StructuredDataSchemas book={enhancedBook} pageNumber={currentPageNumber} />
@@ -87,19 +124,19 @@ const Index = () => {
       <div className="container mx-auto px-4 py-6">
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2" dir="rtl">
-            {selectedBook.title}
+            {currentBook.title}
           </h1>
           <p className="text-muted-foreground mb-4" dir="rtl">
-            {enhancedBook.description || "كتب المنهج السعودي للمملكة العربية السعودية - اكتشف محتوى الكتاب مع الملخصات الذكية والبحث المتقدم"}
+            {enhancedBook.description || currentBook.description || "كتب المنهج السعودي للمملكة العربية السعودية - اكتشف محتوى الكتاب مع الملخصات الذكية والبحث المتقدم"}
           </p>
-          <TopSearchTabs currentBookId={selectedBook.id} />
+          <TopSearchTabs currentBookId={currentBook.id} />
         </div>
 
         <BookViewer
-          bookId={selectedBook.id}
+          bookId={currentBook.id}
           pages={pages}
-          title={selectedBook.title}
-          rtl={selectedBook.rtl}
+          title={currentBook.title}
+          rtl={true}
           labels={{
             previous: "السابق",
             next: "التالي",

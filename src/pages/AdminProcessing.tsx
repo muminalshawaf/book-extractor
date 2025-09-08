@@ -26,6 +26,7 @@ import {
   formatProcessingStats
 } from "@/lib/processing/processingUtils";
 import AddBookForm from "@/components/AddBookForm";
+import { fetchBooks } from "@/data/booksDbSource";
 
 interface ProcessingStatus {
   isRunning: boolean;
@@ -67,6 +68,7 @@ const AdminProcessing = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialBookId = searchParams.get('bookId') || enhancedBooks[0]?.id;
+  const [availableBooks, setAvailableBooks] = React.useState(enhancedBooks);
 
   const [selectedBookId, setSelectedBookId] = useState(initialBookId);
   const [startPage, setStartPage] = useState(1);
@@ -113,7 +115,37 @@ const AdminProcessing = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const selectedBook = enhancedBooks.find(b => b.id === selectedBookId);
+  const selectedBook = availableBooks.find(b => b.id === selectedBookId);
+
+  // Load books from database including newly added ones
+  React.useEffect(() => {
+    const loadBooks = async () => {
+      try {
+        const dbBooks = await fetchBooks();
+        // Convert to enhanced book format with enhanced data
+        const enhancedDbBooks = dbBooks.map(book => ({
+          ...book,
+          slug: book.slug || book.id,
+          cover: book.cover_image_url || "/placeholder.svg",
+          description: book.description || `كتاب ${book.title}`,
+          keywords: [],
+          lessons: [],
+          totalPages: book.total_pages
+        }));
+        
+        // Merge with existing enhanced books
+        const allBooks = [...enhancedDbBooks, ...enhancedBooks.filter(eb => 
+          !enhancedDbBooks.some(db => db.id === eb.id)
+        )];
+        
+        setAvailableBooks(allBooks);
+      } catch (error) {
+        console.error('Failed to load books:', error);
+      }
+    };
+    
+    loadBooks();
+  }, []);
 
   // Update end page when book changes
   React.useEffect(() => {
@@ -640,7 +672,38 @@ const AdminProcessing = () => {
 
         <div className="space-y-6">
           {/* Add New Book to Library */}
-          <AddBookForm />
+          <AddBookForm 
+            rtl={true}
+            onBookAdded={(bookId) => {
+              // Navigate to processing page for the new book
+              navigate(`/admin/processing?bookId=${bookId}`);
+              // Refresh available books
+              const loadBooks = async () => {
+                try {
+                  const dbBooks = await fetchBooks();
+                  const enhancedDbBooks = dbBooks.map(book => ({
+                    ...book,
+                    slug: book.slug || book.id,
+                    cover: book.cover_image_url || "/placeholder.svg",
+                    description: book.description || `كتاب ${book.title}`,
+                    keywords: [],
+                    lessons: [],
+                    totalPages: book.total_pages
+                  }));
+                  
+                  const allBooks = [...enhancedDbBooks, ...enhancedBooks.filter(eb => 
+                    !enhancedDbBooks.some(db => db.id === eb.id)
+                  )];
+                  
+                  setAvailableBooks(allBooks);
+                  setSelectedBookId(bookId);
+                } catch (error) {
+                  console.error('Failed to refresh books:', error);
+                }
+              };
+              loadBooks();
+            }}
+          />
 
           {/* Verification Tests */}
           <ProcessingVerification />
