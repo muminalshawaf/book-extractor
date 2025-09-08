@@ -378,18 +378,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         setSummaryConfidence(typeof data?.confidence === 'number' ? data.confidence : undefined);
         setOcrQuality(typeof data?.ocr_confidence === 'number' ? data.ocr_confidence : undefined);
         
-        // Auto-summarize if OCR exists but no summary (the missing piece!)
-        if (ocr && ocr.length > 0 && (!sum || sum.length === 0) && !summLoading) {
-          console.log('Auto-triggering summarization for existing OCR text without summary');
-          setTimeout(() => {
-            toast.info(rtl ? "جاري توليد الملخص تلقائياً..." : "Auto-generating summary...");
-            summarizeExtractedText(ocr, false).catch(error => {
-              console.error('Auto-summarization failed:', error);
-              toast.error(rtl ? "فشل في التلخيص التلقائي" : "Auto-summarization failed");
-            });
-          }, 500); // Small delay to ensure state is settled
-        }
-        
         try {
           if (ocr) localStorage.setItem(ocrKey, ocr);
           else localStorage.removeItem(ocrKey);
