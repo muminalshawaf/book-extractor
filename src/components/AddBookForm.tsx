@@ -187,7 +187,8 @@ const AddBookForm: React.FC<AddBookFormProps> = ({ rtl = false, onBookAdded }) =
       const processingResult = await callFunction('process-complete-book', {
         book_id: bookId,
         total_pages: formData.totalPages,
-        base_page_url: baseUrl
+        base_page_url: baseUrl,
+        title: bookTitle
       });
       
       console.log('Book processing started:', processingResult);
