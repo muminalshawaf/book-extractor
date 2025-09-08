@@ -49,13 +49,24 @@ function convertDbBookToLocalFormat(dbBook: BookData): BookWithPages {
     buildPages: () => {
       // If we have base_page_url and total_pages, generate pages
       if (dbBook.base_page_url && dbBook.total_pages) {
-        return Array.from({ length: dbBook.total_pages }, (_, i) => ({
-          src: `${dbBook.base_page_url}/page-${i + 1}.jpg`,
-          alt: `${dbBook.title} - صفحة ${i + 1}`,
-          pageNumber: i + 1,
-          imageUrl: `${dbBook.base_page_url}/page-${i + 1}.jpg`,
-          title: `${dbBook.title} - صفحة ${i + 1}`
-        }));
+        return Array.from({ length: dbBook.total_pages }, (_, i) => {
+          // Ensure the base URL has the correct protocol
+          const baseUrl = dbBook.base_page_url.startsWith('http') 
+            ? dbBook.base_page_url 
+            : `https://www.${dbBook.base_page_url}`;
+          
+          // Generate zero-padded page numbers (00000, 00001, etc.)
+          const pageNumber = i.toString().padStart(5, '0');
+          const pageUrl = `${baseUrl}/${pageNumber}.webp`;
+          
+          return {
+            src: pageUrl,
+            alt: `${dbBook.title} - صفحة ${i + 1}`,
+            pageNumber: i + 1,
+            imageUrl: pageUrl,
+            title: `${dbBook.title} - صفحة ${i + 1}`
+          };
+        });
       }
       
       // Fallback: try to find matching local book
