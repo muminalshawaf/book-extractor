@@ -13,7 +13,7 @@ interface NewBookData {
   subject: string;
   firstPageUrl: string;
   totalPages: number;
-  year: number;
+  grade: number;
   semester: number;
   customSubjectEn?: string;
   customSubjectAr?: string;
@@ -25,7 +25,7 @@ const AddBookForm = () => {
     subject: "",
     firstPageUrl: "",
     totalPages: 1,
-    year: new Date().getFullYear(),
+    grade: 12,
     semester: 1,
     customSubjectEn: "",
     customSubjectAr: ""
@@ -51,18 +51,18 @@ const AddBookForm = () => {
     }));
   };
 
-  const generateBookId = (subject: string, year: number, semester: number) => {
+  const generateBookId = (subject: string, grade: number, semester: number) => {
     const subjectCode = subject.toLowerCase().replace(/\s+/g, '');
-    return `${subjectCode}${year}-${semester}`;
+    return `${subjectCode}${grade}-${semester}`;
   };
 
-  const generateBookTitle = (subject: string, year: number, semester: number, customSubjectAr?: string) => {
+  const generateBookTitle = (subject: string, grade: number, semester: number, customSubjectAr?: string) => {
     if (subject === "Custom" && customSubjectAr) {
-      return `كتاب ${customSubjectAr} ${year} (الفصل ${semester})`;
+      return `كتاب ${customSubjectAr} الصف ${grade} (الفصل ${semester})`;
     }
     const subjectObj = subjects.find(s => s.value === subject);
     const arabicSubject = subjectObj?.arabic || subject;
-    return `كتاب ${arabicSubject} ${year} (الفصل ${semester})`;
+    return `كتاب ${arabicSubject} الصف ${grade} (الفصل ${semester})`;
   };
 
   const extractBaseUrl = (firstPageUrl: string) => {
@@ -123,8 +123,8 @@ const AddBookForm = () => {
       return false;
     }
     
-    if (formData.year < 2020 || formData.year > 2030) {
-      toast.error("Year must be between 2020 and 2030");
+    if (formData.grade < 1 || formData.grade > 12) {
+      toast.error("Grade must be between 1 and 12");
       return false;
     }
     
@@ -150,8 +150,8 @@ const AddBookForm = () => {
     
     try {
       // Generate book details
-      const bookId = generateBookId(formData.subject === "Custom" ? formData.customSubjectEn! : formData.subject, formData.year, formData.semester);
-      const bookTitle = generateBookTitle(formData.subject, formData.year, formData.semester, formData.customSubjectAr);
+      const bookId = generateBookId(formData.subject === "Custom" ? formData.customSubjectEn! : formData.subject, formData.grade, formData.semester);
+      const bookTitle = generateBookTitle(formData.subject, formData.grade, formData.semester, formData.customSubjectAr);
       
       // Check if book already exists
       const existingBook = enhancedBooks.find(book => book.id === bookId);
@@ -181,8 +181,8 @@ const AddBookForm = () => {
         subjectArabic: finalSubjectArabic,
         cover: "/placeholder.svg",
         totalPages: formData.totalPages,
-        description: `كتاب ${finalSubjectArabic} للصف الثاني عشر - الفصل الدراسي ${formData.semester}، ${formData.year}`,
-        keywords: [finalSubjectArabic, finalSubject, "Grade 12", `Semester ${formData.semester}`, "نظام المسارات"],
+        description: `كتاب ${finalSubjectArabic} للصف ${formData.grade} - الفصل الدراسي ${formData.semester}`,
+        keywords: [finalSubjectArabic, finalSubject, `Grade ${formData.grade}`, `Semester ${formData.semester}`, "نظام المسارات"],
         buildPages: () => {
           return Array.from({ length: formData.totalPages }, (_, i) => ({
             src: `${baseUrl}${prefix}${i + 2}${extension}`,
@@ -204,7 +204,7 @@ const AddBookForm = () => {
         subject: "",
         firstPageUrl: "",
         totalPages: 1,
-        year: new Date().getFullYear(),
+        grade: 12,
         semester: 1,
         customSubjectEn: "",
         customSubjectAr: ""
@@ -251,15 +251,15 @@ const AddBookForm = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="year">السنة / Year *</Label>
+            <Label htmlFor="grade">الصف / Grade *</Label>
             <Input
-              id="year"
+              id="grade"
               type="number"
-              min="2020"
-              max="2030"
-              value={formData.year}
-              onChange={(e) => handleInputChange('year', parseInt(e.target.value) || new Date().getFullYear())}
-              placeholder="مثال: 2025"
+              min="1"
+              max="12"
+              value={formData.grade}
+              onChange={(e) => handleInputChange('grade', parseInt(e.target.value) || 12)}
+              placeholder="مثال: 12"
             />
           </div>
 
@@ -332,14 +332,14 @@ const AddBookForm = () => {
           </p>
         </div>
 
-        {formData.subject && formData.year && formData.semester && (
+        {formData.subject && formData.grade && formData.semester && (
           <div className="p-4 bg-muted rounded-lg">
             <p className="text-sm font-medium mb-2">معاينة معرف الكتاب:</p>
             <code className="text-sm bg-background p-2 rounded border">
-              {generateBookId(formData.subject === "Custom" ? formData.customSubjectEn || "custom" : formData.subject, formData.year, formData.semester)}
+              {generateBookId(formData.subject === "Custom" ? formData.customSubjectEn || "custom" : formData.subject, formData.grade, formData.semester)}
             </code>
             <p className="text-sm font-medium mb-2 mt-3">معاينة عنوان الكتاب:</p>
-            <p className="text-sm">{generateBookTitle(formData.subject, formData.year, formData.semester, formData.customSubjectAr)}</p>
+            <p className="text-sm">{generateBookTitle(formData.subject, formData.grade, formData.semester, formData.customSubjectAr)}</p>
           </div>
         )}
 
