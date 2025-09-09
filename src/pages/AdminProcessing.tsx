@@ -247,6 +247,7 @@ const AdminProcessing = () => {
 
         let pageStartTime = Date.now(); // Declare here so catch block can access it
         let ragContext = []; // Declare RAG context at page processing scope
+        let ragPagesActuallySent = 0; // Declare actual RAG pages sent to AI
         
         try {
           
@@ -445,7 +446,11 @@ const AdminProcessing = () => {
               }
               
               summary = summaryResult.summary || '';
+              ragPagesActuallySent = summaryResult.ragPagesActuallySent || 0;
               addLog(`✅ Page ${pageNum}: Initial summary generated (${summary.length} chars)`);
+              if (ragEnabled && ragPagesActuallySent > 0) {
+                addLog(`🔍 Page ${pageNum}: RAG VALIDATION: ${ragPagesActuallySent} pages sent to Gemini 2.5 Pro`);
+              }
               
               // Run quality gate if enabled
               if (processingConfig.enableQualityGate && summary) {
@@ -588,25 +593,26 @@ const AdminProcessing = () => {
           
            if (shouldSave) {
             try {
-              const saveResult = await callFunction('save-page-summary', {
-                book_id: selectedBookId,
-                page_number: pageNum,
-                ocr_text: cleanedOcrText || ocrText, // Save cleaned text
-                summary_md: finalSummary,
-                ocr_confidence: ocrConfidence,
-                confidence: summaryConfidence,
-                rag_metadata: {
-                  ragEnabled: ragEnabled,
-                  ragPagesUsed: ragContext.length,
-                  ragPagesIncluded: ragContext.map(ctx => ({
-                    pageNumber: ctx.pageNumber,
-                    title: ctx.title,
-                    similarity: ctx.similarity
-                  })),
-                  ragThreshold: 0.4, // Matches the hardcoded value from retrieval
-                  ragMaxPages: 3      // Matches the hardcoded value from retrieval
-                }
-              });
+               const saveResult = await callFunction('save-page-summary', {
+                 book_id: selectedBookId,
+                 page_number: pageNum,
+                 ocr_text: cleanedOcrText || ocrText, // Save cleaned text
+                 summary_md: finalSummary,
+                 ocr_confidence: ocrConfidence,
+                 confidence: summaryConfidence,
+                 rag_pages_sent: ragPagesActuallySent,
+                 rag_metadata: {
+                   ragEnabled: ragEnabled,
+                   ragPagesUsed: ragContext.length,
+                   ragPagesIncluded: ragContext.map(ctx => ({
+                     pageNumber: ctx.pageNumber,
+                     title: ctx.title,
+                     similarity: ctx.similarity
+                   })),
+                   ragThreshold: 0.4, // Matches the hardcoded value from retrieval
+                   ragMaxPages: 3      // Matches the hardcoded value from retrieval
+                 }
+               });
 
               console.log(`Save result for page ${pageNum}:`, saveResult);
               
@@ -648,6 +654,7 @@ const AdminProcessing = () => {
             summary_md: finalSummary,
             ocr_confidence: ocrConfidence,
             confidence: summaryConfidence,
+            rag_pages_sent: ragPagesActuallySent,
             rag_metadata: {
               ragEnabled: ragEnabled,
               ragPagesUsed: ragContext.length,

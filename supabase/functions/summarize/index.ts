@@ -207,6 +207,7 @@ Rows:`;
 
     // Build RAG context section if provided
     let ragContextSection = '';
+    let ragPagesActuallySent = 0;
     if (ragContext && Array.isArray(ragContext) && ragContext.length > 0) {
       console.log(`Building RAG context from ${ragContext.length} previous pages`);
       ragContextSection = "\n\nContext from previous pages in the book:\n---\n";
@@ -222,16 +223,18 @@ Rows:`;
           const remainingLength = maxContextLength - totalLength - 20;
           if (remainingLength > 100) {
             ragContextSection += pageContext.slice(0, remainingLength) + "...\n\n";
+            ragPagesActuallySent++;
           }
           break;
         }
         
         ragContextSection += pageContext;
         totalLength += pageContext.length;
+        ragPagesActuallySent++;
       }
       
       ragContextSection += "---\n\n";
-      console.log(`RAG context section built: ${totalLength} characters from ${ragContext.length} pages`);
+      console.log(`✅ RAG VALIDATION: ${ragPagesActuallySent} pages actually sent to Gemini 2.5 Pro (${totalLength} characters)`);
     }
 
     // Enhanced text with visual context and RAG context
@@ -806,7 +809,10 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
       console.log('✅ All questions appear to be processed successfully');
     }
 
-    return new Response(JSON.stringify({ summary }), {
+    return new Response(JSON.stringify({ 
+      summary,
+      ragPagesActuallySent: ragPagesActuallySent 
+    }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

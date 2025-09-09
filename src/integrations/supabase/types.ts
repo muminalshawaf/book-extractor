@@ -85,6 +85,7 @@ export type Database = {
           ocr_json: Json | null
           ocr_text: string | null
           page_number: number
+          rag_pages_sent: number | null
           slug: string | null
           strict_validated: boolean | null
           summary_json: Json | null
@@ -116,6 +117,7 @@ export type Database = {
           ocr_json?: Json | null
           ocr_text?: string | null
           page_number: number
+          rag_pages_sent?: number | null
           slug?: string | null
           strict_validated?: boolean | null
           summary_json?: Json | null
@@ -147,6 +149,7 @@ export type Database = {
           ocr_json?: Json | null
           ocr_text?: string | null
           page_number?: number
+          rag_pages_sent?: number | null
           slug?: string | null
           strict_validated?: boolean | null
           summary_json?: Json | null

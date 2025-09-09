@@ -177,6 +177,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   // Track last RAG context usage
   const [lastRagPagesUsed, setLastRagPagesUsed] = useState(0);
   const [storedRagMetadata, setStoredRagMetadata] = useState<any>(null);
+  const [ragPagesSent, setRagPagesSent] = useState<number>(0);
 
   // Navigation functions with URL sync
   const updatePageInUrl = useCallback((pageIndex: number) => {
@@ -340,6 +341,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       // Reset RAG metadata when page changes
       setStoredRagMetadata(null);
       setLastRagPagesUsed(0);
+      setRagPagesSent(0);
     } catch {}
   }, [index, ocrKey, sumKey]);
 
@@ -351,7 +353,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       try {
         const { data, error } = await supabase
           .from('page_summaries')
-          .select('ocr_text, summary_md, confidence, ocr_confidence, summary_json')
+          .select('ocr_text, summary_md, confidence, ocr_confidence, summary_json, rag_pages_sent')
           .eq('book_id', dbBookId)
           .eq('page_number', index + 1)
           .maybeSingle();
@@ -411,6 +413,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           console.log('No RAG metadata found in database for this page');
           setStoredRagMetadata(null);
           setLastRagPagesUsed(0);
+        }
+        
+        // Set RAG pages sent from database
+        if (typeof data?.rag_pages_sent === 'number') {
+          setRagPagesSent(data.rag_pages_sent);
+        } else {
+          setRagPagesSent(0);
         }
         
         try {
@@ -1493,15 +1502,26 @@ KF (°C/m)
                         {/* RAG Context Indicator */}
                         {(ragEnabled && lastRagPagesUsed > 0) || (storedRagMetadata?.ragEnabled && storedRagMetadata?.ragPagesUsed > 0) ? (
                           <div className="mb-3 flex items-center gap-2 flex-wrap">
-                            <Badge 
-                              variant="outline" 
-                              className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200 px-2 py-1"
-                            >
-                              {rtl 
-                                ? `استخدام سياق من ${storedRagMetadata?.ragPagesUsed || lastRagPagesUsed} صفحة سابقة`
-                                : `Using context from ${storedRagMetadata?.ragPagesUsed || lastRagPagesUsed} previous pages`
-                              }
-                            </Badge>
+                             <Badge 
+                               variant="outline" 
+                               className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200 px-2 py-1"
+                             >
+                               {rtl 
+                                 ? `استخدام سياق من ${storedRagMetadata?.ragPagesUsed || lastRagPagesUsed} صفحة سابقة`
+                                 : `Using context from ${storedRagMetadata?.ragPagesUsed || lastRagPagesUsed} previous pages`
+                               }
+                             </Badge>
+                             {ragPagesSent > 0 && (
+                               <Badge 
+                                 variant="outline" 
+                                 className="text-xs bg-green-50 text-green-700 border-green-200 px-2 py-1"
+                               >
+                                 {rtl 
+                                   ? `تم إرسال ${ragPagesSent} صفحة فعليًا لـ Gemini 2.5 Pro`
+                                   : `${ragPagesSent} pages actually sent to Gemini 2.5 Pro`
+                                 }
+                               </Badge>
+                             )}
                             {storedRagMetadata?.ragPagesIncluded && storedRagMetadata.ragPagesIncluded.length > 0 && (
                               <div className="text-xs text-muted-foreground">
                                 {rtl ? 'الصفحات: ' : 'Pages: '}
