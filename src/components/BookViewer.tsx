@@ -1929,18 +1929,6 @@ KF (°C/m)
                         </div>
                       )}
                       
-                      {/* Add Table Data Button - Only show on page 50 */}
-                      {index + 1 === 50 && (
-                        <Button 
-                          className="w-full mt-2" 
-                          variant="outline"
-                          onClick={addTableDataAndSummarize}
-                          disabled={ocrLoading || summLoading}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          {rtl ? "إضافة الجدول 6-1 وإعادة التلخيص" : "Add Table 6-1 and Re-summarize"}
-                        </Button>
-                      )}
                       
                       {!summary && (
                         <div className="mt-3 text-sm text-muted-foreground border rounded-md p-3">
