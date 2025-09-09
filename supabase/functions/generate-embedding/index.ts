@@ -20,7 +20,6 @@ async function generateEmbedding(text: string): Promise<number[]> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'models/text-embedding-004',
         content: {
           parts: [{ text: text.slice(0, 20000) }] // Limit text length
         }
