@@ -5,6 +5,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Generate embedding using Google text-embedding-004
+async function generateEmbedding(text: string): Promise<number[]> {
+  const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
+  if (!googleApiKey) {
+    throw new Error('GOOGLE_API_KEY not configured');
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedText?key=${googleApiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content: {
+          parts: [{ text: text.slice(0, 20000) }] // Limit text length
+        }
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Google Embedding API error:', error);
+    throw new Error(`Embedding generation failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.embedding?.values || [];
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -110,7 +142,51 @@ Deno.serve(async (req) => {
 
     console.log(`Successfully saved page summary for page ${page_number}`, data)
 
-    return new Response(JSON.stringify({ success: true, data }), {
+    // Generate and save embedding if OCR text exists
+    let embeddingResult = null;
+    if (ocr_text && ocr_text.trim().length > 0) {
+      try {
+        console.log('Generating embedding for OCR text...');
+        const embedding = await generateEmbedding(ocr_text);
+        
+        if (embedding && embedding.length > 0) {
+          console.log(`Generated embedding with ${embedding.length} dimensions`);
+          
+          // Update the page summary with the embedding
+          const { error: embeddingError } = await supabaseAdmin
+            .from('page_summaries')
+            .update({
+              embedding: `[${embedding.join(',')}]`,
+              embedding_model: 'text-embedding-004',
+              embedding_updated_at: new Date().toISOString()
+            })
+            .eq('book_id', book_id)
+            .eq('page_number', page_number);
+
+          if (embeddingError) {
+            console.error('Error saving embedding:', embeddingError);
+            // Don't throw - embedding is optional
+          } else {
+            console.log('Successfully saved embedding');
+            embeddingResult = { 
+              dimensions: embedding.length, 
+              model: 'text-embedding-004' 
+            };
+          }
+        }
+      } catch (embeddingError) {
+        console.error('Error generating embedding:', embeddingError);
+        // Don't throw - embedding is optional, continue with main operation
+      }
+    } else {
+      console.log('No OCR text available for embedding generation');
+    }
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      data,
+      embedding: embeddingResult
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
