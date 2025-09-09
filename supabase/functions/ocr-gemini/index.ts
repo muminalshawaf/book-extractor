@@ -706,7 +706,14 @@ Focus on accuracy and structured context metadata.`
         )
       }
 
-      const rawResponse = candidate.content.parts[0].text || ''
+      let rawResponse = candidate.content.parts[0].text || ''
+      
+      // Clean up any thinking process content that might be included
+      // Look for JSON structure and extract only that part
+      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        rawResponse = jsonMatch[0]
+      }
       
       // Try to parse JSON response
       let parsedData
