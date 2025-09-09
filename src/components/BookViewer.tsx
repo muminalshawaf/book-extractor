@@ -415,7 +415,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           setLastRagPagesUsed(0);
         }
         
-        // Set RAG pages sent from database
+        // Set RAG pages sent from database - use actual sent count
         if (typeof data?.rag_pages_sent === 'number') {
           setRagPagesSent(data.rag_pages_sent);
         } else {
@@ -1511,17 +1511,17 @@ KF (°C/m)
                                  : `Using context from ${storedRagMetadata?.ragPagesUsed || lastRagPagesUsed} previous pages`
                                }
                              </Badge>
-                             {ragPagesSent > 0 && (
-                               <Badge 
-                                 variant="outline" 
-                                 className="text-xs bg-green-50 text-green-700 border-green-200 px-2 py-1"
-                               >
-                                 {rtl 
-                                   ? `تم إرسال ${ragPagesSent} صفحة فعليًا لـ Gemini 2.5 Pro`
-                                   : `${ragPagesSent} pages actually sent to Gemini 2.5 Pro`
-                                 }
-                               </Badge>
-                             )}
+                              {ragPagesSent > 0 && (
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs bg-green-50 text-green-700 border-green-200 px-2 py-1"
+                                >
+                                  {rtl 
+                                     ? `أرسل ${ragPagesSent} فعليًا إلى Gemini`
+                                     : `Actually sent ${ragPagesSent} to Gemini`
+                                   }
+                                 </Badge>
+                               )}
                             {storedRagMetadata?.ragPagesIncluded && storedRagMetadata.ragPagesIncluded.length > 0 && (
                               <div className="text-xs text-muted-foreground">
                                 {rtl ? 'الصفحات: ' : 'Pages: '}

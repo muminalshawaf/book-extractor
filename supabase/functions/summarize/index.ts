@@ -205,15 +205,17 @@ Rows:`;
       }
     }
 
-    // Build RAG context section if provided
+    // Build RAG context section if provided  
     let ragContextSection = '';
     let ragPagesActuallySent = 0;
+    let ragPagesSentList: number[] = [];
+    let ragContextChars = 0;
     if (ragContext && Array.isArray(ragContext) && ragContext.length > 0) {
       console.log(`Building RAG context from ${ragContext.length} previous pages`);
       ragContextSection = "\n\nContext from previous pages in the book:\n---\n";
       
       let totalLength = ragContextSection.length;
-      const maxContextLength = 2000; // Conservative limit
+      const maxContextLength = 8000; // Increased from 2000 to fit more pages
       
       for (const context of ragContext) {
         const pageContext = `Page ${context.pageNumber}${context.title ? ` (${context.title})` : ''}:\n${context.content || context.ocr_text || ''}\n\n`;
@@ -224,6 +226,7 @@ Rows:`;
           if (remainingLength > 100) {
             ragContextSection += pageContext.slice(0, remainingLength) + "...\n\n";
             ragPagesActuallySent++;
+            ragPagesSentList.push(context.pageNumber);
           }
           break;
         }
@@ -231,9 +234,11 @@ Rows:`;
         ragContextSection += pageContext;
         totalLength += pageContext.length;
         ragPagesActuallySent++;
+        ragPagesSentList.push(context.pageNumber);
       }
       
       ragContextSection += "---\n\n";
+      ragContextChars = totalLength;
       console.log(`✅ RAG VALIDATION: ${ragPagesActuallySent} pages actually sent to Gemini 2.5 Pro (${totalLength} characters)`);
     }
 
@@ -811,7 +816,10 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
 
     return new Response(JSON.stringify({ 
       summary,
-      ragPagesActuallySent: ragPagesActuallySent 
+      rag_pages_sent: ragPagesActuallySent,
+      rag_pages_found: ragContext?.length || 0,
+      rag_pages_sent_list: ragPagesSentList,
+      rag_context_chars: ragContextChars
     }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },

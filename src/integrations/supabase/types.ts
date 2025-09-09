@@ -85,7 +85,10 @@ export type Database = {
           ocr_json: Json | null
           ocr_text: string | null
           page_number: number
+          rag_context_chars: number | null
+          rag_pages_found: number | null
           rag_pages_sent: number | null
+          rag_pages_sent_list: Json | null
           slug: string | null
           strict_validated: boolean | null
           summary_json: Json | null
@@ -117,7 +120,10 @@ export type Database = {
           ocr_json?: Json | null
           ocr_text?: string | null
           page_number: number
+          rag_context_chars?: number | null
+          rag_pages_found?: number | null
           rag_pages_sent?: number | null
+          rag_pages_sent_list?: Json | null
           slug?: string | null
           strict_validated?: boolean | null
           summary_json?: Json | null
@@ -149,7 +155,10 @@ export type Database = {
           ocr_json?: Json | null
           ocr_text?: string | null
           page_number?: number
+          rag_context_chars?: number | null
+          rag_pages_found?: number | null
           rag_pages_sent?: number | null
+          rag_pages_sent_list?: Json | null
           slug?: string | null
           strict_validated?: boolean | null
           summary_json?: Json | null

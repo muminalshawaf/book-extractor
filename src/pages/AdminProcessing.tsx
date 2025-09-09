@@ -248,6 +248,7 @@ const AdminProcessing = () => {
         let pageStartTime = Date.now(); // Declare here so catch block can access it
         let ragContext = []; // Declare RAG context at page processing scope
         let ragPagesActuallySent = 0; // Declare actual RAG pages sent to AI
+        let summaryResult: any = null; // Declare summaryResult at page scope
         
         try {
           
@@ -396,9 +397,7 @@ const AdminProcessing = () => {
             addLog(`📝 Page ${pageNum}: Generating summary...`);
             
             try {
-              // RAG Context Retrieval (if enabled)
-              let enhancedText = cleanedOcrText;
-              
+              // RAG Context Retrieval (if enabled) - let summarize function handle it
               if (ragEnabled && selectedBookId && cleanedOcrText.trim()) {
                 try {
                   addLog(`🔍 Page ${pageNum}: Fetching RAG context from previous pages...`);
@@ -410,17 +409,13 @@ const AdminProcessing = () => {
                       enabled: true,
                       maxContextPages: 3,
                       similarityThreshold: 0.4,
-                      maxContextLength: 2000
+                      maxContextLength: 8000 // Increased limit
                     }
                   );
                   
                   if (ragContext.length > 0) {
-                    enhancedText = buildRAGPrompt(cleanedOcrText, cleanedOcrText, ragContext, {
-                      enabled: true,
-                      maxContextLength: 2000
-                    });
                     const contextPages = ragContext.map(ctx => ctx.pageNumber).join(', ');
-                    addLog(`✅ Page ${pageNum}: RAG context integrated (${ragContext.length} relevant pages found: ${contextPages})`);
+                    addLog(`✅ Page ${pageNum}: RAG found ${ragContext.length} relevant pages: ${contextPages}`);
                   } else {
                     addLog(`ℹ️ Page ${pageNum}: No relevant RAG context found`);
                   }
@@ -430,8 +425,8 @@ const AdminProcessing = () => {
                 }
               }
 
-              const summaryResult = await callFunction('summarize', {
-                text: enhancedText, // Use RAG-enhanced text if available
+              summaryResult = await callFunction('summarize', {
+                text: cleanedOcrText, // Use cleaned text without pre-injection
                 lang: 'ar',
                 page: pageNum,
                 title: selectedBook.title,
@@ -446,10 +441,19 @@ const AdminProcessing = () => {
               }
               
               summary = summaryResult.summary || '';
-              ragPagesActuallySent = summaryResult.ragPagesActuallySent || 0;
-              addLog(`✅ Page ${pageNum}: Initial summary generated (${summary.length} chars)`);
-              if (ragEnabled && ragPagesActuallySent > 0) {
-                addLog(`🔍 Page ${pageNum}: RAG VALIDATION: ${ragPagesActuallySent} pages sent to Gemini 2.5 Pro`);
+              summaryConfidence = summaryResult.confidence || 0.8;
+              
+              // Store enhanced RAG metrics from summarize response
+              ragPagesActuallySent = summaryResult.rag_pages_sent || 0;
+              
+              addLog(`✅ Page ${pageNum}: Summary generated (${(summaryConfidence * 100).toFixed(1)}% confidence, ${summary.length} chars)`);
+              
+              // Enhanced RAG logging
+              if (ragEnabled && summaryResult.rag_pages_found > 0) {
+                addLog(`📊 Page ${pageNum}: RAG found: ${summaryResult.rag_pages_found} • sent: ${ragPagesActuallySent} pages • context: ${summaryResult.rag_context_chars || 0} chars`);
+                if (summaryResult.rag_pages_sent_list?.length > 0) {
+                  addLog(`📋 Page ${pageNum}: Sent pages: [${summaryResult.rag_pages_sent_list.join(', ')}]`);
+                }
               }
               
               // Run quality gate if enabled
@@ -601,6 +605,9 @@ const AdminProcessing = () => {
                  ocr_confidence: ocrConfidence,
                  confidence: summaryConfidence,
                  rag_pages_sent: ragPagesActuallySent,
+                 rag_pages_found: summaryResult?.rag_pages_found || 0,
+                 rag_pages_sent_list: summaryResult?.rag_pages_sent_list || [],
+                 rag_context_chars: summaryResult?.rag_context_chars || 0,
                  rag_metadata: {
                    ragEnabled: ragEnabled,
                    ragPagesUsed: ragContext.length,
