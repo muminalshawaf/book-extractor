@@ -8,9 +8,9 @@ const corsHeaders = {
 // Generate embedding by calling the existing generate-embedding function
 async function generateEmbedding(text: string): Promise<number[]> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const supabaseKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
   
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabaseKey) {
     throw new Error('Supabase environment variables not configured');
   }
 
@@ -18,7 +18,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${supabaseAnonKey}`,
+      'Authorization': `Bearer ${supabaseKey}`,
     },
     body: JSON.stringify({ text: text.slice(0, 20000) }),
   });
