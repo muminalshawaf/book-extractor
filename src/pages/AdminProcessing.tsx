@@ -65,6 +65,8 @@ interface PageProcessingResult {
   processingTimeMs: number;
   embeddingSuccess?: boolean;
   embeddingDimensions?: number;
+  ragPagesUsed?: number;
+  ragPagesIncluded?: number[];
 }
 
 const AdminProcessing = () => {
@@ -244,7 +246,8 @@ const AdminProcessing = () => {
         }
 
         let pageStartTime = Date.now(); // Declare here so catch block can access it
-
+        let ragContext = []; // Declare RAG context at page processing scope
+        
         try {
           
           // Get page image URL
@@ -394,7 +397,6 @@ const AdminProcessing = () => {
             try {
               // RAG Context Retrieval (if enabled)
               let enhancedText = cleanedOcrText;
-              let ragContext = [];
               
               if (ragEnabled && selectedBookId && cleanedOcrText.trim()) {
                 try {
@@ -416,7 +418,8 @@ const AdminProcessing = () => {
                       enabled: true,
                       maxContextLength: 2000
                     });
-                    addLog(`✅ Page ${pageNum}: RAG context integrated (${ragContext.length} relevant pages found)`);
+                    const contextPages = ragContext.map(ctx => ctx.pageNumber).join(', ');
+                    addLog(`✅ Page ${pageNum}: RAG context integrated (${ragContext.length} relevant pages found: ${contextPages})`);
                   } else {
                     addLog(`ℹ️ Page ${pageNum}: No relevant RAG context found`);
                   }
@@ -617,7 +620,9 @@ const AdminProcessing = () => {
                 repairSuccessful: qualityResult?.repairSuccessful || false,
                 processingTimeMs: Date.now() - pageStartTime,
                 embeddingSuccess: false,
-                embeddingDimensions: 0
+                embeddingDimensions: 0,
+                ragPagesUsed: ragContext.length,
+                ragPagesIncluded: ragContext.map(ctx => ctx.pageNumber)
               }]);
               setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
               continue;
@@ -645,7 +650,9 @@ const AdminProcessing = () => {
             repairSuccessful: qualityResult?.repairSuccessful || false,
             processingTimeMs: Date.now() - pageStartTime,
             embeddingSuccess: !!saveResult?.embedding,
-            embeddingDimensions: saveResult?.embedding?.dimensions || 0
+            embeddingDimensions: saveResult?.embedding?.dimensions || 0,
+            ragPagesUsed: ragContext.length,
+            ragPagesIncluded: ragContext.map(ctx => ctx.pageNumber)
           }]);
 
           setStatus(prev => ({ ...prev, processed: prev.processed + 1 }));
@@ -670,7 +677,9 @@ const AdminProcessing = () => {
             repairSuccessful: false,
             processingTimeMs: Date.now() - pageStartTime,
             embeddingSuccess: false,
-            embeddingDimensions: 0
+            embeddingDimensions: 0,
+            ragPagesUsed: ragContext.length,
+            ragPagesIncluded: ragContext.map(ctx => ctx.pageNumber)
           }]);
           setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
         }
@@ -1437,6 +1446,11 @@ const AdminProcessing = () => {
                           ) : (
                             <Badge variant="outline" className="text-xs">
                               Summary ✗
+                            </Badge>
+                          )}
+                          {result.ragPagesUsed !== undefined && (
+                            <Badge variant="outline" className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200">
+                              RAG: {result.ragPagesUsed}/3
                             </Badge>
                           )}
                           {result.embeddingSuccess ? (

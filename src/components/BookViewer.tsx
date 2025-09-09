@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Minus, Plus, Loader2, ChevronDown, Menu, ZoomIn, ZoomOut, Sparkles } from "lucide-react";
@@ -172,6 +173,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       return false;
     }
   });
+  
+  // Track last RAG context usage
+  const [lastRagPagesUsed, setLastRagPagesUsed] = useState(0);
 
   // Navigation functions with URL sync
   const updatePageInUrl = useCallback((pageIndex: number) => {
@@ -1051,6 +1055,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         if (ragEnabled) {
           console.log('RAG enabled: fetching context for force regenerate...');
           const ragContext = await fetchRagContextIfEnabled(cleanedOcrText);
+          setLastRagPagesUsed(ragContext.length);
           
           if (ragContext.length > 0) {
             enhancedText = buildRAGPrompt(cleanedOcrText, cleanedOcrText, ragContext, {
@@ -1440,6 +1445,20 @@ KF (°C/m)
                     
                     {summary && (
                       <div className="mt-4">
+                        {/* RAG Context Indicator */}
+                        {ragEnabled && lastRagPagesUsed > 0 && (
+                          <div className="mb-3 flex items-center gap-2">
+                            <Badge 
+                              variant="outline" 
+                              className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200 px-2 py-1"
+                            >
+                              {rtl 
+                                ? `استخدام سياق من ${lastRagPagesUsed} صفحة سابقة`
+                                : `Using context from ${lastRagPagesUsed} previous pages`
+                              }
+                            </Badge>
+                          </div>
+                        )}
                         <EnhancedSummary
                           summary={summary}
                           onSummaryChange={newSummary => {
