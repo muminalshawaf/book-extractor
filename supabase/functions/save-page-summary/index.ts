@@ -7,11 +7,20 @@ const corsHeaders = {
 
 // Generate embedding by calling the existing generate-embedding function
 async function generateEmbedding(text: string): Promise<number[]> {
+  console.log('Starting embedding generation...');
+  
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  
+  console.log('Environment check for embedding:', {
+    hasUrl: !!supabaseUrl,
+    hasServiceKey: !!supabaseKey,
+    urlLength: supabaseUrl?.length,
+    keyLength: supabaseKey?.length
+  });
   
   if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Supabase environment variables not configured');
+    throw new Error('Supabase environment variables not configured for embedding generation');
   }
 
   const response = await fetch(`${supabaseUrl}/functions/v1/generate-embedding`, {
@@ -23,13 +32,20 @@ async function generateEmbedding(text: string): Promise<number[]> {
     body: JSON.stringify({ text: text.slice(0, 20000) }),
   });
 
+  console.log('Embedding API response status:', response.status);
+
   if (!response.ok) {
     const error = await response.text();
     console.error('Generate embedding function error:', error);
-    throw new Error(`Embedding generation failed: ${response.status}`);
+    throw new Error(`Embedding generation failed: ${response.status} - ${error}`);
   }
 
   const data = await response.json();
+  console.log('Embedding response data:', { 
+    hasEmbedding: !!data.embedding, 
+    embeddingLength: data.embedding?.length 
+  });
+  
   return data.embedding || [];
 }
 

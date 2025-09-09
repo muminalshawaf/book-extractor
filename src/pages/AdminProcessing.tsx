@@ -62,6 +62,8 @@ interface PageProcessingResult {
   repairAttempted: boolean;
   repairSuccessful: boolean;
   processingTimeMs: number;
+  embeddingSuccess?: boolean;
+  embeddingDimensions?: number;
 }
 
 const AdminProcessing = () => {
@@ -544,9 +546,9 @@ const AdminProcessing = () => {
                            (finalSummary && !existingData?.summary_md) || 
                            !skipProcessed;
           
-          if (shouldSave) {
+           if (shouldSave) {
             try {
-              await callFunction('save-page-summary', {
+              const saveResult = await callFunction('save-page-summary', {
                 book_id: selectedBookId,
                 page_number: pageNum,
                 ocr_text: cleanedOcrText || ocrText, // Save cleaned text
@@ -555,7 +557,16 @@ const AdminProcessing = () => {
                 confidence: summaryConfidence
               });
 
-              addLog(`💾 Page ${pageNum}: Saved to database`);
+              console.log(`Save result for page ${pageNum}:`, saveResult);
+              
+              let embeddingInfo = '';
+              if (saveResult?.embedding) {
+                embeddingInfo = ` (✓ Embedding: ${saveResult.embedding.dimensions}D)`;
+              } else if (cleanedOcrText || ocrText) {
+                embeddingInfo = ' (⚠️ Embedding: Failed)';
+              }
+
+              addLog(`💾 Page ${pageNum}: Saved to database${embeddingInfo}`);
             } catch (saveError) {
               addLog(`❌ Page ${pageNum}: Failed to save - ${saveError.message}`);
               setPageResults(prev => [...prev, {
@@ -567,7 +578,9 @@ const AdminProcessing = () => {
                 summaryConfidence,
                 repairAttempted: qualityResult?.repairAttempted || false,
                 repairSuccessful: qualityResult?.repairSuccessful || false,
-                processingTimeMs: Date.now() - pageStartTime
+                processingTimeMs: Date.now() - pageStartTime,
+                embeddingSuccess: false,
+                embeddingDimensions: 0
               }]);
               setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
               continue;
@@ -575,6 +588,15 @@ const AdminProcessing = () => {
           }
 
           // Record successful processing
+          const saveResult = await callFunction('save-page-summary', {
+            book_id: selectedBookId,
+            page_number: pageNum,
+            ocr_text: cleanedOcrText || ocrText,
+            summary_md: finalSummary,
+            ocr_confidence: ocrConfidence,
+            confidence: summaryConfidence
+          });
+
           setPageResults(prev => [...prev, {
             pageNumber: pageNum,
             isContent: true,
@@ -584,7 +606,9 @@ const AdminProcessing = () => {
             summaryConfidence,
             repairAttempted: qualityResult?.repairAttempted || false,
             repairSuccessful: qualityResult?.repairSuccessful || false,
-            processingTimeMs: Date.now() - pageStartTime
+            processingTimeMs: Date.now() - pageStartTime,
+            embeddingSuccess: !!saveResult?.embedding,
+            embeddingDimensions: saveResult?.embedding?.dimensions || 0
           }]);
 
           setStatus(prev => ({ ...prev, processed: prev.processed + 1 }));
@@ -607,7 +631,9 @@ const AdminProcessing = () => {
             summaryConfidence: 0,
             repairAttempted: false,
             repairSuccessful: false,
-            processingTimeMs: Date.now() - pageStartTime
+            processingTimeMs: Date.now() - pageStartTime,
+            embeddingSuccess: false,
+            embeddingDimensions: 0
           }]);
           setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
         }
@@ -1315,6 +1341,67 @@ const AdminProcessing = () => {
                     Started at {status.startTime.toLocaleTimeString()}
                   </p>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Page Processing Results */}
+          {pageResults.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="w-5 h-5" />
+                  Page Results
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {pageResults.slice(-10).reverse().map((result) => (
+                    <div key={result.pageNumber} className={`p-3 rounded-lg border flex items-center justify-between ${
+                      result.ocrSuccess && result.summarySuccess 
+                        ? 'bg-green-50 border-green-200' 
+                        : result.ocrSuccess 
+                        ? 'bg-yellow-50 border-yellow-200' 
+                        : 'bg-red-50 border-red-200'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <span className="font-medium">Page {result.pageNumber}</span>
+                        <div className="flex gap-1">
+                          {result.ocrSuccess ? (
+                            <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                              OCR ✓
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="text-xs">
+                              OCR ✗
+                            </Badge>
+                          )}
+                          {result.summarySuccess ? (
+                            <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">
+                              Summary ✓
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              Summary ✗
+                            </Badge>
+                          )}
+                          {result.embeddingSuccess ? (
+                            <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800">
+                              Embedding ✓ ({result.embeddingDimensions}D)
+                            </Badge>
+                          ) : result.ocrSuccess ? (
+                            <Badge variant="outline" className="text-xs text-orange-600">
+                              Embedding ✗
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {(result.processingTimeMs / 1000).toFixed(1)}s
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}
