@@ -489,6 +489,46 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     console.log('RAG toggled:', newValue ? 'enabled' : 'disabled');
   }, [ragEnabled]);
 
+  // Helper function to generate embedding for current page after OCR
+  const generateEmbeddingForCurrentPage = useCallback(async (ocrText: string) => {
+    if (!ocrText || !dbBookId || ocrText.length < 50) return;
+    
+    try {
+      console.log('Generating embedding for current page:', index + 1);
+      const { data: embedding, error } = await supabase.functions.invoke('generate-embedding', {
+        body: { text: ocrText }
+      });
+      
+      if (error) {
+        console.warn('Failed to generate embedding for current page:', error);
+        return;
+      }
+      
+      if (embedding?.embedding) {
+        console.log('✅ Generated embedding for page', index + 1, 'updating database...');
+        
+        // Update the page summary with the embedding
+        const { error: updateError } = await supabase
+          .from('page_summaries')
+          .update({ 
+            embedding: embedding.embedding,
+            embedding_model: 'text-embedding-004',
+            embedding_updated_at: new Date().toISOString()
+          })
+          .eq('book_id', dbBookId)
+          .eq('page_number', index + 1);
+          
+        if (updateError) {
+          console.warn('Failed to save embedding to database:', updateError);
+        } else {
+          console.log('✅ Embedding saved for page', index + 1);
+        }
+      }
+    } catch (error) {
+      console.warn('Error generating embedding for current page:', error);
+    }
+  }, [dbBookId, index]);
+
   const fetchRagContextIfEnabled = useCallback(async (queryText: string): Promise<any[]> => {
     if (!ragEnabled || !bookId || !queryText.trim()) {
       return [];
@@ -636,6 +676,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           ocr_confidence: result.confidence ? (result.confidence > 1 ? result.confidence / 100 : result.confidence) : 0.8
         });
         console.log('OCR text saved successfully for page', index + 1, 'Result:', saveResult);
+        
+        // Generate embedding for RAG indexing (async, non-blocking)
+        generateEmbeddingForCurrentPage(cleanText);
         
         // Force UI refresh to show the extracted text
         setExtractedText(cleanText);
@@ -1065,6 +1108,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           ocr_confidence: ocrConfidence,
           confidence: summaryConfidence
         });
+        
+        // Generate embedding for RAG indexing (async, non-blocking)
+        generateEmbeddingForCurrentPage(cleanedOcrText);
         
         // Update localStorage cache
         localStorage.setItem(ocrKey, cleanedOcrText);
