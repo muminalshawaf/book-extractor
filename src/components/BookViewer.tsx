@@ -27,6 +27,8 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { PerformanceMonitor } from "@/components/PerformanceMonitor";
 import { ContinuousReader, ContinuousReaderRef } from "@/components/reader/ContinuousReader";
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
@@ -36,6 +38,7 @@ import { MobileControlsOverlay } from "@/components/reader/MobileControlsOverlay
 import { MobileReaderChrome } from "@/components/reader/MobileReaderChrome";
 import { HenryLawCalculator } from "@/components/HenryLawCalculator";
 import { IndexableOCRContent } from "@/components/seo/IndexableOCRContent";
+import { retrieveRAGContext, buildRAGPrompt, DEFAULT_RAG_OPTIONS, type RAGOptions } from "@/lib/rag/ragUtils";
 
 export type BookPage = {
   src: string;
@@ -160,6 +163,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [controlsOpen, setControlsOpen] = useState(true);
   const [insightTab, setInsightTab] = useState<'summary' | 'qa'>('summary');
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // RAG state - persisted in localStorage, default OFF for safety
+  const [ragEnabled, setRagEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('bookviewer:rag:enabled') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   // Navigation functions with URL sync
   const updatePageInUrl = useCallback((pageIndex: number) => {
@@ -465,6 +477,50 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     return score;
   };
 
+  // RAG Helper Functions
+  const toggleRag = useCallback(() => {
+    const newValue = !ragEnabled;
+    setRagEnabled(newValue);
+    try {
+      localStorage.setItem('bookviewer:rag:enabled', newValue.toString());
+    } catch (error) {
+      console.warn('Failed to save RAG preference:', error);
+    }
+    console.log('RAG toggled:', newValue ? 'enabled' : 'disabled');
+  }, [ragEnabled]);
+
+  const fetchRagContextIfEnabled = useCallback(async (queryText: string): Promise<any[]> => {
+    if (!ragEnabled || !bookId || !queryText.trim()) {
+      return [];
+    }
+
+    try {
+      console.log('Fetching RAG context for page', index + 1, 'with query length:', queryText.length);
+      
+      const ragContext = await retrieveRAGContext(
+        bookId,
+        index + 1, // current page (1-based)
+        queryText,
+        {
+          enabled: true,
+          maxContextPages: 3, // Conservative limit
+          similarityThreshold: 0.4, // Reasonable threshold
+          maxContextLength: 2000 // Conservative character limit
+        }
+      );
+      
+      console.log(`RAG context retrieved: ${ragContext.length} relevant pages found`);
+      if (ragContext.length > 0) {
+        console.log('RAG similarity scores:', ragContext.map(ctx => ctx.similarity.toFixed(3)).join(', '));
+      }
+      
+      return ragContext;
+    } catch (error) {
+      console.warn('RAG context retrieval failed (fail-safe):', error);
+      return []; // Fail gracefully
+    }
+  }, [ragEnabled, bookId, index]);
+
   const extractTextFromPage = async (force = false) => {
     if (ocrLoading) return;
     
@@ -665,10 +721,30 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       
       const trimmedText = text.trim();
       
+      // RAG Context Retrieval (if enabled)
+      let enhancedText = trimmedText;
+      if (ragEnabled) {
+        console.log('RAG enabled: fetching context from previous pages...');
+        const ragContext = await fetchRagContextIfEnabled(trimmedText);
+        
+        if (ragContext.length > 0) {
+          enhancedText = buildRAGPrompt(trimmedText, trimmedText, ragContext, {
+            enabled: true,
+            maxContextLength: 2000
+          });
+          console.log('RAG context integrated. Enhanced text length:', enhancedText.length);
+          toast.info(rtl ? `جاري التوليد باستخدام ${ragContext.length} صفحات سابقة...` : `Generating with context from ${ragContext.length} previous pages...`);
+        } else {
+          console.log('No RAG context found, proceeding with original text');
+        }
+      }
+      
       // Use progressive timeout strategy for better reliability
       console.log('Calling summarize function with progressive timeout strategy...');
       setSummaryProgress(10);
-      toast.info(rtl ? "جاري التوليد مع التحقق الشامل..." : "Generating with thorough verification...");
+      if (!ragEnabled) {
+        toast.info(rtl ? "جاري التوليد مع التحقق الشامل..." : "Generating with thorough verification...");
+      }
       
       let summaryResult;
       
@@ -676,7 +752,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       try {
         console.log('Attempt 1: Using 60s timeout...');
         summaryResult = await callFunction('summarize', {
-          text: trimmedText,
+          text: enhancedText, // Use RAG-enhanced text if available
           lang: 'ar',
           page: index + 1,
           title: title,
@@ -700,7 +776,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         try {
           console.log('Attempt 2: Using 180s timeout...');
           summaryResult = await callFunction('summarize', {
-            text: trimmedText,
+            text: enhancedText, // Use RAG-enhanced text if available
             lang: 'ar',
             page: index + 1,
             title: title,
@@ -892,8 +968,23 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         // 3. SUMMARY GENERATION WITH QUALITY GATE (following AdminProcessing pattern)
         console.log(`📝 Page ${pageNum}: Generating summary with quality gate...`);
         
+        // RAG Context Retrieval for force regenerate (if enabled)
+        let enhancedText = cleanedOcrText;
+        if (ragEnabled) {
+          console.log('RAG enabled: fetching context for force regenerate...');
+          const ragContext = await fetchRagContextIfEnabled(cleanedOcrText);
+          
+          if (ragContext.length > 0) {
+            enhancedText = buildRAGPrompt(cleanedOcrText, cleanedOcrText, ragContext, {
+              enabled: true,
+              maxContextLength: 2000
+            });
+            console.log('RAG context integrated for force regenerate. Enhanced text length:', enhancedText.length);
+          }
+        }
+        
         const summaryResult = await callFunction('summarize', {
-          text: cleanedOcrText,
+          text: enhancedText, // Use RAG-enhanced text if available
           lang: 'ar',
           page: pageNum,
           title: title,
@@ -1236,6 +1327,21 @@ KF (°C/m)
                       )}
                       {rtl ? "لخص هذه الصفحة" : "Summarize this page"}
                     </Button>
+                    
+                    {/* RAG Toggle */}
+                    {bookId && (
+                      <div className="flex items-center gap-2 mt-3 p-2 bg-muted/30 rounded text-xs">
+                        <Switch
+                          id="rag-toggle-mobile"
+                          checked={ragEnabled}
+                          onCheckedChange={toggleRag}
+                          disabled={ocrLoading || summLoading}
+                        />
+                        <Label htmlFor="rag-toggle-mobile" className="text-xs">
+                          {rtl ? "استخدم الصفحات السابقة" : "Use previous pages"}
+                        </Label>
+                      </div>
+                    )}
                     
                     {/* Add Table Data Button - Only show on page 50 */}
                     {index + 1 === 50 && (
@@ -1586,6 +1692,21 @@ KF (°C/m)
                           </>
                         )}
                       </Button>
+                      
+                      {/* RAG Toggle for Desktop */}
+                      {bookId && (
+                        <div className="flex items-center gap-2 mt-3 p-2 bg-muted/30 rounded text-xs">
+                          <Switch
+                            id="rag-toggle-desktop"
+                            checked={ragEnabled}
+                            onCheckedChange={toggleRag}
+                            disabled={ocrLoading || summLoading}
+                          />
+                          <Label htmlFor="rag-toggle-desktop" className="text-xs">
+                            {rtl ? "استخدم الصفحات السابقة" : "Use previous pages"}
+                          </Label>
+                        </div>
+                      )}
                       
                       {/* Add Table Data Button - Only show on page 50 */}
                       {index + 1 === 50 && (
