@@ -27,7 +27,7 @@ export interface ProcessingStats {
 
 export const DEFAULT_PROCESSING_CONFIG: ProcessingConfig = {
   enableOcrCleaning: true,
-  enableQualityGate: true,
+  enableQualityGate: false, // Disabled by default for better performance
   enableJitteredDelay: true,
   minDelayMs: 800,
   maxDelayMs: 1500,

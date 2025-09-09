@@ -37,101 +37,44 @@ export interface RepairContext {
 
 const DEFAULT_OPTIONS: QualityGateOptions = {
   minOcrConfidence: 0.3, // Very lenient OCR threshold
-  minSummaryConfidence: 0.5, // Lower threshold for acceptance
+  minSummaryConfidence: 0.4, // Lower threshold for acceptance
   enableRepair: true,
-  repairThreshold: 0.65, // Lower threshold for triggering repair
+  repairThreshold: 0.35, // Only repair very poor summaries
   maxRepairAttempts: 1 // One repair attempt to avoid API cost spiral
 };
 
 function generateRepairPrompt(context: RepairContext): string {
-  const { originalText, originalSummary, confidenceMeta, pageNumber, bookTitle, language } = context;
+  const { originalText, originalSummary, pageNumber, bookTitle, language } = context;
   
-  const issues: string[] = [];
-  
-  if (confidenceMeta.coverage < 0.6) {
-    issues.push("المحتوى المستخرج لا يغطي النص الأصلي بشكل كافٍ");
-  }
-  
-  if (confidenceMeta.lengthFit < 0.5) {
-    if (originalSummary.split(/\s+/).length < 50) {
-      issues.push("الملخص قصير جداً ولا يشمل التفاصيل المهمة");
-    } else {
-      issues.push("الملخص طويل جداً ويحتاج إلى تركيز أكثر");
-    }
-  }
-  
-  if (confidenceMeta.structure < 0.5) {
-    issues.push("تنسيق الملخص يحتاج إلى تحسين (عناوين، نقاط، ترقيم)");
-  }
-  
-  if (confidenceMeta.repetitionPenalty < 0.7) {
-    issues.push("يوجد تكرار مفرط في المحتوى");
-  }
-  
-  const issueDescription = issues.length > 0 
-    ? `\n\nالمشاكل المحددة في الملخص الحالي:\n${issues.map(issue => `- ${issue}`).join('\n')}`
-    : '';
-
+  // Much shorter, focused repair prompt
   if (language === 'ar') {
-    return `أنت محرر خبير للمحتوى التعليمي. المهمة: تحسين ملخص صفحة من كتاب مدرسي.
+    return `حسّن هذا الملخص للصفحة ${pageNumber} من كتاب ${bookTitle}:
 
-معلومات الصفحة:
-- الكتاب: ${bookTitle}
-- رقم الصفحة: ${pageNumber}
-- جودة النص الأصلي: ${(confidenceMeta.ocrQuality * 100).toFixed(1)}%
-- تقييم التغطية: ${(confidenceMeta.coverage * 100).toFixed(1)}%${issueDescription}
+النص الأصلي:
+${originalText.slice(0, 1000)}...
 
-النص الأصلي المستخرج:
-${originalText}
-
-الملخص الحالي (يحتاج تحسين):
+الملخص الحالي:
 ${originalSummary}
 
-المطلوب: إنتاج ملخص محسّن يلتزم بالمعايير التالية:
-1. تغطية شاملة للمفاهيم الرئيسية من النص الأصلي
-2. طول مناسب (150-300 كلمة)
-3. تنسيق واضح مع عناوين فرعية ونقاط
-4. استخدام المصطلحات العلمية الصحيحة
-5. تجنب التكرار
-6. شرح الأمثلة والتمارين بوضوح
-7. استخراج وشرح جميع الأسئلة المرقمة
-
-تنسيق الإخراج:
-- استخدم العناوين (##) للمواضيع الرئيسية
-- استخدم النقاط (-) للتفاصيل
-- اكتب الأسئلة في قسم منفصل
-- استخدم **النص العريض** للمصطلحات المهمة
+اكتب ملخصاً محسّناً (150-250 كلمة) يشمل:
+- المفاهيم الرئيسية
+- الأسئلة المرقمة وإجاباتها
+- تنسيق واضح مع عناوين
 
 الملخص المحسّن:`;
   } else {
-    return `You are an expert educational content editor. Task: Improve a textbook page summary.
+    return `Improve this textbook summary for page ${pageNumber} of ${bookTitle}:
 
-Page Information:
-- Book: ${bookTitle}
-- Page: ${pageNumber}  
-- Original text quality: ${(confidenceMeta.ocrQuality * 100).toFixed(1)}%
-- Coverage assessment: ${(confidenceMeta.coverage * 100).toFixed(1)}%${issueDescription}
+Original text:
+${originalText.slice(0, 1000)}...
 
-Original extracted text:
-${originalText}
-
-Current summary (needs improvement):
+Current summary:
 ${originalSummary}
 
-Required: Produce an improved summary that meets these standards:
-1. Comprehensive coverage of key concepts from the original text
-2. Appropriate length (150-300 words)
-3. Clear formatting with subheadings and bullet points
-4. Correct scientific terminology usage
-5. Avoid repetition
-6. Clear explanation of examples and exercises
-7. Extract and explain all numbered questions
-
-Output format:
-- Use headings (##) for main topics
-- Use bullet points (-) for details
-- Write questions in a separate section
-- Use **bold text** for important terms
+Write an improved summary (150-250 words) with:
+- Key concepts
+- Numbered questions and answers
+- Clear formatting
 
 Improved summary:`;
   }
@@ -215,7 +158,7 @@ export async function runQualityGate(
     const repairPrompt = generateRepairPrompt(repairContext);
     logs.push(`Generated repair prompt (${repairPrompt.length} chars)`);
     
-    // Use shorter timeout to prevent hanging
+    // Use much shorter timeout to prevent hanging
     const repairResult = await Promise.race([
       callFunction('summarize', {
         text: repairPrompt,
@@ -224,10 +167,10 @@ export async function runQualityGate(
         title: context.bookTitle,
         ocrData: context.ocrData,
         isRepair: true // Signal this is a repair attempt
-      }, { timeout: 60000, retries: 1 }), // Reduced timeout to 60 seconds
+      }, { timeout: 20000, retries: 0 }), // Much shorter timeout, no retries
       
       new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Repair timeout after 60 seconds')), 60000)
+        setTimeout(() => reject(new Error('Repair timeout after 20 seconds')), 20000)
       )
     ]);
     
@@ -282,7 +225,7 @@ export async function runQualityGate(
     
     // Handle timeout specifically
     if (errorMessage.includes('timeout') || errorMessage.includes('Repair timeout')) {
-      logs.push('Repair timed out - proceeding with original summary');
+      logs.push('Repair timed out after 20 seconds - proceeding with original summary');
       return {
         passed: summaryConfidence >= opts.minSummaryConfidence * 0.9, // Slightly lower bar for timeouts
         ocrConfidence,
