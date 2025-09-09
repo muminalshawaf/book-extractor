@@ -134,10 +134,15 @@ serve(async (req) => {
       });
     }
 
-    // Check if this is a table of contents page
-    const isTableOfContents = text.toLowerCase().includes('فهرس') || 
-                               text.toLowerCase().includes('contents') ||
-                               text.toLowerCase().includes('جدول المحتويات');
+    // Check if this is a table of contents page (more specific detection)
+    const cleanText = text.replace(/[{}",:\[\]]/g, ' '); // Remove JSON artifacts
+    const isTableOfContents = (
+      (cleanText.includes('فهرس المحتويات') || cleanText.includes('جدول المحتويات')) &&
+      !cleanText.includes('تمرينات') && 
+      !cleanText.includes('exercises') &&
+      !cleanText.includes('أسئلة') &&
+      !cleanText.includes('سؤال')
+    );
     
     if (isTableOfContents) {
       console.log('Detected table of contents page, returning simple message');

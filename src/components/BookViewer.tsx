@@ -709,14 +709,39 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         throw new Error(`Google Gemini OCR failed: ${geminiError.message || geminiError}`);
       }
       
-      // Extract the actual text from the Gemini response
+      // Extract readable text from the Gemini JSON response
       let extractedText = '';
+      
       if (geminiResult?.text) {
         extractedText = geminiResult.text;
       } else if (typeof geminiResult === 'string') {
         try {
           const parsed = JSON.parse(geminiResult);
-          extractedText = parsed.text || '';
+          
+          // If the response is structured JSON, extract readable text from sections
+          if (parsed.sections && Array.isArray(parsed.sections)) {
+            const textParts = [];
+            
+            for (const section of parsed.sections) {
+              if (section.content && section.type !== 'footer') {
+                // Clean up the content and add it
+                const cleanContent = section.content.trim();
+                if (cleanContent && cleanContent !== section.title) {
+                  textParts.push(cleanContent);
+                }
+              }
+            }
+            
+            extractedText = textParts.join('\n\n').trim();
+            console.log('Extracted readable text from structured JSON:', {
+              sectionsFound: parsed.sections.length,
+              textPartsExtracted: textParts.length,
+              finalLength: extractedText.length
+            });
+          } else {
+            // Fallback to direct text field or stringified JSON
+            extractedText = parsed.text || JSON.stringify(parsed);
+          }
         } catch {
           extractedText = geminiResult;
         }
