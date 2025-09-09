@@ -594,7 +594,18 @@ const AdminProcessing = () => {
                 ocr_text: cleanedOcrText || ocrText, // Save cleaned text
                 summary_md: finalSummary,
                 ocr_confidence: ocrConfidence,
-                confidence: summaryConfidence
+                confidence: summaryConfidence,
+                rag_metadata: {
+                  ragEnabled: ragEnabled,
+                  ragPagesUsed: ragContext.length,
+                  ragPagesIncluded: ragContext.map(ctx => ({
+                    pageNumber: ctx.pageNumber,
+                    title: ctx.title,
+                    similarity: ctx.similarity
+                  })),
+                  ragThreshold: 0.4, // Matches the hardcoded value from retrieval
+                  ragMaxPages: 3      // Matches the hardcoded value from retrieval
+                }
               });
 
               console.log(`Save result for page ${pageNum}:`, saveResult);
@@ -636,7 +647,18 @@ const AdminProcessing = () => {
             ocr_text: cleanedOcrText || ocrText,
             summary_md: finalSummary,
             ocr_confidence: ocrConfidence,
-            confidence: summaryConfidence
+            confidence: summaryConfidence,
+            rag_metadata: {
+              ragEnabled: ragEnabled,
+              ragPagesUsed: ragContext.length,
+              ragPagesIncluded: ragContext.map(ctx => ({
+                pageNumber: ctx.pageNumber,
+                title: ctx.title,
+                similarity: ctx.similarity
+              })),
+              ragThreshold: 0.4, // Matches the hardcoded value from retrieval
+              ragMaxPages: 3      // Matches the hardcoded value from retrieval
+            }
           });
 
           setPageResults(prev => [...prev, {

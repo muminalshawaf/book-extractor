@@ -176,6 +176,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   
   // Track last RAG context usage
   const [lastRagPagesUsed, setLastRagPagesUsed] = useState(0);
+  const [storedRagMetadata, setStoredRagMetadata] = useState<any>(null);
 
   // Navigation functions with URL sync
   const updatePageInUrl = useCallback((pageIndex: number) => {
@@ -336,6 +337,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       if (cachedSummary) setSummary(cachedSummary);
       setLastError(null);
       setRetryCount(0);
+      // Reset RAG metadata when page changes
+      setStoredRagMetadata(null);
+      setLastRagPagesUsed(0);
     } catch {}
   }, [index, ocrKey, sumKey]);
 
@@ -347,7 +351,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
       try {
         const { data, error } = await supabase
           .from('page_summaries')
-          .select('ocr_text, summary_md, confidence, ocr_confidence')
+          .select('ocr_text, summary_md, confidence, ocr_confidence, summary_json')
           .eq('book_id', dbBookId)
           .eq('page_number', index + 1)
           .maybeSingle();
@@ -393,6 +397,21 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         console.log('DEBUG: State update completed - OCR:', ocr.length, 'Summary:', sum.length);
         setSummaryConfidence(typeof data?.confidence === 'number' ? data.confidence : undefined);
         setOcrQuality(typeof data?.ocr_confidence === 'number' ? data.ocr_confidence : undefined);
+        
+        // Set RAG metadata from database
+        const ragMeta = data?.summary_json;
+        if (ragMeta && typeof ragMeta === 'object' && !Array.isArray(ragMeta)) {
+          console.log('Setting stored RAG metadata from database:', ragMeta);
+          setStoredRagMetadata(ragMeta);
+          // Also update lastRagPagesUsed to show the stored value
+          if (typeof ragMeta.ragPagesUsed === 'number') {
+            setLastRagPagesUsed(ragMeta.ragPagesUsed);
+          }
+        } else {
+          console.log('No RAG metadata found in database for this page');
+          setStoredRagMetadata(null);
+          setLastRagPagesUsed(0);
+        }
         
         try {
           if (ocr) localStorage.setItem(ocrKey, ocr);
@@ -932,7 +951,20 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           book_id: dbBookId,
           page_number: index + 1,
           summary_md: finalSummary,
-          confidence: 0.8
+          confidence: 0.8,
+          rag_metadata: ragEnabled ? {
+            ragEnabled: true,
+            ragPagesUsed: lastRagPagesUsed,
+            ragPagesIncluded: [], // Not available in this flow
+            ragThreshold: 0.4,
+            ragMaxPages: 3
+          } : {
+            ragEnabled: false,
+            ragPagesUsed: 0,
+            ragPagesIncluded: [],
+            ragThreshold: 0.4,
+            ragMaxPages: 3
+          }
         }).catch(saveError => {
           console.error('Failed to save summary to database:', saveError);
         });
@@ -1146,7 +1178,20 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           ocr_text: cleanedOcrText,
           summary_md: finalSummary,
           ocr_confidence: ocrConfidence,
-          confidence: summaryConfidence
+          confidence: summaryConfidence,
+          rag_metadata: ragEnabled ? {
+            ragEnabled: true,
+            ragPagesUsed: lastRagPagesUsed,
+            ragPagesIncluded: [], // Not available in this flow
+            ragThreshold: 0.4,
+            ragMaxPages: 3
+          } : {
+            ragEnabled: false,
+            ragPagesUsed: 0,
+            ragPagesIncluded: [],
+            ragThreshold: 0.4,
+            ragMaxPages: 3
+          }
         });
         
         // Generate embedding for RAG indexing (async, non-blocking)
@@ -1446,19 +1491,30 @@ KF (°C/m)
                     {summary && (
                       <div className="mt-4">
                         {/* RAG Context Indicator */}
-                        {ragEnabled && lastRagPagesUsed > 0 && (
-                          <div className="mb-3 flex items-center gap-2">
+                        {(ragEnabled && lastRagPagesUsed > 0) || (storedRagMetadata?.ragEnabled && storedRagMetadata?.ragPagesUsed > 0) ? (
+                          <div className="mb-3 flex items-center gap-2 flex-wrap">
                             <Badge 
                               variant="outline" 
                               className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200 px-2 py-1"
                             >
                               {rtl 
-                                ? `استخدام سياق من ${lastRagPagesUsed} صفحة سابقة`
-                                : `Using context from ${lastRagPagesUsed} previous pages`
+                                ? `استخدام سياق من ${storedRagMetadata?.ragPagesUsed || lastRagPagesUsed} صفحة سابقة`
+                                : `Using context from ${storedRagMetadata?.ragPagesUsed || lastRagPagesUsed} previous pages`
                               }
                             </Badge>
+                            {storedRagMetadata?.ragPagesIncluded && storedRagMetadata.ragPagesIncluded.length > 0 && (
+                              <div className="text-xs text-muted-foreground">
+                                {rtl ? 'الصفحات: ' : 'Pages: '}
+                                {storedRagMetadata.ragPagesIncluded.map((p: any, i: number) => (
+                                  <span key={i} className="mr-1">
+                                    {p.pageNumber}{p.similarity ? ` (${(p.similarity * 100).toFixed(0)}%)` : ''}
+                                    {i < storedRagMetadata.ragPagesIncluded.length - 1 ? ', ' : ''}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        ) : null}
                         <EnhancedSummary
                           summary={summary}
                           onSummaryChange={newSummary => {
