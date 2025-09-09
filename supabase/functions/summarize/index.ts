@@ -316,7 +316,14 @@ Use tables when necessary
 - Question format: **س: [number]- [exact question text]**
 - Answer format: **ج:** [complete step-by-step solution]
 ${hasMultipleChoice ? `
-- MULTIPLE CHOICE FORMAT: 
+- TRUE/FALSE EXERCISE FORMAT (when question has multiple T/F statements):
+  * **Q[number] [question text]**
+  * 1. [statement] T | F
+  * 2. [statement] T | F
+  * 3. [statement] T | F
+  * 4. [statement] T | F
+  * 5. [statement] T | F
+- MULTIPLE CHOICE FORMAT (for regular multiple choice): 
   * **س: [number]- [question text]**
   * List answer choices if present: أ) [choice A] ب) [choice B] ج) [choice C] د) [choice D]
   * **ج:** [reasoning/calculation] **الإجابة الصحيحة: [letter]**` : ''}
