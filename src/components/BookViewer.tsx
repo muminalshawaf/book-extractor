@@ -491,7 +491,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
 
   // Helper function to generate embedding for current page after OCR
   const generateEmbeddingForCurrentPage = useCallback(async (ocrText: string) => {
-    if (!ocrText || !dbBookId || ocrText.length < 50) return;
+    console.log('🔍 DEBUG: generateEmbeddingForCurrentPage called with:', { ocrText: ocrText?.substring(0, 100) + '...', ocrTextLength: ocrText?.length, dbBookId, pageNumber: index + 1 });
+    
+    if (!ocrText || !dbBookId || ocrText.length < 50) {
+      console.log('🚫 Skipping embedding generation:', { hasOcrText: !!ocrText, hasDbBookId: !!dbBookId, textLength: ocrText?.length });
+      return;
+    }
     
     try {
       console.log('Generating embedding for current page:', index + 1);
@@ -678,6 +683,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         console.log('OCR text saved successfully for page', index + 1, 'Result:', saveResult);
         
         // Generate embedding for RAG indexing (async, non-blocking)
+        console.log('🎯 About to call generateEmbeddingForCurrentPage in simple OCR flow with cleanText length:', cleanText?.length);
         generateEmbeddingForCurrentPage(cleanText);
         
         // Force UI refresh to show the extracted text
@@ -1110,6 +1116,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         });
         
         // Generate embedding for RAG indexing (async, non-blocking)
+        console.log('🎯 About to call generateEmbeddingForCurrentPage in comprehensive flow with cleanedOcrText length:', cleanedOcrText?.length);
         generateEmbeddingForCurrentPage(cleanedOcrText);
         
         // Update localStorage cache
