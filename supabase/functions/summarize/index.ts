@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Enhanced question parsing function with MC detection
+// Enhanced question parsing function with section-aware parsing
 function parseQuestions(text: string): Array<{number: string, text: string, fullMatch: string, isMultipleChoice: boolean}> {
   const questions = [];
   
@@ -16,7 +16,47 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
                                    text.includes('اختيار من متعدد') ||
                                    /[أاب][.\)]\s*.*[ب][.\)]\s*.*[ج][.\)]\s*.*[د][.\)]/s.test(text);
   
-  // Enhanced regex patterns for Arabic and English question numbers with various formats
+  // First, try to parse section-based questions (more accurate for structured content)
+  const sectionMatches = text.match(/--- SECTION: (\d+) ---\s*([\s\S]*?)(?=--- SECTION: \d+ ---|$)/g);
+  
+  if (sectionMatches && sectionMatches.length > 0) {
+    console.log(`Found ${sectionMatches.length} structured sections`);
+    
+    sectionMatches.forEach((section, index) => {
+      const sectionNumber = (index + 1).toString();
+      const sectionContent = section.replace(/--- SECTION: \d+ ---\s*/, '').trim();
+      
+      // Skip if section is too short or contains only visual context
+      if (sectionContent.length > 20 && !sectionContent.startsWith('**TABLE**') && !sectionContent.startsWith('**IMAGE**')) {
+        // Extract the main question text (before any numbered sub-items)
+        let questionText = sectionContent;
+        
+        // If there are numbered sub-items, get the question text before them
+        const subItemMatch = sectionContent.match(/^(.*?)(?=\n\s*\d+\.)/s);
+        if (subItemMatch) {
+          questionText = subItemMatch[1].trim();
+          // Remove "Question Text:" prefix if present
+          questionText = questionText.replace(/^Question Text:\s*/, '');
+        }
+        
+        if (questionText.length > 10) {
+          questions.push({
+            number: sectionNumber,
+            text: questionText,
+            fullMatch: section,
+            isMultipleChoice: isMultipleChoiceSection
+          });
+        }
+      }
+    });
+    
+    console.log(`Parsed ${questions.length} questions from structured sections:`, 
+      questions.map(q => q.number).join(', '));
+    
+    return questions;
+  }
+  
+  // Fallback to legacy parsing for non-structured content
   const questionPatterns = [
     /(\d+)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=\d+\.|$))/gm, // English numbers: 93. question text
     /([٩٠-٩٩]+[٠-٩]*)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=[٩٠-٩٩]+[٠-٩]*\.|$))/gm, // Arabic numbers: ٩٣. question text
@@ -30,7 +70,8 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
       const questionNumber = match[1].trim();
       const questionText = match[2].trim();
       
-      if (questionText.length > 10) { // Filter out very short matches
+      // Skip if this looks like a sub-item within a larger question
+      if (questionText.length > 10 && !questionText.includes('Options:')) {
         questions.push({
           number: questionNumber,
           text: questionText,
