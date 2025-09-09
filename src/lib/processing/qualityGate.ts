@@ -37,10 +37,10 @@ export interface RepairContext {
 
 const DEFAULT_OPTIONS: QualityGateOptions = {
   minOcrConfidence: 0.3, // Very lenient OCR threshold
-  minSummaryConfidence: 0.5, // Lower threshold for acceptance
-  enableRepair: true,
-  repairThreshold: 0.65, // Lower threshold for triggering repair
-  maxRepairAttempts: 1 // One repair attempt to avoid API cost spiral
+  minSummaryConfidence: 0.4, // Lower threshold for acceptance
+  enableRepair: false, // Disabled for better performance
+  repairThreshold: 0.35, // Lower threshold for triggering repair
+  maxRepairAttempts: 0 // No repair attempts for better performance
 };
 
 function generateRepairPrompt(context: RepairContext): string {
@@ -224,10 +224,10 @@ export async function runQualityGate(
         title: context.bookTitle,
         ocrData: context.ocrData,
         isRepair: true // Signal this is a repair attempt
-      }, { timeout: 60000, retries: 1 }), // Reduced timeout to 60 seconds
+      }, { timeout: 20000, retries: 0 }), // Much shorter timeout for better performance
       
       new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Repair timeout after 60 seconds')), 60000)
+        setTimeout(() => reject(new Error('Repair timeout after 20 seconds')), 20000)
       )
     ]);
     
