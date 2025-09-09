@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Play, Square, RefreshCw, CheckCircle, XCircle, Clock, Settings, Zap, Shield } from "lucide-react";
+import { ArrowLeft, Play, Square, RefreshCw, CheckCircle, XCircle, Clock, Settings, Zap, Shield, Database } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { callFunction } from "@/lib/functionsClient";
@@ -668,6 +668,25 @@ const AdminProcessing = () => {
       />
       
       <div className="container max-w-4xl mx-auto py-8 px-4">
+        {/* Admin Navigation */}
+        <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-muted/50">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Settings className="w-4 h-4" />
+            Admin Panel:
+          </div>
+          <Link to="/admin/processing">
+            <Button variant="ghost" size="sm" className="h-8">
+              Book Processing
+            </Button>
+          </Link>
+          <Link to="/admin/rag">
+            <Button variant="ghost" size="sm" className="h-8">
+              <Database className="w-4 h-4 mr-1" />
+              RAG System
+            </Button>
+          </Link>
+        </div>
+        
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" onClick={() => navigate(-1)} className="shrink-0">
             <ArrowLeft className="w-4 h-4 mr-2" />

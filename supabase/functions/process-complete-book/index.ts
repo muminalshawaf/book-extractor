@@ -108,26 +108,63 @@ Deno.serve(async (req) => {
             const ocrConfidence = ocrResult.confidence || 0.8
             
             console.log(`Page ${pageNum}: OCR completed (${ocrText.length} chars)`)
+
+            // Step 1.5: Generate embedding for the OCR text
+            let embedding = null
+            let embeddingModel = null
+            try {
+              if (ocrText && ocrText.trim().length > 50) {
+                const embeddingResult = await callEdgeFunction('generate-embedding', {
+                  text: ocrText
+                })
+                embedding = embeddingResult.embedding
+                embeddingModel = 'text-embedding-004'
+                console.log(`Page ${pageNum}: Embedding generated`)
+              }
+            } catch (embeddingError) {
+              console.log(`Page ${pageNum}: Embedding generation failed:`, embeddingError)
+              // Continue without embedding - it can be generated later via backfill
+            }
             
-            // Step 2: Generate summary if OCR was successful
+            // Step 2: Generate RAG-enhanced summary if OCR was successful
             let summary = ''
             if (ocrText && ocrText.length > 50) {
               try {
+                // Retrieve RAG context from previous pages (if any)
+                let ragContext = []
+                if (pageNum > 1) {
+                  try {
+                    // Get similar pages from processed pages so far
+                    const ragResult = await callEdgeFunction('get-rag-context', {
+                      book_id,
+                      current_page: pageNum,
+                      query_text: ocrText,
+                      max_pages: 3
+                    })
+                    ragContext = ragResult.context || []
+                    console.log(`Page ${pageNum}: Retrieved ${ragContext.length} context pages`)
+                  } catch (ragError) {
+                    console.log(`Page ${pageNum}: RAG context retrieval failed:`, ragError)
+                    // Continue without RAG context
+                  }
+                }
+
                 const summaryResult = await callEdgeFunction('summarize', {
                   text: ocrText,
                   lang: 'ar',
                   page: pageNum,
                   title: title || book_id,
-                  ocrData: ocrResult
+                  ocrData: ocrResult,
+                  ragContext: ragContext // Pass RAG context to summarize function
                 })
                 summary = summaryResult.summary || ''
-                console.log(`Page ${pageNum}: Summary generated (${summary.length} chars)`)
+                console.log(`Page ${pageNum}: RAG-enhanced summary generated (${summary.length} chars)`)
               } catch (summaryError) {
                 console.error(`Page ${pageNum}: Summary generation failed:`, summaryError)
               }
             }
             
-            // Step 3: Save to database
+            // Step 3: Save to database with embedding
             const { error: upsertError } = await supabaseAdmin
               .from('page_summaries')
               .upsert({
@@ -137,6 +174,9 @@ Deno.serve(async (req) => {
                 summary_md: summary,
                 ocr_confidence: ocrConfidence,
                 confidence: summary ? 0.8 : 0.0,
+                embedding: embedding ? `[${embedding.join(',')}]` : null,
+                embedding_model: embeddingModel,
+                embedding_updated_at: embedding ? new Date().toISOString() : null,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
               }, { 

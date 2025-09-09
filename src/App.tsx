@@ -13,6 +13,7 @@ import Library from "./pages/Library";
 import LessonPage from "./pages/LessonPage";
 import ChapterPage from "./pages/ChapterPage";
 import AdminProcessing from "./pages/AdminProcessing";
+import RAGAdmin from "./pages/RAGAdmin";
 import GlobalSearch from "./components/search/GlobalSearch";
 
 const queryClient = new QueryClient();
@@ -73,6 +74,7 @@ const App = () => {
             <Route path="/library" element={<Library />} />
             <Route path="/book/:bookId" element={<Index />} />
             <Route path="/admin/processing" element={<AdminProcessing />} />
+            <Route path="/admin/rag" element={<RAGAdmin />} />
             
             {/* New SEO-optimized routes with Arabic slugs */}
             <Route path="/:bookSlug/الفصل-:chapterNumber" element={<ChapterPage />} />
