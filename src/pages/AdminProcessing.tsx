@@ -595,9 +595,11 @@ const AdminProcessing = () => {
                            (finalSummary && !existingData?.summary_md) || 
                            !skipProcessed;
           
+          let saveResult: any = null;
+          
            if (shouldSave) {
             try {
-               const saveResult = await callFunction('save-page-summary', {
+               saveResult = await callFunction('save-page-summary', {
                  book_id: selectedBookId,
                  page_number: pageNum,
                  ocr_text: cleanedOcrText || ocrText, // Save cleaned text
@@ -653,27 +655,7 @@ const AdminProcessing = () => {
             }
           }
 
-          // Record successful processing
-          const saveResult = await callFunction('save-page-summary', {
-            book_id: selectedBookId,
-            page_number: pageNum,
-            ocr_text: cleanedOcrText || ocrText,
-            summary_md: finalSummary,
-            ocr_confidence: ocrConfidence,
-            confidence: summaryConfidence,
-            rag_pages_sent: ragPagesActuallySent,
-            rag_metadata: {
-              ragEnabled: ragEnabled,
-              ragPagesUsed: ragContext.length,
-              ragPagesIncluded: ragContext.map(ctx => ({
-                pageNumber: ctx.pageNumber,
-                title: ctx.title,
-                similarity: ctx.similarity
-              })),
-              ragThreshold: 0.4, // Matches the hardcoded value from retrieval
-              ragMaxPages: 3      // Matches the hardcoded value from retrieval
-            }
-          });
+          // Processing completed successfully - no additional save needed since we already saved above
 
           setPageResults(prev => [...prev, {
             pageNumber: pageNum,

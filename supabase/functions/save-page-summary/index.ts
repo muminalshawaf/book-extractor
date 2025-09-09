@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
       // Continue anyway - the book might already exist
     }
 
-    const upsertData = {
+    const upsertData: any = {
       book_id,
       page_number,
       ocr_text,
@@ -135,12 +135,29 @@ Deno.serve(async (req) => {
       ocr_confidence: ocr_confidence || 0.8,
       confidence: confidence || 0.8,
       summary_json: rag_metadata || null,
-      rag_pages_sent: rag_pages_sent || 0,
-      rag_pages_found: rag_pages_found || 0,
-      rag_pages_sent_list: rag_pages_sent_list || [],
-      rag_context_chars: rag_context_chars || 0,
       updated_at: new Date().toISOString()
     }
+
+    // Only include RAG fields if they are provided (not undefined)
+    if (rag_pages_sent !== undefined) {
+      upsertData.rag_pages_sent = rag_pages_sent;
+    }
+    if (rag_pages_found !== undefined) {
+      upsertData.rag_pages_found = rag_pages_found;
+    }
+    if (rag_pages_sent_list !== undefined) {
+      upsertData.rag_pages_sent_list = rag_pages_sent_list;
+    }
+    if (rag_context_chars !== undefined) {
+      upsertData.rag_context_chars = rag_context_chars;
+    }
+
+    console.log('RAG fields being saved:', {
+      rag_pages_sent: rag_pages_sent,
+      rag_pages_found: rag_pages_found,
+      rag_pages_sent_list: rag_pages_sent_list?.length,
+      rag_context_chars: rag_context_chars
+    });
     
     console.log('Attempting upsert with data:', JSON.stringify(upsertData))
 
