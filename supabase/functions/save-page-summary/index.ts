@@ -5,37 +5,32 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Generate embedding using Google text-embedding-004
+// Generate embedding by calling the existing generate-embedding function
 async function generateEmbedding(text: string): Promise<number[]> {
-  const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
-  if (!googleApiKey) {
-    throw new Error('GOOGLE_API_KEY not configured');
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase environment variables not configured');
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedText?key=${googleApiKey}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: "models/text-embedding-004",
-        content: {
-          parts: [{ text: text.slice(0, 20000) }]
-        }
-      }),
-    }
-  );
+  const response = await fetch(`${supabaseUrl}/functions/v1/generate-embedding`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${supabaseAnonKey}`,
+    },
+    body: JSON.stringify({ text: text.slice(0, 20000) }),
+  });
 
   if (!response.ok) {
     const error = await response.text();
-    console.error('Google Embedding API error:', error);
+    console.error('Generate embedding function error:', error);
     throw new Error(`Embedding generation failed: ${response.status}`);
   }
 
   const data = await response.json();
-  return data.embedding?.values || [];
+  return data.embedding || [];
 }
 
 Deno.serve(async (req) => {
