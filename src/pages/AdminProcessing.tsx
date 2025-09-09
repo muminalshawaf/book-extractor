@@ -12,6 +12,7 @@ import { ArrowLeft, Play, Square, RefreshCw, CheckCircle, XCircle, Clock, Settin
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { callFunction } from "@/lib/functionsClient";
+import { retrieveRAGContext, buildRAGPrompt } from "@/lib/rag/ragUtils";
 import { enhancedBooks } from "@/data/enhancedBooks";
 import DynamicSEOHead from "@/components/seo/DynamicSEOHead";
 import { ProcessingVerification } from "@/components/ProcessingVerification";
@@ -88,6 +89,7 @@ const AdminProcessing = () => {
     repairThreshold: 0.7,
     maxRepairAttempts: 1
   });
+  const [ragEnabled, setRagEnabled] = useState(false);
   const [status, setStatus] = useState<ProcessingStatus>({
     isRunning: false,
     currentPage: 0,
@@ -390,12 +392,47 @@ const AdminProcessing = () => {
             addLog(`📝 Page ${pageNum}: Generating summary...`);
             
             try {
+              // RAG Context Retrieval (if enabled)
+              let enhancedText = cleanedOcrText;
+              let ragContext = [];
+              
+              if (ragEnabled && selectedBookId && cleanedOcrText.trim()) {
+                try {
+                  addLog(`🔍 Page ${pageNum}: Fetching RAG context from previous pages...`);
+                  ragContext = await retrieveRAGContext(
+                    selectedBookId,
+                    pageNum, // current page (1-based)
+                    cleanedOcrText,
+                    {
+                      enabled: true,
+                      maxContextPages: 3,
+                      similarityThreshold: 0.4,
+                      maxContextLength: 2000
+                    }
+                  );
+                  
+                  if (ragContext.length > 0) {
+                    enhancedText = buildRAGPrompt(cleanedOcrText, cleanedOcrText, ragContext, {
+                      enabled: true,
+                      maxContextLength: 2000
+                    });
+                    addLog(`✅ Page ${pageNum}: RAG context integrated (${ragContext.length} relevant pages found)`);
+                  } else {
+                    addLog(`ℹ️ Page ${pageNum}: No relevant RAG context found`);
+                  }
+                } catch (ragError) {
+                  addLog(`⚠️ Page ${pageNum}: RAG context retrieval failed (continuing without): ${ragError.message}`);
+                  ragContext = [];
+                }
+              }
+
               const summaryResult = await callFunction('summarize', {
-                text: cleanedOcrText, // Use cleaned text
+                text: enhancedText, // Use RAG-enhanced text if available
                 lang: 'ar',
                 page: pageNum,
                 title: selectedBook.title,
-                ocrData: ocrResult // Pass the full OCR result with page context
+                ocrData: ocrResult, // Pass the full OCR result with page context
+                ragContext: ragContext // Pass RAG context to summarize function
               }, { timeout: 180000, retries: 1 }); // 3 minute timeout, 1 retry for summarization
               
               // Check if processing was stopped during summary generation
@@ -947,6 +984,23 @@ const AdminProcessing = () => {
                     onCheckedChange={(checked) =>
                       setProcessingConfig(prev => ({ ...prev, enableQualityGate: checked }))
                     }
+                    disabled={status.isRunning}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Database className="w-4 h-4" />
+                      RAG Enhancement
+                    </label>
+                    <div className="text-xs text-muted-foreground">
+                      Use context from previous pages
+                    </div>
+                  </div>
+                  <Switch
+                    checked={ragEnabled}
+                    onCheckedChange={setRagEnabled}
                     disabled={status.isRunning}
                   />
                 </div>

@@ -102,8 +102,8 @@ serve(async (req) => {
   try {
     console.log('Summarize function started');
     
-    const { text, lang = "ar", page, title, ocrData = null } = await req.json();
-    console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title} }`);
+    const { text, lang = "ar", page, title, ocrData = null, ragContext = null } = await req.json();
+    console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title}, ragContext: ${ragContext ? `${ragContext.length} pages` : 'none'} }`);
     
     // Log model usage priority
     // Model selection already logged above
@@ -205,8 +205,37 @@ Rows:`;
       }
     }
 
-    // Enhanced text with visual context
-    const enhancedText = text + visualElementsText;
+    // Build RAG context section if provided
+    let ragContextSection = '';
+    if (ragContext && Array.isArray(ragContext) && ragContext.length > 0) {
+      console.log(`Building RAG context from ${ragContext.length} previous pages`);
+      ragContextSection = "\n\nContext from previous pages in the book:\n---\n";
+      
+      let totalLength = ragContextSection.length;
+      const maxContextLength = 2000; // Conservative limit
+      
+      for (const context of ragContext) {
+        const pageContext = `Page ${context.pageNumber}${context.title ? ` (${context.title})` : ''}:\n${context.content || context.ocr_text || ''}\n\n`;
+        
+        if (totalLength + pageContext.length > maxContextLength) {
+          // Truncate to fit within limits
+          const remainingLength = maxContextLength - totalLength - 20;
+          if (remainingLength > 100) {
+            ragContextSection += pageContext.slice(0, remainingLength) + "...\n\n";
+          }
+          break;
+        }
+        
+        ragContextSection += pageContext;
+        totalLength += pageContext.length;
+      }
+      
+      ragContextSection += "---\n\n";
+      console.log(`RAG context section built: ${totalLength} characters from ${ragContext.length} pages`);
+    }
+
+    // Enhanced text with visual context and RAG context
+    const enhancedText = ragContextSection + text + visualElementsText;
 
     // Create optimized prompt for question processing
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
