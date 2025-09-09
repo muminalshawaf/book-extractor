@@ -709,12 +709,31 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         throw new Error(`Google Gemini OCR failed: ${geminiError.message || geminiError}`);
       }
       
-      if (!geminiResult?.text || geminiResult.text.trim().length <= 3) {
+      // Extract the actual text from the Gemini response
+      let extractedText = '';
+      if (geminiResult?.text) {
+        extractedText = geminiResult.text;
+      } else if (typeof geminiResult === 'string') {
+        try {
+          const parsed = JSON.parse(geminiResult);
+          extractedText = parsed.text || '';
+        } catch {
+          extractedText = geminiResult;
+        }
+      }
+      
+      console.log('Processed extracted text:', {
+        length: extractedText.length,
+        preview: extractedText.substring(0, 200) + '...',
+        isArabic: /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(extractedText)
+      });
+      
+      if (!extractedText || extractedText.trim().length <= 3) {
         throw new Error('Google Gemini OCR returned empty or insufficient text');
       }
 
       const result = {
-        text: geminiResult.text,
+        text: extractedText,
         confidence: geminiResult.confidence || 0.85,
         source: 'gemini'
       };
