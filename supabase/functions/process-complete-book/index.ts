@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
                 summary_md: summary,
                 ocr_confidence: ocrConfidence,
                 confidence: summary ? 0.8 : 0.0,
-                embedding: embedding ? `[${embedding.join(',')}]` : null,
+                embedding: embedding || null,
                 embedding_model: embeddingModel,
                 embedding_updated_at: embedding ? new Date().toISOString() : null,
                 created_at: new Date().toISOString(),

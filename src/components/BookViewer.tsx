@@ -489,6 +489,35 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     console.log('RAG toggled:', newValue ? 'enabled' : 'disabled');
   }, [ragEnabled]);
 
+  // Debug helper function - can be called from browser console
+  const backfillEmbeddings = useCallback(async () => {
+    if (!dbBookId) {
+      console.error('No book ID available');
+      return;
+    }
+    
+    console.log('🚀 Starting embedding backfill for book:', dbBookId);
+    try {
+      const result = await callFunction('backfill-embeddings', {
+        book_id: dbBookId,
+        batch_size: 3
+      });
+      console.log('✅ Backfill completed:', result);
+      toast.success('Embeddings generated successfully!');
+    } catch (error) {
+      console.error('❌ Backfill failed:', error);
+      toast.error('Failed to generate embeddings');
+    }
+  }, [dbBookId]);
+
+  // Make function available globally for debugging
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).backfillEmbeddings = backfillEmbeddings;
+      console.log('📝 Debug function available: window.backfillEmbeddings()');
+    }
+  }, [backfillEmbeddings]);
+
   // Helper function to generate embedding for current page after OCR
   const generateEmbeddingForCurrentPage = useCallback(async (ocrText: string) => {
     console.log('🔍 DEBUG: generateEmbeddingForCurrentPage called with:', { ocrText: ocrText?.substring(0, 100) + '...', ocrTextLength: ocrText?.length, dbBookId, pageNumber: index + 1 });
