@@ -15,7 +15,7 @@ import { callFunction } from "@/lib/functionsClient";
 import { retrieveRAGContext, buildRAGPrompt } from "@/lib/rag/ragUtils";
 import { enhancedBooks } from "@/data/enhancedBooks";
 import DynamicSEOHead from "@/components/seo/DynamicSEOHead";
-import { ProcessingVerification } from "@/components/ProcessingVerification";
+
 import { cleanOcrText } from "@/lib/ocr/ocrTextCleaner";
 import { runQualityGate, type QualityGateOptions, type QualityResult } from "@/lib/processing/qualityGate";
 import { 
@@ -823,8 +823,6 @@ const AdminProcessing = () => {
             }}
           />
 
-          {/* Verification Tests */}
-          <ProcessingVerification />
 
           {/* Book Selection */}
           <Card>
