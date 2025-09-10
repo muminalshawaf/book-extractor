@@ -22,33 +22,88 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
   if (sectionMatches && sectionMatches.length > 0) {
     console.log(`Found ${sectionMatches.length} structured sections`);
     
-    sectionMatches.forEach((section, index) => {
-      const sectionNumber = (index + 1).toString();
-      const sectionContent = section.replace(/--- SECTION: \d+ ---\s*/, '').trim();
-      
-      // Skip if section is too short or contains only visual context
-      if (sectionContent.length > 20 && !sectionContent.startsWith('**TABLE**') && !sectionContent.startsWith('**IMAGE**')) {
-        // Extract the main question text (before any numbered sub-items)
-        let questionText = sectionContent;
-        
-        // If there are numbered sub-items, get the question text before them
-        const subItemMatch = sectionContent.match(/^(.*?)(?=\n\s*\d+\.)/s);
-        if (subItemMatch) {
-          questionText = subItemMatch[1].trim();
-          // Remove "Question Text:" prefix if present
-          questionText = questionText.replace(/^Question Text:\s*/, '');
+    // Parse the raw OCR data to identify actual exercise sections
+    const ocrText = text.includes('"sections":') ? text : '';
+    const actualQuestions = [];
+    
+    if (ocrText) {
+      try {
+        // Extract sections from OCR data
+        const sectionsMatch = ocrText.match(/"sections":\s*\[([\s\S]*?)\]/);
+        if (sectionsMatch) {
+          const sectionsText = sectionsMatch[1];
+          const exerciseMatches = sectionsText.match(/"type":\s*"exercise"[^}]*"title":\s*"([^"]*)"[^}]*"content":\s*"([^"]*(?:\\.[^"]*)*)"/g);
+          
+          if (exerciseMatches) {
+            exerciseMatches.forEach((match) => {
+              const titleMatch = match.match(/"title":\s*"([^"]*)"/);
+              const contentMatch = match.match(/"content":\s*"([^"]*(?:\\.[^"]*)*)"/);
+              
+              if (titleMatch && contentMatch) {
+                const questionNumber = titleMatch[1];
+                let questionText = contentMatch[1]
+                  .replace(/\\n/g, ' ')
+                  .replace(/\\"/g, '"')
+                  .trim();
+                
+                if (questionText.length > 10) {
+                  actualQuestions.push({
+                    number: questionNumber,
+                    text: questionText,
+                    fullMatch: match,
+                    isMultipleChoice: isMultipleChoiceSection
+                  });
+                }
+              }
+            });
+          }
         }
-        
-        if (questionText.length > 10) {
-          questions.push({
-            number: sectionNumber,
-            text: questionText,
-            fullMatch: section,
-            isMultipleChoice: isMultipleChoiceSection
-          });
-        }
+      } catch (error) {
+        console.error('Error parsing OCR sections:', error);
       }
-    });
+    }
+    
+    // If we found actual exercise questions, use those
+    if (actualQuestions.length > 0) {
+      console.log(`Found ${actualQuestions.length} actual exercise questions:`, 
+        actualQuestions.map(q => q.number).join(', '));
+      questions.push(...actualQuestions);
+    } else {
+      // Fallback to section-based parsing with better filtering
+      sectionMatches.forEach((section, index) => {
+        const sectionNumber = (index + 1).toString();
+        const sectionContent = section.replace(/--- SECTION: \d+ ---\s*/, '').trim();
+        
+        // Skip if section is too short, contains only visual context, or is clearly not a question
+        if (sectionContent.length > 20 && 
+            !sectionContent.startsWith('**TABLE**') && 
+            !sectionContent.startsWith('**IMAGE**') &&
+            !sectionContent.includes('وزارة التعليم') &&
+            !sectionContent.match(/^\d+$/) && // Skip page numbers
+            !sectionContent.includes('Ministry of Education')) {
+          
+          // Extract the main question text (before any numbered sub-items)
+          let questionText = sectionContent;
+          
+          // If there are numbered sub-items, get the question text before them
+          const subItemMatch = sectionContent.match(/^(.*?)(?=\n\s*\d+\.)/s);
+          if (subItemMatch) {
+            questionText = subItemMatch[1].trim();
+            // Remove "Question Text:" prefix if present
+            questionText = questionText.replace(/^Question Text:\s*/, '');
+          }
+          
+          if (questionText.length > 10) {
+            questions.push({
+              number: sectionNumber,
+              text: questionText,
+              fullMatch: section,
+              isMultipleChoice: isMultipleChoiceSection
+            });
+          }
+        }
+      });
+    }
     
     console.log(`Parsed ${questions.length} questions from structured sections:`, 
       questions.map(q => q.number).join(', '));
