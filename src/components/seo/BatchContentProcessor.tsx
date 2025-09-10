@@ -3,7 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Play, Square } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Loader2, Play, Square, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +31,7 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
 }) => {
   const [rangeStart, setRangeStart] = useState(1);
   const [rangeEnd, setRangeEnd] = useState(Math.min(3, totalPages));
+  const [strictMode, setStrictMode] = useState(false);
   const [progress, setProgress] = useState<BatchProgress>({
     current: 0,
     total: 0,
@@ -105,8 +108,22 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
             const processPromise = callFunction('summarize', {
               book_id: bookId,
               page_number: pageNum,
-              force_regenerate: true
-            }, { timeout: 85000 }); // 85 second function timeout
+              force_regenerate: true,
+              strictMode: strictMode,
+              qualityOptions: strictMode ? {
+                minSummaryConfidence: 0.75,
+                enableRepair: true,
+                repairThreshold: 0.7,
+                maxRepairAttempts: 2,
+                minCoverage: 0.6
+              } : undefined,
+              ragOptions: strictMode ? {
+                enabled: true,
+                maxContextPages: 2,
+                similarityThreshold: 0.85,
+                maxContextLength: 3000
+              } : undefined
+            }, { timeout: strictMode ? 120000 : 85000 }); // Longer timeout for strict mode
 
             // Check for "Processing Frozen" status by monitoring the process
             const result = await Promise.race([processPromise, timeoutPromise]);
@@ -250,28 +267,43 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
-          <Input
-            type="number"
-            min={1}
-            max={totalPages}
-            value={rangeStart}
-            onChange={(e) => setRangeStart(Math.max(1, parseInt(e.target.value) || 1))}
-            className="w-20"
-            placeholder={rtl ? "من" : "From"}
-            disabled={isRunning}
-          />
-          <span className="text-muted-foreground">-</span>
-          <Input
-            type="number"
-            min={1}
-            max={totalPages}
-            value={rangeEnd}
-            onChange={(e) => setRangeEnd(Math.min(totalPages, parseInt(e.target.value) || totalPages))}
-            className="w-20"
-            placeholder={rtl ? "إلى" : "To"}
-            disabled={isRunning}
-          />
+        <div className={cn("flex items-center gap-3", rtl && "flex-row-reverse")}>
+          <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
+            <Input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={rangeStart}
+              onChange={(e) => setRangeStart(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-20"
+              placeholder={rtl ? "من" : "From"}
+              disabled={isRunning}
+            />
+            <span className="text-muted-foreground">-</span>
+            <Input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={rangeEnd}
+              onChange={(e) => setRangeEnd(Math.min(totalPages, parseInt(e.target.value) || totalPages))}
+              className="w-20"
+              placeholder={rtl ? "إلى" : "To"}
+              disabled={isRunning}
+            />
+          </div>
+          
+          <div className={cn("flex items-center gap-2 px-2 py-1 rounded-md bg-primary/5", rtl && "flex-row-reverse")}>
+            <Shield className="h-3 w-3 text-primary" />
+            <Label htmlFor="strict-mode" className="text-xs font-medium cursor-pointer">
+              {rtl ? "وضع صارم" : "Strict Mode"}
+            </Label>
+            <Switch
+              id="strict-mode"
+              checked={strictMode}
+              onCheckedChange={setStrictMode}
+              disabled={isRunning}
+            />
+          </div>
           {!isRunning ? (
             <Button onClick={processPageRange} variant="default" size="sm">
               <Play className="h-3 w-3 mr-1" />
@@ -324,6 +356,13 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
               ? "💡 نصيحة: معالجة صفحة واحدة في المرة تقلل من مخاطر انقطاع الاتصال"
               : "💡 Tip: Process 1-3 pages at a time to avoid CloudFlare timeouts"}
           </div>
+          {strictMode && (
+            <div className="text-primary font-medium">
+              {rtl 
+                ? "🛡️ الوضع الصارم: جودة عالية، معالجة أبطأ، تغطية أفضل"
+                : "🛡️ Strict Mode: Higher quality, slower processing, better coverage"}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

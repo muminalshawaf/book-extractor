@@ -9,6 +9,7 @@ export interface QualityGateOptions {
   enableRepair: boolean; // whether to attempt repair for low-confidence summaries
   repairThreshold: number; // 0-1, threshold below which repair is attempted
   maxRepairAttempts: number; // maximum number of repair attempts
+  minCoverage?: number; // 0-1, minimum coverage requirement for strict mode
 }
 
 export interface QualityResult {
@@ -172,9 +173,19 @@ export async function runQualityGate(
     };
   }
   
+  // Check coverage requirement for strict mode
+  if (opts.minCoverage && confidenceMeta.coverage < opts.minCoverage) {
+    logs.push(`Coverage ${(confidenceMeta.coverage * 100).toFixed(1)}% below strict mode requirement ${(opts.minCoverage * 100).toFixed(1)}%`);
+    // Don't return false immediately - allow repair to fix coverage
+  }
+  
   // Check if summary meets minimum quality
-  if (summaryConfidence >= opts.minSummaryConfidence) {
+  const coverageMet = !opts.minCoverage || confidenceMeta.coverage >= opts.minCoverage;
+  if (summaryConfidence >= opts.minSummaryConfidence && coverageMet) {
     logs.push(`Summary quality ${(summaryConfidence * 100).toFixed(1)}% meets threshold ${(opts.minSummaryConfidence * 100).toFixed(1)}%`);
+    if (opts.minCoverage) {
+      logs.push(`Coverage ${(confidenceMeta.coverage * 100).toFixed(1)}% meets strict mode requirement ${(opts.minCoverage * 100).toFixed(1)}%`);
+    }
     return {
       passed: true,
       ocrConfidence,
@@ -186,8 +197,10 @@ export async function runQualityGate(
     };
   }
   
-  // Summary quality is below threshold
-  const needsRepair = opts.enableRepair && summaryConfidence < opts.repairThreshold;
+  // Summary quality is below threshold OR coverage is insufficient in strict mode
+  const coverageNeedsRepair = opts.minCoverage && confidenceMeta.coverage < opts.minCoverage;
+  const qualityNeedsRepair = summaryConfidence < opts.repairThreshold;
+  const needsRepair = opts.enableRepair && (qualityNeedsRepair || coverageNeedsRepair);
   
   if (!needsRepair) {
     logs.push(`Summary quality ${(summaryConfidence * 100).toFixed(1)}% below threshold but repair disabled`);
@@ -260,8 +273,15 @@ export async function runQualityGate(
     
     const repairSuccessful = repairedConfidence > summaryConfidence + 0.05; // More lenient improvement threshold
     
+    // Check if repair meets all requirements including coverage for strict mode
+    const repairedCoverageCheck = !opts.minCoverage || calculateSummaryConfidence(
+      ocrText, repairedSummary, ocrConfidence, context.language === 'ar'
+    ).meta.coverage >= opts.minCoverage;
+    
+    const finalPassed = repairedConfidence >= opts.minSummaryConfidence && repairedCoverageCheck;
+    
     return {
-      passed: repairedConfidence >= opts.minSummaryConfidence,
+      passed: finalPassed,
       ocrConfidence,
       summaryConfidence,
       confidenceMeta,
