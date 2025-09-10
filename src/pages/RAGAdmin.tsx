@@ -157,7 +157,7 @@ export default function RAGAdmin() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-muted/50">
         <Button variant="ghost" onClick={() => navigate(-1)} className="shrink-0">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
