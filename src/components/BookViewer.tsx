@@ -1135,28 +1135,73 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         // 3. SUMMARY GENERATION WITH QUALITY GATE (following AdminProcessing pattern)
         console.log(`📝 Page ${pageNum}: Generating summary with quality gate...`);
         
-        // RAG Context Retrieval for force regenerate (if enabled)
+        // RAG Context Retrieval for force regenerate (mirroring admin process)
         let enhancedText = cleanedOcrText;
-        if (ragEnabled) {
-          console.log('RAG enabled: fetching context for force regenerate...');
-          const ragContext = await fetchRagContextIfEnabled(cleanedOcrText);
-          setLastRagPagesUsed(ragContext.length);
-          
-          if (ragContext.length > 0) {
-            enhancedText = buildRAGPrompt(cleanedOcrText, cleanedOcrText, ragContext, {
-              enabled: true,
-              maxContextLength: 2000
-            });
-            console.log('RAG context integrated for force regenerate. Enhanced text length:', enhancedText.length);
+        let ragPagesFound = 0;
+        let ragPagesSent = 0;
+        let ragPagesSentList: number[] = [];
+        let ragContextChars = 0;
+        let ragPagesIncluded: Array<{pageNumber: number; title?: string; similarity: number}> = [];
+        
+        if (ragEnabled && bookId) {
+          console.log(`🔍 Page ${pageNum}: Retrieving RAG context from previous pages...`);
+          try {
+            const ragContext = await retrieveRAGContext(
+              bookId,
+              pageNum, // current page (1-based)
+              cleanedOcrText,
+              {
+                enabled: true,
+                maxContextPages: 3,
+                similarityThreshold: 0.4,
+                maxContextLength: 8000
+              }
+            );
+            
+            ragPagesFound = ragContext.length;
+            
+            if (ragContext.length > 0) {
+              // Build enhanced prompt with RAG context
+              enhancedText = buildRAGPrompt(cleanedOcrText, cleanedOcrText, ragContext, {
+                enabled: true,
+                maxContextLength: 8000
+              });
+              
+              // Track actual RAG usage (pages actually sent to AI)
+              ragPagesSent = ragContext.length;
+              ragPagesSentList = ragContext.map(ctx => ctx.pageNumber);
+              ragContextChars = ragContext.reduce((total, ctx) => total + (ctx.content?.length || 0), 0);
+              ragPagesIncluded = ragContext.map(ctx => ({
+                pageNumber: ctx.pageNumber,
+                title: ctx.title || null,
+                similarity: ctx.similarity
+              }));
+              
+              const contextPages = ragContext.map(ctx => ctx.pageNumber).join(', ');
+              console.log(`✅ Page ${pageNum}: RAG found ${ragPagesFound} pages, sent ${ragPagesSent} pages (${ragContextChars} chars): ${contextPages}`);
+              setLastRagPagesUsed(ragPagesSent);
+            } else {
+              console.log(`ℹ️ Page ${pageNum}: No relevant RAG context found`);
+              setLastRagPagesUsed(0);
+            }
+          } catch (ragError) {
+            console.log(`⚠️ Page ${pageNum}: RAG context retrieval failed (continuing without): ${ragError.message}`);
+            setLastRagPagesUsed(0);
           }
         }
         
         const summaryResult = await callFunction('summarize', {
-          text: enhancedText, // Use RAG-enhanced text if available
+          text: cleanedOcrText, // Use cleaned text without pre-injection
           lang: 'ar',
           page: pageNum,
           title: title,
-          ocrData: ocrResult
+          ocrData: ocrResult,
+          ragContext: ragEnabled && ragPagesFound > 0 ? ragPagesIncluded.map(p => ({
+            pageNumber: p.pageNumber,
+            title: p.title,
+            content: '', // Content will be retrieved by summarize function
+            similarity: p.similarity
+          })) : [] // Pass RAG context to summarize function like admin process
         }, { timeout: 180000, retries: 1 });
         
         let summary = summaryResult.summary || '';
@@ -1232,16 +1277,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           summary_md: finalSummary,
           ocr_confidence: ocrConfidence,
           confidence: summaryConfidence,
-          rag_metadata: ragEnabled ? {
-            ragEnabled: true,
-            ragPagesUsed: lastRagPagesUsed,
-            ragPagesIncluded: [], // Not available in this flow
-            ragThreshold: 0.4,
-            ragMaxPages: 3
-          } : {
-            ragEnabled: false,
-            ragPagesUsed: 0,
-            ragPagesIncluded: [],
+          // RAG tracking fields (mirroring admin process)
+          rag_pages_sent: ragPagesSent,
+          rag_pages_found: ragPagesFound,
+          rag_pages_sent_list: ragPagesSentList,
+          rag_context_chars: ragContextChars,
+          rag_metadata: {
+            ragEnabled: ragEnabled,
+            ragPagesUsed: ragPagesSent,
+            ragPagesIncluded: ragPagesIncluded,
             ragThreshold: 0.4,
             ragMaxPages: 3
           }
