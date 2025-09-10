@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, Database, Zap, BookOpen, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, Database, Zap, BookOpen, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -27,6 +28,7 @@ interface BookStatus {
 }
 
 export default function RAGAdmin() {
+  const navigate = useNavigate();
   const [isBackfillRunning, setIsBackfillRunning] = useState(false);
   const [ragEnabled, setRagEnabled] = useState(false);
   const [books, setBooks] = useState<BookStatus[]>([]);
@@ -155,6 +157,13 @@ export default function RAGAdmin() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center gap-4 mb-6">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="shrink-0">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+      </div>
+      
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">RAG Administration</h1>
