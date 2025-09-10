@@ -92,7 +92,6 @@ const AdminProcessing = () => {
     maxRepairAttempts: 1
   });
   const [ragEnabled, setRagEnabled] = useState(false);
-  const [strictMode, setStrictMode] = useState(false);
   const [status, setStatus] = useState<ProcessingStatus>({
     isRunning: false,
     currentPage: 0,
@@ -432,27 +431,8 @@ const AdminProcessing = () => {
                 page: pageNum,
                 title: selectedBook.title,
                 ocrData: ocrResult, // Pass the full OCR result with page context
-                ragContext: ragContext, // Pass RAG context to summarize function
-                strictMode: strictMode,
-                qualityOptions: strictMode ? {
-                  minSummaryConfidence: 0.75,
-                  enableRepair: true,
-                  repairThreshold: 0.7,
-                  maxRepairAttempts: 2,
-                  minCoverage: 0.6
-                } : undefined,
-                ragOptions: strictMode ? {
-                  enabled: true,
-                  maxContextPages: 2,
-                  similarityThreshold: 0.85,
-                  maxContextLength: 3000
-                } : ragEnabled ? {
-                  enabled: true,
-                  maxContextPages: 3,
-                  similarityThreshold: 0.4,
-                  maxContextLength: 8000
-                } : undefined
-              }, { timeout: strictMode ? 240000 : 180000, retries: 1 }); // Longer timeout for strict mode
+                ragContext: ragContext // Pass RAG context to summarize function
+              }, { timeout: 180000, retries: 1 }); // 3 minute timeout, 1 retry for summarization
               
               // Check if processing was stopped during summary generation
               if (!isRunningRef.current) {
@@ -997,23 +977,6 @@ const AdminProcessing = () => {
             <CardContent className="space-y-4">
               {/* Basic Settings */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <label className="text-sm font-medium flex items-center gap-2">
-                      <Shield className="w-4 h-4" />
-                      Strict Match Mode
-                    </label>
-                    <div className="text-xs text-muted-foreground">
-                      Higher quality, stricter coverage, slower processing
-                    </div>
-                  </div>
-                  <Switch
-                    checked={strictMode}
-                    onCheckedChange={setStrictMode}
-                    disabled={status.isRunning}
-                  />
-                </div>
-
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <label className="text-sm font-medium flex items-center gap-2">
