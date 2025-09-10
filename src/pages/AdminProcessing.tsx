@@ -975,7 +975,7 @@ const AdminProcessing = () => {
             <CardContent className="space-y-4">
               {/* Basic Settings */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <label className="text-sm font-medium flex items-center gap-2">
                       <Zap className="w-4 h-4" />
@@ -994,7 +994,7 @@ const AdminProcessing = () => {
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <label className="text-sm font-medium flex items-center gap-2">
                       <Shield className="w-4 h-4" />
@@ -1013,7 +1013,7 @@ const AdminProcessing = () => {
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <label className="text-sm font-medium flex items-center gap-2">
                       <Database className="w-4 h-4" />
@@ -1034,7 +1034,7 @@ const AdminProcessing = () => {
               {showAdvancedSettings && (
                 <div className="space-y-4 pt-4 border-t">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                    <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
                         <label className="text-sm font-medium">Jittered Delays</label>
                         <div className="text-xs text-muted-foreground">
@@ -1050,7 +1050,7 @@ const AdminProcessing = () => {
                       />
                     </div>
 
-                    <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                    <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
                         <label className="text-sm font-medium">Skip Non-Content</label>
                         <div className="text-xs text-muted-foreground">
@@ -1066,7 +1066,7 @@ const AdminProcessing = () => {
                       />
                     </div>
 
-                    <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                    <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
                         <label className="text-sm font-medium">Alternative OCR</label>
                         <div className="text-xs text-muted-foreground">
@@ -1082,7 +1082,7 @@ const AdminProcessing = () => {
                       />
                     </div>
 
-                    <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                    <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
                         <label className="text-sm font-medium">Rich Logging</label>
                         <div className="text-xs text-muted-foreground">
@@ -1239,7 +1239,7 @@ const AdminProcessing = () => {
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                  <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <label className="text-sm font-medium">Enable Repair</label>
                       <div className="text-xs text-muted-foreground">

@@ -172,7 +172,7 @@ export default function RAGAdmin() {
           </p>
         </div>
         
-        <div className="flex items-center space-x-2 p-2 bg-muted/30 rounded">
+        <div className="flex items-center space-x-2">
           <Zap className={`h-5 w-5 ${ragEnabled ? 'text-green-500' : 'text-gray-400'}`} />
           <Label htmlFor="rag-toggle">RAG System</Label>
           <Switch
