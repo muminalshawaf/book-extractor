@@ -46,7 +46,7 @@ export const IndexableOCRContent: React.FC<IndexableOCRContentProps> = ({
         <div 
           className={cn(
             "text-sm leading-relaxed bg-muted/30 p-3 rounded border max-h-64 overflow-y-auto",
-            "whitespace-pre-wrap font-mono",
+            "whitespace-pre-wrap",
             rtl && "text-right"
           )}
           dir={rtl ? "rtl" : "ltr"}
