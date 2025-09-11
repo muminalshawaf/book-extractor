@@ -276,22 +276,13 @@ export type Database = {
         Returns: unknown
       }
       match_pages_for_book: {
-        Args:
-          | {
-              current_page_number?: number
-              match_count?: number
-              match_threshold?: number
-              max_page_distance?: number
-              query_embedding: string
-              target_book_id: string
-            }
-          | {
-              current_page_number?: number
-              match_count?: number
-              match_threshold?: number
-              query_embedding: string
-              target_book_id: string
-            }
+        Args: {
+          current_page_number?: number
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+          target_book_id: string
+        }
         Returns: {
           book_id: string
           ocr_text: string

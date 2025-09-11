@@ -155,62 +155,6 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
   return unique;
 }
 
-// Content validation function to prevent corrupted data from being processed
-function validateContent(text: string, bookTitle: string): { isValid: boolean; reason?: string } {
-  // Check for chain-of-thought corruption (thinking process leaked into content)
-  const chainOfThoughtPatterns = [
-    /let me think about this/i,
-    /i need to analyze/i,
-    /looking at this/i,
-    /first, i'll/i,
-    /i should/i,
-    /let me examine/i,
-    /i can see that/i,
-    /from my analysis/i
-  ];
-  
-  for (const pattern of chainOfThoughtPatterns) {
-    if (pattern.test(text)) {
-      return { 
-        isValid: false, 
-        reason: `Chain-of-thought corruption detected: ${pattern.toString()}` 
-      };
-    }
-  }
-  
-  // Check for subject mismatch (chemistry content in AI book, etc.)
-  const isAIBook = bookTitle.includes('الذكاء الإصطناعي') || bookTitle.includes('Artificial Intelligence');
-  const isChemistryBook = bookTitle.includes('الكيمياء') || bookTitle.includes('Chemistry');
-  
-  if (isAIBook && text.includes('المولارية') || text.includes('molarity') || text.includes('الأيون')) {
-    return { 
-      isValid: false, 
-      reason: "Chemistry content detected in AI textbook - possible cross-contamination" 
-    };
-  }
-  
-  if (isChemistryBook && (text.includes('التعلم العميق') || text.includes('deep learning') || text.includes('neural network'))) {
-    return { 
-      isValid: false, 
-      reason: "AI content detected in Chemistry textbook - possible cross-contamination" 
-    };
-  }
-  
-  // Check for excessive repetition (corrupted OCR)
-  const words = text.split(/\s+/);
-  const wordCount = words.length;
-  const uniqueWords = new Set(words.map(w => w.toLowerCase())).size;
-  
-  if (wordCount > 50 && uniqueWords / wordCount < 0.3) {
-    return { 
-      isValid: false, 
-      reason: "Excessive repetition detected - possible OCR corruption" 
-    };
-  }
-  
-  return { isValid: true };
-}
-
 function convertArabicToEnglishNumber(arabicNum: string): string {
   const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
   const englishDigits = '0123456789';
@@ -255,20 +199,6 @@ serve(async (req) => {
     console.log('Summarize function started');
     
     const { text, lang = "ar", page, title, ocrData = null, ragContext = null } = await req.json();
-    // Add content validation to prevent saving corrupted OCR/summaries
-    const contentValidation = validateContent(text, title || 'Unknown Book');
-    if (!contentValidation.isValid) {
-      console.error('⚠️ CONTENT VALIDATION FAILED:', contentValidation.reason);
-      return new Response(JSON.stringify({ 
-        error: "Content validation failed", 
-        details: contentValidation.reason,
-        recovery: "Content appears corrupted and was rejected to prevent database pollution"
-      }), {
-        status: 422,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
     console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title}, ragContext: ${ragContext ? `${ragContext.length} pages` : 'none'} }`);
     
     // Log model usage priority
@@ -420,15 +350,18 @@ Rows:`;
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
     console.log(`Multiple choice detected: ${hasMultipleChoice}`);
     
-    const systemPrompt = `You are an expert educational content analyzer. Your task is to analyze educational content and provide structured summaries following a specific format.
+    const systemPrompt = `You are an expert chemistry professor. Your task is to analyze educational content and provide structured summaries following a specific format.
 
-🔍 **INTERNAL CHECK (DO NOT INCLUDE IN YOUR RESPONSE)**:
-Before writing your summary, internally check:
-1. Does ANY question reference a graph, chart, figure, table, or visual element?
-2. If YES: Have I reviewed the OCR VISUAL CONTEXT section for relevant data?
+🔍 **MANDATORY INTERNAL PRE-FLIGHT CHECK (DO NOT INCLUDE IN YOUR RESPONSE)**:
+Before writing your summary, you MUST internally check:
+1. Does ANY question reference a graph, chart, figure, table, or visual element (الشكل، الجدول، المخطط)? 
+2. If YES: Have I thoroughly reviewed the OCR VISUAL CONTEXT section for relevant data?
 3. If YES: Am I using specific data points, values, or information from the visual elements in my answers?
+4. If visual elements exist but I'm not using them: STOP and re-examine - you CANNOT proceed without using visual data when questions reference it.
 
-⚠️ CRITICAL: This check is for your internal processing only. DO NOT include this checklist in your final response.
+⚠️ CRITICAL: This check is for your internal processing only. DO NOT include this checklist in your final response. Your response should ONLY contain the summary content as specified below.
+
+⚠️ CRITICAL: If any question references a graph or table, review the OCR context, specifically the visuals and table section and ensure you use it to answer the questions with high precision. NEVER provide an answer without this critical step.
 
 FORMAT REQUIREMENTS:
 # Header
@@ -446,16 +379,18 @@ ${hasMultipleChoice ? `
 - Use × (NOT \\cdot or \\cdotp) for multiplication
 - Bold all section headers with **Header**
 
-QUESTION SOLVING REQUIREMENTS:
-1. **SEQUENTIAL ORDER**: Solve questions in numerical sequence from lowest to highest number
-2. **COMPLETE ALL QUESTIONS**: Answer every single question found in the text
-3. **ACCURACY**: Double-check all formulas, calculations, and scientific facts
-4. **STEP-BY-STEP**: Each question must have a complete, logical solution
-5. **USE AVAILABLE DATA**: The OCR text contains necessary information including graphs, tables, and numerical data
-6. **MATHJAX RENDERING**: 
-   - ALWAYS use double dollar signs $$equation$$ for display math
-   - Use \\text{} for units: $$k = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}}$$
-   - Use \\frac{numerator}{denominator} for fractions
+CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
+1. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence from lowest to highest number. If you see questions 45, 102, 46, you MUST answer them as: 45, then 46, then 102. This is MANDATORY and non-negotiable.
+2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found in the text. NO EXCEPTIONS. Be concise on explanatory topics if needed, but NEVER skip questions.
+3. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles before providing them.
+4. **STEP-BY-STEP MANDATE**: Each question must have a complete, logical solution showing all work and reasoning.
+5. **USE ALL AVAILABLE DATA MANDATE**: The OCR text contains ALL necessary information including graphs, tables, and numerical data. Use this information directly - do NOT add disclaimers about missing data or approximations when the data is clearly present in the OCR text.
+6. **MATHJAX RENDERING MANDATE - 100% SUCCESS GUARANTEE**: 
+   - ALWAYS use double dollar signs $$equation$$ for display math (never single $)
+   - Use \\text{} for units and text within equations: $$k = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}}$$
+   - NEVER nest \\text{} commands: Use \\text{78 g} NOT \\text{78 \\text{g}}
+   - Use \\cdot for multiplication: $$a \\cdot b$$ (NEVER use malformed commands)
+   - Use \\frac{numerator}{denominator} for ALL fractions, never /
    - Chemical formulas: $$\\text{H}_2\\text{O}$$, $$\\text{CO}_2$$
    - Numbers with units: $$\\text{4.0 atm}$$, $$\\text{0.12 mol/L}$$ (no nested text)
    - Use \\times for multiplication when needed: $$2 \\times 10^3$$
@@ -823,25 +758,101 @@ Original OCR text: ${enhancedText}`;
     
     console.log(`Final summary length: ${summary.length}, Questions processed: ${summaryQuestionCount}/${originalQuestionCount}, Provider: ${providerUsed}`);
     
-    // DISABLED: Auto-continuation disabled to prevent cross-contamination
-    // Auto-continuation was causing chemistry-specific content to leak into AI textbook pages
-    // If questions are missing, it's better to handle manually than risk incorrect content
-    console.log(`✅ All questions appear to be processed successfully`);
-    
-    // Return just the primary summary without attempting auto-continuation
-    return new Response(JSON.stringify({ 
-      summary, 
-      ragContextDetails: ragContext ? {
-        totalPagesProvided: ragContext.length,
-        pagesActuallySent: ragPagesActuallySent,
-        pagesSentList: ragPagesSentList,
-        ragContextChars: ragContextChars
-      } : null,
-      providerUsed
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    // Robust continuation logic - ensure ALL questions are answered regardless of summary length
+    if (originalQuestionCount > 0 && summaryQuestionCount < originalQuestionCount) {
+      console.log(`⚠️ Missing ${originalQuestionCount - summaryQuestionCount} questions, attempting auto-continuation...`);
+      
+      // Improved missing question detection - check for both Arabic and English patterns
+      const answeredQuestionNumbers = new Set();
+      const questionPatterns = [
+        /\*\*س:\s*(\d+)[.-]/g,  // **س: 45- or **س: 45.
+        /\*\*س:\s*([٠-٩]+)[.-]/g  // **س: ٤٥- (Arabic numerals)
+      ];
+      
+      for (const pattern of questionPatterns) {
+        let match;
+        pattern.lastIndex = 0;
+        while ((match = pattern.exec(summary)) !== null) {
+          const num = convertArabicToEnglishNumber(match[1]);
+          answeredQuestionNumbers.add(num);
+        }
+      }
+      
+      let missingNumbers = questions
+        .map(q => convertArabicToEnglishNumber(q.number))
+        .filter(num => !answeredQuestionNumbers.has(num));
+      
+      console.log(`Detected questions: ${questions.map(q => q.number).join(', ')}`);
+      console.log(`Answered questions: ${Array.from(answeredQuestionNumbers).join(', ')}`);
+      console.log(`Missing questions: ${missingNumbers.join(', ')}`);
+      
+      if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-2.5-pro')) {
+        // Multi-attempt continuation with safety limit
+        const maxAttempts = 4;
+        let attempt = 0;
+        let currentSummary = summary;
+        
+        while (missingNumbers.length > 0 && attempt < maxAttempts) {
+          attempt++;
+          console.log(`🔄 Auto-continuation attempt ${attempt}/${maxAttempts} for questions: ${missingNumbers.join(', ')}`);
+          
+          const completionPrompt = `COMPLETE THE MISSING QUESTIONS - Continuation ${attempt}/${maxAttempts}
+
+Previous summary is incomplete. Missing these question numbers: ${missingNumbers.join(', ')}
+
+REQUIREMENTS:
+1. When solving questions, solve them in sequence from the least to the most. Start from question ${Math.min(...missingNumbers.map(n => parseInt(n)))}, then continue sequentially.
+2. Ensure that you answer all the questions despite token limits. Be concise on topics but complete on question solutions.
+- Process ONLY the missing questions: ${missingNumbers.join(', ')}
+- Use EXACT formatting: **س: [number]- [question text]** and **ج:** [complete answer]
+- Use $$formula$$ for math, × for multiplication
+- Provide complete step-by-step solutions
+- Do NOT repeat questions already answered
+
+Missing questions from OCR text:
+${enhancedText.split('\n').filter(line => 
+  missingNumbers.some(num => line.includes(`${num}.`) || line.includes(`${num}-`) || line.includes(`${num} `))
+).join('\n')}
+
+If you cannot fit all questions in one response, prioritize the lowest numbered questions first.`;
+
+          try {
+            let completionResp;
+            
+            if (providerUsed === 'deepseek-chat') {
+              completionResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${deepSeekApiKey}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  model: "deepseek-chat",
+                  messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: completionPrompt },
+                  ],
+                  temperature: 0,
+                  max_tokens: 8000,
+                }),
+              });
+            } else {
+              completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: systemPrompt + "\n\n" + completionPrompt }] }],
+                  generationConfig: { temperature: 0, maxOutputTokens: 8000 }
+                }),
+              });
+            }
+
+            if (completionResp.ok) {
+              let completion = "";
+              
+              if (providerUsed === 'deepseek-chat') {
+                const completionData = await completionResp.json();
+                completion = completionData.choices?.[0]?.message?.content ?? "";
               } else {
                 const completionData = await completionResp.json();
                 completion = completionData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
