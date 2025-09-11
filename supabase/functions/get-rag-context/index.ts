@@ -51,7 +51,8 @@ serve(async (req) => {
       current_page, 
       query_text, 
       max_pages = 3, 
-      similarity_threshold = 0.3 
+      similarity_threshold = 0.6, // Increased default threshold
+      max_page_distance = 10 // New proximity parameter
     } = await req.json();
     
     if (!book_id || !current_page || !query_text) {
@@ -71,13 +72,14 @@ serve(async (req) => {
     // Generate embedding for the query text
     const queryEmbedding = await generateEmbedding(query_text);
 
-    // Call the database function to find similar pages
+    // Call the database function to find similar pages with proximity constraint
     const { data, error } = await supabase.rpc('match_pages_for_book', {
       target_book_id: book_id,
       query_embedding: `[${queryEmbedding.join(',')}]`,
       match_threshold: similarity_threshold,
       match_count: max_pages,
-      current_page_number: current_page
+      current_page_number: current_page,
+      max_page_distance: max_page_distance
     });
 
     if (error) {
@@ -96,7 +98,8 @@ serve(async (req) => {
       title: row.title,
       content: row.ocr_text,
       summary: row.summary_md,
-      similarity: row.similarity
+      similarity: row.similarity,
+      proximityScore: row.proximity_score // Include proximity score for debugging
     }));
 
     return new Response(JSON.stringify({ context }), {
