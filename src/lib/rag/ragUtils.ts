@@ -19,7 +19,7 @@ export interface RAGOptions {
 export const DEFAULT_RAG_OPTIONS: RAGOptions = {
   enabled: false, // Start disabled for safe rollout
   maxContextPages: 5,
-  similarityThreshold: 0.3,
+  similarityThreshold: 0.6, // Increased from 0.3 to reduce irrelevant context
   maxContextLength: 4000 // Characters limit for context
 };
 
