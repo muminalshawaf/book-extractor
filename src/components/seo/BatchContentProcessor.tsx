@@ -105,24 +105,24 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
               setTimeout(() => reject(new Error('TIMEOUT_ERROR')), 90000) // 90 second timeout
             );
 
+            // Fetch OCR text first like BookViewer does
+            const { data: existingPage } = await supabase
+              .from('page_summaries')
+              .select('ocr_text')
+              .eq('book_id', bookId)
+              .eq('page_number', pageNum)
+              .maybeSingle();
+
+            if (!existingPage?.ocr_text) {
+              throw new Error(`No OCR text found for page ${pageNum}`);
+            }
+
             const processPromise = callFunction('summarize', {
-              book_id: bookId,
-              page_number: pageNum,
-              force_regenerate: true,
-              strictMode: strictMode,
-              qualityOptions: strictMode ? {
-                minSummaryConfidence: 0.75,
-                enableRepair: true,
-                repairThreshold: 0.7,
-                maxRepairAttempts: 2,
-                minCoverage: 0.6
-              } : undefined,
-              ragOptions: strictMode ? {
-                enabled: true,
-                maxContextPages: 2,
-                similarityThreshold: 0.85,
-                maxContextLength: 3000
-              } : undefined
+              text: existingPage.ocr_text, // Pass actual text content like BookViewer
+              lang: 'ar',
+              page: pageNum,
+              title: `Page ${pageNum}`,
+              ocrData: null
             }, { timeout: strictMode ? 120000 : 85000 }); // Longer timeout for strict mode
 
             // Check for "Processing Frozen" status by monitoring the process
