@@ -168,102 +168,46 @@ serve(async (req) => {
     // Prepare the prompt based on language
     const isArabic = language === 'ar'
     const prompt = isArabic 
-      ? `You are an expert OCR analyst specializing in Arabic educational textbooks. Analyze this chemistry textbook page with MAXIMUM precision and extract EVERY visible text element without exception.
+      ? `Extract text from this educational page exactly as it appears. Return only valid JSON in the specified format.
 
-RETURN THIS EXACT JSON STRUCTURE:
 {
   "language": "ar",
   "direction": "rtl", 
   "page_context": {
-    "page_title": "exact main page title or chapter name",
-    "page_type": "table_of_contents|chapter_intro|lesson_content|exercises|examples|summary|career_info",
+    "page_title": "main page title",
+    "page_type": "lesson_content",
     "main_topics": ["topic1", "topic2"],
-    "headers": ["all headers found"],
-    "has_questions": true/false,
-    "has_formulas": true/false,
-    "has_examples": true/false,
-    "has_visual_elements": true/false
+    "headers": ["header1", "header2"],
+    "has_questions": true,
+    "has_formulas": false,
+    "has_examples": false,
+    "has_visual_elements": true
   },
   "sections": [
     {
       "order": 1,
-      "type": "title|header|main_content|sidebar|example|exercise|formula|definition|career_box|highlight_box",
-      "title": "section title if present", 
-      "content": "complete text content"
+      "type": "title|header|main_content|exercise|formula",
+      "title": "section title or null", 
+      "content": "exact text content"
     }
   ],
-   "visual_elements": [
-     {
-       "type": "graph|chart|diagram|figure|image|table",
-       "title": "figure title or caption if visible",
-       "description": "detailed description of visual content",
-       "axes_labels": {
-         "x_axis": "x-axis label and units if applicable",
-         "y_axis": "y-axis label and units if applicable"
-       },
-       "data_description": "description of data points, trends, patterns",
-       "key_values": ["important values, ranges, or measurements shown"],
-        "numeric_data": {
-          "series": [
-            {
-              "label": "series name (e.g., NO, Ar, O2, CH4, H2, N2, NaClO3, KNO3, KBr, NaCl, CaCl2, KCl, Ce2(SO4)3)",
-              "points": [
-                {"x": 2, "y": 14, "units": {"x": "atm", "y": "mg/100g"}},
-                {"x": 4, "y": 28, "units": {"x": "atm", "y": "mg/100g"}},
-                {"x": 6, "y": 42, "units": {"x": "atm", "y": "mg/100g"}},
-                {"x": 8, "y": 56, "units": {"x": "atm", "y": "mg/100g"}},
-                {"x": 10, "y": 70, "units": {"x": "atm", "y": "mg/100g"}}
-              ],
-              "slope": 7.0,
-              "intercept": 0,
-              "relationship": "linear|exponential|logarithmic|curved",
-              "trend_description": "increasing linearly with slope 7",
-              "data_extraction_method": "grid_intersection_analysis"
-            }
-          ],
-          "axis_ranges": {
-            "x_min": 0, "x_max": 10, "x_unit": "atm|°C",
-            "y_min": 0, "y_max": 70, "y_unit": "mg/100g|g/100g"
-          },
-          "grid_analysis": {
-            "major_grid_spacing": {"x": 2, "y": 10},
-            "minor_grid_visible": true,
-            "coordinate_precision": "high"
-          },
-          "confidence": 0.95,
-          "extraction_method": "precise_visual_coordinate_analysis"
-        },
-       "table_structure": {
-         "headers": ["column 1 header", "column 2 header"],
-         "rows": [
-           ["cell 1,1", "cell 1,2"],
-           ["cell 2,1", "EMPTY or missing value"]
-         ],
-         "empty_cells": ["description of which cells need to be filled"],
-         "calculation_context": "what type of calculation is needed to fill empty cells"
-       },
-       "educational_context": "how this visual relates to the lesson/question",
-       "estimated": true/false
-     }
-   ]
+  "visual_elements": [
+    {
+      "type": "graph|chart|diagram|table",
+      "title": "figure title",
+      "description": "visual description",
+      "key_values": ["value1", "value2"],
+      "educational_context": "purpose of visual"
+    }
+  ]
 }
 
-⚠️ CRITICAL MANDATE: ABSOLUTE 100% COMPLIANCE REQUIRED ⚠️
-⛔ FAILURE TO FOLLOW ANY INSTRUCTION WILL RESULT IN COMPLETE REJECTION ⛔
+Extract all text accurately from the image. Focus on:
 
-🔥 MASTER OCR INSTRUCTIONS - ZERO TOLERANCE FOR MISSED CONTENT:
-
-1. **MANDATORY COMPLETE PAGE SCANNING** (NON-NEGOTIABLE - scan EVERY pixel):
-   ⚡ **SYSTEMATIC SCANNING**: You MUST scan the entire image systematically from top-right to bottom-left (Arabic RTL)
-   ⚡ **QUESTION COMPLETENESS**: You MUST extract ALL question numbers that exist on the page - verify each number exists
-   ⚡ **VISUAL ELEMENTS**: You MUST document EVERY graph, chart, table, diagram, and figure with complete descriptions
-   ⚡ **TEXT IN MARGINS**: You MUST check corners, margins, headers, footers for any text content
-   ⚡ **OVERLAPPING CONTENT**: You MUST identify questions that continue across columns or sections
-
-2. **MANDATORY QUESTION DETECTION** (ABSOLUTE - Zero tolerance for missing questions):
-   ⚡ **ARABIC NUMERALS**: You MUST find ALL: ٩٣، ٩٤، ٩٥، ٩٦، ٩٧، ٩٨، ٩٩، ١٠٠، ١٠١، ١٠٢، ١٠٣، ١٠٤، ١٠٥، ١٠٦
-   ⚡ **ENGLISH NUMERALS**: You MUST find ALL: 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106
-   ⚡ **QUESTION PATTERNS**: You MUST detect: اشرح، وضح، قارن، حدد، احسب، ما المقصود، لماذا، كيف
+1. Questions and their numbers
+2. All visible text in order
+3. Tables and visual elements
+4. Mathematical formulas
     ⚡ **ABSOLUTE MULTIPLE CHOICE DETECTION** (MANDATORY - REJECTION IF ANY OPTION MISSED): 
         - **MANDATORY EXHAUSTIVE PAGE SCANNING**: You MUST scan EVERY pixel of the image systematically:
           * You MUST scan top-right to bottom-left for Arabic RTL layout
@@ -320,140 +264,7 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ **FIGURES**: Include figure numbers, captions, and detailed descriptions
    ✓ **CHEMICAL STRUCTURES**: Document molecular diagrams, formulas, bonds
 
-4. **FIGURE ٢٦-١ SPECIFIC REQUIREMENTS** (Must be captured):
-   ✓ **COMPLETE DESCRIPTION**: "بيان دائري يوضح النسب المئوية لغازات الهواء"
-   ✓ **ALL PERCENTAGES**: نيتروجين ٧٨٪، أكسجين ٢١٪، أرجون ١٪
-   ✓ **EDUCATIONAL CONTEXT**: How this relates to question 106 about mole fractions
-   ✓ **VISUAL DETAILS**: Color coding, sector sizes, any additional labels
-
-5. **MISSING QUESTIONS RECOVERY** (Questions 103-106 often missed):
-   ✓ **QUESTION 103**: About polarity and solubility using Table 9-1
-   ✓ **QUESTION 104**: About saturated KCl solution temperature changes
-   ✓ **QUESTION 105**: About calculating mass of Ca(NO₃)₂ needed
-   ✓ **QUESTION 106**: About mole fractions using Figure 26-1 data
-   ✓ **CHECK CONTINUATION**: These questions might be split across sections
-
-6. **ENHANCED TABLE EXTRACTION** (Table 9-1 requirements):
-   ✓ **COMPLETE HEADERS**: "مذاب" and "مذيب" columns
-   ✓ **ALL ROWS**: MgCl₂ صلب/H₂O سائل، NH₃ سائل/C₆H₆ سائل، etc.
-   ✓ **EXACT FORMULAS**: Preserve chemical formulas with correct subscripts
-   ✓ **CONTEXT**: How table relates to question 103
-
-7. **DOUBLE-CHECK VALIDATION**:
-   ✓ **QUESTION COUNT**: Ensure questions 93-106 are all captured (14 questions total)
-   ✓ **VISUAL COUNT**: Verify Table 9-1 and Figure 26-1 are both documented
-   ✓ **CONTENT COMPLETENESS**: No truncated sentences or incomplete formulas
-   ✓ **ARABIC ACCURACY**: Proper Arabic text recognition and diacritics
-
-3. **VISUAL LAYOUT ANALYSIS** (Scan the ENTIRE image systematically):
-   ✓ Scan top-to-bottom, right-to-left for Arabic content
-   ✓ Identify EVERY text element by visual prominence: titles, headers, body text, captions
-   ✓ Detect text formatting: bold, italic, underlined, colored text, different font sizes
-   ✓ Map visual hierarchy: main title → section headers → subheaders → body content
-   ✓ Locate bordered boxes, highlighted areas, margin notes, sidebars
-   ✓ Find text in corners, margins, footers, page numbers
-
-4. **ARABIC TEXTBOOK STRUCTURE RECOGNITION**:
-   ✓ Page titles: "مهن في الكيمياء", "الفصل الأول", chapter names
-   ✓ Career sections: "فنيو الصيدلة", professional roles, job descriptions  
-   ✓ Examples: "مثال ٢-١", "مثال ١-٢", with numbers in Arabic or English
-   ✓ Calculations: "حساب المولارية", "الحل", step-by-step solutions
-    ✓ Questions: "ماذا قرأت؟", numbered problems, exercise sections
-    ✓ Multiple Choice Options: detect a), b), c), d) or أ), ب), ج), د) with answer values
-   ✓ Definitions: key terms in bold, vocabulary boxes
-   ✓ Formulas: mathematical equations, chemical formulas, units
-
-5. **TYPOGRAPHY & FORMATTING PRESERVATION**:
-   ✓ Distinguish between different text weights (bold vs regular)
-   ✓ Preserve mathematical notation: subscripts, superscripts, fractions
-   ✓ Maintain chemical formulas exactly: H₂O, CO₂, NaCl, etc.
-   ✓ Keep equation formatting: = signs, division bars, parentheses
-   ✓ Preserve Arabic numbers vs English numbers in context
-   ✓ Maintain units and symbols: mol/L, °C, %, etc.
-
-6. **SECTION CLASSIFICATION** (Critical - identify each visual block):
-   • "title" → Page headers, chapter titles (large bold text at top)
-   • "header" → Section headers, subsection titles (medium bold text)
-   • "main_content" → Primary educational paragraphs and explanations
-   • "sidebar" → Boxed content, highlighted info panels, margin notes
-   • "example" → "مثال" sections with worked problems and solutions
-   • "exercise" → Practice problems, "مسائل تدريبية", questions
-   • "formula" → Mathematical equations, chemical formulas (standalone)
-   • "definition" → Key terms, vocabulary, bolded concepts
-   • "career_box" → Professional information, job descriptions
-   • "highlight_box" → Important notes, tips, warnings in colored boxes
-
-7. **CONTENT COMPLETENESS VERIFICATION** (Zero tolerance for missing text):
-   ✓ Every Arabic word and phrase visible in the image
-   ✓ All English text, numbers, and symbols
-   ✓ Mathematical expressions with proper formatting
-   ✓ Chemical formulas with correct subscripts/superscripts  
-   ✓ Units, measurements, and scientific notation
-   ✓ Page numbers, section numbers, example numbers
-   ✓ Text in boxes, sidebars, margins, and corners
-   ✓ Captions for figures, diagrams, or images
-
-8. **ARABIC TEXT HANDLING**:
-   ✓ Preserve exact Arabic spelling and diacritics
-   ✓ Maintain proper Arabic sentence structure and punctuation
-   ✓ Keep Arabic-English mixed text in correct order
-   ✓ Preserve technical Arabic chemistry terminology
-   ✓ Maintain number formatting (Arabic numerals vs English numerals)
-
-🔥 **CRITICAL GRAPH DATA EXTRACTION PROTOCOL** (MANDATORY FOR CHEMISTRY GRAPHS):
-
-**STEP 1: GRAPH IDENTIFICATION & SETUP**
-✓ Identify graph type: solubility vs pressure, solubility vs temperature, concentration curves
-✓ Read graph title: "الذائبية بدلالة ضغط الغاز", "الذائبية بدلالة درجة الحرارة", etc.
-✓ Extract axis labels with EXACT units: "atm ضغط الغاز", "°C درجة الحرارة", "mg/100g الذائبية"
-✓ Identify all data series labels: NO, Ar, O2, CH4, H2, N2, NaClO3, KNO3, KBr, NaCl, CaCl2, KCl, Ce2(SO4)3
-
-**STEP 2: COORDINATE SYSTEM ANALYSIS**
-✓ **AXIS RANGES**: Read min/max values from both axes precisely
-  - X-axis: 0-10 atm, 0-100°C, etc.
-  - Y-axis: 0-70 mg/100g, 0-240 g/100g, etc.
-✓ **GRID ANALYSIS**: Identify major grid line spacing
-  - Major gridlines every 2 atm, 5°C, 10 mg/100g, etc.
-  - Minor gridlines if visible
-✓ **SCALE VERIFICATION**: Ensure coordinate system accuracy
-
-**STEP 3: DATA POINT EXTRACTION (MINIMUM 5 POINTS PER SERIES)**
-For EACH data series/line, extract coordinates using grid intersection method:
-
-✓ **LINEAR SERIES** (NO, Ar, O2, CH4, H2, N2 in pressure graphs):
-  - Point 1: (2, y1) - read y-value at x=2
-  - Point 2: (4, y2) - read y-value at x=4  
-  - Point 3: (6, y3) - read y-value at x=6
-  - Point 4: (8, y4) - read y-value at x=8
-  - Point 5: (10, y5) - read y-value at x=10
-  - Calculate slope: (y5-y1)/(10-2)
-  - Verify linearity and relationship
-
-✓ **CURVED SERIES** (NaClO3, KNO3, CaCl2 in temperature graphs):
-  - Point 1: (0°C, y1) - initial solubility
-  - Point 2: (20°C, y2) - solubility at 20°C
-  - Point 3: (40°C, y3) - solubility at 40°C
-  - Point 4: (60°C, y4) - solubility at 60°C
-  - Point 5: (80°C, y5) - solubility at 80°C
-  - Point 6: (100°C, y6) - final solubility
-  - Describe curve type: exponential, logarithmic, steep increase, etc.
-
-**STEP 4: PRECISION TECHNIQUES**
-✓ **GRID INTERSECTION METHOD**: 
-  - Follow data line to nearest grid intersection
-  - Read coordinates at major gridline crossings
-  - Interpolate between gridlines for precision
-✓ **VISUAL ESTIMATION**: 
-  - Estimate fractional values between gridlines
-  - Use proportional spacing for accuracy
-✓ **TREND VERIFICATION**: 
-  - Verify data trends make chemical sense
-  - Check for monotonic increases/decreases
-  - Validate against chemical principles
-
-**STEP 5: MATHEMATICAL ANALYSIS**
-✓ **LINEAR RELATIONSHIPS**: Calculate slope, intercept, R² if applicable
-✓ **NON-LINEAR RELATIONSHIPS**: Describe trend (exponential growth, saturation curve, etc.)
+Return clean JSON with all text exactly as visible.`
 ✓ **COMPARATIVE ANALYSIS**: Rank series by solubility at specific conditions
 ✓ **UNITS PRESERVATION**: Maintain exact units throughout
 

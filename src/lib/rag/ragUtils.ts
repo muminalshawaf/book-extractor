@@ -17,10 +17,10 @@ export interface RAGOptions {
 }
 
 export const DEFAULT_RAG_OPTIONS: RAGOptions = {
-  enabled: false, // Start disabled for safe rollout
-  maxContextPages: 5,
-  similarityThreshold: 0.6, // Increased from 0.3 to reduce irrelevant context
-  maxContextLength: 4000 // Characters limit for context
+  enabled: false, // Kept disabled for safer rollout
+  maxContextPages: 3, // Reduced from 5 to minimize cross-contamination risk
+  similarityThreshold: 0.7, // Increased from 0.6 to be more selective
+  maxContextLength: 2000 // Reduced from 4000 to minimize context pollution
 };
 
 /**
@@ -96,6 +96,7 @@ export async function retrieveRAGContext(
 
 /**
  * Build RAG-enhanced prompt with context from previous pages
+ * Enhanced with book-specific validation to prevent cross-contamination
  */
 export function buildRAGPrompt(
   originalPrompt: string,
@@ -109,11 +110,23 @@ export function buildRAGPrompt(
     return originalPrompt;
   }
 
+  // Add book validation to prevent cross-contamination
+  const currentBookSignature = extractBookSignature(currentPageText);
+  const validatedContext = ragContext.filter(context => {
+    const contextSignature = extractBookSignature(context.content);
+    return isCompatibleContent(currentBookSignature, contextSignature);
+  });
+
+  if (validatedContext.length === 0) {
+    console.warn('RAG: All context filtered out due to book mismatch - preventing cross-contamination');
+    return originalPrompt;
+  }
+
   // Build context section with length limits
   let contextSection = "Context from previous pages in the book:\n---\n";
   let totalLength = contextSection.length;
   
-  for (const context of ragContext) {
+  for (const context of validatedContext) {
     const pageContext = `Page ${context.pageNumber}${context.title ? ` (${context.title})` : ''}:\n${context.content}\n\n`;
     
     if (totalLength + pageContext.length > config.maxContextLength) {
@@ -135,6 +148,43 @@ export function buildRAGPrompt(
   const enhancedPrompt = `${contextSection}Full text of the current page:\n---\n${currentPageText}\n---\n\n${originalPrompt}`;
 
   return enhancedPrompt;
+}
+
+/**
+ * Extract book signature for content validation
+ */
+function extractBookSignature(text: string): string {
+  const signatures = [];
+  
+  // Subject indicators
+  if (text.includes('الكيمياء') || text.includes('chemistry') || text.includes('المولارية')) {
+    signatures.push('chemistry');
+  }
+  if (text.includes('الذكاء الإصطناعي') || text.includes('artificial intelligence') || text.includes('التعلم العميق')) {
+    signatures.push('ai');
+  }
+  if (text.includes('الفيزياء') || text.includes('physics')) {
+    signatures.push('physics');
+  }
+  
+  return signatures.join(',');
+}
+
+/**
+ * Check if content signatures are compatible
+ */
+function isCompatibleContent(current: string, context: string): boolean {
+  if (!current || !context) return true; // Allow if signatures unclear
+  
+  const currentSigs = current.split(',').filter(s => s);
+  const contextSigs = context.split(',').filter(s => s);
+  
+  // If both have clear signatures, they must match
+  if (currentSigs.length > 0 && contextSigs.length > 0) {
+    return currentSigs.some(sig => contextSigs.includes(sig));
+  }
+  
+  return true; // Allow if one or both don't have clear signatures
 }
 
 /**
