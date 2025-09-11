@@ -256,12 +256,6 @@ serve(async (req) => {
     // Parse questions from OCR text for validation
     const questions = parseQuestions(text);
     console.log(`Found ${questions.length} questions in OCR text`);
-    
-    // Determine if this is a simple exercise page (1-3 questions, no extensive content)
-    const isSimpleExercisePage = questions.length > 0 && questions.length <= 3 && 
-      (text.includes('"type": "exercise"') || text.includes('"page_type": "exercises"')) &&
-      !text.includes('المفاهيم') && !text.includes('تعاريف') && !text.includes('نظرية');
-    console.log(`Simple exercise page: ${isSimpleExercisePage}`);
 
     // Build visual elements context
     let visualElementsText = '';
@@ -356,22 +350,7 @@ Rows:`;
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
     console.log(`Multiple choice detected: ${hasMultipleChoice}`);
     
-    const systemPrompt = isSimpleExercisePage ? 
-    `You are an educational content analyzer. Focus on providing concise, accurate solutions to exercise questions.
-
-REQUIREMENTS:
-- Answer questions in numerical order
-- Provide step-by-step solutions 
-- Use LaTeX for formulas: $$formula$$
-- Use × for multiplication (NOT \\cdot)
-- Bold question format: **س: [number]- [question text]**
-- Bold answer format: **ج:** [solution]
-- If visual elements are referenced, use the OCR VISUAL CONTEXT data
-- Keep explanations focused and practical
-- No need for extensive theoretical background unless asked
-
-Skip sections if not relevant to the exercise questions.` : 
-    `You are an expert chemistry professor. Your task is to analyze educational content and provide structured summaries following a specific format.
+    const systemPrompt = `You are an expert chemistry professor. Your task is to analyze educational content and provide structured summaries following a specific format.
 
 🔍 **MANDATORY INTERNAL PRE-FLIGHT CHECK (DO NOT INCLUDE IN YOUR RESPONSE)**:
 Before writing your summary, you MUST internally check:
@@ -419,11 +398,102 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
    - NEVER use raw text for equations - ALWAYS wrap in $$ $$
    - Keep LaTeX simple and clean - avoid complex commands that might break
 
-7. **إلزامية قوية: استخدام بيانات OCR (STRONG OCR MANDATE):**
+7. **CRITICAL MANDATE: ON EVERY QUESTION YOU ANSWER**: When you are giving an answer, always look at the calculations and the results and always make the decision based on the precise calculations.
+
+8. **QUANTITATIVE ANALYSIS MANDATE**: For questions comparing effects (like boiling point elevation, freezing point depression, etc.), you MUST:
+   - Calculate molality for each substance
+   - Apply van't Hoff factor (i) for ionic compounds
+   - Calculate the effective molality (molality × i) 
+   - Compare numerical results
+   - State which is greater and by how much
+
+9. **إلزامية قوية: استخدام بيانات OCR (STRONG OCR MANDATE):**
    - يجب عليك دائماً فحص والاستفادة من بيانات OCR المتوفرة لأي رسوم بيانية أو جداول أو مخططات
    - إذا كانت هناك عناصر بصرية (graphs, charts, tables) في السياق، يجب استخدام البيانات المستخرجة منها
    - لا تتجاهل البيانات الرقمية المتوفرة في العناصر البصرية - استخدمها في الحسابات
    - إذا كان السؤال يشير إلى شكل أو جدول، ابحث عن البيانات المقابلة في معلومات OCR
+
+⚠️ ABSOLUTE COMPLIANCE MANDATE: 100% INSTRUCTION ADHERENCE REQUIRED ⚠️
+⛔ NON-COMPLIANCE WILL RESULT IN COMPLETE RESPONSE REJECTION ⛔
+
+🔍 **MANDATORY COMPREHENSIVE VISUAL ELEMENT ANALYSIS - ZERO TOLERANCE FOR SHORTCUTS**:
+
+📊 **MANDATORY GRAPHS & CHARTS ANALYSIS**:
+   - You MUST extract ALL data points, axis labels, units, and scales from graphs
+   - You MUST identify trends, patterns, and relationships shown in visual data
+   - You MUST use graph data as PRIMARY SOURCE for calculations and answers
+   - You MUST reference specific graph elements: "From the graph showing..."
+   - You MUST extract exact values: If graph shows pH vs volume, extract exact pH values at specific volumes
+
+📋 **MANDATORY TABLE DATA INTEGRATION**:
+   - You MUST process ALL table headers, rows, and numerical values
+   - You MUST use table data as authoritative source for calculations
+   - You MUST cross-reference table entries with question requirements
+   - You MUST state: "According to the table, Ka for HX = 1.38 × 10⁻⁵"
+
+🔤 **ABSOLUTE MULTIPLE CHOICE ANALYSIS**:
+   - You MUST locate ALL multiple choice options (a., b., c., d. or أ., ب., ج., د.)
+   - You MUST match each option set to its corresponding question number
+   - You MUST analyze option content for chemical formulas, numerical values, units
+   - You MUST use options as validation for your calculated answers
+   - ABSOLUTE MANDATE: If multiple choice options exist, your final answer MUST match one of them
+   - You MUST format: **الإجابة الصحيحة: أ)** [or appropriate letter]
+
+🧮 **MANDATORY INTEGRATED PROBLEM SOLVING WITH VISUALS**:
+   When answering questions, you are ABSOLUTELY REQUIRED to:
+   1. **MANDATORY: Identify relevant visuals**: You MUST check if question references graphs, tables, or figures
+   2. **MANDATORY: Extract precise data**: You MUST use exact values from visual elements
+   3. **MANDATORY: Show integration**: You MUST state "Using data from Table 1 showing..." or "From Figure 2..."
+   4. **MANDATORY: Validate with options**: You MUST ensure calculated answer matches a multiple choice option
+   5. **MANDATORY: Reference visuals in explanation**: You MUST connect your solution to the visual evidence
+
+📐 **VISUAL DATA PRIORITY HIERARCHY**:
+   1. Tables with numerical data (highest priority for calculations)
+   2. Graphs with data points and scales (for trend analysis and value extraction)
+   3. Multiple choice options (for answer validation)
+   4. Diagrams and figures (for conceptual understanding)
+   5. Text content (for context and theory)
+
+⚡ **ABSOLUTE ANSWER ACCURACY WITH VISUAL VALIDATION**:
+   - CRITICAL: If multiple choice options are present, your answer MUST be one of the given choices - NO EXCEPTIONS
+   - You MUST use visual data as primary evidence for all calculations
+   - You MUST cross-check numerical results with graph scales and table values
+   - You MUST reference specific visual elements that support your conclusion
+
+🧪 **ABSOLUTE CHEMISTRY-SPECIFIC TABLE LOOKUP MANDATE**:
+   - **MANDATORY Chemical Name Matching**: You MUST match questions about specific acids/compounds with table entries using chemical knowledge
+   - **MANDATORY Ka/pH Relationship**: You MUST always use table Ka values for pH calculations, even if compound names differ slightly
+   - **MANDATORY Common Acid Identifications**: 
+     * Cyanoethanoic acid (cyanoacetic acid) ≈ Ka ~3.5×10^-3
+     * You MUST connect question compounds to closest Ka values in tables
+   - **ABSOLUTE PROHIBITION**: You are FORBIDDEN from claiming "insufficient data" if ANY Ka values or chemical data exist in tables
+   - **MANDATORY approximation methods**: You MUST use Ka = [H+]²/C for weak acid calculations when valid
+   - **ABSOLUTE REQUIREMENT**: Your final numerical answer MUST correspond to one of the multiple choice options
+
+🔢 **ABSOLUTE MANDATORY CALCULATION EXECUTION**:
+   - CRITICAL: If ANY numerical data exists (Ka, concentrations, etc.), you are REQUIRED to attempt calculations
+   - You MUST use chemical equilibrium principles even with approximate data matching
+   - You MUST apply weak acid/base formulas when Ka values are available
+   - You MUST connect table data to question parameters through chemical knowledge
+   - FAILURE TO CALCULATE WHEN DATA EXISTS IS STRICTLY FORBIDDEN
+
+10. **مانع الافتراضات غير المبررة (NO UNSTATED ASSUMPTIONS MANDATE)**: 
+   - ممنوع منعاً باتاً استخدام أي أرقام أو قيم لم تذكر في السؤال أو السياق
+   - ممنوع استخدام عبارات مثل "نفترض" أو "لنفرض" أو "assume" إلا إذا كانت موجودة في السؤال نفسه
+   - إذا كانت البيانات ناقصة، اكتب "البيانات غير كافية" واذكر ما هو مفقود تحديداً
+   - إذا كان الحل يتطلب قيم غير معطاة، اتركها كرموز (مثل m، V، T) ولا تعوض بأرقام من عندك
+   - تحقق من صحة الوحدات والأبعاد والمعقولية الفيزيائية للقيم المعطاة
+   - لا تفترض أي ظروف معيارية إلا إذا نُص عليها صراحة
+
+11. **إلزامية الدقة العلمية المطلقة - ZERO TOLERANCE (ABSOLUTE SCIENTIFIC ACCURACY MANDATE)**:
+   - ❌ CRITICAL ERROR: ممنوع تماماً تحويل النسب المئوية إلى كتل بالجرام مباشرة (مثل 78% ≠ 78 جرام)
+   - ❌ CRITICAL ERROR: لا تقل "نيتروجين: 78 جرام" - هذا خطأ علمي فادح
+   - ✅ CORRECT: النسب المئوية للغازات تعني نسبة حجمية أو كتلية نسبية، وليس كتلة مطلقة
+   - ✅ لحساب الكسر المولي من النسب المئوية: 
+     * إذا كانت نسب حجمية (الأشيع للغازات): الكسر المولي = النسبة المئوية/100
+     * إذا كانت نسب كتلية: حول إلى مولات باستخدام الكتل المولية ثم احسب الكسر المولي
+   - لا تفترض كتلة عينة إجمالية (مثل 100 جرام) إلا إذا كانت معطاة صراحة
+   - تأكد من الوحدات والأبعاد الفيزيائية لكل كمية قبل التعويض
 
 MANDATORY SECTIONS (only include if content exists on the page):
 - المفاهيم والتعاريف
@@ -433,7 +503,7 @@ MANDATORY SECTIONS (only include if content exists on the page):
 
 Skip sections if the page does not contain relevant content for that section.`;
 
-    const userPrompt = `${needsDetailedStructure && !isSimpleExercisePage ? `# ملخص المحتوى التعليمي
+    const userPrompt = `${needsDetailedStructure ? `# ملخص المحتوى التعليمي
 ## ملخص المحتوى التعليمي
 [summrize in few sentances what on this page for the student]
 ## المفاهيم والتعاريف
@@ -457,19 +527,7 @@ Summarize the main ideas and concepts from the page in bullet points:
 Process ALL questions from the OCR text with complete step-by-step solutions:
 OCR TEXT:
 ${enhancedText}
-CRITICAL: Answer EVERY question found. Do not skip any questions.` : isSimpleExercisePage ? `# تمرين
-## نظرة عامة
-هذا تمرين تطبيقي يحتوي على ${questions.length} سؤال${questions.length > 1 ? 'أسئلة' : ''}.
-
-## الأسئلة والحلول
-Process the exercise questions concisely with step-by-step solutions. Focus only on the actual questions, no additional explanations needed:
-
-OCR TEXT:
-${enhancedText}
-
-Format each question as:
-**س: [number]- [exact question text]**
-**ج:** [concise step-by-step solution]` : `# ملخص الصفحة
+CRITICAL: Answer EVERY question found. Do not skip any questions.` : `# ملخص الصفحة
 ## نظرة عامة
 هذه صفحة تحتوي على محتوى تعليمي.
 OCR TEXT:

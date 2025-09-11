@@ -5,13 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Play, Square, Shield, Brain, Eye, FileText } from 'lucide-react';
+import { Loader2, Play, Square, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { centralizeSummarize } from '@/lib/summarization/summarizeHelper';
-import { LogViewer } from '@/components/ui/log-viewer';
+import { callFunction } from '@/lib/functionsClient';
 
 interface BatchContentProcessorProps {
   bookId: string;
@@ -34,8 +32,6 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
   const [rangeStart, setRangeStart] = useState(1);
   const [rangeEnd, setRangeEnd] = useState(Math.min(3, totalPages));
   const [strictMode, setStrictMode] = useState(false);
-  const [useRAG, setUseRAG] = useState(true);
-  const [includeOcrData, setIncludeOcrData] = useState(true);
   const [progress, setProgress] = useState<BatchProgress>({
     current: 0,
     total: 0,
@@ -43,27 +39,6 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
     status: 'idle'
   });
   const [isProcessingCancelled, setIsProcessingCancelled] = useState(false);
-  const [processingStats, setProcessingStats] = useState({
-    totalRagPagesUsed: 0,
-    totalRagPagesFound: 0,
-    avgConfidence: 0
-  });
-  const [processingLogs, setProcessingLogs] = useState<Array<{
-    level: 'info' | 'success' | 'warning' | 'error';
-    message: string;
-    timestamp: Date;
-    metadata?: Record<string, any>;
-  }>>([]);
-  const [showLogs, setShowLogs] = useState(false);
-
-  const addLog = (level: 'info' | 'success' | 'warning' | 'error', message: string, metadata?: Record<string, any>) => {
-    setProcessingLogs(prev => [...prev, {
-      level,
-      message,
-      timestamp: new Date(),
-      metadata
-    }]);
-  };
 
   const processPageRange = async () => {
     if (progress.status === 'running') return;
@@ -72,24 +47,14 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
     const end = Math.max(start, Math.min(rangeEnd, totalPages));
     const pageCount = end - start + 1;
 
-    // Clear previous logs
-    setProcessingLogs([]);
-    addLog('info', `Starting batch processing: pages ${start}-${end} (${pageCount} pages)`, {
-      useRAG,
-      includeOcrData, 
-      strictMode,
-      rangeSize: pageCount
-    });
-
     // Limit batch size to prevent timeouts
     const maxBatchSize = 5;
     if (pageCount > maxBatchSize) {
-      const message = rtl 
-        ? `يُنصح بمعالجة ${maxBatchSize} صفحات كحد أقصى في المرة الواحدة لتجنب انقطاع الاتصال` 
-        : `Process max ${maxBatchSize} pages at once to avoid timeouts`;
-      
-      addLog('warning', message);
-      toast.warning(message);
+      toast.warning(
+        rtl 
+          ? `يُنصح بمعالجة ${maxBatchSize} صفحات كحد أقصى في المرة الواحدة لتجنب انقطاع الاتصال` 
+          : `Process max ${maxBatchSize} pages at once to avoid timeouts`
+      );
       return;
     }
 
@@ -103,9 +68,6 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
 
     let processedCount = 0;
     let errorCount = 0;
-    let totalRagPagesUsed = 0;
-    let totalRagPagesFound = 0;
-    let totalConfidence = 0;
 
     try {
       for (let pageNum = start; pageNum <= end; pageNum++) {
@@ -117,138 +79,149 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
           current: pageNum - start
         }));
 
-        // Check if page already has content (unless force regenerating)
+        // Check if page already has content
         const { data: existing } = await supabase
           .from('page_summaries')
-          .select('id, ocr_text, summary_md, confidence')
+          .select('id, ocr_text, summary_md')
           .eq('book_id', bookId)
           .eq('page_number', pageNum)
           .maybeSingle();
 
-        if (existing?.ocr_text && existing?.summary_md && !strictMode) {
+        if (existing?.ocr_text && existing?.summary_md) {
           console.log(`Page ${pageNum} already processed, skipping...`);
-          addLog('info', `Page ${pageNum}: Already processed, skipping`, {
-            hasOcr: !!existing.ocr_text,
-            hasSummary: !!existing.summary_md,
-            confidence: existing.confidence || 0.8
-          });
           processedCount++;
-          totalConfidence += existing.confidence || 0.8;
           continue;
         }
 
-        if (!existing?.ocr_text) {
-          const message = `Page ${pageNum}: No OCR text found, skipping`;
-          addLog('warning', message);
-          console.warn(message);
-          toast.warning(
-            rtl 
-              ? `الصفحة ${pageNum}: لا يوجد نص مستخرج، تم التخطي` 
-              : message
-          );
-          continue;
-        }
-
-        // Use centralized summarization
+        // Try processing with retry logic
         let retryCount = 0;
-        const maxRetries = strictMode ? 2 : 1;
+        const maxRetries = 1;
         let pageSuccess = false;
 
         while (retryCount <= maxRetries && !pageSuccess) {
           try {
-            console.log(`📝 Processing page ${pageNum} with centralized helper (attempt ${retryCount + 1})`);
-            
-            const result = await centralizeSummarize(
-              bookId,
-              pageNum,
-              `Page ${pageNum}`,
-              {
-                useRAG: useRAG,
-                includeOcrData: includeOcrData,
-                force: strictMode, // Force regenerate in strict mode
-                strictMode: strictMode,
-                maxRetries: 1, // Let the helper handle its own retries
-                timeout: strictMode ? 180000 : 120000
-              }
+            // Process with shorter timeout to prevent CF timeouts
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('TIMEOUT_ERROR')), 90000) // 90 second timeout
             );
 
-            if (result.success) {
-              pageSuccess = true;
-              processedCount++;
-              totalConfidence += result.confidence;
-              totalRagPagesUsed += result.ragPagesUsed;
-              totalRagPagesFound += result.ragPagesFound;
-              
-              // Show detailed success message
-              const ragInfo = result.ragPagesUsed > 0 ? 
-                ` (${result.ragPagesUsed} RAG pages)` : '';
-              
-              toast.success(
-                rtl 
-                  ? `تم معالجة الصفحة ${pageNum}${ragInfo}` 
-                  : `Processed page ${pageNum}${ragInfo} - ${(result.confidence * 100).toFixed(0)}% confidence`
-              );
+            const processPromise = callFunction('summarize', {
+              book_id: bookId,
+              page_number: pageNum,
+              force_regenerate: true,
+              strictMode: strictMode,
+              qualityOptions: strictMode ? {
+                minSummaryConfidence: 0.75,
+                enableRepair: true,
+                repairThreshold: 0.7,
+                maxRepairAttempts: 2,
+                minCoverage: 0.6
+              } : undefined,
+              ragOptions: strictMode ? {
+                enabled: true,
+                maxContextPages: 2,
+                similarityThreshold: 0.85,
+                maxContextLength: 3000
+              } : undefined
+            }, { timeout: strictMode ? 120000 : 85000 }); // Longer timeout for strict mode
 
-              // Minimal delay to prevent API rate limits
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            } else {
-              throw new Error(result.error || 'Summarization failed');
+            // Check for "Processing Frozen" status by monitoring the process
+            const result = await Promise.race([processPromise, timeoutPromise]);
+            
+            // Verify the page was actually processed by checking if content was saved
+            const { data: verification } = await supabase
+              .from('page_summaries')
+              .select('id, ocr_text, summary_md')
+              .eq('book_id', bookId)
+              .eq('page_number', pageNum)
+              .maybeSingle();
+
+            if (!verification?.ocr_text && !verification?.summary_md) {
+              throw new Error('PROCESSING_FROZEN');
             }
+            
+            pageSuccess = true;
+            processedCount++;
+            toast.success(
+              rtl 
+                ? `تم معالجة الصفحة ${pageNum}` 
+                : `Processed page ${pageNum}`
+            );
+
+            // Minimal delay to prevent API rate limits
+            await new Promise(resolve => setTimeout(resolve, 500));
 
           } catch (error) {
             retryCount++;
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            
-            addLog('error', `Page ${pageNum}: Attempt ${retryCount} failed - ${errorMessage}`, {
-              attempt: retryCount,
-              maxRetries: maxRetries + 1,
-              errorType: error.constructor.name
-            });
-            
             console.error(`Error processing page ${pageNum} (attempt ${retryCount}):`, error);
             
             const isFinalAttempt = retryCount > maxRetries;
             
+            // Handle different error types
+            if (error instanceof Error) {
+              if (error.message.includes('TIMEOUT_ERROR') || 
+                  error.message.includes('504') ||
+                  error.message.includes('timeout')) {
+                
+                if (isFinalAttempt) {
+                  toast.error(
+                    rtl 
+                      ? `الصفحة ${pageNum}: انتهت مهلة المعالجة بعد المحاولة الثانية` 
+                      : `Page ${pageNum}: Processing timeout after retry`
+                  );
+                } else {
+                  toast.warning(
+                    rtl 
+                      ? `الصفحة ${pageNum}: انتهت مهلة المعالجة، جاري المحاولة مرة أخرى...` 
+                      : `Page ${pageNum}: Timeout, retrying...`
+                  );
+                  await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retry
+                }
+                
+              } else if (error.message.includes('PROCESSING_FROZEN')) {
+                
+                if (isFinalAttempt) {
+                  toast.error(
+                    rtl 
+                      ? `الصفحة ${pageNum}: المعالجة متجمدة بعد المحاولة الثانية` 
+                      : `Page ${pageNum}: Processing frozen after retry`
+                  );
+                } else {
+                  toast.warning(
+                    rtl 
+                      ? `الصفحة ${pageNum}: المعالجة متجمدة، جاري المحاولة مرة أخرى...` 
+                      : `Page ${pageNum}: Processing frozen, retrying...`
+                  );
+                  await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retry
+                }
+                
+              } else {
+                
+                if (isFinalAttempt) {
+                  toast.error(
+                    rtl 
+                      ? `خطأ في معالجة الصفحة ${pageNum} بعد المحاولة الثانية` 
+                      : `Error processing page ${pageNum} after retry`
+                  );
+                } else {
+                  toast.warning(
+                    rtl 
+                      ? `خطأ في الصفحة ${pageNum}، جاري المحاولة مرة أخرى...` 
+                      : `Page ${pageNum} error, retrying...`
+                  );
+                  await new Promise(resolve => setTimeout(resolve, 2000)); // Wait before retry
+                }
+              }
+            }
+            
             if (isFinalAttempt) {
-              addLog('error', `Page ${pageNum}: All attempts failed`, {
-                totalAttempts: retryCount,
-                finalError: errorMessage
-              });
-              
               errorCount++;
-              toast.error(
-                rtl 
-                  ? `خطأ في معالجة الصفحة ${pageNum} بعد ${retryCount} محاولات` 
-                  : `Failed to process page ${pageNum} after ${retryCount} attempts`
-              );
+              // Continue with next page after final failed attempt
               break;
-            } else {
-              toast.warning(
-                rtl 
-                  ? `خطأ في الصفحة ${pageNum}، جاري المحاولة مرة أخرى...` 
-                  : `Page ${pageNum} error, retrying...`
-              );
-              await new Promise(resolve => setTimeout(resolve, 2000));
             }
           }
         }
       }
-
-      // Update final stats
-      const avgConfidence = processedCount > 0 ? totalConfidence / processedCount : 0;
-      setProcessingStats({
-        totalRagPagesUsed,
-        totalRagPagesFound, 
-        avgConfidence
-      });
-
-      addLog('info', 'Batch processing completed', {
-        processedCount,
-        errorCount,
-        totalRagPagesUsed,
-        totalRagPagesFound,
-        avgConfidence: (avgConfidence * 100).toFixed(0) + '%'
-      });
 
       setProgress(prev => ({
         ...prev,
@@ -257,21 +230,16 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
       }));
 
       if (!isProcessingCancelled) {
-        const ragStats = useRAG && totalRagPagesUsed > 0 ? 
-          ` | RAG: ${totalRagPagesUsed}/${totalRagPagesFound} pages` : '';
-        const summary = `${processedCount} processed, ${errorCount} errors${ragStats}`;
+        const summary = `${processedCount} processed, ${errorCount} errors`;
         toast.success(
           rtl 
             ? `انتهت المعالجة: ${summary}` 
-            : `Processing complete: ${summary} - Avg confidence: ${(avgConfidence * 100).toFixed(0)}%`
+            : `Processing complete: ${summary}`
         );
       }
 
     } catch (error) {
       console.error('Batch processing error:', error);
-      addLog('error', 'Batch processing failed', {
-        error: error instanceof Error ? error.message : String(error)
-      });
       setProgress(prev => ({ ...prev, status: 'error' }));
       toast.error(
         rtl 
@@ -283,7 +251,6 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
 
   const stopProcessing = () => {
     setIsProcessingCancelled(true);
-    addLog('warning', 'Processing stopped by user');
     setProgress(prev => ({ ...prev, status: 'idle' }));
     toast.info(rtl ? 'تم إيقاف المعالجة' : 'Processing stopped');
   };
@@ -300,7 +267,7 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className={cn("flex items-center gap-3 flex-wrap", rtl && "flex-row-reverse")}>
+        <div className={cn("flex items-center gap-3", rtl && "flex-row-reverse")}>
           <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
             <Input
               type="number"
@@ -337,32 +304,6 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
               disabled={isRunning}
             />
           </div>
-          
-          <div className={cn("flex items-center gap-2 px-2 py-1 rounded-md bg-blue-50 dark:bg-blue-950", rtl && "flex-row-reverse")}>
-            <Brain className="h-3 w-3 text-blue-600" />
-            <Label htmlFor="use-rag" className="text-xs font-medium cursor-pointer">
-              {rtl ? "استخدام RAG" : "Use RAG"}
-            </Label>
-            <Switch
-              id="use-rag"
-              checked={useRAG}
-              onCheckedChange={setUseRAG}
-              disabled={isRunning}
-            />
-          </div>
-          
-          <div className={cn("flex items-center gap-2 px-2 py-1 rounded-md bg-green-50 dark:bg-green-950", rtl && "flex-row-reverse")}>
-            <Eye className="h-3 w-3 text-green-600" />
-            <Label htmlFor="include-ocr-data" className="text-xs font-medium cursor-pointer">
-              {rtl ? "بيانات OCR" : "OCR Data"}
-            </Label>
-            <Switch
-              id="include-ocr-data"
-              checked={includeOcrData}
-              onCheckedChange={setIncludeOcrData}
-              disabled={isRunning}
-            />
-          </div>
           {!isRunning ? (
             <Button onClick={processPageRange} variant="default" size="sm">
               <Play className="h-3 w-3 mr-1" />
@@ -393,18 +334,8 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
         )}
 
         {progress.status === 'completed' && (
-          <div className="space-y-2">
-            <div className="text-sm text-green-600 dark:text-green-400">
-              {rtl ? "اكتملت المعالجة بنجاح!" : "Processing completed successfully!"}
-            </div>
-            {processingStats.totalRagPagesUsed > 0 && (
-              <div className="text-xs text-blue-600 dark:text-blue-400">
-                {rtl 
-                  ? `RAG: تم استخدام ${processingStats.totalRagPagesUsed} من ${processingStats.totalRagPagesFound} صفحة | متوسط الثقة: ${(processingStats.avgConfidence * 100).toFixed(0)}%`
-                  : `RAG: ${processingStats.totalRagPagesUsed}/${processingStats.totalRagPagesFound} pages used | Avg confidence: ${(processingStats.avgConfidence * 100).toFixed(0)}%`
-                }
-              </div>
-            )}
+          <div className="text-sm text-green-600 dark:text-green-400">
+            {rtl ? "اكتملت المعالجة بنجاح!" : "Processing completed successfully!"}
           </div>
         )}
 
@@ -417,64 +348,22 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
         <div className="text-xs text-muted-foreground space-y-1">
           <div>
             {rtl 
-              ? "يقوم هذا المعالج بإنشاء الملخصات باستخدام نفس منطق BookViewer المتقدم"
-              : "This processor generates summaries using the same advanced logic as BookViewer"}
+              ? "يقوم هذا المعالج بإنشاء النصوص والملخصات لتحسين فهرسة محركات البحث"
+              : "This processor generates OCR text and summaries for better search engine indexing"}
           </div>
           <div className="text-amber-600 dark:text-amber-400">
             {rtl 
-              ? "💡 نصيحة: معالجة 1-3 صفحات في المرة لتجنب انقطاع الاتصال"
-              : "💡 Tip: Process 1-3 pages at a time to avoid timeouts"}
+              ? "💡 نصيحة: معالجة صفحة واحدة في المرة تقلل من مخاطر انقطاع الاتصال"
+              : "💡 Tip: Process 1-3 pages at a time to avoid CloudFlare timeouts"}
           </div>
           {strictMode && (
             <div className="text-primary font-medium">
               {rtl 
-                ? "🛡️ الوضع الصارم: إعادة توليد إجبارية، جودة أعلى، RAG محسن"
-                : "🛡️ Strict Mode: Force regenerate, higher quality, enhanced RAG"}
-            </div>
-          )}
-          {useRAG && (
-            <div className="text-blue-600 dark:text-blue-400 font-medium">
-              {rtl 
-                ? "🧠 RAG: يستخدم السياق من الصفحات السابقة لملخصات أفضل"
-                : "🧠 RAG: Uses context from previous pages for better summaries"}
-            </div>
-          )}
-          {includeOcrData && (
-            <div className="text-green-600 dark:text-green-400 font-medium">
-              {rtl 
-                ? "👁️ بيانات OCR: يتضمن معلومات السياق المتقدمة"
-                : "👁️ OCR Data: Includes advanced context information"}
+                ? "🛡️ الوضع الصارم: جودة عالية، معالجة أبطأ، تغطية أفضل"
+                : "🛡️ Strict Mode: Higher quality, slower processing, better coverage"}
             </div>
           )}
         </div>
-
-        {/* Processing Logs */}
-        {processingLogs.length > 0 && (
-          <div className="space-y-3">
-            <div className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowLogs(!showLogs)}
-                className="text-xs"
-              >
-                <FileText className="h-3 w-3 mr-1" />
-                {rtl ? "سجل المعالجة" : "Processing Logs"}
-                <Badge variant="secondary" className="ml-2">
-                  {processingLogs.length}
-                </Badge>
-              </Button>
-            </div>
-            
-            {showLogs && (
-              <LogViewer
-                logs={processingLogs}
-                title={rtl ? "سجل معالجة الدفعة" : "Batch Processing Logs"}
-                maxHeight="250px"
-              />
-            )}
-          </div>
-        )}
       </CardContent>
     </Card>
   );

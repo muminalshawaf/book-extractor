@@ -12,7 +12,6 @@ import { removeBackgroundFromBlob, captionImageFromBlob } from '@/lib/vision';
 import QAChat from "@/components/QAChat";
 import MathRenderer from "@/components/MathRenderer";
 import { callFunction } from "@/lib/functionsClient";
-import { centralizeSummarize } from "@/lib/summarization/summarizeHelper";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingProgress } from "@/components/LoadingProgress";
 import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
