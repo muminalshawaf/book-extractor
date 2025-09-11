@@ -997,6 +997,23 @@ const AdminProcessing = () => {
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <label className="text-sm font-medium flex items-center gap-2">
+                      <Database className="w-4 h-4" />
+                      🚀 RAG Enhancement
+                    </label>
+                    <div className="text-xs text-muted-foreground">
+                      Use context from previous pages to improve summaries (Recommended)
+                    </div>
+                  </div>
+                  <Switch
+                    checked={ragEnabled}
+                    onCheckedChange={setRagEnabled}
+                    disabled={status.isRunning}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <label className="text-sm font-medium flex items-center gap-2">
                       <Shield className="w-4 h-4" />
                       Quality Gate & Repair
                     </label>
@@ -1013,22 +1030,15 @@ const AdminProcessing = () => {
                   />
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <label className="text-sm font-medium flex items-center gap-2">
-                      <Database className="w-4 h-4" />
-                      RAG Enhancement
-                    </label>
-                    <div className="text-xs text-muted-foreground">
-                      Use context from previous pages
-                    </div>
-                  </div>
-                  <Switch
-                    checked={ragEnabled}
-                    onCheckedChange={setRagEnabled}
-                    disabled={status.isRunning}
-                  />
-                </div>
+                {ragEnabled && (
+                  <Alert>
+                    <Database className="w-4 h-4" />
+                    <AlertDescription>
+                      <strong>RAG Active:</strong> The system will retrieve context from previous pages to enhance summaries. 
+                      This improves accuracy and helps maintain consistent information across related content.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
 
               {showAdvancedSettings && (
