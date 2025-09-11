@@ -165,29 +165,28 @@ serve(async (req) => {
     const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg'
     console.log('Base64 conversion complete, mime type:', mimeType)
 
-    // Prepare the prompt based on language
-    const isArabic = language === 'ar'
+    // Clean, simple prompt for text extraction
     const prompt = isArabic 
-      ? `Extract text from this educational page exactly as it appears. Return only valid JSON in the specified format.
+      ? `Extract all text from this educational page accurately. Return valid JSON in this format:
 
 {
   "language": "ar",
-  "direction": "rtl", 
+  "direction": "rtl",
   "page_context": {
     "page_title": "main page title",
-    "page_type": "lesson_content",
+    "page_type": "lesson_content|exercises|examples",
     "main_topics": ["topic1", "topic2"],
     "headers": ["header1", "header2"],
     "has_questions": true,
     "has_formulas": false,
     "has_examples": false,
-    "has_visual_elements": true
+    "has_visual_elements": false
   },
   "sections": [
     {
       "order": 1,
       "type": "title|header|main_content|exercise|formula",
-      "title": "section title or null", 
+      "title": "section title or null",
       "content": "exact text content"
     }
   ],
@@ -202,169 +201,15 @@ serve(async (req) => {
   ]
 }
 
-Extract all text accurately from the image. Focus on:
+Instructions:
+1. Extract ALL visible text exactly as it appears
+2. Identify questions by number (1., 2., 3., etc.)
+3. For multiple choice questions, include all options (a., b., c., d. or أ., ب., ج., د.)
+4. Capture table data and visual elements
+5. Preserve mathematical formulas and Arabic text
+6. Maintain proper order and structure
 
-1. Questions and their numbers
-2. All visible text in order
-3. Tables and visual elements
-4. Mathematical formulas
-    ⚡ **ABSOLUTE MULTIPLE CHOICE DETECTION** (MANDATORY - REJECTION IF ANY OPTION MISSED): 
-        - **MANDATORY EXHAUSTIVE PAGE SCANNING**: You MUST scan EVERY pixel of the image systematically:
-          * You MUST scan top-right to bottom-left for Arabic RTL layout
-          * You MUST scan top-left to bottom-right for English LTR layout  
-          * You MUST use grid-by-grid analysis: divide page into 6x6 grid sections, scan each section thoroughly
-          * You MUST pay special attention to white spaces, margins, and areas between visual elements
-        - **MANDATORY COMPREHENSIVE OPTION PATTERN DETECTION**: You MUST search for ALL possible formats:
-          * You MUST find English: a., b., c., d. | a) b) c) d) | (a) (b) (c) (d) | A. B. C. D. | A) B) C) D)
-          * You MUST find Arabic: أ., ب., ج., د. | أ) ب) ج) د) | (أ) (ب) (ج) (د) | ا., ب., ت., ث.
-          * You MUST find Numbers: 1., 2., 3., 4. | 1) 2) 3) 4) | (1) (2) (3) (4) | ١., ٢., ٣., ٤.
-          * You MUST handle mixed formats within same question set
-        - **AGGRESSIVE VISUAL SEPARATION HANDLING**: Options can be ANYWHERE:
-          * Several centimeters away from question text
-          * In completely different columns or page sections
-          * Below graphs, charts, tables, or diagrams
-          * In margins, corners, or footer areas
-          * Arranged in horizontal rows across page width
-          * Clustered together without nearby question reference
-          * Separated by page borders, lines, or visual dividers
-        - **INTELLIGENT OPTION-QUESTION MATCHING**: For orphaned option sets:
-          * Scan 360° around options for nearest question numbers
-          * Look for numerical sequences (if options near "4)" then look for question 4)
-          * Match content themes (chemistry options → chemistry questions)
-          * Use spatial proximity but allow for large distances
-          * Consider reading flow patterns and page layout logic
-        - **MANDATORY EXTRACTION REQUIREMENTS**: For EVERY question with options found:
-          {
-            "order": X,
-            "type": "exercise", 
-            "title": "question_number",
-            "content": "Question Text: [complete question text]\nOptions:\na. [COMPLETE option text with ALL details, numbers, units, formulas]\nb. [COMPLETE option text with ALL details, numbers, units, formulas]\nc. [COMPLETE option text with ALL details, numbers, units, formulas]\nd. [COMPLETE option text with ALL details, numbers, units, formulas]"
-          }
-        - **OPTION CONTENT COMPLETENESS** (CRITICAL):
-          * Preserve EXACT option prefixes: "a. 55.63 mL" NOT "55.63 mL"  
-          * Include ALL numerical values with proper units
-          * Maintain chemical formulas with correct subscripts/superscripts
-          * Capture mathematical expressions completely
-          * Include parenthetical clarifications and sub-text
-          * Don't truncate multi-line options - get complete text
-        - **TRIPLE-VERIFICATION PROTOCOL**:
-          * First pass: systematic grid scanning for any a/b/c/d or أ/ب/ج/د patterns
-          * Second pass: contextual matching of found options to questions  
-          * Third pass: completeness check - ensure each question has all options
-          * FAIL if ANY multiple choice question lacks its complete option set
-          * Mark questions as "MULTIPLE CHOICE" in the type field if options are found
-   ✓ **CONTINUATION QUESTIONS**: Questions that span multiple lines or sections
-   ✓ **SUB-QUESTIONS**: Parts (أ)، (ب)، (ج) or (a), (b), (c)
-
-3. **COMPREHENSIVE VISUAL ANALYSIS** (Critical for educational context):
-   ✓ **GRAPHS & CHARTS**: Extract titles, axis labels, data points, legends, scales
-   ✓ **PIE CHARTS**: Capture all percentages, labels, and sector descriptions
-   ✓ **TABLES**: Extract complete structure including headers, all data cells, empty cells
-   ✓ **DIAGRAMS**: Describe all components, labels, arrows, and relationships
-   ✓ **FIGURES**: Include figure numbers, captions, and detailed descriptions
-   ✓ **CHEMICAL STRUCTURES**: Document molecular diagrams, formulas, bonds
-
-Return clean JSON with all text exactly as visible.`
-✓ **COMPARATIVE ANALYSIS**: Rank series by solubility at specific conditions
-✓ **UNITS PRESERVATION**: Maintain exact units throughout
-
-**STEP 6: VALIDATION & QUALITY CONTROL**
-✓ **COORDINATE ACCURACY**: ±2% tolerance for visual extraction
-✓ **CHEMICAL LOGIC**: Verify trends align with solubility principles
-✓ **COMPLETENESS CHECK**: Ensure all visible data series captured
-✓ **CROSS-REFERENCE**: Match data to any referenced questions
-
-**EXAMPLE OUTPUT FORMAT FOR CHEMISTRY GRAPHS**:
-{
-  "type": "graph",
-  "title": "الذائبية بدلالة ضغط الغاز",
-  "description": "Graph showing gas solubility vs pressure for 6 different gases",
-  "axes_labels": {
-    "x_axis": "ضغط الغاز atm",
-    "y_axis": "الذائبية mg/100g من الماء"
-  },
-  "numeric_data": {
-    "series": [
-      {
-        "label": "NO",
-        "points": [
-          {"x": 2, "y": 14, "units": {"x": "atm", "y": "mg/100g"}},
-          {"x": 4, "y": 28, "units": {"x": "atm", "y": "mg/100g"}},
-          {"x": 6, "y": 42, "units": {"x": "atm", "y": "mg/100g"}},
-          {"x": 8, "y": 56, "units": {"x": "atm", "y": "mg/100g"}},
-          {"x": 10, "y": 70, "units": {"x": "atm", "y": "mg/100g"}}
-        ],
-        "slope": 7.0,
-        "intercept": 0,
-        "relationship": "linear",
-        "trend_description": "highest solubility, increases linearly with pressure"
-      },
-      {
-        "label": "Ar", 
-        "points": [
-          {"x": 2, "y": 12, "units": {"x": "atm", "y": "mg/100g"}},
-          {"x": 4, "y": 24, "units": {"x": "atm", "y": "mg/100g"}},
-          {"x": 6, "y": 36, "units": {"x": "atm", "y": "mg/100g"}},
-          {"x": 8, "y": 48, "units": {"x": "atm", "y": "mg/100g"}},
-          {"x": 10, "y": 60, "units": {"x": "atm", "y": "mg/100g"}}
-        ],
-        "slope": 6.0,
-        "intercept": 0,
-        "relationship": "linear",
-        "trend_description": "second highest solubility"
-      }
-    ],
-    "axis_ranges": {
-      "x_min": 0, "x_max": 10, "x_unit": "atm",
-      "y_min": 0, "y_max": 70, "y_unit": "mg/100g"
-    },
-    "grid_analysis": {
-      "major_grid_spacing": {"x": 2, "y": 10},
-      "coordinate_precision": "high",
-      "extraction_method": "grid_intersection_analysis"
-    },
-    "confidence": 0.95
-  },
-  "educational_context": "Demonstrates Henry's Law - gas solubility increases linearly with pressure"
-}
-
-**CHEMISTRY-SPECIFIC REQUIREMENTS**:
-✓ **CHEMICAL FORMULAS**: Preserve exact subscripts/superscripts (H₂, O₂, CO₂, CaCl₂, etc.)
-✓ **UNITS**: Maintain precise scientific units (atm, °C, mg/100g, g/100g, mol/L)
-✓ **TEMPERATURE CURVES**: Recognize typical solubility patterns (most salts increase with T)
-✓ **PRESSURE RELATIONSHIPS**: Apply Henry's Law understanding for gas solubility
-✓ **COMPARATIVE RANKINGS**: Order compounds by solubility at standard conditions
-
-**CRITICAL SUCCESS METRICS FOR GRAPHS**:
-- Extract minimum 5 coordinate points per data series
-- Calculate slopes/trends with ±5% accuracy
-- Preserve all chemical formulas and units exactly
-- Identify all visible data series (typically 3-6 per graph)
-- Cross-reference with any questions mentioning the graph
-- Provide educational context linking to chemistry principles
-
-10. **QUALITY ASSURANCE CHECKS**:
-     ✓ Verify no text elements were skipped or overlooked
-     ✓ Ensure mathematical formulas are complete and accurate
-     ✓ Confirm all section headers and titles are captured
-     ✓ Double-check example numbers and problem sequences
-     ✓ Validate that boxed/highlighted content is included
-     ✓ Verify visual elements are described if present
-     ✓ **QUESTION COMPLETENESS**: Ensure ALL questions 93-106 are extracted (14 questions total)
-     ✓ **VISUAL COMPLETENESS**: Verify Table 9-1 AND Figure 26-1 are both captured with full details
-     ✓ **NO TRUNCATION**: Ensure no content is cut off or incomplete
-
-CRITICAL SUCCESS METRICS:
-- 100% text capture rate (no missing words, symbols, or numbers)
-- Perfect preservation of mathematical and chemical notation  
-- Complete section identification and classification
-- Accurate Arabic text with proper technical terminology
-- Full extraction of educational structure (examples, exercises, definitions)
-- Comprehensive visual element documentation for educational context
-- **MANDATORY**: All questions 93-106 must be captured (14 questions total)
-- **MANDATORY**: Table 9-1 and Figure 26-1 must be fully documented with complete descriptions
-
-ANALYZE SYSTEMATICALLY - EXTRACT COMPREHENSIVELY - MISS NOTHING!`
+Return only clean, valid JSON.`
       : `Analyze this image and extract all text with high accuracy. Please return a JSON response with the following structure:
 
 {
