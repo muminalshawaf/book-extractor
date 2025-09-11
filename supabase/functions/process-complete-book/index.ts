@@ -128,6 +128,7 @@ Deno.serve(async (req) => {
             
             // Step 2: Generate RAG-enhanced summary if OCR was successful
             let summary = ''
+            let ragContextLocal: any[] = []
             if (ocrText && ocrText.length > 50) {
               try {
                 // Retrieve RAG context from previous pages (if any)
@@ -142,6 +143,7 @@ Deno.serve(async (req) => {
                       max_pages: 3
                     })
                     ragContext = ragResult.context || []
+                    ragContextLocal = ragContext
                     console.log(`Page ${pageNum}: Retrieved ${ragContext.length} context pages`)
                   } catch (ragError) {
                     console.log(`Page ${pageNum}: RAG context retrieval failed:`, ragError)
@@ -177,6 +179,11 @@ Deno.serve(async (req) => {
                 embedding: embedding || null,
                 embedding_model: embeddingModel,
                 embedding_updated_at: embedding ? new Date().toISOString() : null,
+                // RAG tracking fields
+                rag_pages_found: ragContextLocal.length,
+                rag_pages_sent: ragContextLocal.length,
+                rag_pages_sent_list: ragContextLocal.map((c: any) => c.pageNumber),
+                rag_context_chars: ragContextLocal.reduce((sum: number, c: any) => sum + ((c.content?.length) || 0), 0),
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
               }, { 

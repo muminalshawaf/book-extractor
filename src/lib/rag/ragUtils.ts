@@ -70,8 +70,9 @@ export async function retrieveRAGContext(
       query_embedding: `[${queryEmbedding.join(',')}]` as any,
       match_threshold: config.similarityThreshold,
       match_count: config.maxContextPages,
-      current_page_number: currentPageNumber
-    });
+      current_page_number: currentPageNumber,
+      max_page_distance: 10
+    } as any);
 
     if (error) {
       console.error('Error retrieving RAG context:', error);
