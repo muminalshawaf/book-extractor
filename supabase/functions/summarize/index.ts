@@ -562,7 +562,9 @@ Skip sections if the page does not contain relevant content for that section.`;
 ## تحليل الأسئلة باستخدام السياق الكامل
 
 **FOCUSED QUESTION-SOLVING MODE ACTIVATED**
-This page contains primarily questions (${questions.length} detected). Use the RAG context from previous pages to provide direct, precise answers.
+This page contains primarily questions (${questions.length} detected: ${questions.map(q => q.number).join(', ')}). Use the RAG context from previous pages to provide direct, precise answers.
+
+**CRITICAL INSTRUCTION: ONLY answer questions that are explicitly numbered and present on THIS PAGE (${questions.map(q => q.number).join(', ')}). Do NOT include questions from RAG context.**
 
 **RAG CONTEXT INTEGRATION MANDATE:**
 - You MUST use information from the provided RAG context to answer questions
@@ -571,17 +573,17 @@ This page contains primarily questions (${questions.length} detected). Use the R
 - If RAG context provides relevant background, explicitly mention it: "Based on the concept from page X..."
 
 ## الأسئلة والحلول الكاملة
-Answer each question using both current page content and RAG context. For each question:
+Answer ONLY the ${questions.length} questions numbered ${questions.map(q => q.number).join(', ')} that appear on THIS page. For each question:
 1. **Identify relevant RAG context** that applies to the question
 2. **Use established formulas/concepts** from previous pages when applicable  
 3. **Provide step-by-step solution** with clear reasoning
 4. **Reference source material** when using RAG context
 
-Process ALL questions from the OCR text:
+Process ONLY the questions detected on this page (${questions.map(q => q.number).join(', ')}):
 OCR TEXT:
 ${enhancedText}
 
-CRITICAL: Answer EVERY question found. Use RAG context to enhance answer quality and relevance.`;
+CRITICAL: Answer ONLY the questions numbered ${questions.map(q => q.number).join(', ')} found on THIS page. Do NOT include questions from RAG context that are not on this page.`;
 
     } else if (pageType === 'content-heavy') {
       // Enhanced content-focused prompt with RAG integration
@@ -611,8 +613,10 @@ List formulas and equations, showing relationship to previously covered material
 ## التطبيقات والأمثلة
 List examples showing practical applications and connections to previous topics
 
-## الأسئلة والإجابات الكاملة
-Process ALL questions using both current content and RAG context:
+${questions.length > 0 ? `## الأسئلة والإجابات الكاملة
+ONLY answer questions that are explicitly numbered and present on THIS PAGE (${questions.map(q => q.number).join(', ')}). Do NOT include questions from RAG context.
+
+Process ONLY the ${questions.length} questions numbered ${questions.map(q => q.number).join(', ')} found on this page using both current content and RAG context:` : ''}
 OCR TEXT:
 ${enhancedText}`;
 
@@ -631,12 +635,14 @@ This page contains both educational content and questions. Use RAG context to cr
 Key concepts from this page, linked to previous knowledge:
 - **[Concept]:** [explanation with RAG connections where relevant]
 
-## الأسئلة والحلول التطبيقية  
-Answer all questions using integrated knowledge from RAG context and current content:
+${questions.length > 0 ? `## الأسئلة والحلول التطبيقية  
+ONLY answer questions that are explicitly numbered and present on THIS PAGE (${questions.map(q => q.number).join(', ')}). Do NOT include questions from RAG context.
+
+Answer the ${questions.length} questions numbered ${questions.map(q => q.number).join(', ')} using integrated knowledge from RAG context and current content:` : ''}
 OCR TEXT:
 ${enhancedText}
 
-CRITICAL: Process ALL content and questions, showing clear connections between theory and application.`;
+CRITICAL: Process content and ${questions.length > 0 ? 'ONLY the questions numbered ' + questions.map(q => q.number).join(', ') + ' from this page' : 'no questions found on this page'}, showing clear connections between theory and application.`;
 
     } else {
       // Default for non-content pages
