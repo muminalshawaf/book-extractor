@@ -414,10 +414,12 @@ Rows:`;
 
     if (processingMode === 'question-answer') {
       // Mode A: Question-Answer Mode - Answer existing questions from current page
+      const questionNumbers = questions.map(q => q.number).join(', ');
+      
       systemPrompt = `أنت أستاذ متخصص في الكيمياء. مهمتك هي الإجابة على الأسئلة الموجودة في الصفحة الحالية فقط باستخدام المعرفة من السياق المرجعي.
 
 ⚠️ تعليمات حاسمة:
-- أجب فقط على الأسئلة الموجودة في الصفحة الحالية (أرقام: ${questions.map(q => q.number).join(', ')})
+- أجب فقط على الأسئلة الموجودة في الصفحة الحالية (أرقام: ${questionNumbers})
 - استخدم السياق المرجعي للفهم والتأسيس النظري فقط
 - لا تستخرج أو تجيب على أسئلة من السياق المرجعي
 - قدم إجابات مفصلة وشاملة لكل سؤال
@@ -425,7 +427,7 @@ Rows:`;
 تنسيق الإجابة:
 # الأسئلة والإجابات الكاملة
 
-لكل سؤال من الأسئلة المرقمة (${questions.map(q => q.number).join(', ')}):
+لكل سؤال من الأسئلة المرقمة (${questionNumbers}):
 **س: [رقم]- [نص السؤال الكامل]**
 **ج:** [الإجابة المفصلة مع الخطوات والتبرير]
 
@@ -438,11 +440,11 @@ ${hasMultipleChoice ? `
 استخدم المعادلات الرياضية: $$معادلة$$
 تأكد من الدقة العلمية والتسلسل المنطقي في الحلول.`;
 
-      userPrompt = `قم بالإجابة على الأسئلة المرقمة التالية فقط: ${questions.map(q => q.number).join(', ')}
+      userPrompt = `قم بالإجابة على الأسئلة المرقمة التالية فقط: ${questionNumbers}
 
 ${enhancedText}
 
-تذكير: أجب فقط على الأسئلة المرقمة ${questions.map(q => q.number).join(', ')} الموجودة في الصفحة الحالية.`;
+تذكير: أجب فقط على الأسئلة المرقمة ${questionNumbers} الموجودة في الصفحة الحالية.`;
 
     } else {
       // Mode B: Content Summary Mode - Summarize content and generate new questions
