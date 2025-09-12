@@ -114,6 +114,7 @@ Deno.serve(async (req) => {
         title: `كتاب ${book_id}`, // Default title, can be updated later
         subject: book_id.includes('chemistry') ? 'Chemistry' : 
                  book_id.includes('physics') ? 'Physics' : 
+                 book_id.includes('artificialintelligence') || book_id.includes('ai') ? 'Artificial Intelligence' : 
                  book_id.includes('math') ? 'Mathematics' : 'Unknown',
         grade: parseInt(book_id.match(/(\d+)/)?.[1] || '12'),
         semester_range: book_id.includes('-') ? book_id.split('-').pop() || '1' : '1'

@@ -932,9 +932,17 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           .maybeSingle();
         
         if (!error && existingData?.summary_md?.trim()) {
-          console.log('Found existing summary in database, streaming it...');
-          await streamExistingSummary(existingData.summary_md);
-          return;
+          const cached = existingData.summary_md;
+          const titleLower = (title || '').toLowerCase();
+          const isAI = titleLower.includes('ذكاء') || titleLower.includes('اصطناعي') || titleLower.includes('artificial intelligence');
+          const looksChemistry = /أستاذك\s+في\s+الكيمياء|الكيمياء|chemistry/i.test(cached);
+          if (isAI && looksChemistry) {
+            console.warn('Cached summary appears Chemistry-biased for an AI page. Forcing regeneration...');
+          } else {
+            console.log('Found existing summary in database, streaming it...');
+            await streamExistingSummary(cached);
+            return;
+          }
         }
       } catch (dbError) {
         console.warn('Failed to check existing summary:', dbError);

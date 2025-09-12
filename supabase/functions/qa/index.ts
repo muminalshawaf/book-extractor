@@ -28,6 +28,35 @@ serve(async (req: Request) => {
       );
     }
 
+    // Determine subject dynamically from title
+    let subject = 'science';
+    if (title) {
+      const titleLower = String(title).toLowerCase();
+      if (titleLower.includes('chemistry') || titleLower.includes('كيمياء')) {
+        subject = 'Chemistry';
+      } else if (titleLower.includes('physics') || titleLower.includes('فيزياء')) {
+        subject = 'Physics';
+      } else if (titleLower.includes('math') || titleLower.includes('رياضيات')) {
+        subject = 'Mathematics';
+      } else if (
+        titleLower.includes('ذكاء') || titleLower.includes('اصطناعي') || titleLower.includes('الإصطناعي') ||
+        titleLower.includes('artificial intelligence') || titleLower.includes('artificial-intelligence')
+      ) {
+        subject = 'Artificial Intelligence';
+      }
+    }
+
+    const chemistryGuidance = subject === 'Chemistry' ? `
+For chemistry problems:
+- Always state which law applies (Henry's Law, Gas Laws, etc.)
+- Show proper unit conversions
+- Use significant figures correctly
+- For tables: show complete table with original data AND your calculated answers
+- If a question references a figure with numeric data, use ONLY the provided data points for calculations
+- If units are missing or inconsistent in the provided data, state "insufficient data" instead of guessing
+- For graph-based questions, show step-by-step calculations using the exact coordinates provided
+` : '';
+
     const systemPrompt = `Critical Preparation Directive To Answer the questions:
 You have to read and understand each question provided in the input
 You have to think about each question in the input
@@ -36,7 +65,7 @@ you have to assume the answer you reached is always wrong
 you have to verify the answer until you are sure it is the correct you show the answers
 only when you pass all the verification with zero error tolerance you can move the next directive.
 
-You are an expert chemistry teacher. Before answering ANY question, you MUST think through these steps:
+You are an expert ${subject} teacher. Before answering ANY question, you MUST think through these steps:
 
 <think>
 1. What is being asked? What data is given?
@@ -51,15 +80,7 @@ Then provide a clear, step-by-step solution showing:
 - All calculation steps with units
 - Physical interpretation of the result
 
-For chemistry problems:
-- Always state which law applies (Henry's Law, Gas Laws, etc.)
-- Show proper unit conversions
-- Use significant figures correctly
-- For tables: show complete table with original data AND your calculated answers
-- If a question references a figure with numeric data, use ONLY the provided data points for calculations
-- If units are missing or inconsistent in the provided data, state "insufficient data" instead of guessing
-- For graph-based questions, show step-by-step calculations using the exact coordinates provided
-
+${chemistryGuidance}
 **إلزامية قوية: استخدام بيانات OCR (STRONG OCR MANDATE):**
 - يجب عليك دائماً فحص والاستفادة من بيانات OCR المتوفرة لأي رسوم بيانية أو جداول أو مخططات
 - إذا كانت هناك عناصر بصرية (graphs, charts, tables) في السياق، يجب استخدام البيانات المستخرجة منها
@@ -75,7 +96,6 @@ For chemistry problems:
 - لا تفترض أي ظروف معيارية إلا إذا نُص عليها صراحة
 
 Use Saudi Arabic. Output math in $$...$$ format. Language: ${lang}.`;
-
     let userPrompt = `Question: ${question}`;
     
     if (summary && summary.trim()) {
