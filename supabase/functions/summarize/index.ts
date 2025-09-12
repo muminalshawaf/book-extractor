@@ -166,6 +166,54 @@ function convertArabicToEnglishNumber(arabicNum: string): string {
   return result;
 }
 
+// Enhanced page type detection
+function detectPageType(text: string, questions: Array<any>): 'questions-focused' | 'content-heavy' | 'mixed' | 'non-content' {
+  const cleanText = text.replace(/[{}",:\[\]]/g, ' '); // Remove JSON artifacts
+  const textLength = cleanText.length;
+  
+  // Content keywords
+  const contentKeywords = [
+    'مثال', 'تعريف', 'قانون', 'معادلة', 'نظرية', 'خاصية', 'مفهوم', 'شرح',
+    'example', 'definition', 'law', 'equation', 'theorem', 'property', 'concept', 'explanation',
+    'الأهداف', 'المفاهيم', 'التعاريف', 'الصيغ', 'الخطوات', 'المبادئ',
+    'objectives', 'concepts', 'definitions', 'formulas', 'steps', 'principles'
+  ];
+  
+  // Question indicators
+  const questionKeywords = [
+    'اشرح', 'وضح', 'قارن', 'حدد', 'لماذا', 'كيف', 'ماذا', 'أين', 'متى', 'احسب', 'أوجد',
+    'explain', 'describe', 'compare', 'identify', 'why', 'how', 'what', 'where', 'when', 'calculate', 'find'
+  ];
+  
+  const contentKeywordCount = contentKeywords.filter(keyword => 
+    cleanText.toLowerCase().includes(keyword.toLowerCase())
+  ).length;
+  
+  const questionKeywordCount = questionKeywords.filter(keyword => 
+    cleanText.toLowerCase().includes(keyword.toLowerCase())
+  ).length;
+  
+  // Count actual numbered questions
+  const questionCount = questions.length;
+  const questionDensity = questionCount > 0 ? questionCount / (textLength / 1000) : 0;
+  
+  // Check for explanatory content vs questions
+  const hasSubstantialExplanation = contentKeywordCount >= 3;
+  const hasHighQuestionDensity = questionDensity > 2; // More than 2 questions per 1000 chars
+  const isQuestionDominant = questionCount >= 3 && questionKeywordCount >= questionCount * 0.7;
+  
+  // Determine page type
+  if (questionCount === 0 && contentKeywordCount < 2) {
+    return 'non-content';
+  } else if (isQuestionDominant && !hasSubstantialExplanation) {
+    return 'questions-focused';
+  } else if (hasSubstantialExplanation && questionCount <= 2) {
+    return 'content-heavy';
+  } else {
+    return 'mixed';
+  }
+}
+
 function isContentPage(text: string): boolean {
   const keywords = [
     'مثال', 'تعريف', 'قانون', 'معادلة', 'حل', 'مسألة', 'نظرية', 'خاصية',
@@ -250,12 +298,14 @@ serve(async (req) => {
       });
     }
 
-    const needsDetailedStructure = isContentPage(text);
-    console.log(`Page type: ${needsDetailedStructure ? 'Content page' : 'Non-content page'}`);
-
     // Parse questions from OCR text for validation
     const questions = parseQuestions(text);
     console.log(`Found ${questions.length} questions in OCR text`);
+    
+    // Enhanced page type detection
+    const pageType = detectPageType(text, questions);
+    const needsDetailedStructure = isContentPage(text);
+    console.log(`Page type: ${pageType} (detailed structure: ${needsDetailedStructure})`);
 
     // Build visual elements context
     let visualElementsText = '';
@@ -503,35 +553,99 @@ MANDATORY SECTIONS (only include if content exists on the page):
 
 Skip sections if the page does not contain relevant content for that section.`;
 
-    const userPrompt = `${needsDetailedStructure ? `# ملخص المحتوى التعليمي
-## ملخص المحتوى التعليمي
-[summrize in few sentances what on this page for the student]
-## المفاهيم والتعاريف
-Analyze the content and extract key concepts and definitions. Format as:
-- **[Arabic term]:** [definition]
-## المصطلحات العلمية
-Extract scientific terminology if present:
-- **[Scientific term]:** [explanation]
-## الصيغ والمعادلات
-List formulas and equations if present:
-| الصيغة | الوصف | المتغيرات |
-|--------|--------|-----------|
-| $$formula$$ | description | variables |
-## مفاتيح و أفكار رئيسية
-Summarize the main ideas and concepts from the page in bullet points:
-- **[Key concept/idea]:** [brief explanation]
-- **[Another key concept]:** [brief explanation]
-## أمثلة توضيحية
-[list examples so the students can relate to the concepts]
-## الأسئلة والإجابات الكاملة
-Process ALL questions from the OCR text with complete step-by-step solutions:
+    // Create specialized prompts based on page type
+    let userPrompt = '';
+    
+    if (pageType === 'questions-focused') {
+      // Specialized prompt for question-focused pages with full RAG support
+      userPrompt = `# حل الأسئلة المختصة
+## تحليل الأسئلة باستخدام السياق الكامل
+
+**FOCUSED QUESTION-SOLVING MODE ACTIVATED**
+This page contains primarily questions (${questions.length} detected). Use the RAG context from previous pages to provide direct, precise answers.
+
+**RAG CONTEXT INTEGRATION MANDATE:**
+- You MUST use information from the provided RAG context to answer questions
+- Reference specific concepts, formulas, or data from previous pages when relevant
+- Connect answers to previously established knowledge from the book
+- If RAG context provides relevant background, explicitly mention it: "Based on the concept from page X..."
+
+## الأسئلة والحلول الكاملة
+Answer each question using both current page content and RAG context. For each question:
+1. **Identify relevant RAG context** that applies to the question
+2. **Use established formulas/concepts** from previous pages when applicable  
+3. **Provide step-by-step solution** with clear reasoning
+4. **Reference source material** when using RAG context
+
+Process ALL questions from the OCR text:
 OCR TEXT:
 ${enhancedText}
-CRITICAL: Answer EVERY question found. Do not skip any questions.` : `# ملخص الصفحة
+
+CRITICAL: Answer EVERY question found. Use RAG context to enhance answer quality and relevance.`;
+
+    } else if (pageType === 'content-heavy') {
+      // Enhanced content-focused prompt with RAG integration
+      userPrompt = `# ملخص المحتوى التعليمي المعزز
+## تكامل المحتوى مع السياق السابق
+
+**CONTENT INTEGRATION MODE WITH RAG SUPPORT**
+This page contains substantial educational content. Integrate with RAG context to show knowledge progression.
+
+## ملخص المحتوى التعليمي  
+[Summarize in few sentences what's on this page, connecting to previous concepts when RAG context is available]
+
+## المفاهيم والتعاريف
+Analyze content and extract key concepts. When RAG context exists, show how new concepts build on previous ones:
+- **[Arabic term]:** [definition] ${ragContext && ragContext.length > 0 ? '[Connect to previous concepts when relevant]' : ''}
+
+## المصطلحات العلمية
+Extract scientific terminology, linking to previously introduced terms when applicable:
+- **[Scientific term]:** [explanation]
+
+## الصيغ والمعادلات  
+List formulas and equations, showing relationship to previously covered material:
+| الصيغة | الوصف | المتغيرات | الربط بالسياق السابق |
+|--------|--------|-----------|---------------------|
+| $$formula$$ | description | variables | [connection if relevant] |
+
+## التطبيقات والأمثلة
+List examples showing practical applications and connections to previous topics
+
+## الأسئلة والإجابات الكاملة
+Process ALL questions using both current content and RAG context:
+OCR TEXT:
+${enhancedText}`;
+
+    } else if (pageType === 'mixed') {
+      // Balanced approach for mixed content
+      userPrompt = `# تحليل متوازن للمحتوى والأسئلة
+## دمج المعرفة والتطبيق
+
+**BALANCED CONTENT-QUESTION MODE WITH RAG**
+This page contains both educational content and questions. Use RAG context to create comprehensive coverage.
+
+## نظرة عامة على المحتوى
+[Brief overview connecting to previous material via RAG context]
+
+## المفاهيم الأساسية
+Key concepts from this page, linked to previous knowledge:
+- **[Concept]:** [explanation with RAG connections where relevant]
+
+## الأسئلة والحلول التطبيقية  
+Answer all questions using integrated knowledge from RAG context and current content:
+OCR TEXT:
+${enhancedText}
+
+CRITICAL: Process ALL content and questions, showing clear connections between theory and application.`;
+
+    } else {
+      // Default for non-content pages
+      userPrompt = `# ملخص الصفحة
 ## نظرة عامة
 هذه صفحة تحتوي على محتوى تعليمي.
 OCR TEXT:
-${enhancedText}`}`;
+${enhancedText}`;
+    }
 
     let summary = "";
     let providerUsed = "";
