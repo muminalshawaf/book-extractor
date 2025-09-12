@@ -363,13 +363,18 @@ Rows:`;
     let ragContextChars = 0;
     if (ragContext && Array.isArray(ragContext) && ragContext.length > 0) {
       console.log(`Building RAG context from ${ragContext.length} previous pages`);
-      ragContextSection = "\n\nContext from previous pages in the book:\n---\n";
+      ragContextSection = "\n\n=== REFERENCE CONTEXT FROM PREVIOUS PAGES ===\n⚠️ FOR UNDERSTANDING ONLY - DO NOT EXTRACT QUESTIONS FROM THIS SECTION\n---\n";
       
       let totalLength = ragContextSection.length;
       const maxContextLength = 8000; // Increased from 2000 to fit more pages
       
       for (const context of ragContext) {
-        const pageContext = `Page ${context.pageNumber}${context.title ? ` (${context.title})` : ''}:\n${context.content || context.ocr_text || ''}\n\n`;
+        // Clean content by removing numbered questions to prevent confusion
+        let cleanContent = context.content || context.ocr_text || '';
+        // Remove pattern for numbered questions (س: [number]- or similar)
+        cleanContent = cleanContent.replace(/س:\s*\d+\s*[-–]\s*[^؟]*؟?/g, '[Question removed from reference context]');
+        
+        const pageContext = `Page ${context.pageNumber}${context.title ? ` (${context.title})` : ''}:\n${cleanContent}\n\n`;
         
         if (totalLength + pageContext.length > maxContextLength) {
           // Truncate to fit within limits
@@ -388,7 +393,7 @@ Rows:`;
         ragPagesSentList.push(context.pageNumber);
       }
       
-      ragContextSection += "---\n\n";
+      ragContextSection += "---\n=== END OF REFERENCE CONTEXT ===\n\n=== CURRENT PAGE CONTENT STARTS HERE ===\n";
       ragContextChars = totalLength;
       console.log(`✅ RAG VALIDATION: ${ragPagesActuallySent} pages actually sent to Gemini 2.5 Pro (${totalLength} characters)`);
     }
