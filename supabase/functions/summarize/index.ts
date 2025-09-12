@@ -482,6 +482,9 @@ ${enhancedText}
 تذكير: أنشئ أسئلة جديدة مبنية على محتوى هذه الصفحة فقط، ولا تنسخ أسئلة من المراجع.`;
     }
 
+    let summary = "";
+    let providerUsed = "";
+
     // Try Gemini 2.5 Pro first (primary model)
     if (googleApiKey) {
       console.log('Attempting to use Gemini 2.5 Pro for summarization...');
