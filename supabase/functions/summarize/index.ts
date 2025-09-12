@@ -464,6 +464,8 @@ Before writing your summary, you MUST internally check:
 
 ⚠️ CRITICAL: If any question references a graph or table, review the OCR context, specifically the visuals and table section and ensure you use it to answer the questions with high precision. NEVER provide an answer without this critical step.
 
+🚫 ABSOLUTE NO-GREETING OR PERSONA TEXT: Do NOT include greetings, self-references (for example: "بصفتي أستاذك..."), or any meta commentary. Start directly with the required sections.
+
 FORMAT REQUIREMENTS:
 # Header
 ## Sub Header  
@@ -547,7 +549,7 @@ Skip sections if the page does not contain relevant content for that section.`;
     // Create specialized prompts based on page type
     let userPrompt = '';
     
-    if (pageType === 'questions-focused') {
+if (pageType === 'questions-focused') {
       // Specialized prompt for question-focused pages with full RAG support
       userPrompt = `# حل الأسئلة المختصة
 ## تحليل الأسئلة باستخدام السياق الكامل
@@ -556,6 +558,8 @@ Skip sections if the page does not contain relevant content for that section.`;
 This page contains primarily questions (${questions.length} detected: ${questions.map(q => q.number).join(', ')}). Use the RAG context from previous pages to provide direct, precise answers.
 
 **CRITICAL INSTRUCTION: ONLY answer questions that are explicitly numbered and present on THIS PAGE (${questions.map(q => q.number).join(', ')}). Do NOT include questions from RAG context.**
+
+**STRICT OUTPUT FORMAT**: Do NOT include any overview ("نظرة عامة") or content sections. Output ONLY the following section and nothing else.
 
 **RAG CONTEXT INTEGRATION MANDATE:**
 - You MUST use information from the provided RAG context to answer questions
