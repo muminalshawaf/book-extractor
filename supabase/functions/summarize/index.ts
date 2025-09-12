@@ -296,14 +296,14 @@ serve(async (req) => {
     const questions = parseQuestionsFromCurrentPage(text);
     console.log(`Found ${questions.length} questions in current page OCR text`);
     
-    // Determine processing mode based on questions found
-    const processingMode = questions.length > 0 ? 'question-answer' : 'content-summary';
-    console.log(`Processing mode: ${processingMode}`);
-    
-    // Enhanced page type detection for logging
+    // Enhanced page type detection
     const pageType = detectPageType(text, questions);
     const needsDetailedStructure = isContentPage(text);
     console.log(`Page type: ${pageType} (detailed structure: ${needsDetailedStructure})`);
+
+    // Determine processing mode based on page type (only-questions vs content)
+    const processingMode: 'question-answer' | 'content-summary' = (pageType === 'questions-focused') ? 'question-answer' : 'content-summary';
+    console.log(`Processing mode: ${processingMode}`);
 
     // Build visual elements context
     let visualElementsText = '';
