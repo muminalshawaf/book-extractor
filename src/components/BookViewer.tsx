@@ -1716,7 +1716,7 @@ KF (°C/m)
                           }}
                           onRegenerate={() => {
                             if (extractedText) {
-                              summarizeExtractedText(extractedText);
+                              summarizeExtractedText(extractedText, true);
                             } else {
                               toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
                             }
@@ -2073,13 +2073,13 @@ KF (°C/m)
                                 localStorage.setItem(sumKey, newSummary);
                               } catch {}
                             }}
-                            onRegenerate={() => {
-                              if (extractedText) {
-                                summarizeExtractedText(extractedText);
-                              } else {
-                                toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
-                              }
-                            }}
+                             onRegenerate={() => {
+                               if (extractedText) {
+                                 summarizeExtractedText(extractedText, true);
+                               } else {
+                                 toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
+                               }
+                             }}
                             isRegenerating={summLoading}
                             confidence={ocrQuality ?? summaryConfidence}
                             pageNumber={index + 1}

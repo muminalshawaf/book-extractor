@@ -616,28 +616,29 @@ OCR TEXT:
 ${enhancedText}`;
 
     } else if (pageType === 'mixed') {
-      // Balanced approach for mixed content
-      userPrompt = `# تحليل متوازن للمحتوى والأسئلة
-## دمج المعرفة والتطبيق
+      // Mixed content — enforce mandated sections only (no extra headers)
+      userPrompt = `# ملخص المحتوى والأسئلة
 
-**BALANCED CONTENT-QUESTION MODE WITH RAG**
-This page contains both educational content and questions. Use RAG context to create comprehensive coverage.
+**STRICT OUTPUT FORMAT**
+Use ONLY the following sections in this exact order. Do NOT add any other sections (no "نظرة عامة" or meta text).
 
-## نظرة عامة على المحتوى
-[Brief overview connecting to previous material via RAG context]
+## المفاهيم والتعاريف
+- [استخرج المفاهيم والتعاريف الأساسية واربطها بسياق RAG عند اللزوم]
 
-## المفاهيم الأساسية
-Key concepts from this page, linked to previous knowledge:
-- **[Concept]:** [explanation with RAG connections where relevant]
+## المصطلحات العلمية
+- [سرد المصطلحات مع شرح موجز]
 
-${questions.length > 0 ? `## الأسئلة والحلول التطبيقية  
+## الصيغ والمعادلات
+| الصيغة | الوصف | المتغيرات | الربط بالسياق السابق |
+|--------|--------|-----------|---------------------|
+| $$formula$$ | description | variables | [connection if relevant] |
+
+${questions.length > 0 ? `## الأسئلة والحلول الكاملة
 ONLY answer questions that are explicitly numbered and present on THIS PAGE (${questions.map(q => q.number).join(', ')}). Do NOT include questions from RAG context.
 
 Answer the ${questions.length} questions numbered ${questions.map(q => q.number).join(', ')} using integrated knowledge from RAG context and current content:` : ''}
 OCR TEXT:
-${enhancedText}
-
-CRITICAL: Process content and ${questions.length > 0 ? 'ONLY the questions numbered ' + questions.map(q => q.number).join(', ') + ' from this page' : 'no questions found on this page'}, showing clear connections between theory and application.`;
+${enhancedText}`;
 
     } else {
       // Default for non-content pages
