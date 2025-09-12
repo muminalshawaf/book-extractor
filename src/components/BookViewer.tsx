@@ -127,6 +127,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const cacheId = useMemo(() => bookId || title, [bookId, title]);
   const ocrKey = useMemo(() => `book:ocr:${cacheId}:${index}`, [cacheId, index]);
   const sumKey = useMemo(() => `book:summary:${cacheId}:${index}`, [cacheId, index]);
+  const ocrTimestampKey = useMemo(() => `book:ocr-timestamp:${cacheId}:${index}`, [cacheId, index]);
+  const summaryTimestampKey = useMemo(() => `book:summary-timestamp:${cacheId}:${index}`, [cacheId, index]);
   const dbBookId = useMemo(() => bookId || title || 'book', [bookId, title]);
   
   const [summary, setSummary] = useState("");
@@ -137,6 +139,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [summaryProgress, setSummaryProgress] = useState(0);
   const [thumbnailsOpen, setThumbnailsOpen] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
+  
+  // Cache management
+  const [isUsingCachedContent, setIsUsingCachedContent] = useState(false);
+  const [isFreshContent, setIsFreshContent] = useState(false);
+  const [cacheRefreshing, setCacheRefreshing] = useState(false);
 
   // UI state
   const [zoomMode, setZoomMode] = useState<ZoomMode>("custom");
@@ -329,31 +336,90 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     return () => document.removeEventListener('keydown', handleKeyboardShortcuts);
   }, []);
 
+  // Cache management utilities
+  const clearPageCache = useCallback((pageIndex?: number) => {
+    const targetIndex = pageIndex ?? index;
+    const targetOcrKey = `book:ocr:${cacheId}:${targetIndex}`;
+    const targetSumKey = `book:summary:${cacheId}:${targetIndex}`;
+    const targetOcrTimestamp = `book:ocr-timestamp:${cacheId}:${targetIndex}`;
+    const targetSummaryTimestamp = `book:summary-timestamp:${cacheId}:${targetIndex}`;
+    
+    try {
+      localStorage.removeItem(targetOcrKey);
+      localStorage.removeItem(targetSumKey);
+      localStorage.removeItem(targetOcrTimestamp);
+      localStorage.removeItem(targetSummaryTimestamp);
+    } catch (error) {
+      console.warn('Failed to clear page cache:', error);
+    }
+  }, [cacheId, index]);
+
+  const isCacheStale = useCallback((timestampKey: string, maxAgeMs = 24 * 60 * 60 * 1000) => {
+    try {
+      const timestamp = localStorage.getItem(timestampKey);
+      if (!timestamp) return false;
+      return Date.now() - parseInt(timestamp) > maxAgeMs;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const setCacheWithTimestamp = useCallback((key: string, value: string, timestampKey: string) => {
+    try {
+      localStorage.setItem(key, value);
+      localStorage.setItem(timestampKey, Date.now().toString());
+    } catch (error) {
+      console.warn('Failed to cache with timestamp:', error);
+    }
+  }, []);
+
   // Load cached data and fetch from DB
   useEffect(() => {
     try {
-      const cachedText = localStorage.getItem(ocrKey) || "";
-      const cachedSummary = localStorage.getItem(sumKey) || "";
-      if (cachedText) setExtractedText(cachedText);
-      if (cachedSummary) setSummary(cachedSummary);
+      // Check if cached content is stale and clear if needed
+      if (isCacheStale(ocrTimestampKey) || isCacheStale(summaryTimestampKey)) {
+        clearPageCache();
+        setIsUsingCachedContent(false);
+      } else {
+        const cachedText = localStorage.getItem(ocrKey) || "";
+        const cachedSummary = localStorage.getItem(sumKey) || "";
+        if (cachedText) {
+          setExtractedText(cachedText);
+          setIsUsingCachedContent(true);
+        }
+        if (cachedSummary) {
+          setSummary(cachedSummary);
+          setIsUsingCachedContent(true);
+        }
+      }
+      
       setLastError(null);
       setRetryCount(0);
+      setIsFreshContent(false);
+      setCacheRefreshing(false);
+      
       // Reset RAG metadata when page changes
       setStoredRagMetadata(null);
       setLastRagPagesUsed(0);
       setRagPagesSent(0);
     } catch {}
-  }, [index, ocrKey, sumKey]);
+  }, [index, ocrKey, sumKey, ocrTimestampKey, summaryTimestampKey, clearPageCache, isCacheStale]);
 
-  // Fetch from Supabase
+  // Fetch from Supabase with cache invalidation
   useEffect(() => {
     let cancelled = false;
     const fetchFromDb = async () => {
       console.log('BookViewer: Fetching from database:', { book_id: dbBookId, page_number: index + 1 });
+      
+      // Show cache refreshing indicator if we have cached content
+      if (isUsingCachedContent) {
+        setCacheRefreshing(true);
+      }
+      
       try {
         const { data, error } = await supabase
           .from('page_summaries')
-          .select('ocr_text, summary_md, confidence, ocr_confidence, summary_json, rag_pages_sent')
+          .select('ocr_text, summary_md, confidence, ocr_confidence, summary_json, rag_pages_sent, updated_at')
           .eq('book_id', dbBookId)
           .eq('page_number', index + 1)
           .maybeSingle();
@@ -362,34 +428,43 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           
         if (error) {
           console.warn('Supabase fetch error:', error);
+          setCacheRefreshing(false);
           return;
         }
         if (cancelled) return;
         
         const ocr = (data?.ocr_text ?? '').trim();
         const sum = (data?.summary_md ?? '').trim();
+        const dbUpdatedAt = data?.updated_at ? new Date(data.updated_at).getTime() : 0;
+        
+        // Check if DB content is newer than cached content
+        const cachedTimestamp = localStorage.getItem(ocrTimestampKey);
+        const isDbContentNewer = !cachedTimestamp || dbUpdatedAt > parseInt(cachedTimestamp);
         
         console.log('Setting extracted text from database:', { 
           ocrLength: ocr.length, 
           summaryLength: sum.length,
+          isDbContentNewer,
           ocrPreview: ocr.substring(0, 100) + '...',
           summaryPreview: sum.substring(0, 100) + '...'
         });
         
-        // Ensure we set the states properly - force update even if existing data
-        if (ocr && ocr.length > 0) {
+        // Update content if DB has newer data or if no cached content exists
+        if (ocr && ocr.length > 0 && (isDbContentNewer || !extractedText)) {
           console.log('Setting extracted text state...');
           setExtractedText(ocr);
+          setCacheWithTimestamp(ocrKey, ocr, ocrTimestampKey);
+          setIsFreshContent(isDbContentNewer);
         }
-        if (sum && sum.length > 0) {
+        
+        if (sum && sum.length > 0 && (isDbContentNewer || !summary)) {
           console.log('Setting summary state with content:', sum.substring(0, 200) + '...');
-          // Force state update with functional update to ensure it takes effect
-          setSummary(prevSummary => {
-            console.log('Previous summary length:', prevSummary.length, 'New summary length:', sum.length);
-            return sum;
-          });
-          // Also stream it for better UX if the summary is substantial
-          if (sum.length > 100) {
+          setSummary(sum);
+          setCacheWithTimestamp(sumKey, sum, summaryTimestampKey);
+          setIsFreshContent(isDbContentNewer);
+          
+          // Stream existing summary for better UX if substantial
+          if (sum.length > 100 && !isUsingCachedContent) {
             setTimeout(() => {
               streamExistingSummary(sum).catch(err => console.warn('Stream failed:', err));
             }, 100);
@@ -405,7 +480,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         if (ragMeta && typeof ragMeta === 'object' && !Array.isArray(ragMeta)) {
           console.log('Setting stored RAG metadata from database:', ragMeta);
           setStoredRagMetadata(ragMeta);
-          // Also update lastRagPagesUsed to show the stored value
           if (typeof ragMeta.ragPagesUsed === 'number') {
             setLastRagPagesUsed(ragMeta.ragPagesUsed);
           }
@@ -415,19 +489,18 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           setLastRagPagesUsed(0);
         }
         
-        // Set RAG pages sent from database - use actual sent count
+        // Set RAG pages sent from database
         if (typeof data?.rag_pages_sent === 'number') {
           setRagPagesSent(data.rag_pages_sent);
         } else {
           setRagPagesSent(0);
         }
         
-        try {
-          if (ocr) localStorage.setItem(ocrKey, ocr);
-          else localStorage.removeItem(ocrKey);
-          if (sum) localStorage.setItem(sumKey, sum);
-          else localStorage.removeItem(sumKey);
-        } catch {}
+        // Mark cache as no longer being used if we got fresh DB content
+        if (isDbContentNewer) {
+          setIsUsingCachedContent(false);
+        }
+        
       } catch (e) {
         console.error('BookViewer: Failed to fetch page from DB:', e);
         console.error('BookViewer: Error details:', { 
@@ -437,11 +510,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           pageNumber: index + 1,
           errorCode: 'e8213cfbaf41bf3c1f76850cfa0af698'
         });
+      } finally {
+        setCacheRefreshing(false);
       }
     };
     fetchFromDb();
     return () => { cancelled = true; };
-  }, [index, dbBookId, ocrKey, sumKey]);
+  }, [index, dbBookId, ocrKey, sumKey, ocrTimestampKey, summaryTimestampKey, extractedText, summary, isUsingCachedContent, setCacheWithTimestamp]);
 
   // Save current page to localStorage
   useEffect(() => {

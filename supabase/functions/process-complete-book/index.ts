@@ -197,6 +197,9 @@ Deno.serve(async (req) => {
             } else {
               processedPages++
               console.log(`Page ${pageNum}: Successfully processed and saved`)
+              
+              // Log cache invalidation recommendation for client-side
+              console.log(`🧹 Page ${pageNum}: Client should clear cache for book:${book_id} page:${pageNum} to show fresh content`)
             }
             
           } catch (pageError) {

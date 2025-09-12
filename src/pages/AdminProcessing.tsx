@@ -633,6 +633,22 @@ const AdminProcessing = () => {
               }
 
               addLog(`💾 Page ${pageNum}: Saved to database${embeddingInfo}`);
+              
+              // Clear cache for this page after successful processing to avoid stale content
+              try {
+                const bookKey = selectedBook.id || selectedBook.title;
+                const cacheKeys = [
+                  `book:ocr:${bookKey}:${pageNum}`,
+                  `book:summary:${bookKey}:${pageNum}`,
+                  `book:ocr-timestamp:${bookKey}:${pageNum}`,
+                  `book:summary-timestamp:${bookKey}:${pageNum}`
+                ];
+                cacheKeys.forEach(key => localStorage.removeItem(key));
+                addLog(`🧹 Page ${pageNum}: Cache cleared to ensure fresh content`);
+              } catch (cacheError) {
+                console.warn('Failed to clear cache after processing:', cacheError);
+              }
+              
             } catch (saveError) {
               addLog(`❌ Page ${pageNum}: Failed to save - ${saveError.message}`);
               setPageResults(prev => [...prev, {
