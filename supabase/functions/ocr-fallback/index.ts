@@ -44,7 +44,19 @@ serve(async (req) => {
     }
 
     const imageBuffer = await imageResponse.arrayBuffer();
-    const imageBase64 = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+    
+    // Use Deno's standard base64 encoding, handling large images properly
+    const bytes = new Uint8Array(imageBuffer);
+    
+    // Handle large images by chunking to avoid "too many arguments" error
+    let binaryString = '';
+    const chunkSize = 32768; // 32KB chunks
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize);
+      binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    const imageBase64 = btoa(binaryString);
+    
     const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
 
     // Create language-specific OCR prompt for Gemini Pro Vision
