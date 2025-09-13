@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { detectHasFormulasInOCR, detectHasExamplesInOCR, detectFormulasInSummary, detectApplicationsInSummary } from '../_shared/templates.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -84,6 +85,36 @@ Deno.serve(async (req) => {
     // Validate required fields
     if (!book_id || !page_number) {
       throw new Error('Missing required fields: book_id and page_number are required')
+    }
+
+    // Server-side anti-hallucination gate
+    try {
+      const ocr = (ocr_text || '').toString();
+      const sum = (summary_md || '').toString();
+      const hasFormulasOCR = detectHasFormulasInOCR(ocr);
+      const hasExamplesOCR = detectHasExamplesInOCR(ocr);
+      const hasFormulasSummary = detectFormulasInSummary(sum);
+      const hasApplicationsSummary = detectApplicationsInSummary(sum);
+
+      console.log('Anti-hallucination flags:', { hasFormulasOCR, hasExamplesOCR, hasFormulasSummary, hasApplicationsSummary });
+      const violations: string[] = [];
+      if (hasFormulasSummary && !hasFormulasOCR) violations.push('FORMULAS_NOT_IN_OCR');
+      if (hasApplicationsSummary && !hasExamplesOCR) violations.push('APPLICATIONS_NOT_IN_OCR');
+
+      if (violations.length > 0) {
+        console.warn('Anti-hallucination gate triggered - rejecting summary', { violations });
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Anti-hallucination gate: content not grounded in OCR',
+          violations,
+          debug: { hasFormulasOCR, hasExamplesOCR, hasFormulasSummary, hasApplicationsSummary }
+        }), {
+          status: 422,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    } catch (gateError) {
+      console.error('Anti-hallucination gate error (non-fatal):', gateError);
     }
 
     // Create Supabase client with service role key for database writes

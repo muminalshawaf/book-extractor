@@ -439,3 +439,49 @@ MANDATORY: Answer questions ${questions.map(q => q.number).join(', ')}` : ''}
 EMERGENCY DATA:
 ${enhancedText}`;
 }
+
+// --- Anti-hallucination helpers ---
+// Detect whether OCR text contains mathematical formulas/equations signals
+export function detectHasFormulasInOCR(text: string): boolean {
+  if (!text) return false;
+  const latexDelims = /\$\$[\s\S]*?\$\$|\$[^$\n]+\$/;
+  const latexCmds = /\\(frac|sqrt|sum|int|times|cdot|over|alpha|beta|gamma|theta|lambda)/i;
+  const mathSymbols = /[=≠≈≤≥±∑∫√∞π÷×^]/;
+  const keywords = /(صيغة|معادلة|قانون|قوانين|equation|formula|law)/i;
+  return latexDelims.test(text) || latexCmds.test(text) || (keywords.test(text) && mathSymbols.test(text));
+}
+
+// Detect whether OCR text explicitly contains examples/applications cues
+export function detectHasExamplesInOCR(text: string): boolean {
+  if (!text) return false;
+  const keywords = /(تطبيق|التطبيقات|مثال|أمثلة|case study|example|examples|applications?)/i;
+  return keywords.test(text);
+}
+
+// Detect formulas presence in AI summary
+export function detectFormulasInSummary(summary: string): boolean {
+  if (!summary) return false;
+  const hasHeader = summary.includes(MANDATORY_SECTIONS.FORMULAS_EQUATIONS);
+  const hasLatex = /\$\$[\s\S]*?\$\$/g.test(summary) || /\\(frac|sqrt|sum|int)/i.test(summary);
+  return hasHeader || hasLatex;
+}
+
+// Detect applications/examples presence in AI summary
+export function detectApplicationsInSummary(summary: string): boolean {
+  if (!summary) return false;
+  return summary.includes(MANDATORY_SECTIONS.APPLICATIONS_EXAMPLES);
+}
+
+// Verify grounding of summary against OCR
+export function verifyContentGrounding(ocr: string, summary: string): { isGrounded: boolean; violations: string[] } {
+  const violations: string[] = [];
+  const hasFormulasOCR = detectHasFormulasInOCR(ocr);
+  const hasExamplesOCR = detectHasExamplesInOCR(ocr);
+  const hasFormulasSummary = detectFormulasInSummary(summary);
+  const hasApplicationsSummary = detectApplicationsInSummary(summary);
+
+  if (hasFormulasSummary && !hasFormulasOCR) violations.push('FORMULAS_NOT_IN_OCR');
+  if (hasApplicationsSummary && !hasExamplesOCR) violations.push('APPLICATIONS_NOT_IN_OCR');
+
+  return { isGrounded: violations.length === 0, violations };
+}

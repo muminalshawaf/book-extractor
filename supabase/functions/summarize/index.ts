@@ -8,7 +8,9 @@ import {
   convertArabicToEnglishNumber, 
   validateSummaryCompliance, 
   buildSystemPrompt, 
-  createEmergencyPrompt 
+  createEmergencyPrompt,
+  detectHasFormulasInOCR,
+  detectHasExamplesInOCR
 } from "../_shared/templates.ts";
 import { 
   callGeminiAPI, 
@@ -107,7 +109,10 @@ serve(async (req) => {
     
     const pageType = detectPageType(text, questions);
     const needsDetailedStructure = isContentPage(text);
+    const hasFormulasOCR = detectHasFormulasInOCR(text);
+    const hasExamplesOCR = detectHasExamplesInOCR(text);
     console.log(`📊 Page Analysis: Type=${pageType}, Questions=${questions.length}, DetailedStructure=${needsDetailedStructure}`);
+    console.log('🔎 OCR Anti-hallucination flags:', { hasFormulasOCR, hasExamplesOCR });
 
     // Build visual elements context
     let visualElementsText = '';
@@ -271,6 +276,11 @@ CRITICAL: Answer ONLY the questions numbered ${questions.map(q => q.number).join
 **CONTENT INTEGRATION MODE WITH RAG SUPPORT**
 This page contains substantial educational content. Integrate with RAG context to show knowledge progression.
 
+ANTI-HALLUCINATION RULES:
+- لا تضف قسم ${MANDATORY_SECTIONS.FORMULAS_EQUATIONS} إذا لم تُكتشف صيغ/معادلات في OCR.
+- لا تضف قسم ${MANDATORY_SECTIONS.APPLICATIONS_EXAMPLES} إذا لم تُكتشف أمثلة/تطبيقات في OCR.
+- Flags: formulas_in_ocr=${hasFormulasOCR ? 'YES' : 'NO'}, examples_in_ocr=${hasExamplesOCR ? 'YES' : 'NO'}
+
 ## ملخص المحتوى التعليمي  
 [Summarize in few sentences what's on this page, connecting to previous concepts when RAG context is available]
 
@@ -282,14 +292,14 @@ ${MANDATORY_SECTIONS.SCIENTIFIC_TERMS}
 Extract scientific terminology, linking to previously introduced terms when applicable:
 - **[Scientific term]:** [explanation]
 
-${MANDATORY_SECTIONS.FORMULAS_EQUATIONS}  
+${hasFormulasOCR ? `${MANDATORY_SECTIONS.FORMULAS_EQUATIONS}  
 List formulas and equations, showing relationship to previously covered material:
 | الصيغة | الوصف | المتغيرات | الربط بالسياق السابق |
 |--------|--------|-----------|---------------------|
-| $$formula$$ | description | variables | [connection if relevant] |
+| $$formula$$ | description | variables | [connection if relevant] |` : ''}
 
-${MANDATORY_SECTIONS.APPLICATIONS_EXAMPLES}
-List examples showing practical applications and connections to previous topics
+${hasExamplesOCR ? `${MANDATORY_SECTIONS.APPLICATIONS_EXAMPLES}
+List examples showing practical applications and connections to previous topics` : ''}
 
 ${questions.length > 0 ? `${MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS}
 ONLY answer questions that are explicitly numbered and present on THIS PAGE (${questions.map(q => q.number).join(', ')}). Do NOT include questions from RAG context.
@@ -298,9 +308,15 @@ Process ONLY the ${questions.length} questions numbered ${questions.map(q => q.n
 OCR TEXT:
 ${enhancedText}`;
 
+
     } else if (pageType === 'mixed') {
       // Mixed content — enforce mandated sections only (no extra headers)
       userPrompt = `# ملخص المحتوى والأسئلة
+
+ANTI-HALLUCINATION RULES:
+- لا تضف قسم ${MANDATORY_SECTIONS.FORMULAS_EQUATIONS} إذا لم تُكتشف صيغ/معادلات في OCR.
+- لا تضف قسم ${MANDATORY_SECTIONS.APPLICATIONS_EXAMPLES} إذا لم تُكتشف أمثلة/تطبيقات في OCR.
+- Flags: formulas_in_ocr=${hasFormulasOCR ? 'YES' : 'NO'}, examples_in_ocr=${hasExamplesOCR ? 'YES' : 'NO'}
 
 **STRICT OUTPUT FORMAT**
 Use ONLY the following sections in this exact order. Do NOT add any other sections (no "نظرة عامة" or meta text).
@@ -314,15 +330,21 @@ ${MANDATORY_SECTIONS.CONCEPT_EXPLANATIONS}
 ${MANDATORY_SECTIONS.SCIENTIFIC_TERMS}
 - [سرد المصطلحات مع شرح موجز]
 
-${MANDATORY_SECTIONS.FORMULAS_EQUATIONS}
+${hasExamplesOCR ? `${MANDATORY_SECTIONS.APPLICATIONS_EXAMPLES}
+- [أمثلة وتطبيقات موجزة فقط إذا كانت موجودة في OCR]` : ''}
+
+${hasFormulasOCR ? `${MANDATORY_SECTIONS.FORMULAS_EQUATIONS}
 | الصيغة | الوصف | المتغيرات | الربط بالسياق السابق |
 |--------|--------|-----------|---------------------|
-| $$formula$$ | description | variables | [connection if relevant] |
+| $$formula$$ | description | variables | [connection if relevant] |` : ''}
 
 ${questions.length > 0 ? `${MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS}
 ONLY answer questions that are explicitly numbered and present on THIS PAGE (${questions.map(q => q.number).join(', ')}). Do NOT include questions from RAG context.
 
 Answer the ${questions.length} questions numbered ${questions.map(q => q.number).join(', ')} using integrated knowledge from RAG context and current content:` : ''}
+OCR TEXT:
+${enhancedText}`;
+
 OCR TEXT:
 ${enhancedText}`;
 
