@@ -1452,18 +1452,20 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           }
         }
         
+        // Call summarize with strict anti-hallucination mode
         const summaryResult = await callFunction('summarize', {
-          text: cleanedOcrText, // Use cleaned text without pre-injection
+          text: cleanedOcrText,
           lang: 'ar',
           page: pageNum,
           title: title,
           ocrData: ocrResult,
+          strictMode: true, // Enable strict mode to prevent hallucination
           ragContext: ragEnabled && ragPagesFound > 0 ? ragPagesIncluded.map(p => ({
             pageNumber: p.pageNumber,
             title: p.title,
             content: '', // Content will be retrieved by summarize function
             similarity: p.similarity
-          })) : [] // Pass RAG context to summarize function like admin process
+          })) : []
         }, { timeout: 180000, retries: 1 });
         
         let summary = summaryResult.summary || '';

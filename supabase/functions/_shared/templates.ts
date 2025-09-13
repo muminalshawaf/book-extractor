@@ -309,7 +309,7 @@ export function validateSummaryCompliance(
 }
 
 // Build system prompt for extreme strict compliance
-export function buildSystemPrompt(subject: string, hasMultipleChoice: boolean): string {
+export function buildSystemPrompt(subject: string, hasMultipleChoice: boolean, strictMode: boolean = false): string {
   // Chemistry-only mandates (included only when subject is Chemistry)
   const chemistryMandates = subject === 'Chemistry' ? `
 8. QUANTITATIVE ANALYSIS MANDATE (Chemistry-specific): For questions comparing effects (like boiling point elevation, freezing point depression, etc.), you MUST:
@@ -371,6 +371,25 @@ ${TEMPLATE_FORMATS.MULTIPLE_CHOICE_FORMAT}` : ''}
 - Use LaTeX for formulas: ${TEMPLATE_FORMATS.LATEX_DISPLAY}
 - Use × (NOT \\cdot or \\cdotp) for multiplication
 - Bold all section headers with **Header**
+
+${strictMode ? `
+🚨 STRICT ANTI-HALLUCINATION MODE ACTIVATED 🚨
+
+⛔ ABSOLUTE FORMULA/EQUATION PROHIBITION: 
+- You are STRICTLY FORBIDDEN from including ANY formulas, equations, or mathematical expressions in the "## الصيغ والمعادلات" section unless they are EXPLICITLY present in the OCR text
+- You MUST NOT derive, infer, or add any formulas that are not directly stated in the source material
+- If the OCR text contains NO formulas, you MUST write: "لم يتم توفير صيغ رياضية في هذا النص" (No mathematical formulas provided in this text)
+
+⛔ ABSOLUTE CONTENT GROUNDING REQUIREMENT:
+- Every statement, concept, and explanation MUST be directly supported by the OCR text
+- You are FORBIDDEN from adding external knowledge, examples, or explanations not present in the source
+- If a concept is mentioned but not explained in the OCR, you MUST NOT provide additional explanation
+
+⛔ STRICT EVIDENCE-BASED WRITING:
+- Only summarize what is explicitly stated in the OCR text
+- Do not expand, interpret, or add context beyond what is provided
+- If information is incomplete, reflect that incompleteness rather than filling gaps
+` : ''}
 
 CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
 1. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence from lowest to highest number. If you see questions 45, 102, 46, you MUST answer them as: 45, then 46, then 102. This is MANDATORY and non-negotiable.

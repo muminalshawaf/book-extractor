@@ -56,8 +56,8 @@ serve(async (req) => {
   try {
     console.log('🚨 EXTREME STRICT COMPLIANCE SUMMARIZE FUNCTION STARTED 🚨');
     
-    const { text, lang = "ar", page, title, ocrData = null, ragContext = null } = await req.json();
-    console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title}, ragContext: ${ragContext ? `${ragContext.length} pages` : 'none'} }`);
+    const { text, lang = "ar", page, title, ocrData = null, ragContext = null, strictMode = false } = await req.json();
+    console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title}, ragContext: ${ragContext ? `${ragContext.length} pages` : 'none'}, strictMode: ${strictMode} }`);
     
     // API Key validation
     const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
@@ -231,8 +231,8 @@ Rows:`;
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
     console.log(`Multiple choice detected: ${hasMultipleChoice}`);
 
-    // Build system prompt using shared utility
-    const systemPrompt = buildSystemPrompt(subject, hasMultipleChoice);
+    // Build system prompt using shared utility with strict mode if enabled
+    const systemPrompt = buildSystemPrompt(subject, hasMultipleChoice, strictMode);
 
     // Create specialized prompts based on page type
     let userPrompt = '';
