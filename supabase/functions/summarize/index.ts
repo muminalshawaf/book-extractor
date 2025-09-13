@@ -232,7 +232,7 @@ Rows:`;
     console.log(`Multiple choice detected: ${hasMultipleChoice}`);
 
     // Build system prompt using shared utility with strict mode if enabled
-    const systemPrompt = buildSystemPrompt(subject, hasMultipleChoice, strictMode);
+    const systemPrompt = buildSystemPrompt(subject, hasMultipleChoice, strictMode, pageType);
 
     // Create specialized prompts based on page type
     let userPrompt = '';
@@ -435,7 +435,7 @@ ${enhancedText}`;
     
     // Emergency regeneration if compliance is poor
     if (!compliance.isValid && compliance.score < 80) {
-      const emergencyPrompt = createEmergencyPrompt(questions, enhancedText);
+      const emergencyPrompt = createEmergencyPrompt(questions, enhancedText, pageType);
       const regeneratedSummary = await handleEmergencyRegeneration(
         summary, compliance, pageType, questions, enhancedText, systemPrompt, emergencyPrompt,
         providerUsed === 'gemini-2.5-pro' ? 'gemini' : 'deepseek',

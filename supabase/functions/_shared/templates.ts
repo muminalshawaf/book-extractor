@@ -320,7 +320,7 @@ export function validateSummaryCompliance(
 }
 
 // Build system prompt for extreme strict compliance
-export function buildSystemPrompt(subject: string, hasMultipleChoice: boolean, strictMode: boolean = false): string {
+export function buildSystemPrompt(subject: string, hasMultipleChoice: boolean, strictMode: boolean = false, pageType: string = 'mixed'): string {
   // Chemistry-only mandates (included only when subject is Chemistry)
   const chemistryMandates = subject === 'Chemistry' ? `
 8. QUANTITATIVE ANALYSIS MANDATE (Chemistry-specific): For questions comparing effects (like boiling point elevation, freezing point depression, etc.), you MUST:
@@ -458,17 +458,36 @@ ${chemistryMandates}
    - CRITICAL: If multiple choice options are present, your answer MUST be one of the given choices - NO EXCEPTIONS
    - You MUST cross-check numerical results with graph scales and table values
 
-MANDATORY SECTIONS (only include if content exists on the page):
+${pageType === 'questions-focused' ? 
+  `MANDATORY SECTIONS FOR QUESTIONS-ONLY PAGE:
+- ${MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS}
+
+⚠️ CRITICAL: This page contains ONLY questions. Do NOT include any other sections like concepts, terms, or formulas - ONLY answer the questions directly.` :
+  `MANDATORY SECTIONS (only include if content exists on the page):
 - ${MANDATORY_SECTIONS.CONCEPTS_DEFINITIONS}
 - ${MANDATORY_SECTIONS.SCIENTIFIC_TERMS}
 - ${MANDATORY_SECTIONS.FORMULAS_EQUATIONS}  
 - ${MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS}
 
-Skip sections if the page does not contain relevant content for that section.`;
+Skip sections if the page does not contain relevant content for that section.`}`;
 }
 
 // Create emergency regeneration prompt
-export function createEmergencyPrompt(questions: Array<any>, enhancedText: string): string {
+export function createEmergencyPrompt(questions: Array<any>, enhancedText: string, pageType: string = 'mixed'): string {
+  if (pageType === 'questions-focused') {
+    return `🚨 EMERGENCY COMPLIANCE MODE FOR QUESTIONS-ONLY PAGE 🚨
+
+ABSOLUTE MANDATE: This page contains ONLY questions. Include ONLY the questions section below.
+
+${questions.length > 0 ? `${MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS}
+MANDATORY: Answer questions ${questions.map(q => q.number).join(', ')}` : ''}
+
+⚠️ CRITICAL: Do NOT include concepts, terms, formulas, or any other sections - ONLY answer the questions.
+
+EMERGENCY DATA:
+${enhancedText}`;
+  }
+
   return `🚨 EMERGENCY COMPLIANCE MODE - PREVIOUS RESPONSE REJECTED FOR FORMAT VIOLATIONS 🚨
 
 ABSOLUTE MANDATE: Include ALL sections below in EXACT ORDER. NO EXCEPTIONS.

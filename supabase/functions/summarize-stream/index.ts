@@ -199,7 +199,7 @@ serve(async (req: Request) => {
     console.log(`Multiple choice detected: ${hasMultipleChoice}`);
 
     // Build system prompt using shared utility
-    const systemPrompt = buildSystemPrompt(subject, hasMultipleChoice);
+    const systemPrompt = buildSystemPrompt(subject, hasMultipleChoice, false, pageType);
 
     // Create unified prompt based on page type (using same structure as main summarize function)
     let userPrompt = '';
@@ -300,7 +300,7 @@ ${text}`;
         
         // Emergency regeneration if needed
         if (!compliance.isValid && compliance.score < 80) {
-          const emergencyPrompt = createEmergencyPrompt(questions, text);
+          const emergencyPrompt = createEmergencyPrompt(questions, text, pageType);
           const regeneratedSummary = await handleEmergencyRegeneration(
             streamingContent, compliance, pageType, questions, text, systemPrompt, emergencyPrompt,
             'gemini', GOOGLE_API_KEY, validateSummaryCompliance
