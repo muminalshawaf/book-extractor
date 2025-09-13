@@ -345,8 +345,6 @@ Answer the ${questions.length} questions numbered ${questions.map(q => q.number)
 OCR TEXT:
 ${enhancedText}`;
 
-OCR TEXT:
-${enhancedText}`;
 
     } else {
       // Default for non-content pages
