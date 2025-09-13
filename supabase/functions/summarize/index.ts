@@ -451,7 +451,32 @@ Rows:`;
    - FAILURE TO CALCULATE WHEN DATA EXISTS IS STRICTLY FORBIDDEN
 ` : '';
 
-    const systemPrompt = `You are an expert ${subject} professor. Your task is to analyze educational content and provide structured summaries following a specific format.
+    // Validation function for strict compliance
+    const validateSummaryCompliance = (summary: string, pageType: string, hasQuestions: boolean): { isValid: boolean; missing: string[] } => {
+      const missing: string[] = [];
+      
+      // Check mandatory sections based on page type
+      if (pageType === 'mixed' || pageType === 'content-focused' || pageType === 'questions-focused') {
+        if (!summary.includes('## المفاهيم والتعاريف')) missing.push('المفاهيم والتعاريف');
+        if (!summary.includes('## شرح المفاهيم')) missing.push('شرح المفاهيم');
+        if (!summary.includes('## المصطلحات العلمية')) missing.push('المصطلحات العلمية');
+        if (!summary.includes('## الصيغ والمعادلات')) missing.push('الصيغ والمعادلات');
+        
+        if (hasQuestions) {
+          if (!summary.includes('## الأسئلة والحلول الكاملة') && !summary.includes('## الأسئلة والإجابات الكاملة')) {
+            missing.push('الأسئلة والحلول الكاملة');
+          }
+        }
+      }
+      
+      return { isValid: missing.length === 0, missing };
+    };
+
+    const systemPrompt = `🚨 ABSOLUTE COMPLIANCE MANDATE 🚨
+
+You are an expert ${subject} professor with ZERO TOLERANCE for format deviations.
+
+⛔ CRITICAL: FOLLOW THIS FORMAT EXACTLY OR RESPONSE WILL BE REJECTED:
 
 🔍 **MANDATORY INTERNAL PRE-FLIGHT CHECK (DO NOT INCLUDE IN YOUR RESPONSE)**:
 Before writing your summary, you MUST internally check:
@@ -465,6 +490,8 @@ Before writing your summary, you MUST internally check:
 ⚠️ CRITICAL: If any question references a graph or table, review the OCR context, specifically the visuals and table section and ensure you use it to answer the questions with high precision. NEVER provide an answer without this critical step.
 
 🚫 ABSOLUTE NO-GREETING OR PERSONA TEXT: Do NOT include greetings, self-references (for example: "بصفتي أستاذك..."), or any meta commentary. Start directly with the required sections.
+
+🚫 ABSOLUTE PROHIBITION: NO extra sections, NO overview paragraphs, NO introductory text. ONLY the mandated sections in exact order.
 
 FORMAT REQUIREMENTS:
 # Header
@@ -1030,8 +1057,97 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
           console.log(`⚠️ Still missing ${missingNumbers.length} questions after all attempts: ${missingNumbers.join(', ')}`);
         }
       }
-    } else if (summaryQuestionCount >= originalQuestionCount) {
-      console.log('✅ All questions appear to be processed successfully');
+    // VALIDATION FUNCTION FOR EXTREME STRICT COMPLIANCE
+    const validateSummaryCompliance = (summary: string, pageType: string, hasQuestions: boolean): { isValid: boolean; missing: string[]; score: number } => {
+      const missing: string[] = [];
+      let score = 0;
+      const totalSections = hasQuestions ? 6 : 5;
+      
+      // Check mandatory sections based on page type
+      if (pageType === 'mixed' || pageType === 'content-heavy' || pageType === 'questions-focused') {
+        if (summary.includes('## المفاهيم والتعاريف')) score++; else missing.push('المفاهيم والتعاريف');
+        if (summary.includes('## شرح المفاهيم')) score++; else missing.push('شرح المفاهيم');
+        if (summary.includes('## المصطلحات العلمية')) score++; else missing.push('المصطلحات العلمية');
+        if (summary.includes('## الصيغ والمعادلات')) score++; else missing.push('الصيغ والمعادلات');
+        if (summary.includes('## التطبيقات والأمثلة')) score++; else missing.push('التطبيقات والأمثلة');
+        
+        if (hasQuestions) {
+          if (summary.includes('## الأسئلة والحلول الكاملة') || summary.includes('## الأسئلة والإجابات الكاملة')) {
+            score++;
+          } else {
+            missing.push('الأسئلة والحلول الكاملة');
+          }
+        }
+      }
+      
+      const complianceScore = (score / totalSections) * 100;
+      return { isValid: missing.length === 0, missing, score: complianceScore };
+    };
+
+    // Check compliance BEFORE auto-continuation
+    const compliance = validateSummaryCompliance(summary, pageType, questions.length > 0);
+    console.log(`📊 Compliance Score: ${compliance.score}% - Missing sections: ${compliance.missing.join(', ')}`);
+    
+    // If compliance is poor, force regeneration with extreme strict prompt
+    if (!compliance.isValid && compliance.score < 80) {
+      console.log(`🚨 COMPLIANCE FAILURE - Regenerating with extreme strict prompt. Missing: ${compliance.missing.join(', ')}`);
+      
+      const emergencyPrompt = `🚨 EMERGENCY COMPLIANCE MODE - PREVIOUS RESPONSE REJECTED FOR FORMAT VIOLATIONS 🚨
+
+ABSOLUTE MANDATE: Include ALL sections below in EXACT ORDER. NO EXCEPTIONS.
+
+## المفاهيم والتعاريف
+- [Required content here]
+
+## شرح المفاهيم
+- [Required content here]
+
+## المصطلحات العلمية  
+- [Required content here]
+
+## الصيغ والمعادلات
+| الصيغة | الوصف | المتغيرات | الربط بالسياق السابق |
+|--------|--------|-----------|---------------------|
+| $$formula$$ | description | variables | [connection if relevant] |
+
+## التطبيقات والأمثلة
+- [Required content here]
+
+${questions.length > 0 ? `## الأسئلة والحلول الكاملة
+MANDATORY: Answer questions ${questions.map(q => q.number).join(', ')}` : ''}
+
+EMERGENCY DATA:
+${enhancedText}`;
+
+      try {
+        if (googleApiKey) {
+          const emergencyResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: systemPrompt + "\n\n" + emergencyPrompt }] }],
+              generationConfig: { temperature: 0, maxOutputTokens: 16000 }
+            }),
+          });
+
+          if (emergencyResp.ok) {
+            const emergencyData = await emergencyResp.json();
+            const emergencySummary = emergencyData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+            
+            if (emergencySummary.trim()) {
+              const newCompliance = validateSummaryCompliance(emergencySummary, pageType, questions.length > 0);
+              console.log(`📊 Emergency Regeneration Score: ${newCompliance.score}%`);
+              
+              if (newCompliance.score > compliance.score) {
+                summary = emergencySummary;
+                console.log('✅ Emergency regeneration improved compliance');
+              }
+            }
+          }
+        }
+      } catch (emergencyError) {
+        console.error('Emergency regeneration failed:', emergencyError);
+      }
     }
 
     return new Response(JSON.stringify({ 
