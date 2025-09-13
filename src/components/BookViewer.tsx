@@ -910,6 +910,106 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummLoading(false);
   };
 
+  // Client-side sanitization helper
+  const sanitizeSummaryClient = useCallback((summary: string, ocrText: string, violations?: string[]): { 
+    sanitizedContent: string; 
+    wasSanitized: boolean; 
+    removedSections: string[] 
+  } => {
+    if (!summary || !ocrText) {
+      return { sanitizedContent: summary || '', wasSanitized: false, removedSections: [] };
+    }
+
+    let sanitizedContent = summary;
+    const removedSections: string[] = [];
+    
+    // Detect OCR capabilities
+    const hasFormulasOCR = /[∫∑∏√∂∇∆λπθΩαβγδεζηκμνξρστφχψω]|[=+\-×÷<>≤≥≠]|\d+\s*[×÷]\s*\d+|[a-zA-Z]\s*=\s*[a-zA-Z0-9]/.test(ocrText);
+    const hasExamplesOCR = /(تطبيق|التطبيقات|مثال|أمثلة|case study|example|examples|applications?)/i.test(ocrText);
+    
+    console.log('Client sanitizer OCR analysis:', { hasFormulasOCR, hasExamplesOCR, violations });
+    
+    // Remove formulas section if not grounded in OCR
+    if (!hasFormulasOCR || violations?.includes('FORMULAS_NOT_IN_OCR')) {
+      const formulaPatterns = [
+        /##\s*الصيغ والمعادلات[\s\S]*?(?=##|$)/gi,
+        /###\s*الصيغ والمعادلات[\s\S]*?(?=###|$)/gi,
+        /##\s*Formulas & Equations[\s\S]*?(?=##|$)/gi
+      ];
+      
+      let wasRemoved = false;
+      for (const pattern of formulaPatterns) {
+        if (pattern.test(sanitizedContent)) {
+          sanitizedContent = sanitizedContent.replace(pattern, '').trim();
+          wasRemoved = true;
+        }
+      }
+      if (wasRemoved && !removedSections.includes('الصيغ والمعادلات')) {
+        removedSections.push('الصيغ والمعادلات');
+      }
+    }
+    
+    // Remove applications section if not grounded in OCR
+    if (!hasExamplesOCR || violations?.includes('APPLICATIONS_NOT_IN_OCR')) {
+      const appPatterns = [
+        /##\s*التطبيقات والأمثلة[\s\S]*?(?=##|$)/gi,
+        /###\s*التطبيقات والأمثلة[\s\S]*?(?=###|$)/gi,
+        /##\s*Applications & Examples[\s\S]*?(?=##|$)/gi
+      ];
+      
+      let wasRemoved = false;
+      for (const pattern of appPatterns) {
+        if (pattern.test(sanitizedContent)) {
+          sanitizedContent = sanitizedContent.replace(pattern, '').trim();
+          wasRemoved = true;
+        }
+      }
+      if (wasRemoved && !removedSections.includes('التطبيقات والأمثلة')) {
+        removedSections.push('التطبيقات والأمثلة');
+      }
+    }
+    
+    // Clean up extra newlines
+    sanitizedContent = sanitizedContent.replace(/\n{3,}/g, '\n\n').trim();
+    
+    const wasSanitized = removedSections.length > 0;
+    
+    console.log('Client sanitization result:', {
+      wasSanitized,
+      removedSections,
+      originalLength: summary.length,
+      sanitizedLength: sanitizedContent.length
+    });
+    
+    return { sanitizedContent, wasSanitized, removedSections };
+  }, []);
+
+  // Helper to extract violations from 422 error responses
+  const extractViolationsFromError = useCallback((error: any): string[] => {
+    const violations: string[] = [];
+    const errorMsg = error?.message || error?.toString() || '';
+    
+    try {
+      // Try parsing as JSON first
+      if (errorMsg.includes('{')) {
+        const jsonMatch = errorMsg.match(/\{.*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.violations && Array.isArray(parsed.violations)) {
+            return parsed.violations;
+          }
+        }
+      }
+    } catch {
+      // If JSON parsing fails, look for violation patterns
+    }
+    
+    if (errorMsg.includes('FORMULAS_NOT_IN_OCR')) violations.push('FORMULAS_NOT_IN_OCR');
+    if (errorMsg.includes('APPLICATIONS_NOT_IN_OCR')) violations.push('APPLICATIONS_NOT_IN_OCR');
+    
+    return violations;
+  }, []);
+
   const summarizeExtractedText = async (text: string = extractedText, force = false) => {
     if (!text?.trim()) {
       toast.error(rtl ? "لا يوجد نص لتلخيصه" : "No text to summarize");
@@ -1098,31 +1198,90 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           throw new Error(`Summary compliance ${summaryResult.compliance_score}% below minimum threshold`);
         }
         
-        callFunction('save-page-summary', {
-          book_id: dbBookId,
-          page_number: index + 1,
-          summary_md: finalSummary,
-          confidence: actualConfidence,
-          // Store validation metadata
-          compliance_score: summaryResult.compliance_score || null,
-          validation_meta: summaryResult.validation_meta || null,
-          strict_validated: summaryResult.compliance_score >= 80,
-          provider_used: summaryResult.provider_used || null,
-          rag_metadata: ragEnabled ? {
-            ragEnabled: true,
-            ragPagesUsed: lastRagPagesUsed,
-            ragPagesIncluded: [], // Not available in this flow
-            ragThreshold: 0.4,
-            ragMaxPages: 3
-          } : {
-            ragEnabled: false,
-            ragPagesUsed: 0,
-            ragPagesIncluded: [],
-            ragThreshold: 0.4,
-            ragMaxPages: 3
+        // Save with anti-hallucination retry logic
+        const savePageSummary = async (summaryContent: string, retryCount = 0): Promise<void> => {
+          try {
+            const saveResult = await callFunction('save-page-summary', {
+              book_id: dbBookId,
+              page_number: index + 1,
+              summary_md: summaryContent,
+              confidence: actualConfidence,
+              // Store validation metadata
+              compliance_score: summaryResult.compliance_score || null,
+              validation_meta: summaryResult.validation_meta || null,
+              strict_validated: summaryResult.compliance_score >= 80,
+              provider_used: summaryResult.provider_used || null,
+              rag_metadata: ragEnabled ? {
+                ragEnabled: true,
+                ragPagesUsed: lastRagPagesUsed,
+                ragPagesIncluded: [], // Not available in this flow
+                ragThreshold: 0.4,
+                ragMaxPages: 3
+              } : {
+                ragEnabled: false,
+                ragPagesUsed: 0,
+                ragPagesIncluded: [],
+                ragThreshold: 0.4,
+                ragMaxPages: 3
+              }
+            });
+
+            if (saveResult?.sanitized) {
+              toast.info(rtl ? 
+                `تم تنظيف المحتوى - إزالة: ${(saveResult.removedSections || []).join(', ')}` :
+                `Content sanitized - removed: ${(saveResult.removedSections || []).join(', ')}`
+              );
+            }
+            
+          } catch (saveError: any) {
+            console.error('Save error details:', saveError);
+            
+            // Handle 422 anti-hallucination violations
+            if (saveError?.message?.includes('422') || saveError?.toString()?.includes('Anti-hallucination')) {
+              console.warn('422 Anti-hallucination error - attempting client-side sanitization...');
+              
+              if (retryCount < 1) { // Only retry once
+                const violations = extractViolationsFromError(saveError);
+                console.log('Extracted violations:', violations);
+                
+                const { sanitizedContent, wasSanitized, removedSections } = sanitizeSummaryClient(
+                  summaryContent, 
+                  text, 
+                  violations
+                );
+                
+                if (wasSanitized) {
+                  console.log('Client-side sanitization completed, retrying save...', { removedSections });
+                  toast.info(rtl ? 
+                    `تم تنظيف المحتوى وإعادة المحاولة - إزالة: ${removedSections.join(', ')}` :
+                    `Content sanitized and retrying - removed: ${removedSections.join(', ')}`
+                  );
+                  
+                  // Update the displayed summary with sanitized content
+                  setSummary(sanitizedContent);
+                  localStorage.setItem(sumKey, sanitizedContent);
+                  
+                  // Retry save with sanitized content
+                  await savePageSummary(sanitizedContent, retryCount + 1);
+                  return;
+                }
+              }
+              
+              // If sanitization didn't help or max retries reached
+              toast.error(rtl ? 
+                'فشل في حفظ الملخص - محتوى غير مطابق للنص المستخرج' :
+                'Failed to save summary - content not grounded in extracted text'
+              );
+            } else {
+              // Other save errors
+              console.error('Non-422 save error:', saveError);
+              toast.error(rtl ? 'فشل في حفظ الملخص' : 'Failed to save summary');
+            }
           }
-        }).catch(saveError => {
-          console.error('Failed to save summary to database:', saveError);
+        };
+        
+        savePageSummary(finalSummary).catch(finalError => {
+          console.error('Final save attempt failed:', finalError);
         });
       } else {
         throw new Error('No summary content received');

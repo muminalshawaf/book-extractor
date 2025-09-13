@@ -416,8 +416,23 @@ ${enhancedText}`;
       });
     }
 
-    // EXTREME STRICT COMPLIANCE VALIDATION
-    const compliance = validateSummaryCompliance(summary, pageType, questions.length > 0);
+    // ANTI-HALLUCINATION AUTO-SANITIZATION
+    console.log('🛡️ Auto-sanitization step: checking for ungrounded content...');
+    const { sanitizeSummary } = await import('../_shared/sanitizer.ts');
+    
+    const sanitizationResult = sanitizeSummary(summary, text);
+    if (sanitizationResult.wasSanitized) {
+      summary = sanitizationResult.sanitizedContent;
+      console.log(`🧹 Auto-sanitized summary - removed: ${sanitizationResult.removedSections.join(', ')}`);
+    }
+
+    // EXTREME STRICT COMPLIANCE VALIDATION (with OCR awareness)
+    const compliance = validateSummaryCompliance(
+      summary, 
+      pageType, 
+      questions.length > 0,
+      { hasFormulasOCR, hasExamplesOCR }
+    );
     console.log(`📊 COMPLIANCE SCORE: ${compliance.score}% - Missing sections: ${compliance.missing.join(', ')}`);
     
     // Emergency regeneration if compliance is poor
@@ -427,17 +442,29 @@ ${enhancedText}`;
         summary, compliance, pageType, questions, enhancedText, systemPrompt, emergencyPrompt,
         providerUsed === 'gemini-2.5-pro' ? 'gemini' : 'deepseek',
         providerUsed === 'gemini-2.5-pro' ? GOOGLE_API_KEY : DEEPSEEK_API_KEY,
-        validateSummaryCompliance
+        (s, pt, hq) => validateSummaryCompliance(s, pt, hq, { hasFormulasOCR, hasExamplesOCR })
       );
       
       if (regeneratedSummary !== summary) {
         summary = regeneratedSummary;
         console.log('✅ Emergency regeneration improved compliance');
+        
+        // Re-sanitize after emergency regeneration
+        const finalSanitization = sanitizeSummary(summary, text);
+        if (finalSanitization.wasSanitized) {
+          summary = finalSanitization.sanitizedContent;
+          console.log(`🧹 Final sanitization - removed: ${finalSanitization.removedSections.join(', ')}`);
+        }
       }
     }
 
     // Final validation and logging
-    const finalCompliance = validateSummaryCompliance(summary, pageType, questions.length > 0);
+    const finalCompliance = validateSummaryCompliance(
+      summary, 
+      pageType, 
+      questions.length > 0,
+      { hasFormulasOCR, hasExamplesOCR }
+    );
     const summaryQuestionCount = (summary.match(/\*\*س:/g) || []).length;
     console.log(`🎯 FINAL RESULTS: Compliance=${finalCompliance.score}%, Questions=${summaryQuestionCount}/${questions.length}, Provider=${providerUsed}`);
 

@@ -229,11 +229,19 @@ export function convertArabicToEnglishNumber(arabicNum: string): string {
   return result;
 }
 
-// Validation function for extreme strict compliance
-export function validateSummaryCompliance(summary: string, pageType: string, hasQuestions: boolean): { isValid: boolean; missing: string[]; score: number } {
+// Enhanced validation function for extreme strict compliance with OCR grounding
+export function validateSummaryCompliance(
+  summary: string, 
+  pageType: string, 
+  hasQuestions: boolean,
+  ocrFlags?: { hasFormulasOCR?: boolean; hasExamplesOCR?: boolean }
+): { isValid: boolean; missing: string[]; score: number } {
   const missing: string[] = [];
   let score = 0;
   const totalSections = hasQuestions ? 6 : 5;
+  
+  // OCR flags for anti-hallucination (optional, defaults to allowing all sections)
+  const { hasFormulasOCR = true, hasExamplesOCR = true } = ocrFlags || {};
   
   // Check mandatory sections based on page type
   if (pageType === 'content-heavy') {
@@ -247,11 +255,21 @@ export function validateSummaryCompliance(summary: string, pageType: string, has
     if (summary.includes(MANDATORY_SECTIONS.SCIENTIFIC_TERMS) || !summary.trim()) score++; 
     else if (summary.length > 100) missing.push('المصطلحات العلمية');
     
-    if (summary.includes(MANDATORY_SECTIONS.FORMULAS_EQUATIONS) || !summary.trim()) score++; 
-    else if (summary.length > 100) missing.push('الصيغ والمعادلات');
+    // Only expect formulas if they exist in OCR
+    if (hasFormulasOCR) {
+      if (summary.includes(MANDATORY_SECTIONS.FORMULAS_EQUATIONS)) score++; 
+      else if (summary.length > 100) missing.push('الصيغ والمعادلات');
+    } else {
+      score++; // Don't penalize missing formulas if not in OCR
+    }
     
-    if (summary.includes(MANDATORY_SECTIONS.APPLICATIONS_EXAMPLES) || !summary.trim()) score++; 
-    else if (summary.length > 100) missing.push('التطبيقات والأمثلة');
+    // Only expect examples if they exist in OCR
+    if (hasExamplesOCR) {
+      if (summary.includes(MANDATORY_SECTIONS.APPLICATIONS_EXAMPLES)) score++; 
+      else if (summary.length > 100) missing.push('التطبيقات والأمثلة');
+    } else {
+      score++; // Don't penalize missing examples if not in OCR
+    }
     
     if (hasQuestions) {
       if (summary.includes(MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS)) {
@@ -265,8 +283,17 @@ export function validateSummaryCompliance(summary: string, pageType: string, has
     if (summary.includes(MANDATORY_SECTIONS.CONCEPTS_DEFINITIONS)) score++; else missing.push('المفاهيم والتعاريف');
     if (summary.includes(MANDATORY_SECTIONS.CONCEPT_EXPLANATIONS)) score++; else missing.push('شرح المفاهيم');
     if (summary.includes(MANDATORY_SECTIONS.SCIENTIFIC_TERMS)) score++; else missing.push('المصطلحات العلمية');
-    if (summary.includes(MANDATORY_SECTIONS.FORMULAS_EQUATIONS)) score++; else missing.push('الصيغ والمعادلات');
-    if (summary.includes(MANDATORY_SECTIONS.APPLICATIONS_EXAMPLES)) score++; else missing.push('التطبيقات والأمثلة');
+    // Respect OCR grounding for strict pages too
+    if (hasFormulasOCR) {
+      if (summary.includes(MANDATORY_SECTIONS.FORMULAS_EQUATIONS)) score++; else missing.push('الصيغ والمعادلات');
+    } else {
+      score++; // Don't penalize missing formulas if not in OCR
+    }
+    if (hasExamplesOCR) {
+      if (summary.includes(MANDATORY_SECTIONS.APPLICATIONS_EXAMPLES)) score++; else missing.push('التطبيقات والأمثلة');
+    } else {
+      score++; // Don't penalize missing examples if not in OCR
+    }
     
     if (hasQuestions) {
       if (summary.includes(MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS)) {

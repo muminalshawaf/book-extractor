@@ -87,10 +87,14 @@ Deno.serve(async (req) => {
       throw new Error('Missing required fields: book_id and page_number are required')
     }
 
-    // Server-side anti-hallucination gate
+    // Server-side anti-hallucination auto-sanitization
+    let finalSummaryMd = summary_md;
+    let wasSanitized = false;
+    let removedSections: string[] = [];
+    
     try {
       const ocr = (ocr_text || '').toString();
-      const sum = (summary_md || '').toString();
+      let sum = (summary_md || '').toString();
       const hasFormulasOCR = detectHasFormulasInOCR(ocr);
       const hasExamplesOCR = detectHasExamplesInOCR(ocr);
       const hasFormulasSummary = detectFormulasInSummary(sum);
@@ -102,19 +106,26 @@ Deno.serve(async (req) => {
       if (hasApplicationsSummary && !hasExamplesOCR) violations.push('APPLICATIONS_NOT_IN_OCR');
 
       if (violations.length > 0) {
-        console.warn('Anti-hallucination gate triggered - rejecting summary', { violations });
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Anti-hallucination gate: content not grounded in OCR',
-          violations,
-          debug: { hasFormulasOCR, hasExamplesOCR, hasFormulasSummary, hasApplicationsSummary }
-        }), {
-          status: 422,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        console.warn('Anti-hallucination violations detected - auto-sanitizing...', { violations });
+        
+        const { sanitizeSummary } = await import('./_shared/sanitizer.ts');
+        const sanitizationResult = sanitizeSummary(sum, ocr, violations);
+        
+        finalSummaryMd = sanitizationResult.sanitizedContent;
+        wasSanitized = sanitizationResult.wasSanitized;
+        removedSections = sanitizationResult.removedSections;
+        
+        console.log('✅ Auto-sanitization completed:', {
+          wasSanitized,
+          removedSections,
+          originalLength: sum.length,
+          sanitizedLength: finalSummaryMd.length
         });
       }
     } catch (gateError) {
       console.error('Anti-hallucination gate error (non-fatal):', gateError);
+      // Continue with original content if sanitization fails
+      finalSummaryMd = summary_md;
     }
 
     // Create Supabase client with service role key for database writes
@@ -168,11 +179,13 @@ Deno.serve(async (req) => {
       book_id,
       page_number,
       ocr_text,
-      summary_md,
+      summary_md: finalSummaryMd, // Use sanitized content
       ocr_confidence: ocr_confidence || 0.8,
       confidence: confidence || 0.8,
       summary_json: rag_metadata || null,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      sanitized: wasSanitized,
+      sanitization_meta: wasSanitized ? { removedSections, violations: removedSections } : null
     }
 
     // Only include RAG fields if they are provided (not undefined)
@@ -275,7 +288,9 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       data,
-      embedding: embeddingResult
+      embedding: embeddingResult,
+      sanitized: wasSanitized,
+      removedSections: wasSanitized ? removedSections : []
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
