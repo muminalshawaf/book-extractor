@@ -442,6 +442,7 @@ ${enhancedText}`;
     if (pageType === 'questions-focused') {
       try {
         const questionsHeader = MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS;
+        // Keep only the Questions section
         const match = summary.match(new RegExp(`${questionsHeader}[\\s\\S]*`));
         if (match) {
           summary = match[0].trim();
@@ -449,7 +450,26 @@ ${enhancedText}`;
           // Strip any other sections (## headers) except questions header if phrasing differs
           summary = summary.replace(/##\s+(?!الأسئلة والحلول الكاملة)[^\n]+\n[\s\S]*?(?=(\n##\s+)|$)/g, '').trim();
         }
-        console.log('✂️ Enforced questions-only output (pre-validation)');
+
+        // Inside the Questions section, keep ONLY Q/A blocks that start with **س:
+        // 1) Remove any intro text before first question
+        const firstQIndex = summary.indexOf('**س:');
+        if (firstQIndex !== -1) {
+          // Preserve the header line if present
+          const headerMatch = summary.match(new RegExp(`^${questionsHeader}.*$`, 'm'));
+          const headerLine = headerMatch ? headerMatch[0] : questionsHeader;
+          const qaBody = summary.slice(firstQIndex).trim();
+
+          // 2) Extract consecutive question blocks
+          const qaBlocks = qaBody.match(/(\*\*س:\s*.*?\*\*)[\s\S]*?(?=(?:\n\*\*س:\s*)|\n##|$)/g);
+          const rebuilt = qaBlocks && qaBlocks.length > 0
+            ? `${headerLine}\n\n${qaBlocks.join('\n\n')}`
+            : `${headerLine}\n\n${qaBody}`;
+
+          summary = rebuilt.trim();
+        }
+
+        console.log('✂️ Enforced questions-only output (pre-validation) with QA-block filter');
       } catch (e) {
         console.warn('Failed to enforce questions-only output:', e);
       }
