@@ -236,7 +236,32 @@ export function validateSummaryCompliance(summary: string, pageType: string, has
   const totalSections = hasQuestions ? 6 : 5;
   
   // Check mandatory sections based on page type
-  if (pageType === 'mixed' || pageType === 'content-heavy' || pageType === 'questions-focused') {
+  if (pageType === 'content-heavy') {
+    // Content-heavy pages: Allow missing sections if not applicable
+    if (summary.includes(MANDATORY_SECTIONS.CONCEPTS_DEFINITIONS) || !summary.trim()) score++; 
+    else if (summary.length > 100) missing.push('المفاهيم والتعاريف');
+    
+    if (summary.includes(MANDATORY_SECTIONS.CONCEPT_EXPLANATIONS) || !summary.trim()) score++; 
+    else if (summary.length > 100) missing.push('شرح المفاهيم');
+    
+    if (summary.includes(MANDATORY_SECTIONS.SCIENTIFIC_TERMS) || !summary.trim()) score++; 
+    else if (summary.length > 100) missing.push('المصطلحات العلمية');
+    
+    if (summary.includes(MANDATORY_SECTIONS.FORMULAS_EQUATIONS) || !summary.trim()) score++; 
+    else if (summary.length > 100) missing.push('الصيغ والمعادلات');
+    
+    if (summary.includes(MANDATORY_SECTIONS.APPLICATIONS_EXAMPLES) || !summary.trim()) score++; 
+    else if (summary.length > 100) missing.push('التطبيقات والأمثلة');
+    
+    if (hasQuestions) {
+      if (summary.includes(MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS)) {
+        score++;
+      } else {
+        missing.push('الأسئلة والحلول الكاملة');
+      }
+    }
+  } else if (pageType === 'mixed' || pageType === 'questions-focused') {
+    // Mixed and question-focused pages: Strict requirements
     if (summary.includes(MANDATORY_SECTIONS.CONCEPTS_DEFINITIONS)) score++; else missing.push('المفاهيم والتعاريف');
     if (summary.includes(MANDATORY_SECTIONS.CONCEPT_EXPLANATIONS)) score++; else missing.push('شرح المفاهيم');
     if (summary.includes(MANDATORY_SECTIONS.SCIENTIFIC_TERMS)) score++; else missing.push('المصطلحات العلمية');

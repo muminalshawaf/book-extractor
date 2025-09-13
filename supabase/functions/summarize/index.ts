@@ -419,6 +419,16 @@ ${enhancedText}`;
     const summaryQuestionCount = (summary.match(/\*\*س:/g) || []).length;
     console.log(`🎯 FINAL RESULTS: Compliance=${finalCompliance.score}%, Questions=${summaryQuestionCount}/${questions.length}, Provider=${providerUsed}`);
 
+    // Additional validation metadata
+    const validationMeta = {
+      pageType,
+      questionsDetected: questions.length,
+      questionsAnswered: summaryQuestionCount,
+      missingSections: finalCompliance.missing,
+      hasQuestions: questions.length > 0,
+      complianceDetails: finalCompliance
+    };
+
     return new Response(JSON.stringify({ 
       summary,
       rag_pages_sent: ragPagesActuallySent,
@@ -426,6 +436,7 @@ ${enhancedText}`;
       rag_pages_sent_list: ragPagesSentList,
       rag_context_chars: ragContextChars,
       compliance_score: finalCompliance.score,
+      validation_meta: validationMeta,
       provider_used: providerUsed
     }), {
       status: 200,

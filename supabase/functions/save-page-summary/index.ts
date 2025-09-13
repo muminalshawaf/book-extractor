@@ -71,7 +71,12 @@ Deno.serve(async (req) => {
       rag_pages_sent,
       rag_pages_found,
       rag_pages_sent_list,
-      rag_context_chars
+      rag_context_chars,
+      // NEW VALIDATION PARAMETERS
+      compliance_score,
+      validation_meta,
+      strict_validated,
+      provider_used
     } = requestBody
 
     console.log(`Saving summary for book ${book_id}, page ${page_number}`)
@@ -151,6 +156,20 @@ Deno.serve(async (req) => {
     }
     if (rag_context_chars !== undefined) {
       upsertData.rag_context_chars = rag_context_chars;
+    }
+
+    // Add validation metadata fields
+    if (compliance_score !== undefined) {
+      upsertData.compliance_score = compliance_score;
+    }
+    if (validation_meta !== undefined) {
+      upsertData.validation_meta = validation_meta;
+    }
+    if (strict_validated !== undefined) {
+      upsertData.strict_validated = strict_validated;
+    }
+    if (provider_used !== undefined) {
+      upsertData.provider_used = provider_used;
     }
 
     console.log('RAG fields being saved:', {

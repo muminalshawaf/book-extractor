@@ -1073,7 +1073,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         
         localStorage.setItem(sumKey, finalSummary);
         setSummary(finalSummary);
-        setSummaryConfidence(0.8);
+        // Use actual compliance score instead of hardcoded value
+        const displayConfidence = summaryResult.compliance_score ? (summaryResult.compliance_score / 100) : 0.8;
+        setSummaryConfidence(displayConfidence);
         
         // Post-process: Check for missing numbered questions and complete them (non-blocking)
         checkAndCompleteMissingQuestions(finalSummary, trimmedText).catch(error => {
@@ -1083,11 +1085,29 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         toast.success(rtl ? "تم إنشاء الملخص بنجاح" : "Summary generated successfully");
         
         // Save complete summary to database (async, non-blocking)
+        // Use validation results from summarize function instead of hardcoded values
+        const actualConfidence = summaryResult.compliance_score ? (summaryResult.compliance_score / 100) : 0.8;
+        
+        // COMPLIANCE GATE: Reject summaries below 80% compliance
+        if (summaryResult.compliance_score && summaryResult.compliance_score < 80) {
+          console.warn(`🚨 COMPLIANCE GATE REJECTED: Summary compliance ${summaryResult.compliance_score}% < 80%`);
+          toast.error(rtl ? 
+            `رُفض الملخص - جودة منخفضة (${summaryResult.compliance_score}%)` : 
+            `Summary rejected - low quality (${summaryResult.compliance_score}%)`
+          );
+          throw new Error(`Summary compliance ${summaryResult.compliance_score}% below minimum threshold`);
+        }
+        
         callFunction('save-page-summary', {
           book_id: dbBookId,
           page_number: index + 1,
           summary_md: finalSummary,
-          confidence: 0.8,
+          confidence: actualConfidence,
+          // Store validation metadata
+          compliance_score: summaryResult.compliance_score || null,
+          validation_meta: summaryResult.validation_meta || null,
+          strict_validated: summaryResult.compliance_score >= 80,
+          provider_used: summaryResult.provider_used || null,
           rag_metadata: ragEnabled ? {
             ragEnabled: true,
             ragPagesUsed: lastRagPagesUsed,
