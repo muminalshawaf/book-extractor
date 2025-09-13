@@ -40,6 +40,7 @@ import { MobileReaderChrome } from "@/components/reader/MobileReaderChrome";
 import { HenryLawCalculator } from "@/components/HenryLawCalculator";
 import { IndexableOCRContent } from "@/components/seo/IndexableOCRContent";
 import { retrieveRAGContext, buildRAGPrompt, DEFAULT_RAG_OPTIONS, type RAGOptions } from "@/lib/rag/ragUtils";
+import { RegeneratePage156 } from "@/components/RegeneratePage156";
 
 export type BookPage = {
   src: string;
@@ -1593,6 +1594,9 @@ KF (°C/m)
 
   return (
     <section className={cn("w-full min-h-screen", rtl && "[direction:rtl]")}>
+      {/* Anti-hallucination test component - only show on page 156 */}
+      {(index + 1) === 156 && bookId === 'artificialintelligence12-1' && <RegeneratePage156 />}
+      
       {isMobile ? (
         <div className="min-h-screen">
           <MobileReaderChrome
