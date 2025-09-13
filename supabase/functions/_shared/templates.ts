@@ -278,8 +278,19 @@ export function validateSummaryCompliance(
         missing.push('الأسئلة والحلول الكاملة');
       }
     }
-  } else if (pageType === 'mixed' || pageType === 'questions-focused') {
-    // Mixed and question-focused pages: Strict requirements
+  } else if (pageType === 'questions-focused') {
+    // Questions-focused pages: Only require questions section
+    if (hasQuestions) {
+      if (summary.includes(MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS)) {
+        score = totalSections; // Full score for questions-only pages
+      } else {
+        missing.push('الأسئلة والحلول الكاملة');
+      }
+    } else {
+      score = totalSections; // No questions expected, no penalty
+    }
+  } else if (pageType === 'mixed') {
+    // Mixed pages: Strict requirements for all sections
     if (summary.includes(MANDATORY_SECTIONS.CONCEPTS_DEFINITIONS)) score++; else missing.push('المفاهيم والتعاريف');
     if (summary.includes(MANDATORY_SECTIONS.CONCEPT_EXPLANATIONS)) score++; else missing.push('شرح المفاهيم');
     if (summary.includes(MANDATORY_SECTIONS.SCIENTIFIC_TERMS)) score++; else missing.push('المصطلحات العلمية');
