@@ -311,6 +311,22 @@ ${text}`;
             console.log('✅ Emergency regeneration improved Gemini streaming compliance');
           }
         }
+
+        // Enforce questions-only output for questions-focused pages
+        if (pageType === 'questions-focused' && streamingContent) {
+          try {
+            const questionsHeader = MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS;
+            const match = streamingContent.match(new RegExp(`${questionsHeader}[\\s\\S]*`));
+            if (match) {
+              streamingContent = match[0].trim();
+            } else {
+              streamingContent = streamingContent.replace(/##\s+(?!الأسئلة والحلول الكاملة)[^\n]+\n[\s\S]*?(?=(\n##\s+)|$)/g, '').trim();
+            }
+            console.log('✂️ Enforced questions-only output for streaming (Gemini)');
+          } catch (e) {
+            console.warn('Failed to enforce questions-only output for streaming:', e);
+          }
+        }
       } else {
         console.error('Gemini failed for streaming:', geminiResponse.error);
       }

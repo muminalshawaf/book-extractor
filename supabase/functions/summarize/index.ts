@@ -107,7 +107,21 @@ serve(async (req) => {
     const questions = parseQuestions(text);
     console.log(`Found ${questions.length} questions in OCR text`);
     
-    const pageType = detectPageType(text, questions);
+    let pageType = detectPageType(text, questions);
+    // Heuristic override: if the page contains mostly numbered questions, force questions-focused
+    try {
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const qLineRegex = /^\s*(?:س[:：]?\s*)?(?:\d+|[٠-٩]+)\s*[.\-–\)]/;
+      const questionLines = lines.filter(l => qLineRegex.test(l));
+      const questionLineRatio = lines.length > 0 ? questionLines.length / lines.length : 0;
+      const contentKeywords = ['مثال','تعريف','قانون','معادلة','نظرية','خاصية','مفهوم','شرح','الأهداف','المفاهيم','التعاريف','الصيغ','الخطوات','المبادئ','example','definition','law','equation','theorem','property','concept','explanation','objectives','concepts','definitions','formulas','steps','principles'];
+      const nonQuestionText = lines.filter(l => !qLineRegex.test(l)).join(' ');
+      const nonQuestionSignals = contentKeywords.filter(k => nonQuestionText.toLowerCase().includes(k.toLowerCase())).length;
+      if (questions.length >= 1 && questionLineRatio >= 0.6 && nonQuestionSignals <= 1) {
+        pageType = 'questions-focused';
+        console.log('🔒 Overriding pageType to questions-focused based on line-ratio heuristics');
+      }
+    } catch {}
     const needsDetailedStructure = isContentPage(text);
     const hasFormulasOCR = detectHasFormulasInOCR(text);
     const hasExamplesOCR = detectHasExamplesInOCR(text);
@@ -424,6 +438,22 @@ ${enhancedText}`;
       console.log(`🧹 Auto-sanitized summary - removed: ${sanitizationResult.removedSections.join(', ')}`);
     }
 
+    // Enforce questions-only output for questions-focused pages
+    if (pageType === 'questions-focused') {
+      try {
+        const questionsHeader = MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS;
+        const match = summary.match(new RegExp(`${questionsHeader}[\\s\\S]*`));
+        if (match) {
+          summary = match[0].trim();
+        } else {
+          // Strip any other sections (## headers) except questions header if phrasing differs
+          summary = summary.replace(/##\s+(?!الأسئلة والحلول الكاملة)[^\n]+\n[\s\S]*?(?=(\n##\s+)|$)/g, '').trim();
+        }
+        console.log('✂️ Enforced questions-only output (pre-validation)');
+      } catch (e) {
+        console.warn('Failed to enforce questions-only output:', e);
+      }
+    }
     // EXTREME STRICT COMPLIANCE VALIDATION (with OCR awareness)
     const compliance = validateSummaryCompliance(
       summary, 
@@ -452,6 +482,22 @@ ${enhancedText}`;
         if (finalSanitization.wasSanitized) {
           summary = finalSanitization.sanitizedContent;
           console.log(`🧹 Final sanitization - removed: ${finalSanitization.removedSections.join(', ')}`);
+        }
+
+        // Enforce questions-only output again after regeneration
+        if (pageType === 'questions-focused') {
+          try {
+            const questionsHeader = MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS;
+            const match = summary.match(new RegExp(`${questionsHeader}[\\s\\S]*`));
+            if (match) {
+              summary = match[0].trim();
+            } else {
+              summary = summary.replace(/##\s+(?!الأسئلة والحلول الكاملة)[^\n]+\n[\s\S]*?(?=(\n##\s+)|$)/g, '').trim();
+            }
+            console.log('✂️ Enforced questions-only output (post-regeneration)');
+          } catch (e) {
+            console.warn('Failed to enforce questions-only output after regeneration:', e);
+          }
         }
       }
     }
