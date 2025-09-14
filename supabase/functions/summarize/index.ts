@@ -25,7 +25,7 @@ async function fetchRagContextServer(bookId: string, currentPage: number, queryT
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'models/text-embedding-004', content: { parts: [{ text: String(queryText).slice(0, 20000) }] } })
+        body: JSON.stringify({ text: String(queryText).slice(0, 20000) })
       }
     );
 
