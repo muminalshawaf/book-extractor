@@ -151,81 +151,64 @@ serve(async (req: Request) => {
 
     // Create appropriate prompt based on page type
     const prompt = needsDetailedStructure ? 
-      `**مهمة:** لخص المفاهيم الرئيسية وأجب على جميع الأسئلة المرقمة بدقة كاملة.
-
-**قيود حاسمة:**
-- لا تبدأ بتحيات أو مقدمات أو بيانات شخصية
-- إذا كانت المعلومات مفقودة، احذفها تماماً - لا تكتب شيئاً
-- ركز فقط على: ملخص المفاهيم الأساسية + حل الأسئلة المرقمة
-- استخدم فقط المعلومات الموجودة في النص المقدم
+      `لخص المفاهيم التعليمية الرئيسية وأجب على جميع الأسئلة المرقمة بدقة وتفصيل.
 
 الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
 ${contextPrompt}
 
-النص المطلوب تلخيصه:
+المحتوى التعليمي:
 """
 ${text}
 """
 
-**المهام الأساسية:**
-- لخص المفاهيم بوضوح ودقة
-- أجب على جميع الأسئلة المرقمة في النص بالتفصيل والدقة المطلوبة
-- استخدم السياق من الصفحات السابقة عند توفره لربط المفاهيم
-- اربط المعلومات البصرية (الرسوم، الجداول، المخططات) بالأسئلة عند الحاجة
-- قدم حلول خطوة بخطوة للمسائل الحسابية
-
-**عندما تجد أسئلة مرقمة:** أجب عليها جميعاً بالتفصيل المطلوب، وإذا كانت تشير إلى عناصر بصرية فاستخدم البيانات والمعلومات المحددة منها.${visualPromptAddition}` :
-      `**مهمة:** لخص المحتوى التالي بوضوح ودقة.
-
-**قيود حاسمة:**
-- لا تبدأ بتحيات أو مقدمات
-- استخدم فقط المعلومات الموجودة في النص
+المطلوب:
+- ملخص واضح للمفاهيم الأساسية
+- حلول مفصلة لجميع الأسئلة المرقمة (الأرقام: ${requiredQuestionIds.join('، ')})
+- استخدام البيانات البصرية (رسوم، جداول، مخططات) عند الحاجة
+- حلول خطوة بخطوة للمسائل الحسابية${visualPromptAddition}` :
+      `لخص محتوى هذه الصفحة بوضوح.
 
 الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
 ${contextPrompt}
 
-النص:
+المحتوى:
 """
 ${text}
 """
 
-اكتب ملخصاً مختصراً يوضح محتوى الصفحة وغرضها.`;
+اكتب ملخصاً مفيداً يوضح محتوى الصفحة وغرضها التعليمي.`;
 
     // Use Arabic prompt if language preference is Arabic or use appropriate English structure
     const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 
       needsDetailedStructure ? 
-        `You are a seasoned educator and expert professor. Create a comprehensive, student-focused summary that helps students understand concepts and provides complete answers to all numbered questions in the textbook.
+        `Summarize the key educational concepts and answer all numbered questions with accuracy and detail.
 
 Book: ${title || "the book"} • Page: ${page ?? "?"}
 ${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
 
-Text to summarize:
+Educational content:
 """
 ${text}
 """
 
-**Your Mission:**
-- Explain concepts clearly and understandably for students  
-- Answer ALL numbered questions in the text with the required detail and accuracy
-- Use context from previous pages when available to connect concepts
-- Connect visual information (graphs, tables, diagrams) to questions when needed
-- Provide step-by-step solutions for calculation problems
-- Write in a natural educational style that suits students
+Requirements:
+- Clear summary of main concepts
+- Detailed solutions for all numbered questions (Numbers: ${requiredQuestionIds.join(', ')})
+- Use visual data (graphs, tables, diagrams) when questions reference them
+- Step-by-step solutions for calculation problems
 
-**When you find numbered questions:** Answer them all in detail, and if they reference visual elements, use the specific data and information from them.
-
-Write the summary in your natural style as an expert teacher, focusing on helping students understand and master the educational content.` :
-        `You are an expert teacher. Create a simple and clear summary for this page:
+Write naturally in your teaching style to help students understand the content.` :
+        `Summarize this page content clearly and helpfully.
 
 Book: ${title || "the book"} • Page: ${page ?? "?"}
 ${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
 
-Text:
+Content:
 """
 ${text}
 """
 
-Write a concise summary that explains the page content and purpose in a simple educational style.`;
+Write a helpful summary that explains the page content and educational purpose.`;
 
     console.log('Making streaming request to DeepSeek API...');
 
@@ -241,7 +224,7 @@ Write a concise summary that explains the page content and purpose in a simple e
         messages: [
           {
             role: 'system',
-            content: 'You are a seasoned educator and expert professor. Your role is to help students understand educational content by creating comprehensive summaries and providing complete, accurate answers to all questions. Use your teaching expertise to explain concepts clearly and connect ideas for better student understanding.'
+            content: 'You are an expert educator specializing in creating clear, comprehensive educational summaries. Write naturally and organize information in the most logical way to help students understand concepts and master the content.'
           },
           {
             role: 'user',

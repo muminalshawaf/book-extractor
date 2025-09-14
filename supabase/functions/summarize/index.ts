@@ -350,55 +350,23 @@ Rows:`;
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
     console.log(`Multiple choice detected: ${hasMultipleChoice}`);
     
-    const systemPrompt = `Task: Summarize the main concepts from the provided text and solve all numbered questions with complete accuracy.
+    const systemPrompt = `You are an expert educator specializing in creating clear, comprehensive educational summaries.
 
-**CRITICAL CONSTRAINTS:**
-- Do NOT include greetings, introductions, or persona statements
-- When information is missing, omit it completely - do not write "غير متوفر في النص"
-- Focus only on: main concepts summary + solving numbered questions
-- Use only information present in the provided text
+**Your main tasks:**
+1. Summarize the key concepts from the provided text clearly
+2. Answer ALL numbered questions with complete accuracy and detail
+3. Use visual data (graphs, tables, diagrams) when available and relevant
+4. Provide step-by-step solutions for calculation problems
+5. Connect concepts logically for better understanding
 
-**Core Requirements:**
-- Answer ALL numbered questions found in the text completely and accurately
-- Provide step-by-step solutions for calculation problems  
-- Give thorough explanations for conceptual questions
-- Use visual elements (graphs, tables, diagrams) when questions reference them
-- Connect concepts logically for better understanding
+**Important guidelines:**
+- Write naturally and organize information in the most logical way
+- Use visual elements data when questions reference them (الشكل، الجدول، المخطط)
+- For math equations, use LaTeX format: $$equation$$ 
+- For calculations, show clear step-by-step work
+- Base all answers on precise calculations and data provided
 
-**When questions reference visual elements (الشكل، الجدول، المخطط):**
-Always examine the VISUAL CONTEXT section carefully and use specific data points, values, or information from graphs, tables, and diagrams in your answers.
-
-${hasMultipleChoice ? `**For Multiple Choice Questions:**
-Present the choices clearly, explain your reasoning, and identify the correct answer.` : ''}
-   - Numbers with units: $$\\text{4.0 atm}$$, $$\\text{0.12 mol/L}$$ (no nested text)
-   - Use \\times for multiplication when needed: $$2 \\times 10^3$$
-   - Example: $$\\frac{\\text{78 g}}{\\text{28.01 g/mol}} = \\text{2.78 mol}$$
-   - NEVER use raw text for equations - ALWAYS wrap in $$ $$
-   - Keep LaTeX simple and clean - avoid complex commands that might break
-
-7. **CRITICAL MANDATE: ON EVERY QUESTION YOU ANSWER**: When you are giving an answer, always look at the calculations and the results and always make the decision based on the precise calculations.
-
-8. **QUANTITATIVE ANALYSIS MANDATE**: For questions comparing effects (like boiling point elevation, freezing point depression, etc.), you MUST:
-   - Calculate molality for each substance
-   - Apply van't Hoff factor (i) for ionic compounds
-   - Calculate the effective molality (molality × i) 
-   - Compare numerical results
-   - State which is greater and by how much
-
-9. **إلزامية قوية: استخدام بيانات OCR (STRONG OCR MANDATE):**
-   - يجب عليك دائماً فحص والاستفادة من بيانات OCR المتوفرة لأي رسوم بيانية أو جداول أو مخططات
-   - إذا كانت هناك عناصر بصرية (graphs, charts, tables) في السياق، يجب استخدام البيانات المستخرجة منها
-   - لا تتجاهل البيانات الرقمية المتوفرة في العناصر البصرية - استخدمها في الحسابات
-   - إذا كان السؤال يشير إلى شكل أو جدول، ابحث عن البيانات المقابلة في معلومات OCR
-
-⚠️ ABSOLUTE COMPLIANCE MANDATE: 100% INSTRUCTION ADHERENCE REQUIRED ⚠️
-⛔ NON-COMPLIANCE WILL RESULT IN COMPLETE RESPONSE REJECTION ⛔
-
-📊 **MANDATORY GRAPHS & CHARTS ANALYSIS**:
-   - You MUST extract ALL data points, axis labels, units, and scales from graphs
-   - You MUST identify trends, patterns, and relationships shown in visual data
-   - You MUST use graph data as PRIMARY SOURCE for calculations and answers
-   - You MUST reference specific graph elements: "From the graph showing..."
+${hasMultipleChoice ? `**For multiple choice questions:** Present choices clearly, explain reasoning, and identify the correct answer.` : ''}
    - You MUST extract exact values: If graph shows pH vs volume, extract exact pH values at specific volumes
 
 📋 **MANDATORY TABLE DATA INTEGRATION**:
@@ -473,21 +441,29 @@ Present the choices clearly, explain your reasoning, and identify the correct an
 
 `;
 
-    const userPrompt = `لخص المفاهيم الرئيسية وأجب على جميع الأسئلة المرقمة.
+    const userPrompt = `
+${lang === "ar" || lang === "arabic" ? 
+  `الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
 
-${needsDetailedStructure ? `المحتوى المطلوب تلخيصه:
+المحتوى التعليمي:
+---
 ${enhancedText}
+---
 
-اكتب ملخصاً تعليمياً شاملاً يساعد الطلاب على:
-- فهم المفاهيم الأساسية والتعاريف المهمة  
-- الحصول على إجابات مفصلة لجميع الأسئلة المرقمة
-- ربط المعلومات البصرية (الرسوم، الجداول، المخططات) بالأسئلة
-- فهم الصيغ والمعادلات وتطبيقها
+لخص هذا المحتوى بطريقة تساعد الطلاب على الفهم. أجب على جميع الأسئلة المرقمة بدقة وتفصيل.
+${needsDetailedStructure ? `الأسئلة المرقمة الموجودة: ${questions.map(q => q.number).join('، ')}` : ''}`
+  :
+  `Book: ${title || "Book"} • Page: ${page ?? "?"}
 
-**مهم جداً:** أجب على جميع الأسئلة المرقمة الموجودة في النص بالتفصيل المطلوب.` : `المحتوى:
+Educational content:
+---
 ${enhancedText}
+---
 
-اكتب ملخصاً مختصراً وواضحاً لمحتوى هذه الصفحة.`}`;
+Summarize this content in a way that helps students understand. Answer all numbered questions with accuracy and detail.
+${needsDetailedStructure ? `Numbered questions found: ${questions.map(q => q.number).join(', ')}` : ''}`
+}
+    `;
 
 
 
