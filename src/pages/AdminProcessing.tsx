@@ -430,6 +430,7 @@ const AdminProcessing = () => {
                 lang: 'ar',
                 page: pageNum,
                 title: selectedBook.title,
+                book_id: selectedBookId,
                 ocrData: ocrResult, // Pass the full OCR result with page context
                 ragContext: ragContext // Pass RAG context to summarize function
               }, { timeout: 180000, retries: 1 }); // 3 minute timeout, 1 retry for summarization

@@ -1195,6 +1195,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           lang: 'ar',
           page: pageNum,
           title: title,
+          book_id: dbBookId,
           ocrData: ocrResult,
           ragContext: ragEnabled && ragPagesFound > 0 ? ragPagesIncluded.map(p => ({
             pageNumber: p.pageNumber,

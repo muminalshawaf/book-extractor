@@ -1,10 +1,70 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Server-side RAG retrieval as fallback when no context is provided
+async function fetchRagContextServer(bookId: string, currentPage: number, queryText: string, maxPages = 3, similarityThreshold = 0.3) {
+  try {
+    const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!googleApiKey || !supabaseUrl || !serviceKey) {
+      console.warn('RAG fallback disabled: missing GOOGLE_API_KEY or SUPABASE env');
+      return [];
+    }
+
+    // Generate query embedding
+    const embResp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedText?key=${googleApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'models/text-embedding-004', content: { parts: [{ text: String(queryText).slice(0, 20000) }] } })
+      }
+    );
+
+    if (!embResp.ok) {
+      console.error('RAG embedding API failed:', await embResp.text());
+      return [];
+    }
+
+    const embData = await embResp.json();
+    const values: number[] = embData?.embedding?.values || [];
+    if (!values.length) return [];
+
+    // Query similar pages via RPC
+    const supabase = createClient(supabaseUrl, serviceKey);
+    const { data, error } = await supabase.rpc('match_pages_for_book', {
+      target_book_id: bookId,
+      query_embedding: `[${values.join(',')}]`,
+      match_threshold: similarityThreshold,
+      match_count: maxPages,
+      current_page_number: currentPage
+    });
+
+    if (error) {
+      console.error('RAG RPC error:', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      pageNumber: row.page_number,
+      title: row.title,
+      content: row.ocr_text,
+      summary: row.summary_md,
+      similarity: row.similarity
+    }));
+  } catch (err) {
+    console.error('RAG fallback error:', err);
+    return [];
+  }
+}
 
 // Enhanced question parsing function with section-aware parsing
 function parseQuestions(text: string): Array<{number: string, text: string, fullMatch: string, isMultipleChoice: boolean}> {
@@ -268,8 +328,8 @@ serve(async (req) => {
   try {
     console.log('Summarize function started');
     
-    const { text, lang = "ar", page, title, ocrData = null, ragContext = null } = await req.json();
-    console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title}, ragContext: ${ragContext ? `${ragContext.length} pages` : 'none'} }`);
+    const { text, lang = "ar", page, title, book_id = null, ocrData = null, ragContext = null } = await req.json();
+    console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title}, book_id: ${book_id}, ragContext: ${ragContext ? `${ragContext.length} pages` : 'none'} }`);
     
     // Log model usage priority
     // Model selection already logged above
@@ -371,19 +431,28 @@ Rows:`;
       }
     }
 
-    // Build RAG context section if provided  
+    // Build RAG context section with server-side fallback
     let ragContextSection = '';
     let ragPagesActuallySent = 0;
     let ragPagesSentList: number[] = [];
     let ragContextChars = 0;
-    if (ragContext && Array.isArray(ragContext) && ragContext.length > 0) {
-      console.log(`Building RAG context from ${ragContext.length} previous pages`);
+
+    // Prefer provided context; if missing, fetch on the server using book_id
+    let effectiveRag = Array.isArray(ragContext) ? ragContext : [];
+    if ((!effectiveRag || effectiveRag.length === 0) && book_id && page && text) {
+      console.log('⚙️ RAG: No client context provided; fetching on server...');
+      effectiveRag = await fetchRagContextServer(String(book_id), Number(page), String(text), 3, 0.3);
+      console.log(`RAG server fetch returned ${effectiveRag.length} pages`);
+    }
+
+    if (effectiveRag && effectiveRag.length > 0) {
+      console.log(`Building RAG context from ${effectiveRag.length} previous pages`);
       ragContextSection = "\n\nContext from previous pages in the book:\n---\n";
       
       let totalLength = ragContextSection.length;
       const maxContextLength = 8000; // Increased from 2000 to fit more pages
       
-      for (const context of ragContext) {
+      for (const context of effectiveRag) {
         const pageContext = `Page ${context.pageNumber}${context.title ? ` (${context.title})` : ''}:\n${context.content || context.ocr_text || ''}\n\n`;
         
         if (totalLength + pageContext.length > maxContextLength) {
@@ -406,8 +475,9 @@ Rows:`;
       ragContextSection += "---\n\n";
       ragContextChars = totalLength;
       console.log(`✅ RAG VALIDATION: ${ragPagesActuallySent} pages actually sent to Gemini 2.5 Pro (${totalLength} characters)`);
+    } else {
+      console.log('⚠️ RAG CONTEXT: No context provided or found');
     }
-
     // Enhanced text with visual context and RAG context
     const enhancedText = ragContextSection + text + visualElementsText;
 
