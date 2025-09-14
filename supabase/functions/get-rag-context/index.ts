@@ -77,8 +77,7 @@ serve(async (req) => {
       query_embedding: `[${queryEmbedding.join(',')}]`,
       match_threshold: similarity_threshold,
       match_count: max_pages,
-      current_page_number: current_page,
-      max_page_distance: 10
+      current_page_number: current_page
     });
 
     if (error) {

@@ -20,13 +20,6 @@ export const IndexableOCRContent: React.FC<IndexableOCRContentProps> = ({
   rtl = false,
   onForceRegenerate
 }) => {
-  // Debug logging
-  console.log('IndexableOCRContent rendered:', { 
-    hasOcrText: !!ocrText, 
-    pageNumber, 
-    hasOnForceRegenerate: !!onForceRegenerate 
-  });
-  
   if (!ocrText) return null;
 
   return (

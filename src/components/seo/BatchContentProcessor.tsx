@@ -142,20 +142,6 @@ export const BatchContentProcessor: React.FC<BatchContentProcessorProps> = ({
             
             pageSuccess = true;
             processedCount++;
-            
-            // Clear cache for this page after successful processing
-            try {
-              const cacheKeys = [
-                `book:ocr:${bookId}:${pageNum}`,
-                `book:summary:${bookId}:${pageNum}`,
-                `book:ocr-timestamp:${bookId}:${pageNum}`,
-                `book:summary-timestamp:${bookId}:${pageNum}`
-              ];
-              cacheKeys.forEach(key => localStorage.removeItem(key));
-            } catch (cacheError) {
-              console.warn('Failed to clear cache after processing:', cacheError);
-            }
-            
             toast.success(
               rtl 
                 ? `تم معالجة الصفحة ${pageNum}` 

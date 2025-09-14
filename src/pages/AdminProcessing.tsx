@@ -15,7 +15,7 @@ import { callFunction } from "@/lib/functionsClient";
 import { retrieveRAGContext, buildRAGPrompt } from "@/lib/rag/ragUtils";
 import { enhancedBooks } from "@/data/enhancedBooks";
 import DynamicSEOHead from "@/components/seo/DynamicSEOHead";
-
+import { ProcessingVerification } from "@/components/ProcessingVerification";
 import { cleanOcrText } from "@/lib/ocr/ocrTextCleaner";
 import { runQualityGate, type QualityGateOptions, type QualityResult } from "@/lib/processing/qualityGate";
 import { 
@@ -91,7 +91,7 @@ const AdminProcessing = () => {
     repairThreshold: 0.7,
     maxRepairAttempts: 1
   });
-  const [ragEnabled, setRagEnabled] = useState(true);
+  const [ragEnabled, setRagEnabled] = useState(false);
   const [status, setStatus] = useState<ProcessingStatus>({
     isRunning: false,
     currentPage: 0,
@@ -361,21 +361,6 @@ const AdminProcessing = () => {
             }
           }
 
-          // Persist OCR immediately (even if summary fails or page is non-content)
-          try {
-            if (cleanedOcrText && (!existingData?.ocr_text || !skipProcessed)) {
-              await callFunction('save-page-summary', {
-                book_id: selectedBookId,
-                page_number: pageNum,
-                ocr_text: cleanedOcrText,
-                ocr_confidence: ocrConfidence
-              });
-              addLog(`💾 Page ${pageNum}: OCR saved to database (${cleanedOcrText.length} chars)`);
-            }
-          } catch (saveOcrErr: any) {
-            addLog(`❌ Page ${pageNum}: Failed to save OCR: ${saveOcrErr?.message || saveOcrErr}`);
-          }
-
           // Detect non-content pages and skip if enabled
           if (processingConfig.skipNonContentPages && cleanedOcrText) {
             const contentCheck = detectNonContentPage(cleanedOcrText);
@@ -445,11 +430,10 @@ const AdminProcessing = () => {
                 lang: 'ar',
                 page: pageNum,
                 title: selectedBook.title,
-                strictMode: true, // Enforce strict anti-hallucination mode
                 ocrData: ocrResult, // Pass the full OCR result with page context
                 ragContext: ragContext // Pass RAG context to summarize function
               }, { timeout: 180000, retries: 1 }); // 3 minute timeout, 1 retry for summarization
-
+              
               // Check if processing was stopped during summary generation
               if (!isRunningRef.current) {
                 addLog("⏹️ Processing stopped during summary generation");
@@ -641,10 +625,6 @@ const AdminProcessing = () => {
 
               console.log(`Save result for page ${pageNum}:`, saveResult);
               
-              if (saveResult?.sanitized) {
-                addLog(`🧹 Page ${pageNum}: Content auto-sanitized - removed: ${(saveResult.removedSections || []).join(', ')}`);
-              }
-              
               let embeddingInfo = '';
               if (saveResult?.embedding) {
                 embeddingInfo = ` (✓ Embedding: ${saveResult.embedding.dimensions}D)`;
@@ -653,183 +633,25 @@ const AdminProcessing = () => {
               }
 
               addLog(`💾 Page ${pageNum}: Saved to database${embeddingInfo}`);
-              
-              // Clear cache for this page after successful processing to avoid stale content
-              try {
-                const bookKey = selectedBook.id || selectedBook.title;
-                const cacheKeys = [
-                  `book:ocr:${bookKey}:${pageNum}`,
-                  `book:summary:${bookKey}:${pageNum}`,
-                  `book:ocr-timestamp:${bookKey}:${pageNum}`,
-                  `book:summary-timestamp:${bookKey}:${pageNum}`
-                ];
-                cacheKeys.forEach(key => localStorage.removeItem(key));
-                addLog(`🧹 Page ${pageNum}: Cache cleared to ensure fresh content`);
-              } catch (cacheError) {
-                console.warn('Failed to clear cache after processing:', cacheError);
-              }
-              
             } catch (saveError) {
-              console.log('Save error details:', saveError);
-              
-              // Handle 422 anti-hallucination violations with auto-sanitization and retry
-              if (saveError?.message?.includes('422') || saveError?.toString()?.includes('Anti-hallucination')) {
-                addLog(`⚠️ Page ${pageNum}: Anti-hallucination violation detected - attempting sanitization...`);
-                
-                try {
-                  // Client-side sanitization helper (same as BookViewer)
-                  const sanitizeSummaryAdmin = (summary: string, ocrText: string, violations?: string[]): { 
-                    sanitizedContent: string; 
-                    wasSanitized: boolean; 
-                    removedSections: string[] 
-                  } => {
-                    if (!summary || !ocrText) {
-                      return { sanitizedContent: summary || '', wasSanitized: false, removedSections: [] };
-                    }
-
-                    let sanitizedContent = summary;
-                    const removedSections: string[] = [];
-                    
-                    // Detect OCR capabilities
-                    const hasFormulasOCR = /[∫∑∏√∂∇∆λπθΩαβγδεζηκμνξρστφχψω]|[=+\-×÷<>≤≥≠]|\d+\s*[×÷]\s*\d+|[a-zA-Z]\s*=\s*[a-zA-Z0-9]/.test(ocrText);
-                    const hasExamplesOCR = /(تطبيق|التطبيقات|مثال|أمثلة|case study|example|examples|applications?)/i.test(ocrText);
-                    
-                    // Remove formulas section if not grounded in OCR
-                    if (!hasFormulasOCR || violations?.includes('FORMULAS_NOT_IN_OCR')) {
-                      const formulaPatterns = [
-                        /##\s*الصيغ والمعادلات[\s\S]*?(?=##|$)/gi,
-                        /###\s*الصيغ والمعادلات[\s\S]*?(?=###|$)/gi,
-                        /##\s*Formulas & Equations[\s\S]*?(?=##|$)/gi
-                      ];
-                      
-                      let wasRemoved = false;
-                      for (const pattern of formulaPatterns) {
-                        if (pattern.test(sanitizedContent)) {
-                          sanitizedContent = sanitizedContent.replace(pattern, '').trim();
-                          wasRemoved = true;
-                        }
-                      }
-                      if (wasRemoved && !removedSections.includes('الصيغ والمعادلات')) {
-                        removedSections.push('الصيغ والمعادلات');
-                      }
-                    }
-                    
-                    // Remove applications section if not grounded in OCR
-                    if (!hasExamplesOCR || violations?.includes('APPLICATIONS_NOT_IN_OCR')) {
-                      const appPatterns = [
-                        /##\s*التطبيقات والأمثلة[\s\S]*?(?=##|$)/gi,
-                        /###\s*التطبيقات والأمثلة[\s\S]*?(?=###|$)/gi,
-                        /##\s*Applications & Examples[\s\S]*?(?=##|$)/gi
-                      ];
-                      
-                      let wasRemoved = false;
-                      for (const pattern of appPatterns) {
-                        if (pattern.test(sanitizedContent)) {
-                          sanitizedContent = sanitizedContent.replace(pattern, '').trim();
-                          wasRemoved = true;
-                        }
-                      }
-                      if (wasRemoved && !removedSections.includes('التطبيقات والأمثلة')) {
-                        removedSections.push('التطبيقات والأمثلة');
-                      }
-                    }
-                    
-                    // Clean up extra newlines
-                    sanitizedContent = sanitizedContent.replace(/\n{3,}/g, '\n\n').trim();
-                    
-                    return { 
-                      sanitizedContent, 
-                      wasSanitized: removedSections.length > 0, 
-                      removedSections 
-                    };
-                  };
-
-                  // Extract violations from error
-                  const extractViolations = (error: any): string[] => {
-                    const violations: string[] = [];
-                    const errorMsg = error?.message || error?.toString() || '';
-                    
-                    try {
-                      if (errorMsg.includes('{')) {
-                        const jsonMatch = errorMsg.match(/\{.*\}/);
-                        if (jsonMatch) {
-                          const parsed = JSON.parse(jsonMatch[0]);
-                          if (parsed.violations && Array.isArray(parsed.violations)) {
-                            return parsed.violations;
-                          }
-                        }
-                      }
-                    } catch {}
-                    
-                    if (errorMsg.includes('FORMULAS_NOT_IN_OCR')) violations.push('FORMULAS_NOT_IN_OCR');
-                    if (errorMsg.includes('APPLICATIONS_NOT_IN_OCR')) violations.push('APPLICATIONS_NOT_IN_OCR');
-                    
-                    return violations;
-                  };
-
-                  const violations = extractViolations(saveError);
-                  const { sanitizedContent, wasSanitized, removedSections } = sanitizeSummaryAdmin(
-                    finalSummary, 
-                    cleanedOcrText || ocrText, 
-                    violations
-                  );
-                  
-                  if (wasSanitized) {
-                    addLog(`🧹 Page ${pageNum}: Content sanitized - removed: ${removedSections.join(', ')}`);
-                    
-                    // Retry with sanitized content
-                    try {
-                      saveResult = await callFunction('save-page-summary', {
-                        book_id: selectedBookId,
-                        page_number: pageNum,
-                        ocr_text: cleanedOcrText || ocrText,
-                        summary_md: sanitizedContent, // Use sanitized content
-                        ocr_confidence: ocrConfidence,
-                        confidence: summaryConfidence,
-                        rag_pages_sent: ragPagesActuallySent,
-                        rag_pages_found: summaryResult?.rag_pages_found || 0,
-                        rag_pages_sent_list: summaryResult?.rag_pages_sent_list || [],
-                        rag_context_chars: summaryResult?.rag_context_chars || 0,
-                        rag_metadata: {
-                          ragEnabled: ragEnabled,
-                          ragPagesUsed: ragContext.length,
-                          ragPagesIncluded: ragContext.map(ctx => ({
-                            pageNumber: ctx.pageNumber,
-                            title: ctx.title,
-                            similarity: ctx.similarity
-                          })),
-                          ragThreshold: 0.4,
-                          ragMaxPages: 3
-                        }
-                      });
-
-                      addLog(`✅ Page ${pageNum}: Retry save successful after sanitization`);
-                      
-                      let embeddingInfo = '';
-                      if (saveResult?.embedding) {
-                        embeddingInfo = ` (✓ Embedding: ${saveResult.embedding.dimensions}D)`;
-                      }
-                      addLog(`💾 Page ${pageNum}: Saved sanitized content to database${embeddingInfo}`);
-                      
-                    } catch (retrySaveError) {
-                      addLog(`❌ Page ${pageNum}: Retry save failed after sanitization - ${retrySaveError.message}`);
-                      throw retrySaveError;
-                    }
-                  } else {
-                    addLog(`❌ Page ${pageNum}: No sanitization needed but still failed - ${saveError.message}`);
-                    throw saveError;
-                  }
-                  
-                } catch (sanitizationError) {
-                  addLog(`❌ Page ${pageNum}: Sanitization process failed - ${sanitizationError.message}`);
-                  throw saveError; // Throw original error
-                }
-                
-              } else {
-                // Non-422 save error
-                addLog(`❌ Page ${pageNum}: Failed to save - ${saveError.message}`);
-                throw saveError;
-              }
+              addLog(`❌ Page ${pageNum}: Failed to save - ${saveError.message}`);
+              setPageResults(prev => [...prev, {
+                pageNumber: pageNum,
+                isContent: true,
+                ocrSuccess: true,
+                ocrConfidence,
+                summarySuccess: false,
+                summaryConfidence,
+                repairAttempted: qualityResult?.repairAttempted || false,
+                repairSuccessful: qualityResult?.repairSuccessful || false,
+                processingTimeMs: Date.now() - pageStartTime,
+                embeddingSuccess: false,
+                embeddingDimensions: 0,
+                ragPagesUsed: ragContext.length,
+                ragPagesIncluded: ragContext.map(ctx => ctx.pageNumber)
+              }]);
+              setStatus(prev => ({ ...prev, errors: prev.errors + 1 }));
+              continue;
             }
           }
 
@@ -1001,6 +823,8 @@ const AdminProcessing = () => {
             }}
           />
 
+          {/* Verification Tests */}
+          <ProcessingVerification />
 
           {/* Book Selection */}
           <Card>

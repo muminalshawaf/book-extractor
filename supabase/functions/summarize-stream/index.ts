@@ -1,55 +1,9 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { 
-  MANDATORY_SECTIONS, 
-  TEMPLATE_FORMATS, 
-  detectPageType, 
-  parseQuestions, 
-  convertArabicToEnglishNumber, 
-  validateSummaryCompliance, 
-  buildSystemPrompt, 
-  createEmergencyPrompt 
-} from "../_shared/templates.ts";
-import { 
-  callGeminiAPI, 
-  callDeepSeekAPI, 
-  callDeepSeekStreamingAPI, 
-  handleEmergencyRegeneration 
-} from "../_shared/apiClients.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-// Helper function to determine if content is educational
-function isContentPage(text: string): boolean {
-  const keywords = [
-    'مثال', 'تعريف', 'قانون', 'معادلة', 'حل', 'مسألة', 'نظرية', 'خاصية',
-    'example', 'definition', 'law', 'equation', 'solution', 'problem', 'theorem', 'property',
-    'الأهداف', 'المفاهيم', 'التعاريف', 'الصيغ', 'الخطوات',
-    'objectives', 'concepts', 'definitions', 'formulas', 'steps'
-  ];
-  
-  const keywordCount = keywords.filter(keyword => 
-    text.toLowerCase().includes(keyword.toLowerCase())
-  ).length;
-  
-  const hasNumberedQuestions = /\d+\.\s/.test(text);
-  const hasSubstantialContent = text.length > 300;
-  
-  return keywordCount >= 2 && hasSubstantialContent;
-}
-
-// Helper function to extract question numbers from text
-function extractQuestionNumbers(text: string): number[] {
-  const matches = text.match(/(\d+)\.\s/g);
-  if (!matches) return [];
-  
-  return matches.map(match => {
-    const num = parseInt(match.replace('.', '').trim());
-    return num;
-  }).filter(num => num > 0 && num < 100).sort((a, b) => a - b);
 }
 
 // Handle CORS preflight requests
@@ -59,8 +13,6 @@ serve(async (req: Request) => {
   }
 
   try {
-    console.log('🚨 EXTREME STRICT COMPLIANCE STREAMING FUNCTION STARTED 🚨');
-    
     let text = '';
     let lang = 'ar';
     let page: number | undefined;
@@ -95,21 +47,6 @@ serve(async (req: Request) => {
       });
     }
 
-    // Check API keys
-    const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
-    const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
-    
-    console.log('Available models:');
-    console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? 'AVAILABLE (primary for streaming)' : 'UNAVAILABLE'}`);
-    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? 'AVAILABLE (fallback)' : 'UNAVAILABLE'}`);
-
-    if (!GOOGLE_API_KEY && !DEEPSEEK_API_KEY) {
-      return new Response(JSON.stringify({ error: 'No API keys configured' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      });
-    }
-
     // Check if this is a table of contents page
     const isTableOfContents = text.toLowerCase().includes('فهرس') || 
                                text.toLowerCase().includes('contents') ||
@@ -138,31 +75,47 @@ serve(async (req: Request) => {
       });
     }
 
-    // Parse questions and detect page type using shared utilities
-    const questions = parseQuestions(text);
-    console.log(`Found ${questions.length} questions in OCR text`);
-    
-    const pageType = detectPageType(text, questions);
-    const needsDetailedStructure = isContentPage(text);
-    console.log(`📊 Page Analysis: Type=${pageType}, Questions=${questions.length}, DetailedStructure=${needsDetailedStructure}`);
-
-    // Determine subject from title
-    let subject = 'Science';
-    if (title) {
-      const t = String(title).toLowerCase();
-      if (t.includes('chemistry') || t.includes('كيمياء')) {
-        subject = 'Chemistry';
-      } else if (t.includes('physics') || t.includes('فيزياء')) {
-        subject = 'Physics';
-      } else if (t.includes('رياضيات') || t.includes('mathematics') || t.includes('math')) {
-        subject = 'Mathematics';
-      } else if (
-        t.includes('ذكاء') || t.includes('اصطناعي') || t.includes('الإصطناعي') ||
-        t.includes('artificial intelligence') || t.includes('artificial-intelligence')
-      ) {
-        subject = 'Artificial Intelligence';
-      }
+    const apiKey = Deno.env.get('DEEPSEEK_API_KEY');
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'DeepSeek API key not found' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
     }
+
+    // Helper function to determine if content is educational
+    function isContentPage(text: string): boolean {
+      const keywords = [
+        'مثال', 'تعريف', 'قانون', 'معادلة', 'حل', 'مسألة', 'نظرية', 'خاصية',
+        'example', 'definition', 'law', 'equation', 'solution', 'problem', 'theorem', 'property',
+        'الأهداف', 'المفاهيم', 'التعاريف', 'الصيغ', 'الخطوات',
+        'objectives', 'concepts', 'definitions', 'formulas', 'steps'
+      ];
+      
+      const keywordCount = keywords.filter(keyword => 
+        text.toLowerCase().includes(keyword.toLowerCase())
+      ).length;
+      
+      const hasNumberedQuestions = /\d+\.\s/.test(text);
+      const hasSubstantialContent = text.length > 300;
+      
+      return keywordCount >= 2 && hasSubstantialContent;
+    }
+
+    // Helper function to extract question numbers from text
+    function extractQuestionNumbers(text: string): number[] {
+      const matches = text.match(/(\d+)\.\s/g);
+      if (!matches) return [];
+      
+      return matches.map(match => {
+        const num = parseInt(match.replace('.', '').trim());
+        return num;
+      }).filter(num => num > 0 && num < 100).sort((a, b) => a - b);
+    }
+
+    const needsDetailedStructure = isContentPage(text);
+    const requiredQuestionIds = extractQuestionNumbers(text);
+    console.log(`Page type: ${needsDetailedStructure ? 'Content page' : 'Non-content page'}, Questions: [${requiredQuestionIds.join(', ')}]`);
 
     // Extract page context if available from OCR data
     let contextPrompt = ''
@@ -189,290 +142,265 @@ serve(async (req: Request) => {
     if (ocrData && ocrData.rawStructuredData && ocrData.rawStructuredData.visual_elements) {
       const visuals = ocrData.rawStructuredData.visual_elements;
       if (Array.isArray(visuals) && visuals.length > 0) {
-        visualPromptAddition = `\n\n**مهم:** تم اكتشاف عناصر بصرية (رسوم بيانية/مخططات/أشكال) في هذه الصفحة. يجب تضمين قسم "السياق البصري / Visual Context" في الملخص لوصف هذه العناصر وأهميتها التعليمية.`;
+        visualPromptAddition = `
+
+**مهم:** تم اكتشاف عناصر بصرية (رسوم بيانية/مخططات/أشكال) في هذه الصفحة. يجب تضمين قسم "السياق البصري / Visual Context" في الملخص لوصف هذه العناصر وأهميتها التعليمية.`;
         console.log('Visual elements found for summarization:', visuals.length);
       }
     }
 
-    // Create optimized prompt for question processing
-    const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
-    console.log(`Multiple choice detected: ${hasMultipleChoice}`);
+    // Create appropriate prompt based on page type
+    const prompt = needsDetailedStructure ? 
+      `الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"} • اللغة: ${lang}
+${contextPrompt}
+النص المطلوب تلخيصه (صفحة واحدة فقط):
+"""
+${text}
+"""
 
-    // Build system prompt using shared utility
-    const systemPrompt = buildSystemPrompt(subject, hasMultipleChoice, false, pageType);
+المهمة: إنشاء ملخص شامل مفيد للطلاب باللغة العربية يساعدهم على فهم جميع النقاط المهمة والإجابة على جميع الأسئلة في الصفحة. استخدم Markdown نظيف مع عناوين H3 (###) بعناوين الأقسام ثنائية اللغة.
 
-    // Create unified prompt based on page type (using same structure as main summarize function)
-    let userPrompt = '';
-    
-    if (pageType === 'questions-focused') {
-      userPrompt = `# حل الأسئلة المختصة
+**مهم جداً:** يجب الإجابة على جميع الأسئلة المرقمة والأسئلة الفرعية الموجودة في النص. هذا هو المطلب الأهم.
 
-**FOCUSED QUESTION-SOLVING MODE ACTIVATED**
-This page contains primarily questions (${questions.length} detected: ${questions.map(q => q.number).join(', ')}).
+**اكتب فقط الأقسام التي تحتوي على محتوى فعلي من النص. لا تكتب أقسام فارغة.**
 
-**CRITICAL INSTRUCTION: ONLY answer questions that are explicitly numbered and present on THIS PAGE (${questions.map(q => q.number).join(', ')}). Do NOT include questions from other sources.**
+### 1) نظرة عامة / Overview
+2-3 جمل تغطي المحتوى الرئيسي والغرض من الصفحة.
 
-**STRICT OUTPUT FORMAT**: Output ONLY the following section and nothing else.
+### 2) المفاهيم الأساسية / Key Concepts
+قائمة نقاط مع توضيحات مختصرة. اكتب فقط إذا كانت موجودة في النص.
 
-${MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS}
-Answer ONLY the ${questions.length} questions numbered ${questions.map(q => q.number).join(', ')} that appear on THIS page.
+### 3) التعاريف والمصطلحات / Definitions & Terms
+نموذج المسرد: **المصطلح** — التعريف (اشمل الرموز/الوحدات). اكتب فقط إذا كانت موجودة.
 
-Process ONLY the questions detected on this page (${questions.map(q => q.number).join(', ')}):
-OCR TEXT:
-${text}`;
+### 4) الصيغ والوحدات / Formulas & Units
+استخدم LaTeX ($$..$$). اكتب المتغيرات مع معانيها/وحداتها. اكتب فقط إذا كانت موجودة.
 
-    } else if (pageType === 'content-heavy') {
-      userPrompt = `# ملخص المحتوى التعليمي المعزز
+### 5) حلول الأسئلة / Questions & Solutions
+**اكتب هذا القسم فقط إذا كانت هناك أسئلة مرقمة (مفاهيمية أو حسابية).**
+لكل سؤال مرقم:
+- أعد كتابة السؤال بوضوح
+- إذا كان له أسئلة فرعية (أ/ب/ج، a/b/c، i/ii/iii...)، أجب على كل سؤال فرعي منفصلاً
+- إذا كان حسابياً: اعرض الحل خطوة بخطوة مع المعادلات في LaTeX والجواب النهائي الرقمي مع الوحدات
+- إذا كان مفاهيمياً: قدم إجابة واضحة ومباشرة من النص
+- استخدم LaTeX للمعادلات: $$...$$ للعرض، $...$ للسطر
 
-**CONTENT INTEGRATION MODE**
-This page contains substantial educational content.
+### 6) الخطوات/الإجراءات / Procedures/Steps
+قائمة مرقمة. اكتب فقط إذا كانت موجودة.
 
-## ملخص المحتوى التعليمي  
-[Summarize in few sentences what's on this page]
+### 7) أمثلة وتطبيقات / Examples/Applications
+اكتب فقط إذا كانت موجودة.
 
-${MANDATORY_SECTIONS.CONCEPTS_DEFINITIONS}
-Analyze content and extract key concepts:
-- **[Arabic term]:** [definition]
+### 8) أخطاء شائعة/ملابسات / Misconceptions/Pitfalls
+اكتب فقط إذا كانت موجودة.
 
-${MANDATORY_SECTIONS.SCIENTIFIC_TERMS}
-Extract scientific terminology:
-- **[Scientific term]:** [explanation]
+### 9) السياق البصري / Visual Context
+**اكتب هذا القسم فقط إذا تم اكتشاف رسوم بيانية أو مخططات أو أشكال في الصفحة.**
+- وصف كل عنصر بصري وغرضه التعليمي
+- شرح كيف تدعم الرسوم البيانية/المخططات مفاهيم الدرس
+- تضمين النقاط الرئيسية أو الاتجاهات أو الأنماط المعروضة
+- ربط المعلومات البصرية بالأسئلة التي تشير إليها
 
-${MANDATORY_SECTIONS.FORMULAS_EQUATIONS}  
-List formulas and equations:
-| الصيغة | الوصف | المتغيرات |
-|--------|--------|-----------|
-| $$formula$$ | description | variables |
+القيود:
+- استخدم العربية مع علامات الترقيم المناسبة
+- ركز على مساعدة الطلاب للحصول على جميع النقاط المهمة والإجابة على جميع الأسئلة
+- احتفظ بالمعادلات/الرموز من النص الأصلي
+- اعرض جميع خطوات الحساب بوضوح عند حل المسائل
+- كن شاملاً بما يكفي ليشعر الطلاب بالثقة حول محتوى الصفحة${visualPromptAddition}` :
+      `الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
+${contextPrompt}
+النص المطلوب تلخيصه (صفحة غير تعليمية):
+"""
+${text}
+"""
 
-${MANDATORY_SECTIONS.APPLICATIONS_EXAMPLES}
-List examples showing practical applications
+المهمة: إنشاء ملخص بسيط باللغة العربية باستخدام Markdown نظيف مع عناوين H3 (###).
 
-${questions.length > 0 ? `${MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS}\nONLY answer questions that are explicitly numbered and present on THIS PAGE (${questions.map(q => q.number).join(', ')}).\n\nProcess ONLY the ${questions.length} questions numbered ${questions.map(q => q.number).join(', ')} found on this page:` : ''}
-OCR TEXT:
-${text}`;
+### نظرة عامة / Overview
+2-3 جمل تصف محتوى الصفحة والغرض منها.
 
-    } else if (pageType === 'mixed') {
-      userPrompt = `# ملخص المحتوى والأسئلة
+القيود:
+- استخدم العربية
+- ركز على وصف بسيط للمحتوى`;
 
-**STRICT OUTPUT FORMAT**
-Use ONLY the following sections in this exact order.
+    // Use Arabic prompt if language preference is Arabic or use appropriate English structure
+    const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 
+      needsDetailedStructure ? 
+        `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
+Text to summarize (single page, do not infer beyond it):
+"""
+${text}
+"""
 
-${MANDATORY_SECTIONS.CONCEPTS_DEFINITIONS}
-- [استخرج المفاهيم والتعاريف الأساسية]
+Create a comprehensive student-focused summary in ${lang}. Use clean Markdown with H3 headings (###). 
 
-${MANDATORY_SECTIONS.CONCEPT_EXPLANATIONS}
-- [شرح تفصيلي للمفاهيم الأساسية مع الأمثلة والتطبيقات]
+**IMPORTANT**: If the text contains numbered questions or problems, you MUST answer ALL of them in a dedicated section.
 
-${MANDATORY_SECTIONS.SCIENTIFIC_TERMS}
-- [سرد المصطلحات مع شرح موجز]
+Rules:
+- ONLY include sections that have actual content from the text
+- Do NOT write empty sections
+- Make the summary comprehensive enough that a student feels confident knowing the page content without reading it
+- Use ${lang} throughout with appropriate punctuation
+- Preserve equations/symbols as they appear
 
-${MANDATORY_SECTIONS.FORMULAS_EQUATIONS}
-| الصيغة | الوصف | المتغيرات |
-|--------|--------|-----------|
-| $$formula$$ | description | variables |
+Potential sections (include only if applicable):
 
-${questions.length > 0 ? `${MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS}\nONLY answer questions that are explicitly numbered and present on THIS PAGE (${questions.map(q => q.number).join(', ')}).\n\nAnswer the ${questions.length} questions numbered ${questions.map(q => q.number).join(', ')}:` : ''}
-OCR TEXT:
-${text}`;
+### 1) Overview
+2–3 sentences covering the page's purpose and main content
 
-    } else {
-      userPrompt = `# ملخص الصفحة
-## نظرة عامة
-هذه صفحة تحتوي على محتوى تعليمي.
-OCR TEXT:
-${text}`;
+### 2) Key Concepts
+Comprehensive bullet list; each concept with 1–2 sentence explanation
+
+### 3) Definitions & Terms
+Complete glossary: **Term** — definition (include symbols/units)
+
+### 4) Formulas & Units
+Use LaTeX ($$...$$ for blocks). List variables with meanings and units
+
+### 5) Questions & Solutions
+**ONLY include this section if there are numbered questions or problems in the text.**
+For each question or problem found:
+- Restate the question clearly
+- If it has sub-questions (a/b/c, i/ii/iii...), answer each sub-question separately
+- If conceptual question: provide comprehensive, detailed answer
+- If calculation problem: show step-by-step solution with calculations
+- Provide final answer with proper units (for calculation problems)
+- Use LaTeX for equations: $$...$$ for display math, $...$ for inline
+
+### 6) Procedures/Steps
+Numbered list if applicable
+
+### 7) Examples/Applications
+Concrete examples from the text only
+
+### 8) Misconceptions/Pitfalls
+Common errors to avoid or important tips
+
+### 9) Visual Context
+**ONLY include this section if graphs, charts, diagrams, or figures are detected in the page.**
+- Describe each visual element and its educational purpose
+- Explain how graphs/charts support the lesson concepts
+- Include key data points, trends, or patterns shown
+- Connect visual information to questions that reference them
+
+Constraints:
+- Avoid excessive formatting
+- Preserve equations/symbols from original text
+- When solving problems, show ALL calculation steps clearly` :
+        `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
+Text to summarize (non-educational page):
+"""
+${text}
+"""
+
+Create a simple summary in ${lang} using clean Markdown with H3 headings (###).
+
+### Overview
+Brief description of the page content and purpose
+
+Constraints:
+- Don't add unnecessary sections
+- Focus on simple description of content`;
+
+    console.log('Making streaming request to DeepSeek API...');
+
+    // Make the streaming request to DeepSeek
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert educational teacher and content analyzer. CRITICAL: Answer ALL questions using your full educational knowledge. NEVER say content is "not mentioned" - always provide complete educational answers. When text content is provided, use it as reference but supplement with your teaching expertise to give comprehensive answers to all questions.'
+          },
+          {
+            role: 'user',
+            content: finalPrompt
+          }
+        ],
+        stream: true,
+        temperature: 0.2,
+        top_p: 0.9,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('DeepSeek API error:', response.status, errorText);
+      return new Response(JSON.stringify({ error: 'DeepSeek API error', details: errorText }), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
     }
 
-    // Try Gemini first for streaming if available (more consistent than DeepSeek streaming)
-    let streamingContent = '';
-    
-    if (GOOGLE_API_KEY) {
-      console.log('🧠 Using Gemini 2.5 Pro for streaming summarization...');
-      const geminiResponse = await callGeminiAPI(GOOGLE_API_KEY, systemPrompt + "\n\n" + userPrompt, 16000);
-      
-      if (geminiResponse.success) {
-        streamingContent = geminiResponse.content;
-        console.log(`✅ Gemini 2.5 Pro succeeded for streaming - Length: ${streamingContent.length}`);
-        
-        // Validate compliance for Gemini response
-        const compliance = validateSummaryCompliance(streamingContent, pageType, questions.length > 0);
-        console.log(`📊 GEMINI COMPLIANCE SCORE: ${compliance.score}%`);
-        
-        // Emergency regeneration if needed
-        if (!compliance.isValid && compliance.score < 80) {
-          const emergencyPrompt = createEmergencyPrompt(questions, text, pageType);
-          const regeneratedSummary = await handleEmergencyRegeneration(
-            streamingContent, compliance, pageType, questions, text, systemPrompt, emergencyPrompt,
-            'gemini', GOOGLE_API_KEY, validateSummaryCompliance
-          );
-          
-          if (regeneratedSummary !== streamingContent) {
-            streamingContent = regeneratedSummary;
-            console.log('✅ Emergency regeneration improved Gemini streaming compliance');
-          }
+    // Create a readable stream to handle the SSE response
+    const stream = new ReadableStream({
+      async start(controller) {
+        const reader = response.body?.getReader();
+        if (!reader) {
+          controller.error(new Error('No response body'));
+          return;
         }
 
-        // Enforce questions-only output for questions-focused pages
-        if (pageType === 'questions-focused' && streamingContent) {
-          try {
-            const questionsHeader = MANDATORY_SECTIONS.QUESTIONS_SOLUTIONS;
-            const match = streamingContent.match(new RegExp(`${questionsHeader}[\\s\\S]*`));
-            if (match) {
-              streamingContent = match[0].trim();
-            } else {
-              streamingContent = streamingContent.replace(/##\s+(?!الأسئلة والحلول الكاملة)[^\n]+\n[\s\S]*?(?=(\n##\s+)|$)/g, '').trim();
-            }
-            console.log('✂️ Enforced questions-only output for streaming (Gemini)');
-          } catch (e) {
-            console.warn('Failed to enforce questions-only output for streaming:', e);
-          }
-        }
-      } else {
-        console.error('Gemini failed for streaming:', geminiResponse.error);
-      }
-    }
-    
-    // Fallback to DeepSeek streaming if Gemini failed or not available
-    if (!streamingContent && DEEPSEEK_API_KEY) {
-      console.log('🤖 Using DeepSeek Chat streaming as fallback...');
-      
-      try {
-        const response = await callDeepSeekStreamingAPI(DEEPSEEK_API_KEY, systemPrompt, userPrompt, 2000);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('DeepSeek streaming API error:', response.status, errorText);
-          return new Response(JSON.stringify({ error: 'DeepSeek streaming API error', details: errorText }), {
-            status: response.status,
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          });
-        }
+        const decoder = new TextDecoder();
+        let buffer = '';
 
-        // Create a readable stream to handle the SSE response
-        const stream = new ReadableStream({
-          async start(controller) {
-            const reader = response.body?.getReader();
-            if (!reader) {
-              controller.error(new Error('No response body'));
-              return;
-            }
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-            const decoder = new TextDecoder();
-            let buffer = '';
-            let fullContent = ''; // Track full content for validation
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
 
-            try {
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                  if (line.startsWith('data: ')) {
-                    const data = line.slice(6);
-                    if (data === '[DONE]') {
-                      // Before finishing, validate compliance
-                      const compliance = validateSummaryCompliance(fullContent, pageType, questions.length > 0);
-                      console.log(`📊 DEEPSEEK STREAMING COMPLIANCE SCORE: ${compliance.score}%`);
-                      
-                      controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
-                      controller.close();
-                      return;
-                    }
-                    
-                    try {
-                      const parsed = JSON.parse(data);
-                      // Track content for validation
-                      if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-                        fullContent += parsed.choices[0].delta.content;
-                      }
-                      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(parsed)}\n\n`));
-                    } catch (e) {
-                      console.error('Error parsing SSE data:', e);
-                    }
-                  }
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') {
+                  controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+                  controller.close();
+                  return;
                 }
-
-                // Send a ping to keep the connection alive
-                controller.enqueue(new TextEncoder().encode(': ping\n\n'));
+                
+                try {
+                  const parsed = JSON.parse(data);
+                  controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(parsed)}\n\n`));
+                } catch (e) {
+                  console.error('Error parsing SSE data:', e);
+                }
               }
-            } catch (error) {
-              console.error('Stream processing error:', error);
-              controller.error(error);
             }
-          }
-        });
 
-        return new Response(stream, {
-          headers: {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            ...corsHeaders
+            // Send a ping to keep the connection alive
+            controller.enqueue(new TextEncoder().encode(': ping\n\n'));
           }
-        });
-      } catch (error) {
-        console.error('DeepSeek streaming failed:', error);
+        } catch (error) {
+          console.error('Stream processing error:', error);
+          controller.error(error);
+        }
       }
-    }
+    });
 
-    // If we have content from Gemini, return it as a stream
-    if (streamingContent) {
-      const encoder = new TextEncoder();
-      const stream = new ReadableStream({
-        start(controller) {
-          // Split content into chunks for streaming effect
-          const words = streamingContent.split(' ');
-          let currentChunk = '';
-          
-          const sendChunk = (index: number) => {
-            if (index >= words.length) {
-              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-              controller.close();
-              return;
-            }
-            
-            currentChunk += (currentChunk ? ' ' : '') + words[index];
-            
-            // Send chunk every 10 words or at the end
-            if ((index + 1) % 10 === 0 || index === words.length - 1) {
-              const chunk = {
-                delta: { content: currentChunk }
-              };
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
-              currentChunk = '';
-            }
-            
-            // Continue with small delay for streaming effect
-            setTimeout(() => sendChunk(index + 1), 50);
-          };
-          
-          sendChunk(0);
-        }
-      });
-
-      return new Response(stream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-          ...corsHeaders
-        }
-      });
-    }
-
-    // If all methods failed
-    console.error('🚨 All streaming methods failed');
-    return new Response(JSON.stringify({ error: 'All streaming methods failed' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        ...corsHeaders
+      }
     });
 
   } catch (error) {
-    console.error('🚨 Error in EXTREME STRICT COMPLIANCE streaming function:', error);
+    console.error('Error in summarize-stream function:', error);
     return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }

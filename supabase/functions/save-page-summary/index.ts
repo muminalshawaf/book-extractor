@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { detectHasFormulasInOCR, detectHasExamplesInOCR, detectFormulasInSummary, detectApplicationsInSummary } from '../_shared/templates.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -72,12 +71,7 @@ Deno.serve(async (req) => {
       rag_pages_sent,
       rag_pages_found,
       rag_pages_sent_list,
-      rag_context_chars,
-      // NEW VALIDATION PARAMETERS
-      compliance_score,
-      validation_meta,
-      strict_validated,
-      provider_used
+      rag_context_chars
     } = requestBody
 
     console.log(`Saving summary for book ${book_id}, page ${page_number}`)
@@ -85,47 +79,6 @@ Deno.serve(async (req) => {
     // Validate required fields
     if (!book_id || !page_number) {
       throw new Error('Missing required fields: book_id and page_number are required')
-    }
-
-    // Server-side anti-hallucination auto-sanitization
-    let finalSummaryMd = summary_md;
-    let wasSanitized = false;
-    let removedSections: string[] = [];
-    
-    try {
-      const ocr = (ocr_text || '').toString();
-      let sum = (summary_md || '').toString();
-      const hasFormulasOCR = detectHasFormulasInOCR(ocr);
-      const hasExamplesOCR = detectHasExamplesInOCR(ocr);
-      const hasFormulasSummary = detectFormulasInSummary(sum);
-      const hasApplicationsSummary = detectApplicationsInSummary(sum);
-
-      console.log('Anti-hallucination flags:', { hasFormulasOCR, hasExamplesOCR, hasFormulasSummary, hasApplicationsSummary });
-      const violations: string[] = [];
-      if (hasFormulasSummary && !hasFormulasOCR) violations.push('FORMULAS_NOT_IN_OCR');
-      if (hasApplicationsSummary && !hasExamplesOCR) violations.push('APPLICATIONS_NOT_IN_OCR');
-
-      if (violations.length > 0) {
-        console.warn('Anti-hallucination violations detected - auto-sanitizing...', { violations });
-        
-        const { sanitizeSummary } = await import('./_shared/sanitizer.ts');
-        const sanitizationResult = sanitizeSummary(sum, ocr, violations);
-        
-        finalSummaryMd = sanitizationResult.sanitizedContent;
-        wasSanitized = sanitizationResult.wasSanitized;
-        removedSections = sanitizationResult.removedSections;
-        
-        console.log('✅ Auto-sanitization completed:', {
-          wasSanitized,
-          removedSections,
-          originalLength: sum.length,
-          sanitizedLength: finalSummaryMd.length
-        });
-      }
-    } catch (gateError) {
-      console.error('Anti-hallucination gate error (non-fatal):', gateError);
-      // Continue with original content if sanitization fails
-      finalSummaryMd = summary_md;
     }
 
     // Create Supabase client with service role key for database writes
@@ -161,7 +114,6 @@ Deno.serve(async (req) => {
         title: `كتاب ${book_id}`, // Default title, can be updated later
         subject: book_id.includes('chemistry') ? 'Chemistry' : 
                  book_id.includes('physics') ? 'Physics' : 
-                 book_id.includes('artificialintelligence') || book_id.includes('ai') ? 'Artificial Intelligence' : 
                  book_id.includes('math') ? 'Mathematics' : 'Unknown',
         grade: parseInt(book_id.match(/(\d+)/)?.[1] || '12'),
         semester_range: book_id.includes('-') ? book_id.split('-').pop() || '1' : '1'
@@ -179,13 +131,11 @@ Deno.serve(async (req) => {
       book_id,
       page_number,
       ocr_text,
-      summary_md: finalSummaryMd, // Use sanitized content
+      summary_md,
       ocr_confidence: ocr_confidence || 0.8,
       confidence: confidence || 0.8,
       summary_json: rag_metadata || null,
-      updated_at: new Date().toISOString(),
-      sanitized: wasSanitized,
-      validation_meta: wasSanitized ? { removedSections, violations: removedSections } : null
+      updated_at: new Date().toISOString()
     }
 
     // Only include RAG fields if they are provided (not undefined)
@@ -200,20 +150,6 @@ Deno.serve(async (req) => {
     }
     if (rag_context_chars !== undefined) {
       upsertData.rag_context_chars = rag_context_chars;
-    }
-
-    // Add validation metadata fields
-    if (compliance_score !== undefined) {
-      upsertData.compliance_score = compliance_score;
-    }
-    if (validation_meta !== undefined) {
-      upsertData.validation_meta = validation_meta;
-    }
-    if (strict_validated !== undefined) {
-      upsertData.strict_validated = strict_validated;
-    }
-    if (provider_used !== undefined) {
-      upsertData.provider_used = provider_used;
     }
 
     console.log('RAG fields being saved:', {
@@ -288,9 +224,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       data,
-      embedding: embeddingResult,
-      sanitized: wasSanitized,
-      removedSections: wasSanitized ? removedSections : []
+      embedding: embeddingResult
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })

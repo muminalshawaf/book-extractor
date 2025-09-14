@@ -127,8 +127,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const cacheId = useMemo(() => bookId || title, [bookId, title]);
   const ocrKey = useMemo(() => `book:ocr:${cacheId}:${index}`, [cacheId, index]);
   const sumKey = useMemo(() => `book:summary:${cacheId}:${index}`, [cacheId, index]);
-  const ocrTimestampKey = useMemo(() => `book:ocr-timestamp:${cacheId}:${index}`, [cacheId, index]);
-  const summaryTimestampKey = useMemo(() => `book:summary-timestamp:${cacheId}:${index}`, [cacheId, index]);
   const dbBookId = useMemo(() => bookId || title || 'book', [bookId, title]);
   
   const [summary, setSummary] = useState("");
@@ -139,11 +137,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [summaryProgress, setSummaryProgress] = useState(0);
   const [thumbnailsOpen, setThumbnailsOpen] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
-  
-  // Cache management
-  const [isUsingCachedContent, setIsUsingCachedContent] = useState(false);
-  const [isFreshContent, setIsFreshContent] = useState(false);
-  const [cacheRefreshing, setCacheRefreshing] = useState(false);
 
   // UI state
   const [zoomMode, setZoomMode] = useState<ZoomMode>("custom");
@@ -336,90 +329,31 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     return () => document.removeEventListener('keydown', handleKeyboardShortcuts);
   }, []);
 
-  // Cache management utilities
-  const clearPageCache = useCallback((pageIndex?: number) => {
-    const targetIndex = pageIndex ?? index;
-    const targetOcrKey = `book:ocr:${cacheId}:${targetIndex}`;
-    const targetSumKey = `book:summary:${cacheId}:${targetIndex}`;
-    const targetOcrTimestamp = `book:ocr-timestamp:${cacheId}:${targetIndex}`;
-    const targetSummaryTimestamp = `book:summary-timestamp:${cacheId}:${targetIndex}`;
-    
-    try {
-      localStorage.removeItem(targetOcrKey);
-      localStorage.removeItem(targetSumKey);
-      localStorage.removeItem(targetOcrTimestamp);
-      localStorage.removeItem(targetSummaryTimestamp);
-    } catch (error) {
-      console.warn('Failed to clear page cache:', error);
-    }
-  }, [cacheId, index]);
-
-  const isCacheStale = useCallback((timestampKey: string, maxAgeMs = 24 * 60 * 60 * 1000) => {
-    try {
-      const timestamp = localStorage.getItem(timestampKey);
-      if (!timestamp) return false;
-      return Date.now() - parseInt(timestamp) > maxAgeMs;
-    } catch {
-      return false;
-    }
-  }, []);
-
-  const setCacheWithTimestamp = useCallback((key: string, value: string, timestampKey: string) => {
-    try {
-      localStorage.setItem(key, value);
-      localStorage.setItem(timestampKey, Date.now().toString());
-    } catch (error) {
-      console.warn('Failed to cache with timestamp:', error);
-    }
-  }, []);
-
   // Load cached data and fetch from DB
   useEffect(() => {
     try {
-      // Check if cached content is stale and clear if needed
-      if (isCacheStale(ocrTimestampKey) || isCacheStale(summaryTimestampKey)) {
-        clearPageCache();
-        setIsUsingCachedContent(false);
-      } else {
-        const cachedText = localStorage.getItem(ocrKey) || "";
-        const cachedSummary = localStorage.getItem(sumKey) || "";
-        if (cachedText) {
-          setExtractedText(cachedText);
-          setIsUsingCachedContent(true);
-        }
-        if (cachedSummary) {
-          setSummary(cachedSummary);
-          setIsUsingCachedContent(true);
-        }
-      }
-      
+      const cachedText = localStorage.getItem(ocrKey) || "";
+      const cachedSummary = localStorage.getItem(sumKey) || "";
+      if (cachedText) setExtractedText(cachedText);
+      if (cachedSummary) setSummary(cachedSummary);
       setLastError(null);
       setRetryCount(0);
-      setIsFreshContent(false);
-      setCacheRefreshing(false);
-      
       // Reset RAG metadata when page changes
       setStoredRagMetadata(null);
       setLastRagPagesUsed(0);
       setRagPagesSent(0);
     } catch {}
-  }, [index, ocrKey, sumKey, ocrTimestampKey, summaryTimestampKey, clearPageCache, isCacheStale]);
+  }, [index, ocrKey, sumKey]);
 
-  // Fetch from Supabase with cache invalidation
+  // Fetch from Supabase
   useEffect(() => {
     let cancelled = false;
     const fetchFromDb = async () => {
       console.log('BookViewer: Fetching from database:', { book_id: dbBookId, page_number: index + 1 });
-      
-      // Show cache refreshing indicator if we have cached content
-      if (isUsingCachedContent) {
-        setCacheRefreshing(true);
-      }
-      
       try {
         const { data, error } = await supabase
           .from('page_summaries')
-          .select('ocr_text, summary_md, confidence, ocr_confidence, summary_json, rag_pages_sent, updated_at')
+          .select('ocr_text, summary_md, confidence, ocr_confidence, summary_json, rag_pages_sent')
           .eq('book_id', dbBookId)
           .eq('page_number', index + 1)
           .maybeSingle();
@@ -428,43 +362,34 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           
         if (error) {
           console.warn('Supabase fetch error:', error);
-          setCacheRefreshing(false);
           return;
         }
         if (cancelled) return;
         
         const ocr = (data?.ocr_text ?? '').trim();
         const sum = (data?.summary_md ?? '').trim();
-        const dbUpdatedAt = data?.updated_at ? new Date(data.updated_at).getTime() : 0;
-        
-        // Check if DB content is newer than cached content
-        const cachedTimestamp = localStorage.getItem(ocrTimestampKey);
-        const isDbContentNewer = !cachedTimestamp || dbUpdatedAt > parseInt(cachedTimestamp);
         
         console.log('Setting extracted text from database:', { 
           ocrLength: ocr.length, 
           summaryLength: sum.length,
-          isDbContentNewer,
           ocrPreview: ocr.substring(0, 100) + '...',
           summaryPreview: sum.substring(0, 100) + '...'
         });
         
-        // Update content if DB has newer data or if no cached content exists
-        if (ocr && ocr.length > 0 && (isDbContentNewer || !extractedText)) {
+        // Ensure we set the states properly - force update even if existing data
+        if (ocr && ocr.length > 0) {
           console.log('Setting extracted text state...');
           setExtractedText(ocr);
-          setCacheWithTimestamp(ocrKey, ocr, ocrTimestampKey);
-          setIsFreshContent(isDbContentNewer);
         }
-        
-        if (sum && sum.length > 0 && (isDbContentNewer || !summary)) {
+        if (sum && sum.length > 0) {
           console.log('Setting summary state with content:', sum.substring(0, 200) + '...');
-          setSummary(sum);
-          setCacheWithTimestamp(sumKey, sum, summaryTimestampKey);
-          setIsFreshContent(isDbContentNewer);
-          
-          // Stream existing summary for better UX if substantial
-          if (sum.length > 100 && !isUsingCachedContent) {
+          // Force state update with functional update to ensure it takes effect
+          setSummary(prevSummary => {
+            console.log('Previous summary length:', prevSummary.length, 'New summary length:', sum.length);
+            return sum;
+          });
+          // Also stream it for better UX if the summary is substantial
+          if (sum.length > 100) {
             setTimeout(() => {
               streamExistingSummary(sum).catch(err => console.warn('Stream failed:', err));
             }, 100);
@@ -480,6 +405,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         if (ragMeta && typeof ragMeta === 'object' && !Array.isArray(ragMeta)) {
           console.log('Setting stored RAG metadata from database:', ragMeta);
           setStoredRagMetadata(ragMeta);
+          // Also update lastRagPagesUsed to show the stored value
           if (typeof ragMeta.ragPagesUsed === 'number') {
             setLastRagPagesUsed(ragMeta.ragPagesUsed);
           }
@@ -489,18 +415,19 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           setLastRagPagesUsed(0);
         }
         
-        // Set RAG pages sent from database
+        // Set RAG pages sent from database - use actual sent count
         if (typeof data?.rag_pages_sent === 'number') {
           setRagPagesSent(data.rag_pages_sent);
         } else {
           setRagPagesSent(0);
         }
         
-        // Mark cache as no longer being used if we got fresh DB content
-        if (isDbContentNewer) {
-          setIsUsingCachedContent(false);
-        }
-        
+        try {
+          if (ocr) localStorage.setItem(ocrKey, ocr);
+          else localStorage.removeItem(ocrKey);
+          if (sum) localStorage.setItem(sumKey, sum);
+          else localStorage.removeItem(sumKey);
+        } catch {}
       } catch (e) {
         console.error('BookViewer: Failed to fetch page from DB:', e);
         console.error('BookViewer: Error details:', { 
@@ -510,13 +437,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           pageNumber: index + 1,
           errorCode: 'e8213cfbaf41bf3c1f76850cfa0af698'
         });
-      } finally {
-        setCacheRefreshing(false);
       }
     };
     fetchFromDb();
     return () => { cancelled = true; };
-  }, [index, dbBookId, ocrKey, sumKey, ocrTimestampKey, summaryTimestampKey, extractedText, summary, isUsingCachedContent, setCacheWithTimestamp]);
+  }, [index, dbBookId, ocrKey, sumKey]);
 
   // Save current page to localStorage
   useEffect(() => {
@@ -910,106 +835,6 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummLoading(false);
   };
 
-  // Client-side sanitization helper
-  const sanitizeSummaryClient = useCallback((summary: string, ocrText: string, violations?: string[]): { 
-    sanitizedContent: string; 
-    wasSanitized: boolean; 
-    removedSections: string[] 
-  } => {
-    if (!summary || !ocrText) {
-      return { sanitizedContent: summary || '', wasSanitized: false, removedSections: [] };
-    }
-
-    let sanitizedContent = summary;
-    const removedSections: string[] = [];
-    
-    // Detect OCR capabilities
-    const hasFormulasOCR = /[∫∑∏√∂∇∆λπθΩαβγδεζηκμνξρστφχψω]|[=+\-×÷<>≤≥≠]|\d+\s*[×÷]\s*\d+|[a-zA-Z]\s*=\s*[a-zA-Z0-9]/.test(ocrText);
-    const hasExamplesOCR = /(تطبيق|التطبيقات|مثال|أمثلة|case study|example|examples|applications?)/i.test(ocrText);
-    
-    console.log('Client sanitizer OCR analysis:', { hasFormulasOCR, hasExamplesOCR, violations });
-    
-    // Remove formulas section if not grounded in OCR
-    if (!hasFormulasOCR || violations?.includes('FORMULAS_NOT_IN_OCR')) {
-      const formulaPatterns = [
-        /##\s*الصيغ والمعادلات[\s\S]*?(?=##|$)/gi,
-        /###\s*الصيغ والمعادلات[\s\S]*?(?=###|$)/gi,
-        /##\s*Formulas & Equations[\s\S]*?(?=##|$)/gi
-      ];
-      
-      let wasRemoved = false;
-      for (const pattern of formulaPatterns) {
-        if (pattern.test(sanitizedContent)) {
-          sanitizedContent = sanitizedContent.replace(pattern, '').trim();
-          wasRemoved = true;
-        }
-      }
-      if (wasRemoved && !removedSections.includes('الصيغ والمعادلات')) {
-        removedSections.push('الصيغ والمعادلات');
-      }
-    }
-    
-    // Remove applications section if not grounded in OCR
-    if (!hasExamplesOCR || violations?.includes('APPLICATIONS_NOT_IN_OCR')) {
-      const appPatterns = [
-        /##\s*التطبيقات والأمثلة[\s\S]*?(?=##|$)/gi,
-        /###\s*التطبيقات والأمثلة[\s\S]*?(?=###|$)/gi,
-        /##\s*Applications & Examples[\s\S]*?(?=##|$)/gi
-      ];
-      
-      let wasRemoved = false;
-      for (const pattern of appPatterns) {
-        if (pattern.test(sanitizedContent)) {
-          sanitizedContent = sanitizedContent.replace(pattern, '').trim();
-          wasRemoved = true;
-        }
-      }
-      if (wasRemoved && !removedSections.includes('التطبيقات والأمثلة')) {
-        removedSections.push('التطبيقات والأمثلة');
-      }
-    }
-    
-    // Clean up extra newlines
-    sanitizedContent = sanitizedContent.replace(/\n{3,}/g, '\n\n').trim();
-    
-    const wasSanitized = removedSections.length > 0;
-    
-    console.log('Client sanitization result:', {
-      wasSanitized,
-      removedSections,
-      originalLength: summary.length,
-      sanitizedLength: sanitizedContent.length
-    });
-    
-    return { sanitizedContent, wasSanitized, removedSections };
-  }, []);
-
-  // Helper to extract violations from 422 error responses
-  const extractViolationsFromError = useCallback((error: any): string[] => {
-    const violations: string[] = [];
-    const errorMsg = error?.message || error?.toString() || '';
-    
-    try {
-      // Try parsing as JSON first
-      if (errorMsg.includes('{')) {
-        const jsonMatch = errorMsg.match(/\{.*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed.violations && Array.isArray(parsed.violations)) {
-            return parsed.violations;
-          }
-        }
-      }
-    } catch {
-      // If JSON parsing fails, look for violation patterns
-    }
-    
-    if (errorMsg.includes('FORMULAS_NOT_IN_OCR')) violations.push('FORMULAS_NOT_IN_OCR');
-    if (errorMsg.includes('APPLICATIONS_NOT_IN_OCR')) violations.push('APPLICATIONS_NOT_IN_OCR');
-    
-    return violations;
-  }, []);
-
   const summarizeExtractedText = async (text: string = extractedText, force = false) => {
     if (!text?.trim()) {
       toast.error(rtl ? "لا يوجد نص لتلخيصه" : "No text to summarize");
@@ -1032,17 +857,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           .maybeSingle();
         
         if (!error && existingData?.summary_md?.trim()) {
-          const cached = existingData.summary_md;
-          const titleLower = (title || '').toLowerCase();
-          const isAI = titleLower.includes('ذكاء') || titleLower.includes('اصطناعي') || titleLower.includes('artificial intelligence');
-          const looksChemistry = /أستاذك\s+في\s+الكيمياء|الكيمياء|chemistry/i.test(cached);
-          if (isAI && looksChemistry) {
-            console.warn('Cached summary appears Chemistry-biased for an AI page. Forcing regeneration...');
-          } else {
-            console.log('Found existing summary in database, streaming it...');
-            await streamExistingSummary(cached);
-            return;
-          }
+          console.log('Found existing summary in database, streaming it...');
+          await streamExistingSummary(existingData.summary_md);
+          return;
         }
       } catch (dbError) {
         console.warn('Failed to check existing summary:', dbError);
@@ -1173,9 +990,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         
         localStorage.setItem(sumKey, finalSummary);
         setSummary(finalSummary);
-        // Use actual compliance score instead of hardcoded value
-        const displayConfidence = summaryResult.compliance_score ? (summaryResult.compliance_score / 100) : 0.8;
-        setSummaryConfidence(displayConfidence);
+        setSummaryConfidence(0.8);
         
         // Post-process: Check for missing numbered questions and complete them (non-blocking)
         checkAndCompleteMissingQuestions(finalSummary, trimmedText).catch(error => {
@@ -1185,103 +1000,26 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         toast.success(rtl ? "تم إنشاء الملخص بنجاح" : "Summary generated successfully");
         
         // Save complete summary to database (async, non-blocking)
-        // Use validation results from summarize function instead of hardcoded values
-        const actualConfidence = summaryResult.compliance_score ? (summaryResult.compliance_score / 100) : 0.8;
-        
-        // COMPLIANCE GATE: Reject summaries below 80% compliance
-        if (summaryResult.compliance_score && summaryResult.compliance_score < 80) {
-          console.warn(`🚨 COMPLIANCE GATE REJECTED: Summary compliance ${summaryResult.compliance_score}% < 80%`);
-          toast.error(rtl ? 
-            `رُفض الملخص - جودة منخفضة (${summaryResult.compliance_score}%)` : 
-            `Summary rejected - low quality (${summaryResult.compliance_score}%)`
-          );
-          throw new Error(`Summary compliance ${summaryResult.compliance_score}% below minimum threshold`);
-        }
-        
-        // Save with anti-hallucination retry logic
-        const savePageSummary = async (summaryContent: string, retryCount = 0): Promise<void> => {
-          try {
-            const saveResult = await callFunction('save-page-summary', {
-              book_id: dbBookId,
-              page_number: index + 1,
-              summary_md: summaryContent,
-              confidence: actualConfidence,
-              // Store validation metadata
-              compliance_score: summaryResult.compliance_score || null,
-              validation_meta: summaryResult.validation_meta || null,
-              strict_validated: summaryResult.compliance_score >= 80,
-              provider_used: summaryResult.provider_used || null,
-              rag_metadata: ragEnabled ? {
-                ragEnabled: true,
-                ragPagesUsed: lastRagPagesUsed,
-                ragPagesIncluded: [], // Not available in this flow
-                ragThreshold: 0.4,
-                ragMaxPages: 3
-              } : {
-                ragEnabled: false,
-                ragPagesUsed: 0,
-                ragPagesIncluded: [],
-                ragThreshold: 0.4,
-                ragMaxPages: 3
-              }
-            });
-
-            if (saveResult?.sanitized) {
-              toast.info(rtl ? 
-                `تم تنظيف المحتوى - إزالة: ${(saveResult.removedSections || []).join(', ')}` :
-                `Content sanitized - removed: ${(saveResult.removedSections || []).join(', ')}`
-              );
-            }
-            
-          } catch (saveError: any) {
-            console.error('Save error details:', saveError);
-            
-            // Handle 422 anti-hallucination violations
-            if (saveError?.message?.includes('422') || saveError?.toString()?.includes('Anti-hallucination')) {
-              console.warn('422 Anti-hallucination error - attempting client-side sanitization...');
-              
-              if (retryCount < 1) { // Only retry once
-                const violations = extractViolationsFromError(saveError);
-                console.log('Extracted violations:', violations);
-                
-                const { sanitizedContent, wasSanitized, removedSections } = sanitizeSummaryClient(
-                  summaryContent, 
-                  text, 
-                  violations
-                );
-                
-                if (wasSanitized) {
-                  console.log('Client-side sanitization completed, retrying save...', { removedSections });
-                  toast.info(rtl ? 
-                    `تم تنظيف المحتوى وإعادة المحاولة - إزالة: ${removedSections.join(', ')}` :
-                    `Content sanitized and retrying - removed: ${removedSections.join(', ')}`
-                  );
-                  
-                  // Update the displayed summary with sanitized content
-                  setSummary(sanitizedContent);
-                  localStorage.setItem(sumKey, sanitizedContent);
-                  
-                  // Retry save with sanitized content
-                  await savePageSummary(sanitizedContent, retryCount + 1);
-                  return;
-                }
-              }
-              
-              // If sanitization didn't help or max retries reached
-              toast.error(rtl ? 
-                'فشل في حفظ الملخص - محتوى غير مطابق للنص المستخرج' :
-                'Failed to save summary - content not grounded in extracted text'
-              );
-            } else {
-              // Other save errors
-              console.error('Non-422 save error:', saveError);
-              toast.error(rtl ? 'فشل في حفظ الملخص' : 'Failed to save summary');
-            }
+        callFunction('save-page-summary', {
+          book_id: dbBookId,
+          page_number: index + 1,
+          summary_md: finalSummary,
+          confidence: 0.8,
+          rag_metadata: ragEnabled ? {
+            ragEnabled: true,
+            ragPagesUsed: lastRagPagesUsed,
+            ragPagesIncluded: [], // Not available in this flow
+            ragThreshold: 0.4,
+            ragMaxPages: 3
+          } : {
+            ragEnabled: false,
+            ragPagesUsed: 0,
+            ragPagesIncluded: [],
+            ragThreshold: 0.4,
+            ragMaxPages: 3
           }
-        };
-        
-        savePageSummary(finalSummary).catch(finalError => {
-          console.error('Final save attempt failed:', finalError);
+        }).catch(saveError => {
+          console.error('Failed to save summary to database:', saveError);
         });
       } else {
         throw new Error('No summary content received');
@@ -1452,20 +1190,18 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           }
         }
         
-        // Call summarize with strict anti-hallucination mode
         const summaryResult = await callFunction('summarize', {
-          text: cleanedOcrText,
+          text: cleanedOcrText, // Use cleaned text without pre-injection
           lang: 'ar',
           page: pageNum,
           title: title,
           ocrData: ocrResult,
-          strictMode: true, // Enable strict mode to prevent hallucination
           ragContext: ragEnabled && ragPagesFound > 0 ? ragPagesIncluded.map(p => ({
             pageNumber: p.pageNumber,
             title: p.title,
             content: '', // Content will be retrieved by summarize function
             similarity: p.similarity
-          })) : []
+          })) : [] // Pass RAG context to summarize function like admin process
         }, { timeout: 180000, retries: 1 });
         
         let summary = summaryResult.summary || '';
@@ -1897,7 +1633,7 @@ KF (°C/m)
                           }}
                           onRegenerate={() => {
                             if (extractedText) {
-                              summarizeExtractedText(extractedText, true);
+                              summarizeExtractedText(extractedText);
                             } else {
                               toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
                             }
@@ -2254,13 +1990,13 @@ KF (°C/m)
                                 localStorage.setItem(sumKey, newSummary);
                               } catch {}
                             }}
-                             onRegenerate={() => {
-                               if (extractedText) {
-                                 summarizeExtractedText(extractedText, true);
-                               } else {
-                                 toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
-                               }
-                             }}
+                            onRegenerate={() => {
+                              if (extractedText) {
+                                summarizeExtractedText(extractedText);
+                              } else {
+                                toast.error(rtl ? "يجب استخراج النص أولاً" : "Extract text first");
+                              }
+                            }}
                             isRegenerating={summLoading}
                             confidence={ocrQuality ?? summaryConfidence}
                             pageNumber={index + 1}
