@@ -486,13 +486,7 @@ Write naturally as a seasoned educator would, focusing on helping students under
    - لا تفترض كتلة عينة إجمالية (مثل 100 جرام) إلا إذا كانت معطاة صراحة
    - تأكد من الوحدات والأبعاد الفيزيائية لكل كمية قبل التعويض
 
-MANDATORY SECTIONS (only include if content exists on the page):
-- المفاهيم والتعاريف
-- المصطلحات العلمية
-- الصيغ والمعادلات  
-- الأسئلة والإجابات الكاملة
-
-Skip sections if the page does not contain relevant content for that section.`;
+`;
 
     const userPrompt = `أنت معلم خبير ومتمرس. مهمتك تلخيص المحتوى التعليمي وتقديم إجابات شاملة لجميع الأسئلة.
 
