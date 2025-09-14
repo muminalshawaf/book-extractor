@@ -91,7 +91,7 @@ const AdminProcessing = () => {
     repairThreshold: 0.7,
     maxRepairAttempts: 1
   });
-  const [ragEnabled, setRagEnabled] = useState(false);
+  const [ragEnabled, setRagEnabled] = useState(true);
   const [status, setStatus] = useState<ProcessingStatus>({
     isRunning: false,
     currentPage: 0,
@@ -361,6 +361,21 @@ const AdminProcessing = () => {
             }
           }
 
+          // Persist OCR immediately (even if summary fails or page is non-content)
+          try {
+            if (cleanedOcrText && (!existingData?.ocr_text || !skipProcessed)) {
+              await callFunction('save-page-summary', {
+                book_id: selectedBookId,
+                page_number: pageNum,
+                ocr_text: cleanedOcrText,
+                ocr_confidence: ocrConfidence
+              });
+              addLog(`💾 Page ${pageNum}: OCR saved to database (${cleanedOcrText.length} chars)`);
+            }
+          } catch (saveOcrErr: any) {
+            addLog(`❌ Page ${pageNum}: Failed to save OCR: ${saveOcrErr?.message || saveOcrErr}`);
+          }
+
           // Detect non-content pages and skip if enabled
           if (processingConfig.skipNonContentPages && cleanedOcrText) {
             const contentCheck = detectNonContentPage(cleanedOcrText);
@@ -430,10 +445,11 @@ const AdminProcessing = () => {
                 lang: 'ar',
                 page: pageNum,
                 title: selectedBook.title,
+                strictMode: true, // Enforce strict anti-hallucination mode
                 ocrData: ocrResult, // Pass the full OCR result with page context
                 ragContext: ragContext // Pass RAG context to summarize function
               }, { timeout: 180000, retries: 1 }); // 3 minute timeout, 1 retry for summarization
-              
+
               // Check if processing was stopped during summary generation
               if (!isRunningRef.current) {
                 addLog("⏹️ Processing stopped during summary generation");
