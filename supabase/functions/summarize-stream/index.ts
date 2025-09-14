@@ -151,7 +151,7 @@ serve(async (req: Request) => {
 
     // Create appropriate prompt based on page type
     const prompt = needsDetailedStructure ? 
-      `أنت معلم خبير ومتمرس. مهمتك إنشاء ملخصات تعليمية شاملة تساعد الطلاب على فهم المفاهيم وتقدم إجابات مفصلة لجميع الأسئلة المرقمة في الكتاب المدرسي.
+      `لخص المحتوى التعليمي التالي وأجب على جميع الأسئلة المرقمة بالتفصيل والدقة المطلوبة.
 
 الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
 ${contextPrompt}
@@ -171,8 +171,8 @@ ${text}
 
 **عندما تجد أسئلة مرقمة:** أجب عليها جميعاً بالتفصيل المطلوب، وإذا كانت تشير إلى عناصر بصرية فاستخدم البيانات والمعلومات المحددة منها.
 
-أكتب الملخص بأسلوبك الطبيعي كمعلم خبير، مع التركيز على مساعدة الطلاب على فهم وإتقان المحتوى التعليمي.${visualPromptAddition}` :
-      `أنت معلم خبير. أنشئ ملخصاً بسيطاً وواضحاً لهذه الصفحة:
+اكتب الملخص بوضوح ودقة، مع التركيز على تفسير المفاهيم وحل الأسئلة بالتفصيل المطلوب.${visualPromptAddition}` :
+      `لخص محتوى هذه الصفحة بطريقة بسيطة وواضحة:
 
 الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
 ${contextPrompt}
@@ -182,12 +182,12 @@ ${contextPrompt}
 ${text}
 """
 
-اكتب ملخصاً مختصراً يوضح محتوى الصفحة وغرضها بأسلوب تعليمي بسيط.`;
+اكتب ملخصاً مختصراً يوضح محتوى الصفحة وغرضها بوضوح.`;
 
     // Use Arabic prompt if language preference is Arabic or use appropriate English structure
     const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 
       needsDetailedStructure ? 
-        `You are a seasoned educator and expert professor. Create a comprehensive, student-focused summary that helps students understand concepts and provides complete answers to all numbered questions in the textbook.
+        `Summarize the following educational content and provide complete answers to all numbered questions with the required detail and accuracy.
 
 Book: ${title || "the book"} • Page: ${page ?? "?"}
 ${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
@@ -207,8 +207,8 @@ ${text}
 
 **When you find numbered questions:** Answer them all in detail, and if they reference visual elements, use the specific data and information from them.
 
-Write the summary in your natural style as an expert teacher, focusing on helping students understand and master the educational content.` :
-        `You are an expert teacher. Create a simple and clear summary for this page:
+Write the summary clearly and accurately, focusing on explaining concepts and answering questions in detail.` :
+        `Summarize this page content in a simple and clear manner:
 
 Book: ${title || "the book"} • Page: ${page ?? "?"}
 ${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
@@ -218,7 +218,7 @@ Text:
 ${text}
 """
 
-Write a concise summary that explains the page content and purpose in a simple educational style.`;
+Write a concise summary that explains the page content and purpose clearly.`;
 
     console.log('Making streaming request to DeepSeek API...');
 
@@ -234,7 +234,7 @@ Write a concise summary that explains the page content and purpose in a simple e
         messages: [
           {
             role: 'system',
-            content: 'You are a seasoned educator and expert professor. Your role is to help students understand educational content by creating comprehensive summaries and providing complete, accurate answers to all questions. Use your teaching expertise to explain concepts clearly and connect ideas for better student understanding.'
+            content: 'لخص المحتوى التعليمي وأجب على جميع الأسئلة بالتفصيل والدقة المطلوبة. اشرح المفاهيم بوضوح واربط الأفكار لتحقيق فهم شامل.'
           },
           {
             role: 'user',
