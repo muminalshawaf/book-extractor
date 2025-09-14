@@ -102,7 +102,7 @@ you have to assume the answer you reached is always wrong
 you have to verify the answer until you are sure it is the correct you show the answers
 only when you pass all the verification with zero error tolerance you can move the next directive.
 
-You are an expert ${subject} teacher. Before answering ANY question, you MUST think through these steps:
+Before answering ANY question, you MUST think through these steps:
 
 <think>
 1. What is being asked? What data is given?
