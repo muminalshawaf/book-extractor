@@ -159,6 +159,72 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
   return unique;
 }
 
+// Tolerant answered question detection with multiple patterns
+function detectAnsweredQuestions(summaryText: string): Set<string> {
+  const answeredQuestionNumbers = new Set<string>();
+  
+  // Multiple patterns to catch various question answer formats
+  const questionPatterns = [
+    /\*\*س:\s*(\d+)[.-]/g,           // **س: 45- or **س: 45.
+    /\*\*س:\s*([٠-٩]+)[.-]/g,        // **س: ٤٥- (Arabic numerals) 
+    /سؤال\s*(\d+)/g,                // سؤال 4
+    /سؤال\s*([٠-٩]+)/g,             // سؤال ٤ (Arabic numerals)
+    /س:\s*(\d+)/g,                  // س: 4
+    /س:\s*([٠-٩]+)/g,               // س: ٤ (Arabic numerals)
+    /Question\s*(\d+)/g,            // Question 4
+    /\*\*Question\s*(\d+)/g,        // **Question 4
+    /^(\d+)[.-]\s/gm,               // 4. or 4- at start of line
+    /^([٠-٩]+)[.-]\s/gm             // ٤. or ٤- at start of line (Arabic numerals)
+  ];
+  
+  for (const pattern of questionPatterns) {
+    let match;
+    pattern.lastIndex = 0;
+    while ((match = pattern.exec(summaryText)) !== null) {
+      const num = convertArabicToEnglishNumber(match[1]);
+      answeredQuestionNumbers.add(num);
+    }
+  }
+  
+  return answeredQuestionNumbers;
+}
+
+// De-duplicate answers by keeping only one answer per question number
+function deduplicateAnswers(summaryText: string, questionNumbers: string[]): string {
+  if (questionNumbers.length === 0) return summaryText;
+  
+  // Split into sections based on question markers
+  const sections = summaryText.split(/(?=\*\*س:\s*[٠-٩\d]+[.-])/);
+  const firstSection = sections[0]; // Keep the intro/concept summary
+  const questionSections = sections.slice(1);
+  
+  // Group by question number, keeping the best formatted one
+  const questionMap = new Map<string, string>();
+  
+  questionSections.forEach(section => {
+    const numberMatch = section.match(/\*\*س:\s*([٠-٩\d]+)[.-]/);
+    if (numberMatch) {
+      const questionNum = convertArabicToEnglishNumber(numberMatch[1]);
+      
+      // Prefer the section with standard **س:** format
+      if (!questionMap.has(questionNum) || section.includes('**ج:**')) {
+        questionMap.set(questionNum, section);
+      }
+    }
+  });
+  
+  // Reconstruct with deduplicated questions in order
+  let result = firstSection;
+  
+  // Sort question numbers numerically and append
+  const sortedNums = Array.from(questionMap.keys()).sort((a, b) => parseInt(a) - parseInt(b));
+  sortedNums.forEach(num => {
+    result += questionMap.get(num);
+  });
+  
+  return result.trim();
+}
+
 function convertArabicToEnglishNumber(arabicNum: string): string {
   const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
   const englishDigits = '0123456789';
@@ -349,14 +415,22 @@ Rows:`;
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
     console.log(`Multiple choice detected: ${hasMultipleChoice}`);
     
+    // Skip general concept summary if there are numbered questions (exercise pages)
+    const skipConceptSummary = questions.length > 0;
+    
     const systemPrompt = `Create clear, comprehensive educational summaries. Do not include any introductions, pleasantries, or self-references.
 
 **Your main tasks:**
-1. Summarize the key concepts from the provided text clearly
+${skipConceptSummary ? 
+`1. Answer ALL numbered questions with complete accuracy and detail - DO NOT include a general concept summary
+2. Use visual data (graphs, tables, diagrams) when available and relevant  
+3. Provide step-by-step solutions for calculation problems
+4. Connect concepts logically for better understanding` :
+`1. Summarize the key concepts from the provided text clearly
 2. Answer ALL numbered questions with complete accuracy and detail
 3. Use visual data (graphs, tables, diagrams) when available and relevant
 4. Provide step-by-step solutions for calculation problems
-5. Connect concepts logically for better understanding
+5. Connect concepts logically for better understanding`}
 
 **Important guidelines:**
 - Write naturally and organize information in the most logical way
@@ -688,37 +762,24 @@ Original OCR text: ${enhancedText}`;
     }
 
     // Validate question completion and trigger auto-continuation if needed
-    const summaryQuestionCount = (summary.match(/\*\*س:/g) || []).length;
     const originalQuestionCount = questions.length;
     
+    // Use tolerant detection to find answered questions
+    const answeredQuestionNumbers = detectAnsweredQuestions(summary);
+    const summaryQuestionCount = answeredQuestionNumbers.size;
+    
     console.log(`Final summary length: ${summary.length}, Questions processed: ${summaryQuestionCount}/${originalQuestionCount}, Provider: ${providerUsed}`);
+    console.log(`📊 TOLERANT DETECTION - Expected questions: ${questions.map(q => q.number).join(', ')}`);
+    console.log(`📊 TOLERANT DETECTION - Detected answers: ${Array.from(answeredQuestionNumbers).join(', ')}`);
     
     // Robust continuation logic - ensure ALL questions are answered regardless of summary length
     if (originalQuestionCount > 0 && summaryQuestionCount < originalQuestionCount) {
       console.log(`⚠️ Missing ${originalQuestionCount - summaryQuestionCount} questions, attempting auto-continuation...`);
       
-      // Improved missing question detection - check for both Arabic and English patterns
-      const answeredQuestionNumbers = new Set();
-      const questionPatterns = [
-        /\*\*س:\s*(\d+)[.-]/g,  // **س: 45- or **س: 45.
-        /\*\*س:\s*([٠-٩]+)[.-]/g  // **س: ٤٥- (Arabic numerals)
-      ];
-      
-      for (const pattern of questionPatterns) {
-        let match;
-        pattern.lastIndex = 0;
-        while ((match = pattern.exec(summary)) !== null) {
-          const num = convertArabicToEnglishNumber(match[1]);
-          answeredQuestionNumbers.add(num);
-        }
-      }
-      
       let missingNumbers = questions
         .map(q => convertArabicToEnglishNumber(q.number))
         .filter(num => !answeredQuestionNumbers.has(num));
       
-      console.log(`Detected questions: ${questions.map(q => q.number).join(', ')}`);
-      console.log(`Answered questions: ${Array.from(answeredQuestionNumbers).join(', ')}`);
       console.log(`Missing questions: ${missingNumbers.join(', ')}`);
       
       if (missingNumbers.length > 0 && (providerUsed === 'deepseek-chat' || providerUsed === 'gemini-2.5-pro')) {
@@ -796,55 +857,45 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
               if (completion.trim()) {
                 currentSummary += "\n\n" + completion;
                 
-                // Re-check what questions are now answered
-                const newAnsweredNumbers = new Set();
-                for (const pattern of questionPatterns) {
-                  let match;
-                  pattern.lastIndex = 0;
-                  while ((match = pattern.exec(currentSummary)) !== null) {
-                    const num = convertArabicToEnglishNumber(match[1]);
-                    newAnsweredNumbers.add(num);
+                // Check how many questions were completed in this attempt using tolerant detection
+                const newAnsweredQuestions = detectAnsweredQuestions(currentSummary);
+                const newlyAnswered = [];
+                for (const num of missingNumbers) {
+                  if (newAnsweredQuestions.has(num)) {
+                    newlyAnswered.push(num);
                   }
                 }
                 
-                // Update missing numbers list
-                const stillMissing = questions
-                  .map(q => convertArabicToEnglishNumber(q.number))
-                  .filter(num => !newAnsweredNumbers.has(num));
+                console.log(`✅ Attempt ${attempt} completed ${newlyAnswered.length} questions: ${newlyAnswered.join(', ')}`);
                 
-                const answeredThisRound = missingNumbers.filter(num => newAnsweredNumbers.has(num));
+                // Update missing numbers
+                missingNumbers = missingNumbers.filter(num => !newAnsweredQuestions.has(num));
                 
-                console.log(`✅ Attempt ${attempt} completed ${answeredThisRound.length} questions: ${answeredThisRound.join(', ')}`);
-                console.log(`Still missing: ${stillMissing.join(', ')}`);
-                
-                // Update for next iteration
-                missingNumbers.splice(0, missingNumbers.length, ...stillMissing);
-                
-                if (stillMissing.length === 0) {
-                  console.log('🎉 All questions completed successfully!');
+                if (missingNumbers.length === 0) {
+                  console.log(`🎉 All questions completed successfully!`);
                   break;
                 }
               } else {
-                console.log(`⚠️ Attempt ${attempt} returned empty completion`);
+                console.log(`Attempt ${attempt} returned empty completion, stopping auto-continuation`);
                 break;
               }
             } else {
-              console.error(`Completion attempt ${attempt} failed:`, await completionResp.text());
+              console.error(`Auto-continuation attempt ${attempt} failed:`, await completionResp.text());
               break;
             }
-          } catch (completionError) {
-            console.error(`Auto-continuation attempt ${attempt} failed:`, completionError);
+          } catch (contError) {
+            console.error(`Auto-continuation attempt ${attempt} error:`, contError);
             break;
           }
         }
         
-        summary = currentSummary;
-        const finalQuestionCount = (summary.match(/\*\*س:/g) || []).length;
-        console.log(`✅ Auto-continuation finished after ${attempt} attempts. Final question count: ${finalQuestionCount}/${originalQuestionCount}`);
+        // Apply de-duplication after all continuation attempts
+        const questionNums = questions.map(q => convertArabicToEnglishNumber(q.number));
+        currentSummary = deduplicateAnswers(currentSummary, questionNums);
         
-        if (missingNumbers.length > 0) {
-          console.log(`⚠️ Still missing ${missingNumbers.length} questions after all attempts: ${missingNumbers.join(', ')}`);
-        }
+        summary = currentSummary;
+        console.log(`Still missing: ${missingNumbers.join(', ')}`);
+        console.log(`✅ Auto-continuation finished after ${attempt} attempts. Final question count: ${detectAnsweredQuestions(summary).size}/${originalQuestionCount}`);
       }
     } else if (summaryQuestionCount >= originalQuestionCount) {
       console.log('✅ All questions appear to be processed successfully');
