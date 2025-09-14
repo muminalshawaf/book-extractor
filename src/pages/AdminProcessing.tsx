@@ -397,7 +397,7 @@ const AdminProcessing = () => {
             addLog(`📝 Page ${pageNum}: Generating summary...`);
             
             try {
-              // RAG Context Retrieval (if enabled) - let summarize function handle it
+              // RAG Context Retrieval (if enabled)
               if (ragEnabled && selectedBookId && cleanedOcrText.trim()) {
                 try {
                   addLog(`🔍 Page ${pageNum}: Fetching RAG context from previous pages...`);
