@@ -151,158 +151,74 @@ serve(async (req: Request) => {
 
     // Create appropriate prompt based on page type
     const prompt = needsDetailedStructure ? 
-      `الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"} • اللغة: ${lang}
+      `أنت معلم خبير ومتمرس. مهمتك إنشاء ملخصات تعليمية شاملة تساعد الطلاب على فهم المفاهيم وتقدم إجابات مفصلة لجميع الأسئلة المرقمة في الكتاب المدرسي.
+
+الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
 ${contextPrompt}
-النص المطلوب تلخيصه (صفحة واحدة فقط):
+
+النص المطلوب تلخيصه:
 """
 ${text}
 """
 
-المهمة: إنشاء ملخص شامل مفيد للطلاب باللغة العربية يساعدهم على فهم جميع النقاط المهمة والإجابة على جميع الأسئلة في الصفحة. استخدم Markdown نظيف مع عناوين H3 (###) بعناوين الأقسام ثنائية اللغة.
+**مهمتك الأساسية:**
+- اشرح المفاهيم بطريقة واضحة ومفهومة للطلاب
+- أجب على جميع الأسئلة المرقمة في النص بالتفصيل والدقة المطلوبة
+- استخدم السياق من الصفحات السابقة عند توفره لربط المفاهيم
+- اربط المعلومات البصرية (الرسوم، الجداول، المخططات) بالأسئلة عند الحاجة
+- قدم حلول خطوة بخطوة للمسائل الحسابية
+- اكتب بأسلوب تعليمي طبيعي يناسب الطلاب
 
-**مهم جداً:** يجب الإجابة على جميع الأسئلة المرقمة والأسئلة الفرعية الموجودة في النص. هذا هو المطلب الأهم.
+**عندما تجد أسئلة مرقمة:** أجب عليها جميعاً بالتفصيل المطلوب، وإذا كانت تشير إلى عناصر بصرية فاستخدم البيانات والمعلومات المحددة منها.
 
-**اكتب فقط الأقسام التي تحتوي على محتوى فعلي من النص. لا تكتب أقسام فارغة.**
+أكتب الملخص بأسلوبك الطبيعي كمعلم خبير، مع التركيز على مساعدة الطلاب على فهم وإتقان المحتوى التعليمي.${visualPromptAddition}` :
+      `أنت معلم خبير. أنشئ ملخصاً بسيطاً وواضحاً لهذه الصفحة:
 
-### 1) نظرة عامة / Overview
-2-3 جمل تغطي المحتوى الرئيسي والغرض من الصفحة.
-
-### 2) المفاهيم الأساسية / Key Concepts
-قائمة نقاط مع توضيحات مختصرة. اكتب فقط إذا كانت موجودة في النص.
-
-### 3) التعاريف والمصطلحات / Definitions & Terms
-نموذج المسرد: **المصطلح** — التعريف (اشمل الرموز/الوحدات). اكتب فقط إذا كانت موجودة.
-
-### 4) الصيغ والوحدات / Formulas & Units
-استخدم LaTeX ($$..$$). اكتب المتغيرات مع معانيها/وحداتها. اكتب فقط إذا كانت موجودة.
-
-### 5) حلول الأسئلة / Questions & Solutions
-**اكتب هذا القسم فقط إذا كانت هناك أسئلة مرقمة (مفاهيمية أو حسابية).**
-لكل سؤال مرقم:
-- أعد كتابة السؤال بوضوح
-- إذا كان له أسئلة فرعية (أ/ب/ج، a/b/c، i/ii/iii...)، أجب على كل سؤال فرعي منفصلاً
-- إذا كان حسابياً: اعرض الحل خطوة بخطوة مع المعادلات في LaTeX والجواب النهائي الرقمي مع الوحدات
-- إذا كان مفاهيمياً: قدم إجابة واضحة ومباشرة من النص
-- استخدم LaTeX للمعادلات: $$...$$ للعرض، $...$ للسطر
-
-### 6) الخطوات/الإجراءات / Procedures/Steps
-قائمة مرقمة. اكتب فقط إذا كانت موجودة.
-
-### 7) أمثلة وتطبيقات / Examples/Applications
-اكتب فقط إذا كانت موجودة.
-
-### 8) أخطاء شائعة/ملابسات / Misconceptions/Pitfalls
-اكتب فقط إذا كانت موجودة.
-
-### 9) السياق البصري / Visual Context
-**اكتب هذا القسم فقط إذا تم اكتشاف رسوم بيانية أو مخططات أو أشكال في الصفحة.**
-- وصف كل عنصر بصري وغرضه التعليمي
-- شرح كيف تدعم الرسوم البيانية/المخططات مفاهيم الدرس
-- تضمين النقاط الرئيسية أو الاتجاهات أو الأنماط المعروضة
-- ربط المعلومات البصرية بالأسئلة التي تشير إليها
-
-القيود:
-- استخدم العربية مع علامات الترقيم المناسبة
-- ركز على مساعدة الطلاب للحصول على جميع النقاط المهمة والإجابة على جميع الأسئلة
-- احتفظ بالمعادلات/الرموز من النص الأصلي
-- اعرض جميع خطوات الحساب بوضوح عند حل المسائل
-- كن شاملاً بما يكفي ليشعر الطلاب بالثقة حول محتوى الصفحة${visualPromptAddition}` :
-      `الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
+الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
 ${contextPrompt}
-النص المطلوب تلخيصه (صفحة غير تعليمية):
+
+النص:
 """
 ${text}
 """
 
-المهمة: إنشاء ملخص بسيط باللغة العربية باستخدام Markdown نظيف مع عناوين H3 (###).
-
-### نظرة عامة / Overview
-2-3 جمل تصف محتوى الصفحة والغرض منها.
-
-القيود:
-- استخدم العربية
-- ركز على وصف بسيط للمحتوى`;
+اكتب ملخصاً مختصراً يوضح محتوى الصفحة وغرضها بأسلوب تعليمي بسيط.`;
 
     // Use Arabic prompt if language preference is Arabic or use appropriate English structure
     const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 
       needsDetailedStructure ? 
-        `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
-${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
-Text to summarize (single page, do not infer beyond it):
+        `You are a seasoned educator and expert professor. Create a comprehensive, student-focused summary that helps students understand concepts and provides complete answers to all numbered questions in the textbook.
+
+Book: ${title || "the book"} • Page: ${page ?? "?"}
+${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace /يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
+
+Text to summarize:
 """
 ${text}
 """
 
-Create a comprehensive student-focused summary in ${lang}. Use clean Markdown with H3 headings (###). 
+**Your Mission:**
+- Explain concepts clearly and understandably for students  
+- Answer ALL numbered questions in the text with the required detail and accuracy
+- Use context from previous pages when available to connect concepts
+- Connect visual information (graphs, tables, diagrams) to questions when needed
+- Provide step-by-step solutions for calculation problems
+- Write in a natural educational style that suits students
 
-**IMPORTANT**: If the text contains numbered questions or problems, you MUST answer ALL of them in a dedicated section.
+**When you find numbered questions:** Answer them all in detail, and if they reference visual elements, use the specific data and information from them.
 
-Rules:
-- ONLY include sections that have actual content from the text
-- Do NOT write empty sections
-- Make the summary comprehensive enough that a student feels confident knowing the page content without reading it
-- Use ${lang} throughout with appropriate punctuation
-- Preserve equations/symbols as they appear
+Write the summary in your natural style as an expert teacher, focusing on helping students understand and master the educational content.` :
+        `You are an expert teacher. Create a simple and clear summary for this page:
 
-Potential sections (include only if applicable):
-
-### 1) Overview
-2–3 sentences covering the page's purpose and main content
-
-### 2) Key Concepts
-Comprehensive bullet list; each concept with 1–2 sentence explanation
-
-### 3) Definitions & Terms
-Complete glossary: **Term** — definition (include symbols/units)
-
-### 4) Formulas & Units
-Use LaTeX ($$...$$ for blocks). List variables with meanings and units
-
-### 5) Questions & Solutions
-**ONLY include this section if there are numbered questions or problems in the text.**
-For each question or problem found:
-- Restate the question clearly
-- If it has sub-questions (a/b/c, i/ii/iii...), answer each sub-question separately
-- If conceptual question: provide comprehensive, detailed answer
-- If calculation problem: show step-by-step solution with calculations
-- Provide final answer with proper units (for calculation problems)
-- Use LaTeX for equations: $$...$$ for display math, $...$ for inline
-
-### 6) Procedures/Steps
-Numbered list if applicable
-
-### 7) Examples/Applications
-Concrete examples from the text only
-
-### 8) Misconceptions/Pitfalls
-Common errors to avoid or important tips
-
-### 9) Visual Context
-**ONLY include this section if graphs, charts, diagrams, or figures are detected in the page.**
-- Describe each visual element and its educational purpose
-- Explain how graphs/charts support the lesson concepts
-- Include key data points, trends, or patterns shown
-- Connect visual information to questions that reference them
-
-Constraints:
-- Avoid excessive formatting
-- Preserve equations/symbols from original text
-- When solving problems, show ALL calculation steps clearly` :
-        `Book: ${title || "the book"} • Page: ${page ?? "?"} • Language: ${lang}
+Book: ${title || "the book"} • Page: ${page ?? "?"}
 ${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
-Text to summarize (non-educational page):
+
+Text:
 """
 ${text}
 """
 
-Create a simple summary in ${lang} using clean Markdown with H3 headings (###).
-
-### Overview
-Brief description of the page content and purpose
-
-Constraints:
-- Don't add unnecessary sections
-- Focus on simple description of content`;
+Write a concise summary that explains the page content and purpose in a simple educational style.`;
 
     console.log('Making streaming request to DeepSeek API...');
 
@@ -318,7 +234,7 @@ Constraints:
         messages: [
           {
             role: 'system',
-            content: 'You are an expert educational teacher and content analyzer. CRITICAL: Answer ALL questions using your full educational knowledge. NEVER say content is "not mentioned" - always provide complete educational answers. When text content is provided, use it as reference but supplement with your teaching expertise to give comprehensive answers to all questions.'
+            content: 'You are a seasoned educator and expert professor. Your role is to help students understand educational content by creating comprehensive summaries and providing complete, accurate answers to all questions. Use your teaching expertise to explain concepts clearly and connect ideas for better student understanding.'
           },
           {
             role: 'user',

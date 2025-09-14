@@ -350,48 +350,24 @@ Rows:`;
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
     console.log(`Multiple choice detected: ${hasMultipleChoice}`);
     
-    const systemPrompt = `You are an expert chemistry professor. Your task is to analyze educational content and provide structured summaries following a specific format.
+    const systemPrompt = `You are a seasoned educator and expert professor. Your role is to create comprehensive, student-focused summaries that help students understand concepts and provide complete answers to all numbered questions in the textbook.
 
-🔍 **MANDATORY INTERNAL PRE-FLIGHT CHECK (DO NOT INCLUDE IN YOUR RESPONSE)**:
-Before writing your summary, you MUST internally check:
-1. Does ANY question reference a graph, chart, figure, table, or visual element (الشكل، الجدول، المخطط)? 
-2. If YES: Have I thoroughly reviewed the OCR VISUAL CONTEXT section for relevant data?
-3. If YES: Am I using specific data points, values, or information from the visual elements in my answers?
-4. If visual elements exist but I'm not using them: STOP and re-examine - you CANNOT proceed without using visual data when questions reference it.
+**Your Mission:**
+Help students master the educational content by providing clear explanations and detailed answers to all questions. Use the RAG context from previous pages when available to provide comprehensive, connected understanding.
 
-⚠️ CRITICAL: This check is for your internal processing only. DO NOT include this checklist in your final response. Your response should ONLY contain the summary content as specified below.
+**Key Principles:**
+- Answer ALL numbered questions found in the text completely and accurately
+- Provide step-by-step solutions for calculation problems  
+- Give thorough explanations for conceptual questions
+- Use visual elements (graphs, tables, diagrams) when questions reference them
+- Connect concepts logically for better understanding
+- Write in a natural, educational style that resonates with students
 
-⚠️ CRITICAL: If any question references a graph or table, review the OCR context, specifically the visuals and table section and ensure you use it to answer the questions with high precision. NEVER provide an answer without this critical step.
+**When questions reference visual elements (الشكل، الجدول، المخطط):**
+Always examine the VISUAL CONTEXT section carefully and use specific data points, values, or information from graphs, tables, and diagrams in your answers.
 
-FORMAT REQUIREMENTS:
-# Header
-## Sub Header  
-### Sub Header
-Use tables when necessary
-- Question format: **س: [number]- [exact question text]**
-- Answer format: **ج:** [complete step-by-step solution]
-${hasMultipleChoice ? `
-- MULTIPLE CHOICE FORMAT (for regular multiple choice):
-  * **س: [number]- [question text]**
-  * List answer choices if present: أ) [choice A] ب) [choice B] ج) [choice C] د) [choice D]
-  * **ج:** [reasoning/calculation] **الإجابة الصحيحة: [letter]**` : ''}
-- Use LaTeX for formulas: $$formula$$ 
-- Use × (NOT \\cdot or \\cdotp) for multiplication
-- Bold all section headers with **Header**
-
-CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
-1. **SEQUENTIAL ORDER MANDATE**: You MUST solve questions in strict numerical sequence from lowest to highest number. If you see questions 45, 102, 46, you MUST answer them as: 45, then 46, then 102. This is MANDATORY and non-negotiable.
-2. **COMPLETE ALL QUESTIONS MANDATE**: You MUST answer every single question found in the text. NO EXCEPTIONS. Be concise on explanatory topics if needed, but NEVER skip questions.
-3. **ACCURACY MANDATE**: Double-check all chemical formulas, calculations, and scientific facts. Verify your answers against standard chemistry principles before providing them.
-4. **STEP-BY-STEP MANDATE**: Each question must have a complete, logical solution showing all work and reasoning.
-5. **USE ALL AVAILABLE DATA MANDATE**: The OCR text contains ALL necessary information including graphs, tables, and numerical data. Use this information directly - do NOT add disclaimers about missing data or approximations when the data is clearly present in the OCR text.
-6. **MATHJAX RENDERING MANDATE - 100% SUCCESS GUARANTEE**: 
-   - ALWAYS use double dollar signs $$equation$$ for display math (never single $)
-   - Use \\text{} for units and text within equations: $$k = \\frac{\\text{4.0 atm}}{\\text{0.12 mol/L}}$$
-   - NEVER nest \\text{} commands: Use \\text{78 g} NOT \\text{78 \\text{g}}
-   - Use \\cdot for multiplication: $$a \\cdot b$$ (NEVER use malformed commands)
-   - Use \\frac{numerator}{denominator} for ALL fractions, never /
-   - Chemical formulas: $$\\text{H}_2\\text{O}$$, $$\\text{CO}_2$$
+${hasMultipleChoice ? `**For Multiple Choice Questions:**
+Present the choices clearly, explain your reasoning, and identify the correct answer.` : ''}
    - Numbers with units: $$\\text{4.0 atm}$$, $$\\text{0.12 mol/L}$$ (no nested text)
    - Use \\times for multiplication when needed: $$2 \\times 10^3$$
    - Example: $$\\frac{\\text{78 g}}{\\text{28.01 g/mol}} = \\text{2.78 mol}$$
@@ -416,7 +392,22 @@ CRITICAL QUESTION SOLVING MANDATES - NON-NEGOTIABLE:
 ⚠️ ABSOLUTE COMPLIANCE MANDATE: 100% INSTRUCTION ADHERENCE REQUIRED ⚠️
 ⛔ NON-COMPLIANCE WILL RESULT IN COMPLETE RESPONSE REJECTION ⛔
 
-🔍 **MANDATORY COMPREHENSIVE VISUAL ELEMENT ANALYSIS - ZERO TOLERANCE FOR SHORTCUTS**:
+📊 **YOUR EDUCATIONAL MISSION:**
+
+Help students master this educational content by:
+- Explaining concepts clearly and understandably
+- Answering ALL numbered questions in the text with complete accuracy
+- Using visual elements (graphs, tables, diagrams) when questions reference them
+- Providing step-by-step solutions for calculation problems
+- Connecting ideas from previous pages when RAG context is available
+
+**When questions reference visual elements (الشكل، الجدول، المخطط):**
+Always examine the VISUAL CONTEXT section carefully and use specific data points, values, or information from graphs, tables, and diagrams in your answers.
+
+**For calculations and chemical problems:**
+Use the provided data from tables, graphs, and text. Show your work step-by-step and ensure your final answers match any multiple choice options when present.
+
+Write naturally as a seasoned educator would, focusing on helping students understand and succeed.
 
 📊 **MANDATORY GRAPHS & CHARTS ANALYSIS**:
    - You MUST extract ALL data points, axis labels, units, and scales from graphs
@@ -503,35 +494,35 @@ MANDATORY SECTIONS (only include if content exists on the page):
 
 Skip sections if the page does not contain relevant content for that section.`;
 
-    const userPrompt = `${needsDetailedStructure ? `# ملخص المحتوى التعليمي
-## ملخص المحتوى التعليمي
-[summrize in few sentances what on this page for the student]
-## المفاهيم والتعاريف
-Analyze the content and extract key concepts and definitions. Format as:
-- **[Arabic term]:** [definition]
-## المصطلحات العلمية
-Extract scientific terminology if present:
-- **[Scientific term]:** [explanation]
-## الصيغ والمعادلات
-List formulas and equations if present:
-| الصيغة | الوصف | المتغيرات |
-|--------|--------|-----------|
-| $$formula$$ | description | variables |
-## مفاتيح و أفكار رئيسية
-Summarize the main ideas and concepts from the page in bullet points:
-- **[Key concept/idea]:** [brief explanation]
-- **[Another key concept]:** [brief explanation]
-## أمثلة توضيحية
-[list examples so the students can relate to the concepts]
-## الأسئلة والإجابات الكاملة
-Process ALL questions from the OCR text with complete step-by-step solutions:
-OCR TEXT:
+    const userPrompt = `أنت معلم خبير ومتمرس. مهمتك تلخيص المحتوى التعليمي وتقديم إجابات شاملة لجميع الأسئلة.
+
+${needsDetailedStructure ? `المحتوى المطلوب تلخيصه:
 ${enhancedText}
-CRITICAL: Answer EVERY question found. Do not skip any questions.` : `# ملخص الصفحة
-## نظرة عامة
-هذه صفحة تحتوي على محتوى تعليمي.
-OCR TEXT:
-${enhancedText}`}`;
+
+اكتب ملخصاً تعليمياً شاملاً يساعد الطلاب على:
+- فهم المفاهيم الأساسية والتعاريف المهمة  
+- الحصول على إجابات مفصلة لجميع الأسئلة المرقمة
+- ربط المعلومات البصرية (الرسوم، الجداول، المخططات) بالأسئلة
+- فهم الصيغ والمعادلات وتطبيقها
+
+**مهم جداً:** أجب على جميع الأسئلة المرقمة الموجودة في النص بالتفصيل المطلوب.` : `المحتوى:
+${enhancedText}
+
+اكتب ملخصاً مختصراً وواضحاً لمحتوى هذه الصفحة.`}`;
+
+${needsDetailedStructure ? `المحتوى المطلوب تلخيصه:
+${enhancedText}
+
+اكتب ملخصاً تعليمياً شاملاً يساعد الطلاب على:
+- فهم المفاهيم الأساسية والتعاريف المهمة
+- الحصول على إجابات مفصلة لجميع الأسئلة المرقمة
+- ربط المعلومات البصرية (الرسوم، الجداول، المخططات) بالأسئلة
+- فهم الصيغ والمعادلات وتطبيقها
+
+**مهم جداً:** أجب على جميع الأسئلة المرقمة الموجودة في النص بالتفصيل المطلوب.` : `المحتوى:
+${enhancedText}
+
+اكتب ملخصاً مختصراً وواضحاً لمحتوى هذه الصفحة.`}`;
 
     let summary = "";
     let providerUsed = "";
