@@ -345,7 +345,7 @@ Rows:`;
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
     console.log(`Multiple choice detected: ${hasMultipleChoice}`);
     
-    const systemPrompt = `You are an expert educator specializing in creating clear, comprehensive educational summaries.
+    const systemPrompt = `Create clear, comprehensive educational summaries. Do not include any introductions, pleasantries, or self-references.
 
 **Your main tasks:**
 1. Summarize the key concepts from the provided text clearly

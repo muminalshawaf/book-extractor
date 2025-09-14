@@ -74,7 +74,7 @@ function generateRepairPrompt(context: RepairContext): string {
     : '';
 
   if (language === 'ar') {
-    return `أنت محرر خبير للمحتوى التعليمي. المهمة: تحسين ملخص صفحة من كتاب مدرسي.
+    return `تحسين ملخص صفحة من كتاب مدرسي. لا تضع أي مقدمات أو عبارات تهذيبية.
 
 معلومات الصفحة:
 - الكتاب: ${bookTitle}
@@ -105,7 +105,7 @@ ${originalSummary}
 
 الملخص المحسّن:`;
   } else {
-    return `You are an expert educational content editor. Task: Improve a textbook page summary.
+    return `Improve a textbook page summary. Do not include any introductions, pleasantries, or self-references.
 
 Page Information:
 - Book: ${bookTitle}

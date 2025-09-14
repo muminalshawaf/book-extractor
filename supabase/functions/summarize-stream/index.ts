@@ -206,7 +206,7 @@ Write a helpful summary that explains the page content and educational purpose.`
         messages: [
           {
             role: 'system',
-            content: 'You are an expert educator specializing in creating clear, comprehensive educational summaries. Write naturally and organize information in the most logical way to help students understand concepts and master the content.'
+            content: 'Create clear, comprehensive educational summaries. Write naturally and organize information logically. Do not include any introductions, pleasantries, or self-references.'
           },
           {
             role: 'user',
