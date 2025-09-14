@@ -61,32 +61,32 @@ export async function retrieveRAGContext(
   }
 
   try {
-    // Generate embedding for the query text
-    const queryEmbedding = await generateTextEmbedding(queryText);
-
-    // Call the database function to find similar pages
-    const { data, error } = await supabase.rpc('match_pages_for_book', {
-      target_book_id: bookId,
-      query_embedding: `[${queryEmbedding.join(',')}]` as any,
-      match_threshold: config.similarityThreshold,
-      match_count: config.maxContextPages,
-      current_page_number: currentPageNumber
+    // Use Edge Function to handle embeddings + RPC on server (more reliable)
+    const { data, error } = await supabase.functions.invoke('get-rag-context', {
+      body: {
+        book_id: bookId,
+        current_page: currentPageNumber,
+        query_text: queryText,
+        max_pages: config.maxContextPages,
+        similarity_threshold: config.similarityThreshold
+      }
     });
 
     if (error) {
-      console.error('Error retrieving RAG context:', error);
-      return []; // Fail gracefully
+      console.error('Error retrieving RAG context via edge function:', error);
+      return [];
     }
 
-    // Transform the results
-    return (data || []).map((row: any) => ({
-      pageId: row.page_id,
-      pageNumber: row.page_number,
+    const context = (data?.context || []).map((row: any, i: number) => ({
+      pageId: `${bookId}-${row.pageNumber ?? i + 1}`,
+      pageNumber: row.pageNumber,
       title: row.title,
-      content: row.ocr_text,
-      summary: row.summary_md,
-      similarity: row.similarity
+      content: row.content,
+      summary: row.summary,
+      similarity: row.similarity ?? 0
     }));
+
+    return context;
 
   } catch (error) {
     console.error('Error in retrieveRAGContext:', error);
