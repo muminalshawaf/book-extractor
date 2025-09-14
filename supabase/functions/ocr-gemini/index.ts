@@ -168,7 +168,7 @@ serve(async (req) => {
     // Prepare the prompt based on language
     const isArabic = language === 'ar'
     const prompt = isArabic 
-      ? `You are an expert OCR analyst specializing in Arabic educational textbooks. Analyze this chemistry textbook page with MAXIMUM precision and extract EVERY visible text element without exception.
+      ? `Analyze this chemistry textbook page with MAXIMUM precision and extract EVERY visible text element without exception.
 
 RETURN THIS EXACT JSON STRUCTURE:
 {
