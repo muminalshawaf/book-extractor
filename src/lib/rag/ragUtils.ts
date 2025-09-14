@@ -17,7 +17,7 @@ export interface RAGOptions {
 }
 
 export const DEFAULT_RAG_OPTIONS: RAGOptions = {
-  enabled: true, // Enable by default since callers explicitly pass enabled: true
+  enabled: false, // Start disabled for safe rollout
   maxContextPages: 5,
   similarityThreshold: 0.3,
   maxContextLength: 4000 // Characters limit for context
