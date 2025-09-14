@@ -488,7 +488,7 @@ Write naturally as a seasoned educator would, focusing on helping students under
 
 `;
 
-    const userPrompt = `أنت معلم خبير ومتمرس. مهمتك تلخيص المحتوى التعليمي وتقديم إجابات شاملة لجميع الأسئلة.
+    const userPrompt = `لخص المحتوى التعليمي التالي وقدم إجابات شاملة لجميع الأسئلة.
 
 ${needsDetailedStructure ? `المحتوى المطلوب تلخيصه:
 ${enhancedText}
