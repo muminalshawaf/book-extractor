@@ -16,128 +16,6 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
                                    text.includes('اختيار من متعدد') ||
                                    /[أاب][.\)]\s*.*[ب][.\)]\s*.*[ج][.\)]\s*.*[د][.\)]/s.test(text);
   
-  // Enhanced semantic validation for questions
-  function isLikelyQuestion(text: string, number: string): { isValid: boolean, confidence: number, reason: string } {
-    if (!text || text.length < 10) {
-      return { isValid: false, confidence: 0, reason: 'Text too short' };
-    }
-    
-    // Filter out common non-question content
-    const nonQuestionPatterns = [
-      /^\d+$/, // Just a number
-      /^صفحة\s*\d+/, // Page number in Arabic
-      /^page\s*\d+/i, // Page number in English
-      /وزارة التعليم/, // Ministry of Education
-      /Ministry of Education/i,
-      /^الفصل\s*\d+/, // Chapter number
-      /^Chapter\s*\d+/i,
-      /^الدرس\s*\d+/, // Lesson number
-      /^Lesson\s*\d+/i,
-      /^\*\*TABLE\*\*/, // Table indicators
-      /^\*\*IMAGE\*\*/, // Image indicators
-      /^\*\*FIGURE\*\*/, // Figure indicators
-      /^الشكل\s*\d+/, // Figure in Arabic
-      /^Figure\s*\d+/i, // Figure in English
-    ];
-    
-    for (const pattern of nonQuestionPatterns) {
-      if (pattern.test(text.trim())) {
-        return { isValid: false, confidence: 0, reason: `Matches non-question pattern: ${pattern}` };
-      }
-    }
-    
-    // Positive indicators for questions (Arabic and English)
-    const questionIndicators = [
-      // Arabic question words
-      /اشرح|وضح|قارن|حدد|لماذا|كيف|ما هو|ما هي|أذكر|عدد|بين|احسب|جد/,
-      // English question words
-      /explain|describe|compare|identify|why|how|what|list|mention|calculate|find|solve|determine|define/i,
-      // Question punctuation
-      /\?/,
-      // Imperative verbs in Arabic
-      /ناقش|حلل|ارسم|صف|اكتب|أعط/,
-      // Imperative verbs in English  
-      /discuss|analyze|draw|write|give|show|prove|demonstrate/i
-    ];
-    
-    let confidence = 0.3; // Base confidence
-    let positiveCount = 0;
-    
-    for (const indicator of questionIndicators) {
-      if (indicator.test(text)) {
-        positiveCount++;
-        confidence += 0.2;
-      }
-    }
-    
-    // Boost confidence if text has question-like structure
-    if (text.includes(':') || text.includes('؟') || text.includes('?')) {
-      confidence += 0.1;
-    }
-    
-    // Lower confidence for very short text
-    if (text.length < 50) {
-      confidence -= 0.2;
-    }
-    
-    return {
-      isValid: confidence > 0.5 && positiveCount > 0,
-      confidence,
-      reason: `Confidence: ${confidence.toFixed(2)}, Positive indicators: ${positiveCount}`
-    };
-  }
-  
-  // Validate question number sequence
-  function validateQuestionSequence(questionNumbers: string[]): { isValid: boolean, reason: string } {
-    if (questionNumbers.length === 0) return { isValid: true, reason: 'No questions to validate' };
-    if (questionNumbers.length === 1) return { isValid: true, reason: 'Single question' };
-    
-    // Convert to numbers for sequence analysis
-    const numbers = questionNumbers.map(num => parseInt(convertArabicToEnglishNumber(num))).sort((a, b) => a - b);
-    
-    // Check for reasonable sequence
-    const minNum = numbers[0];
-    const maxNum = numbers[numbers.length - 1];
-    const range = maxNum - minNum + 1;
-    const actualCount = numbers.length;
-    
-    // Calculate gaps
-    const gaps = [];
-    for (let i = 1; i < numbers.length; i++) {
-      const gap = numbers[i] - numbers[i - 1];
-      if (gap > 1) {
-        gaps.push(gap - 1);
-      }
-    }
-    
-    const totalGap = gaps.reduce((sum, gap) => sum + gap, 0);
-    
-    // Validation rules
-    if (totalGap > actualCount) {
-      return { 
-        isValid: false, 
-        reason: `Too many gaps: ${totalGap} gaps for ${actualCount} questions. Numbers: ${numbers.join(', ')}` 
-      };
-    }
-    
-    if (maxNum - minNum > actualCount * 2) {
-      return { 
-        isValid: false, 
-        reason: `Number range too large: ${minNum}-${maxNum} for ${actualCount} questions` 
-      };
-    }
-    
-    const maxAllowedGap = Math.max(3, Math.ceil(actualCount / 2));
-    if (gaps.some(gap => gap > maxAllowedGap)) {
-      return { 
-        isValid: false, 
-        reason: `Gap too large: max gap ${Math.max(...gaps)} exceeds limit ${maxAllowedGap}` 
-      };
-    }
-    
-    return { isValid: true, reason: `Valid sequence: ${numbers.join(', ')}` };
-  }
-  
   // First, try to parse section-based questions (more accurate for structured content)
   const sectionMatches = text.match(/--- SECTION: (\d+) ---\s*([\s\S]*?)(?=--- SECTION: \d+ ---|$)/g);
   
@@ -168,17 +46,12 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
                   .replace(/\\"/g, '"')
                   .trim();
                 
-                // Apply semantic validation
-                const validation = isLikelyQuestion(questionText, questionNumber);
-                console.log(`OCR Question ${questionNumber}: ${validation.reason}`);
-                
-                if (validation.isValid && questionText.length > 10) {
+                if (questionText.length > 10) {
                   actualQuestions.push({
                     number: questionNumber,
                     text: questionText,
                     fullMatch: match,
-                    isMultipleChoice: isMultipleChoiceSection,
-                    confidence: validation.confidence
+                    isMultipleChoice: isMultipleChoiceSection
                   });
                 }
               }
@@ -190,39 +63,25 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
       }
     }
     
-    // Validate question sequence if we found questions
+    // If we found actual exercise questions, use those
     if (actualQuestions.length > 0) {
-      const sequenceValidation = validateQuestionSequence(actualQuestions.map(q => q.number));
-      console.log(`OCR Sequence validation: ${sequenceValidation.reason}`);
-      
-      if (sequenceValidation.isValid) {
-        console.log(`✅ Found ${actualQuestions.length} valid OCR exercise questions:`, 
-          actualQuestions.map(q => `${q.number}(${q.confidence?.toFixed(2)})`).join(', '));
-        questions.push(...actualQuestions.map(q => ({
-          number: q.number,
-          text: q.text,
-          fullMatch: q.fullMatch,
-          isMultipleChoice: q.isMultipleChoice
-        })));
-      } else {
-        console.log(`⚠️ OCR questions failed sequence validation: ${sequenceValidation.reason}`);
-      }
-    }
-    
-    // If no valid OCR questions or sequence failed, try section-based parsing with enhanced validation
-    if (questions.length === 0) {
-      console.log('Falling back to section-based parsing with enhanced validation');
-      const sectionQuestions = [];
-      
+      console.log(`Found ${actualQuestions.length} actual exercise questions:`, 
+        actualQuestions.map(q => q.number).join(', '));
+      questions.push(...actualQuestions);
+    } else {
+      // Fallback to section-based parsing with better filtering
       sectionMatches.forEach((section, index) => {
         const sectionNumber = (index + 1).toString();
         const sectionContent = section.replace(/--- SECTION: \d+ ---\s*/, '').trim();
         
-        // Apply semantic validation to section content
-        const validation = isLikelyQuestion(sectionContent, sectionNumber);
-        console.log(`Section ${sectionNumber}: ${validation.reason}`);
-        
-        if (validation.isValid) {
+        // Skip if section is too short, contains only visual context, or is clearly not a question
+        if (sectionContent.length > 20 && 
+            !sectionContent.startsWith('**TABLE**') && 
+            !sectionContent.startsWith('**IMAGE**') &&
+            !sectionContent.includes('وزارة التعليم') &&
+            !sectionContent.match(/^\d+$/) && // Skip page numbers
+            !sectionContent.includes('Ministry of Education')) {
+          
           // Extract the main question text (before any numbered sub-items)
           let questionText = sectionContent;
           
@@ -235,35 +94,15 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
           }
           
           if (questionText.length > 10) {
-            sectionQuestions.push({
+            questions.push({
               number: sectionNumber,
               text: questionText,
               fullMatch: section,
-              isMultipleChoice: isMultipleChoiceSection,
-              confidence: validation.confidence
+              isMultipleChoice: isMultipleChoiceSection
             });
           }
         }
       });
-      
-      // Validate section sequence
-      if (sectionQuestions.length > 0) {
-        const sequenceValidation = validateQuestionSequence(sectionQuestions.map(q => q.number));
-        console.log(`Section sequence validation: ${sequenceValidation.reason}`);
-        
-        if (sequenceValidation.isValid) {
-          console.log(`✅ Found ${sectionQuestions.length} valid section questions:`, 
-            sectionQuestions.map(q => `${q.number}(${q.confidence?.toFixed(2)})`).join(', '));
-          questions.push(...sectionQuestions.map(q => ({
-            number: q.number,
-            text: q.text,
-            fullMatch: q.fullMatch,
-            isMultipleChoice: q.isMultipleChoice
-          })));
-        } else {
-          console.log(`⚠️ Section questions failed validation: ${sequenceValidation.reason}`);
-        }
-      }
     }
     
     console.log(`Parsed ${questions.length} questions from structured sections:`, 
@@ -272,14 +111,11 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
     return questions;
   }
   
-  // Enhanced fallback parsing for non-structured content with strict validation
-  console.log('Using enhanced fallback parsing with strict validation');
-  const candidateQuestions = [];
-  
-  // More conservative question patterns
+  // Fallback to legacy parsing for non-structured content
   const questionPatterns = [
-    /(\d+)\.\s*([^\d]+(?:[^\.]*?)(?=\d+\.|$))/gm, // English numbers with stricter matching
-    /([٠-٩]+)\.\s*([^٠-٩]+(?:[^\.]*?)(?=[٠-٩]+\.|$))/gm, // Arabic numbers with stricter matching
+    /(\d+)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=\d+\.|$))/gm, // English numbers: 93. question text
+    /([٩٠-٩٩]+[٠-٩]*)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=[٩٠-٩٩]+[٠-٩]*\.|$))/gm, // Arabic numbers: ٩٣. question text
+    /(١٠[٠-٦])\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=١٠[٠-٦]\.|$))/gm, // Arabic 100-106: ١٠٠. ١٠١. etc.
   ];
   
   for (const pattern of questionPatterns) {
@@ -289,57 +125,34 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
       const questionNumber = match[1].trim();
       const questionText = match[2].trim();
       
-      // Apply semantic validation
-      const validation = isLikelyQuestion(questionText, questionNumber);
-      console.log(`Regex Question ${questionNumber}: ${validation.reason}`);
-      
-      if (validation.isValid) {
-        candidateQuestions.push({
+      // Skip if this looks like a sub-item within a larger question
+      if (questionText.length > 10 && !questionText.includes('Options:')) {
+        questions.push({
           number: questionNumber,
           text: questionText,
           fullMatch: match[0],
-          isMultipleChoice: isMultipleChoiceSection,
-          confidence: validation.confidence
+          isMultipleChoice: isMultipleChoiceSection
         });
       }
     }
   }
   
-  // Validate candidate sequence before accepting
-  if (candidateQuestions.length > 0) {
-    const sequenceValidation = validateQuestionSequence(candidateQuestions.map(q => q.number));
-    console.log(`Fallback sequence validation: ${sequenceValidation.reason}`);
-    
-    if (sequenceValidation.isValid) {
-      // Sort questions by their numeric value
-      candidateQuestions.sort((a, b) => {
-        const aNum = convertArabicToEnglishNumber(a.number);
-        const bNum = convertArabicToEnglishNumber(b.number);
-        return parseInt(aNum) - parseInt(bNum);
-      });
-      
-      // Remove duplicates
-      const unique = candidateQuestions.filter((question, index, self) => 
-        index === self.findIndex(q => q.number === question.number)
-      );
-      
-      console.log(`✅ Found ${unique.length} valid fallback questions:`, 
-        unique.map(q => `${q.number}(${q.confidence?.toFixed(2)})`).join(', '));
-      
-      questions.push(...unique.map(q => ({
-        number: q.number,
-        text: q.text,
-        fullMatch: q.fullMatch,
-        isMultipleChoice: q.isMultipleChoice
-      })));
-    } else {
-      console.log(`⚠️ Fallback questions failed validation: ${sequenceValidation.reason}`);
-    }
-  }
+  // Sort questions by their numeric value
+  questions.sort((a, b) => {
+    const aNum = convertArabicToEnglishNumber(a.number);
+    const bNum = convertArabicToEnglishNumber(b.number);
+    return parseInt(aNum) - parseInt(bNum);
+  });
   
-  console.log(`Final parsed questions: ${questions.length} questions: ${questions.map(q => q.number).join(', ')}`);
+  // Remove duplicates
+  const unique = questions.filter((question, index, self) => 
+    index === self.findIndex(q => q.number === question.number)
+  );
   
-  return questions;
+  console.log(`Parsed ${unique.length} questions from OCR text:`, 
+    unique.map(q => q.number).join(', '));
+  
+  return unique;
 }
 
 function convertArabicToEnglishNumber(arabicNum: string): string {
