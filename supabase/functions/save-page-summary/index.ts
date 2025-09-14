@@ -106,32 +106,6 @@ Deno.serve(async (req) => {
       }
     )
 
-    // Check for recent existing summary to prevent duplicates
-    const { data: existingSummary } = await supabaseAdmin
-      .from('page_summaries')
-      .select('updated_at, summary_md')
-      .eq('book_id', book_id)
-      .eq('page_number', page_number)
-      .single()
-
-    if (existingSummary && summary_md) {
-      const lastUpdated = new Date(existingSummary.updated_at).getTime()
-      const now = new Date().getTime()
-      const timeDiffMinutes = (now - lastUpdated) / (1000 * 60)
-
-      // If summary was updated in the last 2 minutes, return existing data
-      if (timeDiffMinutes < 2) {
-        console.log(`Summary for page ${page_number} was updated ${timeDiffMinutes.toFixed(1)} minutes ago, skipping duplicate save`)
-        return new Response(JSON.stringify({ 
-          success: true, 
-          data: existingSummary,
-          message: 'Duplicate processing prevented - recent summary exists'
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-    }
-
     // Ensure book exists before creating page summary
     const { error: bookError } = await supabaseAdmin
       .from('books')
