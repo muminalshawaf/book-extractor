@@ -418,45 +418,81 @@ Rows:`;
     // Skip general concept summary if there are numbered questions (exercise pages)
     const skipConceptSummary = questions.length > 0;
     
-    const systemPrompt = `Create concise, focused educational summaries. Do not include any introductions, pleasantries, or self-references.
+    const systemPrompt = `Create clear, comprehensive educational summaries. Do not include any introductions, pleasantries, or self-references.
 
 **Your main tasks:**
 ${skipConceptSummary ? 
-`1. Answer ALL numbered questions CONCISELY and accurately - DO NOT include a general concept summary
-2. Keep answers brief and to the point (2-3 sentences maximum per question)
-3. Use visual data when directly relevant to the question
-4. Show only essential calculation steps` :
-`1. Summarize the key concepts from the provided text clearly and briefly
-2. Answer ALL numbered questions CONCISELY and accurately
-3. Keep answers brief and to the point (2-3 sentences maximum per question) 
-4. Use visual data when directly relevant to the question
-5. Show only essential calculation steps`}
+`1. Answer ALL numbered questions with complete accuracy and detail - DO NOT include a general concept summary
+2. Use visual data (graphs, tables, diagrams) when available and relevant  
+3. Provide step-by-step solutions for calculation problems
+4. Connect concepts logically for better understanding` :
+`1. Summarize the key concepts from the provided text clearly
+2. Answer ALL numbered questions with complete accuracy and detail
+3. Use visual data (graphs, tables, diagrams) when available and relevant
+4. Provide step-by-step solutions for calculation problems
+5. Connect concepts logically for better understanding`}
 
 **Important guidelines:**
-- Write answers concisely and directly
-- Use visual elements data only when questions specifically reference them
+- Write naturally and organize information in the most logical way
+- Use visual elements data when questions reference them (الشكل، الجدول، المخطط)
 - For math equations, use LaTeX format: $$equation$$ 
-- For calculations, show essential steps only
-- Base answers on data provided, be precise but brief
+- For calculations, show clear step-by-step work
+- Base all answers on precise calculations and data provided
 
-${hasMultipleChoice ? `**For multiple choice questions:** State the correct answer with brief reasoning.` : ''}
-- Extract exact values from graphs/tables when needed for calculations
+${hasMultipleChoice ? `**For multiple choice questions:** Present choices clearly, explain reasoning, and identify the correct answer.` : ''}
+   - You MUST extract exact values: If graph shows pH vs volume, extract exact pH values at specific volumes
 
-**MANDATORY ANSWER FORMAT FOR QUESTIONS:**
-- Provide direct, concise answers (maximum 2-3 sentences per question)
-- Avoid lengthy explanations unless specifically asked for detailed analysis
-- Focus on the core answer to each question
+📋 **MANDATORY TABLE DATA INTEGRATION**:
+   - You MUST process ALL table headers, rows, and numerical values
+   - You MUST use table data as authoritative source for calculations
+   - You MUST cross-reference table entries with question requirements
+   - You MUST state: "According to the table, Ka for HX = 1.38 × 10⁻⁵"
 
-**For questions with data/calculations:**
-- Use table/graph data when available
-- Show essential calculation steps only
-- Match answers to multiple choice options when present
-- Reference visual elements only when directly relevant
+🔤 **ABSOLUTE MULTIPLE CHOICE ANALYSIS**:
+   - You MUST locate ALL multiple choice options (a., b., c., d. or أ., ب., ج., د.)
+   - You MUST match each option set to its corresponding question number
+   - You MUST analyze option content for chemical formulas, numerical values, units
+   - You MUST use options as validation for your calculated answers
+   - ABSOLUTE MANDATE: If multiple choice options exist, your final answer MUST match one of them
+   - You MUST format: **الإجابة الصحيحة: أ)** [or appropriate letter]
 
-**Answer Format:**
-- Question numbers should be clear: **س: 4-** or **Question 4:**
-- Keep explanations brief and focused
-- Avoid unnecessary elaboration
+🧮 **MANDATORY INTEGRATED PROBLEM SOLVING WITH VISUALS**:
+   When answering questions, you are ABSOLUTELY REQUIRED to:
+   1. **MANDATORY: Identify relevant visuals**: You MUST check if question references graphs, tables, or figures
+   2. **MANDATORY: Extract precise data**: You MUST use exact values from visual elements
+   3. **MANDATORY: Show integration**: You MUST state "Using data from Table 1 showing..." or "From Figure 2..."
+   4. **MANDATORY: Validate with options**: You MUST ensure calculated answer matches a multiple choice option
+   5. **MANDATORY: Reference visuals in explanation**: You MUST connect your solution to the visual evidence
+
+📐 **VISUAL DATA PRIORITY HIERARCHY**:
+   1. Tables with numerical data (highest priority for calculations)
+   2. Graphs with data points and scales (for trend analysis and value extraction)
+   3. Multiple choice options (for answer validation)
+   4. Diagrams and figures (for conceptual understanding)
+   5. Text content (for context and theory)
+
+⚡ **ABSOLUTE ANSWER ACCURACY WITH VISUAL VALIDATION**:
+   - CRITICAL: If multiple choice options are present, your answer MUST be one of the given choices - NO EXCEPTIONS
+   - You MUST use visual data as primary evidence for all calculations
+   - You MUST cross-check numerical results with graph scales and table values
+   - You MUST reference specific visual elements that support your conclusion
+
+🧪 **ABSOLUTE CHEMISTRY-SPECIFIC TABLE LOOKUP MANDATE**:
+   - **MANDATORY Chemical Name Matching**: You MUST match questions about specific acids/compounds with table entries using chemical knowledge
+   - **MANDATORY Ka/pH Relationship**: You MUST always use table Ka values for pH calculations, even if compound names differ slightly
+   - **MANDATORY Common Acid Identifications**: 
+     * Cyanoethanoic acid (cyanoacetic acid) ≈ Ka ~3.5×10^-3
+     * You MUST connect question compounds to closest Ka values in tables
+   - **ABSOLUTE PROHIBITION**: You are FORBIDDEN from claiming "insufficient data" if ANY Ka values or chemical data exist in tables
+   - **MANDATORY approximation methods**: You MUST use Ka = [H+]²/C for weak acid calculations when valid
+   - **ABSOLUTE REQUIREMENT**: Your final numerical answer MUST correspond to one of the multiple choice options
+
+🔢 **ABSOLUTE MANDATORY CALCULATION EXECUTION**:
+   - CRITICAL: If ANY numerical data exists (Ka, concentrations, etc.), you are REQUIRED to attempt calculations
+   - You MUST use chemical equilibrium principles even with approximate data matching
+   - You MUST apply weak acid/base formulas when Ka values are available
+   - You MUST connect table data to question parameters through chemical knowledge
+   - FAILURE TO CALCULATE WHEN DATA EXISTS IS STRICTLY FORBIDDEN
 
 10. **مانع الافتراضات غير المبررة (NO UNSTATED ASSUMPTIONS MANDATE)**: 
    - ممنوع منعاً باتاً استخدام أي أرقام أو قيم لم تذكر في السؤال أو السياق
