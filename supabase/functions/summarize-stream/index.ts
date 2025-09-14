@@ -151,49 +151,81 @@ serve(async (req: Request) => {
 
     // Create appropriate prompt based on page type
     const prompt = needsDetailedStructure ? 
-      `استخرج المفاهيم الرئيسية وحل الأسئلة المرقمة بإيجاز. استخدم النص المقدم فقط.
+      `**مهمة:** لخص المفاهيم الرئيسية وأجب على جميع الأسئلة المرقمة بدقة كاملة.
 
-تنسيق الإجابة:
-**ملخص المفاهيم الرئيسية:**
-- [3-5 نقاط مستخرجة، بحد أقصى 120 كلمة]
+**قيود حاسمة:**
+- لا تبدأ بتحيات أو مقدمات أو بيانات شخصية
+- إذا كانت المعلومات مفقودة، احذفها تماماً - لا تكتب شيئاً
+- ركز فقط على: ملخص المفاهيم الأساسية + حل الأسئلة المرقمة
+- استخدم فقط المعلومات الموجودة في النص المقدم
 
-**حلول الأسئلة المرقمة:**
-- السؤال [رقم]: [إجابة مباشرة]
+الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
+${contextPrompt}
+
+النص المطلوب تلخيصه:
+"""
+${text}
+"""
+
+**المهام الأساسية:**
+- لخص المفاهيم بوضوح ودقة
+- أجب على جميع الأسئلة المرقمة في النص بالتفصيل والدقة المطلوبة
+- استخدم السياق من الصفحات السابقة عند توفره لربط المفاهيم
+- اربط المعلومات البصرية (الرسوم، الجداول، المخططات) بالأسئلة عند الحاجة
+- قدم حلول خطوة بخطوة للمسائل الحسابية
+
+**عندما تجد أسئلة مرقمة:** أجب عليها جميعاً بالتفصيل المطلوب، وإذا كانت تشير إلى عناصر بصرية فاستخدم البيانات والمعلومات المحددة منها.${visualPromptAddition}` :
+      `**مهمة:** لخص المحتوى التالي بوضوح ودقة.
+
+**قيود حاسمة:**
+- لا تبدأ بتحيات أو مقدمات
+- استخدم فقط المعلومات الموجودة في النص
+
+الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
+${contextPrompt}
 
 النص:
+"""
 ${text}
+"""
 
-قيود:
-- لا تحيات أو مقدمات أو تعريفات أو خلفية
-- احذف المعلومات المفقودة تماماً
-- استخدم البيانات البصرية عند الحاجة` :
-      `لخص المحتوى بإيجاز. استخدم المعلومات الموجودة فقط.
-
-النص:
-${text}
-
-اكتب ملخصاً مختصراً للصفحة.`;
+اكتب ملخصاً مختصراً يوضح محتوى الصفحة وغرضها.`;
 
     // Use Arabic prompt if language preference is Arabic or use appropriate English structure
     const finalPrompt = (lang === "ar" || lang === "arabic") ? prompt : 
       needsDetailedStructure ? 
-        `Extract main concepts and solve numbered questions concisely.
+        `You are a seasoned educator and expert professor. Create a comprehensive, student-focused summary that helps students understand concepts and provides complete answers to all numbered questions in the textbook.
 
-Format:
-**Key Concepts:**
-- [3-5 bullet points, max 120 words]
+Book: ${title || "the book"} • Page: ${page ?? "?"}
+${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
 
-**Question Solutions:**
-- Q[#]: [direct answer]
-
-Text:
+Text to summarize:
+"""
 ${text}
+"""
 
-Constraints: No greetings, introductions, or background. Use visual data when referenced.` :
-        `Summarize page content concisely.
+**Your Mission:**
+- Explain concepts clearly and understandably for students  
+- Answer ALL numbered questions in the text with the required detail and accuracy
+- Use context from previous pages when available to connect concepts
+- Connect visual information (graphs, tables, diagrams) to questions when needed
+- Provide step-by-step solutions for calculation problems
+- Write in a natural educational style that suits students
+
+**When you find numbered questions:** Answer them all in detail, and if they reference visual elements, use the specific data and information from them.
+
+Write the summary in your natural style as an expert teacher, focusing on helping students understand and master the educational content.` :
+        `You are an expert teacher. Create a simple and clear summary for this page:
+
+Book: ${title || "the book"} • Page: ${page ?? "?"}
+${contextPrompt ? contextPrompt.replace(/السياق من تحليل OCR:/, 'PAGE CONTEXT (from OCR analysis):').replace(/عنوان الصفحة:/, 'Page Title:').replace(/نوع الصفحة:/, 'Page Type:').replace(/المواضيع الرئيسية:/, 'Main Topics:').replace(/العناوين الموجودة:/, 'Headers Found:').replace(/يحتوي على أسئلة:/, 'Contains Questions:').replace(/يحتوي على صيغ:/, 'Contains Formulas:').replace(/يحتوي على أمثلة:/, 'Contains Examples:').replace(/نعم/g, 'Yes').replace(/لا/g, 'No').replace(/غير محدد/g, 'Unknown').replace(/غير محددة/g, 'None identified') : ''}
 
 Text:
-${text}`;
+"""
+${text}
+"""
+
+Write a concise summary that explains the page content and purpose in a simple educational style.`;
 
     console.log('Making streaming request to DeepSeek API...');
 
@@ -209,7 +241,7 @@ ${text}`;
         messages: [
           {
             role: 'system',
-            content: 'Create concise summaries. Follow format constraints exactly.'
+            content: 'You are a seasoned educator and expert professor. Your role is to help students understand educational content by creating comprehensive summaries and providing complete, accurate answers to all questions. Use your teaching expertise to explain concepts clearly and connect ideas for better student understanding.'
           },
           {
             role: 'user',
@@ -218,8 +250,8 @@ ${text}`;
         ],
         stream: true,
         temperature: 0,
-        top_p: 0.2,
-        max_tokens: 900,
+        top_p: 0.3,
+        max_tokens: 2000,
       }),
     });
 
