@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
       summary_json: rag_metadata || null,
       updated_at: new Date().toISOString(),
       sanitized: wasSanitized,
-      sanitization_meta: wasSanitized ? { removedSections, violations: removedSections } : null
+      validation_meta: wasSanitized ? { removedSections, violations: removedSections } : null
     }
 
     // Only include RAG fields if they are provided (not undefined)
