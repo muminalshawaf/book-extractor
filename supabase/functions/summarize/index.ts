@@ -70,7 +70,7 @@ async function fetchRagContextServer(bookId: string, currentPage: number, queryT
   }
 }
 
-// Enhanced question parsing function with section-aware parsing
+// Enhanced question parsing function with improved content validation
 function parseQuestions(text: string): Array<{number: string, text: string, fullMatch: string, isMultipleChoice: boolean}> {
   const questions = [];
   
@@ -80,11 +80,26 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
                                    text.includes('اختيار من متعدد') ||
                                    /[أاب][.\)]\s*.*[ب][.\)]\s*.*[ج][.\)]\s*.*[د][.\)]/s.test(text);
   
-  // First, try to parse section-based questions (more accurate for structured content)
-  const sectionMatches = text.match(/--- SECTION: (\d+) ---\s*([\s\S]*?)(?=--- SECTION: \d+ ---|$)/g);
+  // Check if this content contains actual questions vs educational content
+  const hasQuestionWords = /\b(اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى|احسب|اذكر|عين|بين|استنتج|علل)\b/i.test(text);
+  const hasExerciseMarkers = /\b(تمرين|سؤال|مسألة|exercise|question|problem)\b/i.test(text);
+  const hasNumberedItems = /\b\d+\s*[.-]\s*\w/g.test(text);
+  
+  // Educational content indicators (NOT questions)
+  const hasEducationalKeywords = /\b(تعريف|مفهوم|خصائص|أنواع|مثال|شرح|توضيح|definition|concept|properties|types|example|explanation)\b/i.test(text);
+  const hasDataStructureContent = /\b(هياكل البيانات|البيانات الأولية|المصفوفات|القوائم|data structures|arrays|lists)\b/i.test(text);
+  
+  // If this is clearly educational content without question markers, don't parse as questions
+  if (hasDataStructureContent && hasEducationalKeywords && !hasQuestionWords && !hasExerciseMarkers) {
+    console.log('Detected educational content (not exercises) - skipping question parsing');
+    return questions;
+  }
+  
+  // First, try to parse section-based content with improved regex
+  const sectionMatches = text.match(/--- SECTION: ([^-]+) ---\s*([\s\S]*?)(?=--- SECTION: [^-]+ ---|$)/g);
   
   if (sectionMatches && sectionMatches.length > 0) {
-    console.log(`Found ${sectionMatches.length} structured sections`);
+    console.log(`Found ${sectionMatches.length} sections to analyze`);
     
     // Parse the raw OCR data to identify actual exercise sections
     const ocrText = text.includes('"sections":') ? text : '';
@@ -133,12 +148,41 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
         actualQuestions.map(q => q.number).join(', '));
       questions.push(...actualQuestions);
     } else {
-      // Fallback to section-based parsing with better filtering
-      sectionMatches.forEach((section, index) => {
-        // Extract actual section number from header instead of using sequential index
-        const sectionHeaderMatch = section.match(/--- SECTION: (\d+) ---/);
-        const sectionNumber = sectionHeaderMatch ? sectionHeaderMatch[1] : (index + 1).toString();
-        const sectionContent = section.replace(/--- SECTION: \d+ ---\s*/, '').trim();
+      // Improved section-based parsing with better content validation
+      sectionMatches.forEach((section) => {
+        // Extract section identifier (can be number or name)
+        const sectionHeaderMatch = section.match(/--- SECTION: ([^-]+) ---/);
+        if (!sectionHeaderMatch) return;
+        
+        const sectionId = sectionHeaderMatch[1].trim();
+        const sectionContent = section.replace(/--- SECTION: [^-]+ ---\s*/, '').trim();
+        
+        // Enhanced content validation - skip clearly educational sections
+        const isEducationalSection = (
+          sectionContent.includes('هياكل البيانات') ||
+          sectionContent.includes('البيانات الأولية') ||
+          sectionContent.includes('تعريف') ||
+          sectionContent.includes('مفهوم') ||
+          sectionContent.includes('خصائص') ||
+          sectionContent.includes('data structures') ||
+          sectionContent.includes('definition') ||
+          sectionContent.includes('concept') ||
+          sectionContent.includes('properties')
+        );
+        
+        // Only treat as question if it has question indicators AND is not educational content
+        const hasQuestionIndicators = (
+          hasQuestionWords || 
+          hasExerciseMarkers ||
+          /\d+\s*[.-]\s*\w/.test(sectionContent) ||
+          /^[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى|احسب|اذكر|عين|بين|استنتج|علل]/i.test(sectionContent)
+        );
+        
+        // Skip if section is clearly educational content or doesn't contain questions
+        if (isEducationalSection && !hasQuestionIndicators) {
+          console.log(`Skipping educational section: "${sectionId}" - contains educational content, not exercises`);
+          return;
+        }
         
         // Skip if section is too short, contains only visual context, publisher info, or is clearly not a question
         if (sectionContent.length > 20 && 
@@ -148,7 +192,16 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
             !sectionContent.includes('معلومات الجهة الناشرة') &&
             !sectionContent.match(/^\d+$/) && // Skip page numbers
             !sectionContent.match(/^\d{4}\s*-\s*\d{4}$/) && // Skip years like "2023 - 1447"
-            !sectionContent.includes('Ministry of Education')) {
+            !sectionContent.includes('Ministry of Education') &&
+            hasQuestionIndicators) { // Only process if has question indicators
+          
+          // For numeric section IDs, use them directly; for text IDs, generate a number
+          let questionNumber = sectionId;
+          if (!/^\d+$/.test(sectionId)) {
+            // Generate a placeholder number for text-based sections that actually contain questions
+            questionNumber = (questions.length + 1).toString();
+            console.log(`Converting text section "${sectionId}" to question number ${questionNumber}`);
+          }
           
           // Extract the main question text (before any numbered sub-items)
           let questionText = sectionContent;
@@ -163,7 +216,7 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
           
           if (questionText.length > 10) {
             questions.push({
-              number: sectionNumber,
+              number: questionNumber,
               text: questionText,
               fullMatch: section,
               isMultipleChoice: isMultipleChoiceSection
@@ -173,7 +226,7 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
       });
     }
     
-    console.log(`Parsed ${questions.length} questions from structured sections:`, 
+    console.log(`Parsed ${questions.length} questions from sections:`, 
       questions.map(q => q.number).join(', '));
     
     return questions;
@@ -301,27 +354,55 @@ function convertArabicToEnglishNumber(arabicNum: string): string {
 }
 
 function isContentPage(text: string): boolean {
-  const keywords = [
+  // Educational content keywords
+  const educationalKeywords = [
     'مثال', 'تعريف', 'قانون', 'معادلة', 'حل', 'مسألة', 'نظرية', 'خاصية',
     'example', 'definition', 'law', 'equation', 'solution', 'problem', 'theorem', 'property',
     'الأهداف', 'المفاهيم', 'التعاريف', 'الصيغ', 'الخطوات',
     'objectives', 'concepts', 'definitions', 'formulas', 'steps',
     'الحركة', 'تأثير', 'ظاهرة', 'جسيمات', 'مخلوط', 'محلول', 'ذائبة', 'براونية', 'تندال',
-    'اشرح', 'وضح', 'قارن', 'حدد', 'لماذا', 'كيف', 'ماذا', 'أين', 'متى'
+    'هياكل البيانات', 'البيانات الأولية', 'المصفوفات', 'القوائم'
   ];
   
-  const keywordCount = keywords.filter(keyword => 
+  // Question/exercise keywords (actual questions, not educational content)
+  const questionKeywords = [
+    'اشرح', 'وضح', 'قارن', 'حدد', 'لماذا', 'كيف', 'ماذا', 'أين', 'متى', 
+    'احسب', 'اذكر', 'عين', 'بين', 'استنتج', 'علل',
+    'تمرين', 'سؤال', 'مسألة', 'exercise', 'question'
+  ];
+  
+  const educationalKeywordCount = educationalKeywords.filter(keyword => 
+    text.toLowerCase().includes(keyword.toLowerCase())
+  ).length;
+  
+  const questionKeywordCount = questionKeywords.filter(keyword => 
     text.toLowerCase().includes(keyword.toLowerCase())
   ).length;
   
   // Check for various question patterns including Arabic questions
   const hasNumberedQuestions = /\d+\.\s/.test(text);
-  const hasArabicQuestions = /[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى]/.test(text);
+  const hasArabicQuestions = /\b(اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى|احسب|اذكر|عين|بين|استنتج|علل)\b/.test(text);
   const hasSectionHeaders = /---\s*SECTION:/.test(text);
   const hasSubstantialContent = text.length > 300;
   
-  // More inclusive detection - any scientific content with questions or structured sections
-  return (keywordCount >= 2 || hasArabicQuestions || hasSectionHeaders) && hasSubstantialContent;
+  // Check if this is educational content about data structures (not exercises)
+  const isDataStructureEducational = (
+    text.includes('هياكل البيانات الأولية') ||
+    text.includes('Data Structures') ||
+    text.includes('المصفوفات') ||
+    text.includes('Arrays')
+  ) && educationalKeywordCount > 0 && questionKeywordCount === 0;
+  
+  if (isDataStructureEducational) {
+    console.log('Detected data structures educational content (not exercises)');
+    return true; // It's content, but educational content, not exercises
+  }
+  
+  // More precise detection - distinguish between educational content and exercises
+  const hasActualQuestions = hasArabicQuestions || hasNumberedQuestions || questionKeywordCount > 0;
+  
+  // Return true if it has educational content OR actual questions with substantial content
+  return (educationalKeywordCount >= 2 || hasActualQuestions || hasSectionHeaders) && hasSubstantialContent;
 }
 
 serve(async (req) => {
