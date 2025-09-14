@@ -53,26 +53,8 @@ serve(async (req: Request) => {
                                text.toLowerCase().includes('جدول المحتويات');
     
     if (isTableOfContents) {
-      console.log('Detected table of contents page, returning simple message');
-      const simpleMessage = "### نظرة عامة\nهذه صفحة فهرس المحتويات التي تعرض تنظيم الكتاب وأقسامه الرئيسية.";
-      
-      const encoder = new TextEncoder();
-      const stream = new ReadableStream({
-        start(controller) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: { content: simpleMessage } })}\n\n`));
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
-        }
-      });
-
-      return new Response(stream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-          ...corsHeaders
-        }
-      });
+      console.log('Detected table of contents page, letting AI summarize naturally');
+      // Let AI handle table of contents naturally instead of hardcoded response
     }
 
     const apiKey = Deno.env.get('DEEPSEEK_API_KEY');

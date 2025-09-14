@@ -241,13 +241,8 @@ serve(async (req) => {
     );
     
     if (isTableOfContents) {
-      console.log('Detected table of contents page, returning simple message');
-      return new Response(JSON.stringify({ 
-        summary: "### نظرة عامة\nهذه صفحة فهرس المحتويات التي تعرض تنظيم الكتاب وأقسامه الرئيسية." 
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      console.log('Detected table of contents page, letting AI summarize naturally');
+      // Let AI handle table of contents naturally instead of hardcoded response
     }
 
     const needsDetailedStructure = isContentPage(text);
