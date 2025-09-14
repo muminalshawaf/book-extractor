@@ -21,11 +21,14 @@ async function fetchRagContextServer(bookId: string, currentPage: number, queryT
 
     // Generate query embedding
     const embResp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedText?key=${googleApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${googleApiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: String(queryText).slice(0, 20000) })
+        body: JSON.stringify({
+          model: 'models/text-embedding-004',
+          content: { parts: [{ text: String(queryText).slice(0, 20000) }] }
+        })
       }
     );
 
