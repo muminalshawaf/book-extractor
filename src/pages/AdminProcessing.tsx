@@ -245,10 +245,15 @@ const AdminProcessing = () => {
           addLog(`Page ${pageNum}: Reprocessing existing data`);
         }
 
-        let pageStartTime = Date.now(); // Declare here so catch block can access it
-        let ragContext = []; // Declare RAG context at page processing scope
-        let ragPagesActuallySent = 0; // Declare actual RAG pages sent to AI
-        let summaryResult: any = null; // Declare summaryResult at page scope
+        // Clear cache and reset state for this page to prevent pollution
+        let pageStartTime = Date.now();
+        let ragContext = []; // Fresh RAG context
+        let ragPagesActuallySent = 0;
+        let summaryResult: any = null;
+        let ocrResult = null; // Fresh OCR result
+        
+        // Explicit cache clearing for this page cycle
+        addLog(`🧹 Page ${pageNum}: Clearing cache and resetting context`);
         
         try {
           
@@ -378,6 +383,11 @@ const AdminProcessing = () => {
                 processingTimeMs: Date.now() - pageStartTime
               }]);
               setStatus(prev => ({ ...prev, nonContentSkipped: prev.nonContentSkipped + 1 }));
+              
+              // Cleanup cache even for skipped pages
+              ragContext = [];
+              summaryResult = null;
+              ocrResult = null;
               
               // Add jittered delay even for skipped pages
               if (processingConfig.enableJitteredDelay) {
@@ -676,6 +686,12 @@ const AdminProcessing = () => {
 
           setStatus(prev => ({ ...prev, processed: prev.processed + 1 }));
 
+          // Explicit cleanup after successful processing
+          addLog(`🧹 Page ${pageNum}: Cleaning up context for next page`);
+          ragContext = [];
+          summaryResult = null;
+          ocrResult = null;
+
           // Add jittered delay to prevent overwhelming APIs
           if (processingConfig.enableJitteredDelay) {
             await addJitteredDelay(processingConfig.minDelayMs, processingConfig.maxDelayMs);
@@ -685,6 +701,12 @@ const AdminProcessing = () => {
 
         } catch (error) {
           addLog(`❌ Page ${pageNum}: Error - ${error.message || error}`);
+          
+          // Cleanup on error too
+          ragContext = [];
+          summaryResult = null;
+          ocrResult = null;
+          
           setPageResults(prev => [...prev, {
             pageNumber: pageNum,
             isContent: true,
