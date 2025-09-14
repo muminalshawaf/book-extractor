@@ -71,15 +71,19 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
     } else {
       // Fallback to section-based parsing with better filtering
       sectionMatches.forEach((section, index) => {
-        const sectionNumber = (index + 1).toString();
+        // Extract actual section number from header instead of using sequential index
+        const sectionHeaderMatch = section.match(/--- SECTION: (\d+) ---/);
+        const sectionNumber = sectionHeaderMatch ? sectionHeaderMatch[1] : (index + 1).toString();
         const sectionContent = section.replace(/--- SECTION: \d+ ---\s*/, '').trim();
         
-        // Skip if section is too short, contains only visual context, or is clearly not a question
+        // Skip if section is too short, contains only visual context, publisher info, or is clearly not a question
         if (sectionContent.length > 20 && 
             !sectionContent.startsWith('**TABLE**') && 
             !sectionContent.startsWith('**IMAGE**') &&
             !sectionContent.includes('وزارة التعليم') &&
+            !sectionContent.includes('معلومات الجهة الناشرة') &&
             !sectionContent.match(/^\d+$/) && // Skip page numbers
+            !sectionContent.match(/^\d{4}\s*-\s*\d{4}$/) && // Skip years like "2023 - 1447"
             !sectionContent.includes('Ministry of Education')) {
           
           // Extract the main question text (before any numbered sub-items)
