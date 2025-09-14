@@ -48,7 +48,8 @@ async function fetchRagContextServer(bookId: string, currentPage: number, queryT
       query_embedding: `[${values.join(',')}]`,
       match_threshold: similarityThreshold,
       match_count: maxPages,
-      current_page_number: currentPage
+      current_page_number: currentPage,
+      max_page_distance: 10
     });
 
     if (error) {
