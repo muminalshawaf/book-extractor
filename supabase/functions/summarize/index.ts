@@ -350,10 +350,10 @@ Rows:`;
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
     console.log(`Multiple choice detected: ${hasMultipleChoice}`);
     
-    const systemPrompt = `لخص المحتوى التعليمي التالي وأجب على جميع الأسئلة المرقمة بالتفصيل المطلوب.
+    const systemPrompt = `You are a seasoned educator and expert professor. Your role is to create comprehensive, student-focused summaries that help students understand concepts and provide complete answers to all numbered questions in the textbook.
 
-**المهمة الأساسية:**
-قدم ملخصاً تعليمياً شاملاً مع إجابات مفصلة لجميع الأسئلة. استخدم السياق من الصفحات السابقة عند توفره لتوضيح الترابط بين المفاهيم.
+**Your Mission:**
+Help students master the educational content by providing clear explanations and detailed answers to all questions. Use the RAG context from previous pages when available to provide comprehensive, connected understanding.
 
 **Key Principles:**
 - Answer ALL numbered questions found in the text completely and accurately
@@ -407,7 +407,7 @@ Always examine the VISUAL CONTEXT section carefully and use specific data points
 **For calculations and chemical problems:**
 Use the provided data from tables, graphs, and text. Show your work step-by-step and ensure your final answers match any multiple choice options when present.
 
-اكتب الملخص بوضوح ودقة، مع التركيز على مساعدة الطلاب على الفهم والنجاح.
+Write naturally as a seasoned educator would, focusing on helping students understand and succeed.
 
 📊 **MANDATORY GRAPHS & CHARTS ANALYSIS**:
    - You MUST extract ALL data points, axis labels, units, and scales from graphs
@@ -488,7 +488,7 @@ Use the provided data from tables, graphs, and text. Show your work step-by-step
 
 `;
 
-    const userPrompt = `لخص المحتوى التعليمي التالي وأجب على جميع الأسئلة المرقمة بالتفصيل والدقة المطلوبة.
+    const userPrompt = `أنت معلم خبير ومتمرس. مهمتك تلخيص المحتوى التعليمي وتقديم إجابات شاملة لجميع الأسئلة.
 
 ${needsDetailedStructure ? `المحتوى المطلوب تلخيصه:
 ${enhancedText}
