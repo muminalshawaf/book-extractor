@@ -159,31 +159,76 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
   return unique;
 }
 
-// Tolerant answered question detection with multiple patterns
+// Enhanced tolerant answered question detection with comprehensive patterns
 function detectAnsweredQuestions(summaryText: string): Set<string> {
   const answeredQuestionNumbers = new Set<string>();
   
-  // Multiple patterns to catch various question answer formats
+  // Comprehensive patterns to catch all possible question answer formats
   const questionPatterns = [
+    // Arabic question formats
     /\*\*س:\s*(\d+)[.-]/g,           // **س: 45- or **س: 45.
     /\*\*س:\s*([٠-٩]+)[.-]/g,        // **س: ٤٥- (Arabic numerals) 
-    /سؤال\s*(\d+)/g,                // سؤال 4
-    /سؤال\s*([٠-٩]+)/g,             // سؤال ٤ (Arabic numerals)
-    /س:\s*(\d+)/g,                  // س: 4
-    /س:\s*([٠-٩]+)/g,               // س: ٤ (Arabic numerals)
-    /Question\s*(\d+)/g,            // Question 4
-    /\*\*Question\s*(\d+)/g,        // **Question 4
-    /^(\d+)[.-]\s/gm,               // 4. or 4- at start of line
-    /^([٠-٩]+)[.-]\s/gm             // ٤. or ٤- at start of line (Arabic numerals)
+    /\*\*س\s*(\d+)[.-]/g,            // **س45- (no colon)
+    /\*\*س\s*([٠-٩]+)[.-]/g,         // **س٤٥- (no colon, Arabic numerals)
+    /س:\s*(\d+)/g,                   // س: 4
+    /س:\s*([٠-٩]+)/g,                // س: ٤ (Arabic numerals)
+    /س\s+(\d+)[.-]/g,                // س 4- or س 4.
+    /س\s+([٠-٩]+)[.-]/g,             // س ٤- (Arabic numerals)
+    /سؤال\s*(\d+)/g,                 // سؤال 4
+    /سؤال\s*([٠-٩]+)/g,              // سؤال ٤ (Arabic numerals)
+    
+    // English question formats
+    /Question\s*(\d+)/gi,            // Question 4
+    /\*\*Question\s*(\d+)/gi,        // **Question 4
+    /Q:\s*(\d+)/gi,                  // Q: 4
+    /Q\s*(\d+)[.-]/gi,               // Q4- or Q4.
+    
+    // Generic numbered formats
+    /^(\d+)[.-]\s/gm,                // 4. or 4- at start of line
+    /^([٠-٩]+)[.-]\s/gm,             // ٤. or ٤- at start of line (Arabic numerals)
+    /(\d+)\s*[.-]\s*[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا]/g, // Number followed by Arabic question words
+    /([٠-٩]+)\s*[.-]\s*[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا]/g, // Arabic numerals + question words
+    
+    // Answer patterns that indicate a question was addressed
+    /\*\*ج:\s*.*?(?=\*\*س:|$)/gs,   // Look for answer patterns and extract preceding question numbers
+    /الإجابة:\s*.*?(?=\*\*س:|سؤال|$)/gs, // Arabic answer patterns
+    /Answer:\s*.*?(?=Question|$)/gis, // English answer patterns
   ];
   
+  // First pass: direct question number extraction
   for (const pattern of questionPatterns) {
     let match;
     pattern.lastIndex = 0;
     while ((match = pattern.exec(summaryText)) !== null) {
-      const num = convertArabicToEnglishNumber(match[1]);
-      answeredQuestionNumbers.add(num);
+      if (match[1]) { // Only if we captured a number
+        const num = convertArabicToEnglishNumber(match[1]);
+        answeredQuestionNumbers.add(num);
+      }
     }
+  }
+  
+  // Second pass: contextual detection - look for question-answer blocks
+  const questionAnswerBlocks = summaryText.match(/(\*\*س[:\s]*[٠-٩\d]+[.-].*?)(?=\*\*س[:\s]*[٠-٩\d]+[.-]|$)/gs);
+  if (questionAnswerBlocks) {
+    questionAnswerBlocks.forEach(block => {
+      const numberMatch = block.match(/\*\*س[:\s]*([٠-٩\d]+)/);
+      if (numberMatch && block.length > 50) { // Only count substantial answers
+        const num = convertArabicToEnglishNumber(numberMatch[1]);
+        answeredQuestionNumbers.add(num);
+      }
+    });
+  }
+  
+  // Third pass: look for numbered sections with substantial content
+  const numberedSections = summaryText.match(/^([٠-٩\d]+)[.-]\s.{30,}/gm);
+  if (numberedSections) {
+    numberedSections.forEach(section => {
+      const numberMatch = section.match(/^([٠-٩\d]+)/);
+      if (numberMatch) {
+        const num = convertArabicToEnglishNumber(numberMatch[1]);
+        answeredQuestionNumbers.add(num);
+      }
+    });
   }
   
   return answeredQuestionNumbers;
