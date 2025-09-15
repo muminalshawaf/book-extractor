@@ -538,7 +538,16 @@ Rows:`;
       const maxContextLength = 8000; // Increased from 2000 to fit more pages
       
       for (const context of effectiveRag) {
-        const pageContext = `Page ${context.pageNumber}${context.title ? ` (${context.title})` : ''}:\n${context.content || context.ocr_text || ''}\n\n`;
+        // Filter out visual elements from RAG context to prevent cross-page confusion
+        let contextContent = context.content || context.ocr_text || '';
+        
+        // Remove visual element descriptions from RAG context
+        contextContent = contextContent.replace(/--- VISUAL CONTEXT ---[\s\S]*?(?=---|\n\n|$)/g, '');
+        contextContent = contextContent.replace(/\*\*DIAGRAM\*\*:[\s\S]*?(?=\*\*|---|\n\n|$)/g, '');
+        contextContent = contextContent.replace(/\*\*TABLE\*\*:[\s\S]*?(?=\*\*|---|\n\n|$)/g, '');
+        contextContent = contextContent.replace(/\*\*FIGURE\*\*:[\s\S]*?(?=\*\*|---|\n\n|$)/g, '');
+        
+        const pageContext = `Page ${context.pageNumber}${context.title ? ` (${context.title})` : ''}:\n${contextContent}\n\n`;
         
         if (totalLength + pageContext.length > maxContextLength) {
           // Truncate to fit within limits
@@ -593,6 +602,12 @@ ${skipConceptSummary ?
 - For math equations, use LaTeX format: $$equation$$ 
 - For calculations, show clear step-by-step work
 - Base all answers on precise calculations and data provided
+
+⚠️ **CRITICAL: Avoid Cross-Page References**
+- ONLY reference figures, tables, or diagrams that appear in the current page content
+- DO NOT mention visual elements from previous pages even if they appear in context
+- If referencing a figure/table, ensure it exists in the current page's visual elements section
+- DO NOT use phrases like "as shown previously" or "from the earlier diagram"
 
 ${hasMultipleChoice ? `**For multiple choice questions:** Present choices clearly, explain reasoning, and identify the correct answer.` : ''}
    - You MUST extract exact values: If graph shows pH vs volume, extract exact pH values at specific volumes

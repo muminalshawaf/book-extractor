@@ -7,6 +7,7 @@ export type ConfidenceMeta = {
   structure: number;
   repetitionPenalty: number; // already inverted (1 - repetition)
   ocrQuality: number; // 0..1
+  contextLeak?: number; // 0..1, penalty for cross-page references
   final: number;
 };
 
@@ -93,12 +94,46 @@ function repetitionPenalty(text: string): number {
   return Math.max(0, 1 - ratio * 2); // stronger penalty
 }
 
+/**
+ * Detect context leaks from previous pages in the summary
+ */
+function detectContextLeak(ocrText: string, summaryMd: string): number {
+  if (!ocrText || !summaryMd) return 0;
+  
+  // Extract visual references from summary
+  const visualRefs = summaryMd.match(/\b(شكل|جدول|مخطط|رسم|صورة|figure|table|diagram|chart|image)\s*\d+(\.\d+)?/gi) || [];
+  const pageRefs = summaryMd.match(/\b(صفحة|page)\s*\d+/gi) || [];
+  const previousRefs = summaryMd.match(/\b(السابق|السابقة|المذكور سابقاً|previously|mentioned earlier|above|before)/gi) || [];
+  
+  let leakageScore = 0;
+  const totalRefs = visualRefs.length + pageRefs.length + previousRefs.length;
+  
+  if (totalRefs === 0) return 0;
+  
+  // Check if visual references exist in current page OCR
+  for (const ref of visualRefs) {
+    const refNumber = ref.match(/\d+(\.\d+)?/)?.[0];
+    if (refNumber && !ocrText.includes(refNumber)) {
+      leakageScore += 0.3; // Heavy penalty for missing visual references
+    }
+  }
+  
+  // Check for page references (should be rare in individual page summaries)
+  leakageScore += pageRefs.length * 0.2;
+  
+  // Check for "previous" references that don't make sense in isolated page context
+  leakageScore += previousRefs.length * 0.15;
+  
+  // Normalize to 0-1 scale
+  return Math.min(1, leakageScore);
+}
+
 export function calculateSummaryConfidence(
   ocrText: string,
   summaryMd: string,
   ocrQuality0to1?: number,
   rtl?: boolean
-): { score: number; meta: ConfidenceMeta } {
+): { score: number; meta: ConfidenceMeta & { contextLeak: number } } {
   const ocrTokens = tokenize(ocrText, rtl);
   const sumTokens = tokenize(summaryMd, rtl);
   const cov = jaccard(topKeywords(ocrTokens), topKeywords(sumTokens));
@@ -106,22 +141,27 @@ export function calculateSummaryConfidence(
   const struct = structureScore(summaryMd);
   const rep = repetitionPenalty(summaryMd);
   const ocrQ = Math.max(0, Math.min(1, ocrQuality0to1 ?? 0.7));
+  const contextLeak = detectContextLeak(ocrText, summaryMd);
 
-  // Blend
+  // Apply context leak penalty to coverage
+  const adjustedCoverage = Math.max(0, cov - (contextLeak * 0.5));
+
+  // Blend with context leak penalty
   const score = Math.max(0, Math.min(1,
-    0.40 * cov +
+    0.40 * adjustedCoverage +
     0.15 * lenFit +
     0.15 * struct +
     0.10 * rep +
     0.20 * ocrQ
   ));
 
-  const meta: ConfidenceMeta = {
+  const meta = {
     coverage: cov,
     lengthFit: lenFit,
     structure: struct,
     repetitionPenalty: rep,
     ocrQuality: ocrQ,
+    contextLeak: contextLeak,
     final: score,
   };
 

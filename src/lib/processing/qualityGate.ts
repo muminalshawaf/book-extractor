@@ -16,7 +16,7 @@ export interface QualityResult {
   passed: boolean;
   ocrConfidence: number;
   summaryConfidence: number;
-  confidenceMeta: ConfidenceMeta;
+  confidenceMeta: ConfidenceMeta & { contextLeak?: number };
   needsRepair: boolean;
   repairAttempted: boolean;
   repairSuccessful?: boolean;
@@ -69,6 +69,12 @@ function generateRepairPrompt(context: RepairContext): string {
     issues.push("يوجد تكرار مفرط في المحتوى");
   }
   
+  // Check for context leak
+  const contextLeak = (confidenceMeta as any).contextLeak;
+  if (contextLeak && contextLeak > 0.2) {
+    issues.push("الملخص يحتوي على مراجع لصفحات أو عناصر بصرية غير موجودة في هذه الصفحة");
+  }
+  
   const issueDescription = issues.length > 0 
     ? `\n\nالمشاكل المحددة في الملخص الحالي:\n${issues.map(issue => `- ${issue}`).join('\n')}`
     : '';
@@ -96,6 +102,11 @@ ${originalSummary}
 5. تجنب التكرار
 6. شرح الأمثلة والتمارين بوضوح
 7. استخراج وشرح جميع الأسئلة المرقمة
+
+⚠️ تحذير مهم - تجنب مراجع الصفحات الأخرى:
+- لا تذكر أي أشكال أو جداول أو مخططات لا توجد في النص الأصلي أعلاه
+- لا تستخدم عبارات مثل "كما ذكرنا سابقاً" أو "في الصفحة السابقة"
+- ركز فقط على محتوى هذه الصفحة المحددة
 
 تنسيق الإخراج:
 - استخدم العناوين (##) للمواضيع الرئيسية
@@ -128,6 +139,11 @@ Required: Produce an improved summary that meets these standards:
 6. Clear explanation of examples and exercises
 7. Extract and explain all numbered questions
 
+⚠️ Critical - Avoid cross-page references:
+- Do not mention any figures, tables, or diagrams not present in the original text above
+- Do not use phrases like "as mentioned previously" or "on the previous page"
+- Focus only on this specific page's content
+
 Output format:
 - Use headings (##) for main topics
 - Use bullet points (-) for details
@@ -159,6 +175,11 @@ export async function runQualityGate(
   logs.push(`Initial confidence: OCR ${(ocrConfidence * 100).toFixed(1)}%, Summary ${(summaryConfidence * 100).toFixed(1)}%`);
   logs.push(`Confidence breakdown: Coverage ${(confidenceMeta.coverage * 100).toFixed(1)}%, Length ${(confidenceMeta.lengthFit * 100).toFixed(1)}%, Structure ${(confidenceMeta.structure * 100).toFixed(1)}%`);
   
+  // Log context leak detection if present
+  const contextLeak = (confidenceMeta as any).contextLeak;
+  if (contextLeak && contextLeak > 0) {
+    logs.push(`⚠️ Context leak detected: ${(contextLeak * 100).toFixed(1)}% - summary may reference content from other pages`);
+  }
   // Check if OCR quality is too low to proceed
   if (ocrConfidence < opts.minOcrConfidence) {
     logs.push(`OCR confidence ${(ocrConfidence * 100).toFixed(1)}% below threshold ${(opts.minOcrConfidence * 100).toFixed(1)}%`);

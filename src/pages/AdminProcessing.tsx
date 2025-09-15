@@ -270,7 +270,7 @@ const AdminProcessing = () => {
           // OCR the page if no text exists or if we're not skipping processed pages
           let ocrText = (skipProcessed ? existingData?.ocr_text : '') || '';
           let ocrConfidence = 0.8;
-          let ocrResult = null; // Store full OCR result for summary context
+          // ocrResult is already declared in outer scope - don't redeclare to avoid shadowing
 
           if (!ocrText || !skipProcessed) {
             addLog(`🔍 Page ${pageNum}: Extracting text...`);
