@@ -63,7 +63,8 @@ Deno.serve(async (req) => {
     const { 
       book_id, 
       page_number, 
-      ocr_text, 
+      ocr_text,
+      ocr_structured,
       summary_md, 
       ocr_confidence, 
       confidence,
@@ -131,6 +132,7 @@ Deno.serve(async (req) => {
       book_id,
       page_number,
       ocr_text,
+      ocr_structured,
       summary_md,
       ocr_confidence: ocr_confidence || 0.8,
       confidence: confidence || 0.8,

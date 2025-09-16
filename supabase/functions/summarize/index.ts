@@ -71,10 +71,16 @@ async function fetchRagContextServer(bookId: string, currentPage: number, queryT
 }
 
 // Enhanced content classification with two-stage filtering
-function parseQuestions(text: string): Array<{number: string, text: string, fullMatch: string, isMultipleChoice: boolean}> {
+function parseQuestions(text: string, ocrData?: any): Array<{number: string, text: string, fullMatch: string, isMultipleChoice: boolean}> {
   const questions = [];
   
-  // STAGE 1: Extract content from enhanced OCR classification
+  // PRIORITY 1: Use structured OCR data if available
+  if (ocrData?.rawStructuredData?.sections) {
+    console.log(`Using structured OCR data: found ${ocrData.rawStructuredData.sections.length} sections`);
+    return processEnhancedOcrSections(ocrData.rawStructuredData.sections);
+  }
+  
+  // STAGE 2: Extract content from enhanced OCR classification in text
   const ocrSections = extractOcrSections(text);
   if (ocrSections.length > 0) {
     console.log(`Using enhanced OCR classification: found ${ocrSections.length} sections`);
@@ -445,7 +451,9 @@ serve(async (req) => {
 
   // Enhanced content classification with two-stage filtering
   console.log('📊 ENHANCED CLASSIFICATION: Starting two-stage question parsing...');
-  const questions = parseQuestions(text);
+  
+  // PRIORITY 1: Use structured OCR data if available
+  const questions = parseQuestions(text, ocrData);
   console.log(`📊 ENHANCED CLASSIFICATION: Found ${questions.length} questions in OCR text`);
 
     // Build visual elements context

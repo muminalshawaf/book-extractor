@@ -67,6 +67,7 @@ interface PageProcessingResult {
   embeddingDimensions?: number;
   ragPagesUsed?: number;
   ragPagesIncluded?: number[];
+  hasStructuredOcr?: boolean;
 }
 
 const AdminProcessing = () => {
@@ -614,6 +615,7 @@ const AdminProcessing = () => {
                  book_id: selectedBookId,
                  page_number: pageNum,
                  ocr_text: cleanedOcrText || ocrText, // Save cleaned text
+                 ocr_structured: ocrResult, // Pass full structured OCR data
                  summary_md: finalSummary,
                  ocr_confidence: ocrConfidence,
                  confidence: summaryConfidence,
@@ -681,7 +683,8 @@ const AdminProcessing = () => {
             embeddingSuccess: !!saveResult?.embedding,
             embeddingDimensions: saveResult?.embedding?.dimensions || 0,
             ragPagesUsed: ragContext.length,
-            ragPagesIncluded: ragContext.map(ctx => ctx.pageNumber)
+            ragPagesIncluded: ragContext.map(ctx => ctx.pageNumber),
+            hasStructuredOcr: !!(ocrResult?.rawStructuredData?.sections)
           }]);
 
           setStatus(prev => ({ ...prev, processed: prev.processed + 1 }));
@@ -1501,6 +1504,15 @@ const AdminProcessing = () => {
                           ) : result.ocrSuccess ? (
                             <Badge variant="outline" className="text-xs text-orange-600">
                               Embedding ✗
+                            </Badge>
+                          ) : null}
+                          {result.hasStructuredOcr ? (
+                            <Badge variant="secondary" className="text-xs bg-teal-100 text-teal-800">
+                              Structured ✓
+                            </Badge>
+                          ) : result.ocrSuccess ? (
+                            <Badge variant="outline" className="text-xs text-gray-600">
+                              Legacy OCR
                             </Badge>
                           ) : null}
                         </div>
