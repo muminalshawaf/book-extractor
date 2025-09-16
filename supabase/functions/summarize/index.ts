@@ -723,8 +723,8 @@ Rows:`;
       
       // Build text from classified sections with their tags
       const structuredSections = ocrData.rawStructuredData.sections.map((section: any, index: number) => {
-        const classification = section.classification || 'UNKNOWN';
-        const content = section.text || '';
+        const classification = section.content_classification || 'UNKNOWN';
+        const content = section.content || '';
         
         // Log each section for debugging
         console.log(`📚 Educational content: "${content.slice(0, 50)}" - classified as ${classification}`);
