@@ -391,72 +391,6 @@ function isContentPage(text: string): boolean {
   return (educationalKeywordCount >= 2 || hasActualQuestions || hasSectionHeaders) && hasSubstantialContent;
 }
 
-// **COVERAGE VALIDATION FUNCTIONS**
-function validateCoverageCompleteness(
-  summary: string, 
-  questions: any[], 
-  educationalSections: any[], 
-  codeExamples: any[], 
-  visualElements: any[],
-  language: string
-): { isComplete: boolean; missingItems: string[] } {
-  const missingItems: string[] = [];
-  
-  // Check educational content coverage
-  const educationalKeywords = educationalSections
-    .filter(section => section.content && section.content.trim().length > 10)
-    .map(section => section.content.substring(0, 50).trim());
-    
-  for (const keyword of educationalKeywords) {
-    if (!summary.includes(keyword.substring(0, 20))) {
-      missingItems.push(`Educational content: ${keyword}`);
-    }
-  }
-  
-  // Check code example coverage
-  const codeKeywords = codeExamples
-    .filter(code => code.content && (code.content.includes('class ') || code.content.includes('def ') || code.content.includes('#')))
-    .map(code => code.content.substring(0, 30).trim());
-    
-  for (const codeSnippet of codeKeywords) {
-    if (!summary.includes(codeSnippet.substring(0, 15))) {
-      missingItems.push(`Code example: ${codeSnippet}`);
-    }
-  }
-  
-  // Check visual element integration
-  for (const visual of visualElements) {
-    if (visual.title && !summary.includes(visual.title.substring(0, 20))) {
-      missingItems.push(`Visual element: ${visual.title}`);
-    }
-  }
-  
-  return {
-    isComplete: missingItems.length === 0,
-    missingItems
-  };
-}
-
-function buildContinuationPrompt(coverageCheck: any, language: string): string {
-  const missingContent = coverageCheck.missingItems.join('\n- ');
-  
-  if (language === 'ar') {
-    return `المحتوى التالي لم يتم تغطيته بشكل كامل في الملخص السابق. يجب إضافة شرح مفصل لكل عنصر:
-
-المحتوى المفقود:
-- ${missingContent}
-
-يرجى إضافة شرح شامل ومفصل لكل عنصر مفقود مع تضمين جميع أمثلة الكود والشروحات البرمجية والعناصر البصرية ذات الصلة.`;
-  }
-  
-  return `The following content was not fully covered in the previous summary. Please provide detailed explanations for each missing element:
-
-Missing content:
-- ${missingContent}
-
-Please add comprehensive and detailed explanations for each missing item, including all code examples, programming explanations, and relevant visual elements.`;
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -860,15 +794,6 @@ You are STRICTLY REQUIRED to ensure COMPLETE and EXHAUSTIVE coverage of ALL cont
 - You MUST show all calculations, reasoning, and final answers
 - STRICTLY FORBIDDEN to leave any question unanswered or partially answered
 
-**MANDATORY CODE & PROGRAMMING CONTENT:**
-- You MUST reproduce ALL code examples exactly as shown with proper formatting
-- You MUST explain EVERY line of code and its purpose
-- You MUST show expected outputs for executable code examples
-- You MUST explain programming concepts, syntax, and terminology in detail
-- You MUST provide step-by-step walkthroughs of code execution
-- You MUST connect code examples to theoretical concepts being taught
-- STRICTLY FORBIDDEN to summarize code examples without full reproduction and explanation
-
 **MANDATORY VISUAL INTEGRATION:**
 - You MUST reference and explain ALL relevant graphs, tables, diagrams when they support educational content or question solutions
 - You MUST integrate visual data into your explanations using exact values and descriptions
@@ -877,7 +802,6 @@ You are STRICTLY REQUIRED to ensure COMPLETE and EXHAUSTIVE coverage of ALL cont
 
 **VERIFICATION CHECKLIST - You MUST confirm before completing:**
 ✅ Have I covered ALL [EDUCATIONAL_CONTENT] sections?
-✅ Have I reproduced ALL code examples with full explanations?
 ✅ Have I solved ALL [QUESTION] items completely?
 ✅ Have I integrated ALL relevant visual elements?
 ✅ Have I provided comprehensive explanations for every concept?
@@ -1048,7 +972,7 @@ ${needsDetailedStructure ? `Numbered questions found: ${questions.map(q => q.num
             ],
             generationConfig: {
               temperature: 0,
-              maxOutputTokens: 12000,
+              maxOutputTokens: 16000,
             }
           }),
         });
@@ -1062,47 +986,26 @@ ${needsDetailedStructure ? `Numbered questions found: ${questions.map(q => q.num
           if (summary.trim()) {
             console.log(`Gemini 2.5 Pro API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
             
-            // Enhanced truncation detection - not just MAX_TOKENS
-            const isLikelyTruncated = finishReason === "MAX_TOKENS" || 
-              summary.length > 11000 || // Close to token limit
-              (lang === "ar" && (
-                summary.match(/[ابتثجحخدذرزسشصضطظعغفقكلمنهوي]$/) || // Ends with Arabic letter mid-word
-                summary.endsWith('وت') || summary.endsWith('نق') || summary.endsWith('ال') || // Common Arabic truncation patterns
-                summary.endsWith('تع') || summary.endsWith('من') || summary.endsWith('إل') ||
-                !summary.match(/[.؟!][\s]*$/) // Doesn't end with proper punctuation
-              )) ||
-              (lang === "en" && (
-                summary.match(/[a-zA-Z]$/) || // Ends with letter mid-word
-                !summary.match(/[.?!]\s*$/) // Doesn't end with proper punctuation
-              ));
-            
-            // Handle continuation if truncated
-            if (isLikelyTruncated && summary.length > 0) {
-              console.log(`🔄 TRUNCATION DETECTED (reason: ${finishReason}, length: ${summary.length}) - Attempting continuation...`);
+            // Handle continuation if needed
+            if (finishReason === "MAX_TOKENS" && summary.length > 0) {
+              console.log('Gemini 2.5 Pro summary was truncated, attempting to continue...');
               
               for (let attempt = 1; attempt <= 2; attempt++) {
-                console.log(`Gemini 2.5 Pro continuation attempt ${attempt}...`);
+                console.log(`Gemini 1.5 Pro continuation attempt ${attempt}...`);
                 
-                // Detect where truncation occurred
-                const lastSentence = summary.slice(-200);
-                const hasIncompleteArabic = lang === "ar" && lastSentence.match(/[ابتثجحخدذرزسشصضطظعغفقكلمنهوي]$/);
-                const truncationPoint = hasIncompleteArabic ? "النص مقطوع في منتصف الجملة" : "text was cut mid-sentence";
-                
-                const continuationPrompt = `تكملة المحتوى المقطوع - CONTINUE THE TRUNCATED CONTENT
+                const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
 
-⚠️ النص السابق مقطوع عند: ${truncationPoint}
+Previous response ended with:
+${summary.slice(-500)}
 
-آخر 300 حرف من النص المقطوع:
-${summary.slice(-300)}
+REQUIREMENTS:
+- Continue from exactly where you left off
+- Process ALL remaining questions (93-106 if not covered)
+- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
+- Use $$formula$$ for math, × for multiplication
+- Complete ALL questions until finished
 
-المطلوب:
-1. تكملة النص من النقطة المقطوعة تماماً
-2. تغطية جميع الأسئلة والمحتوى التعليمي المتبقي
-3. استخدام نفس التنسيق: **س: [رقم]- [السؤال]** و **ج:** [الجواب]
-4. استخدام $$صيغة$$ للرياضيات، × للضرب
-5. إكمال جميع الأسئلة حتى النهاية
-
-النص الأصلي الكامل: ${enhancedText.slice(-2000)}`;
+Original OCR text: ${enhancedText}`;
 
                 const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
                   method: "POST",
@@ -1117,7 +1020,7 @@ ${summary.slice(-300)}
                     ],
                     generationConfig: {
                       temperature: 0,
-                      maxOutputTokens: 8000,
+                      maxOutputTokens: 12000,
                     }
                   }),
                 });
@@ -1408,86 +1311,8 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
       console.log('✅ All questions appear to be processed successfully');
     }
 
-    // **POST-CHECK COVERAGE VALIDATION**
-    // Normalize structured OCR sections and variables used in coverage checks
-    const parsedSections = (ocrData?.rawStructuredData?.sections as any[]) || extractOcrSections(text) || [];
-    const parsedQuestions = questions;
-    const language = lang;
-    const visualElements = (ocrData?.rawStructuredData?.visual_elements as any[]) || [];
-
-    const educationalSections = parsedSections.filter(s => s.content_classification === 'EDUCATIONAL_CONTENT');
-    const codeExamples = parsedSections.filter(s => s.content && (s.content.includes('class ') || s.content.includes('def ') || s.content.includes('#')));
-    
-    const coverageCheck = validateCoverageCompleteness(
-      summary, 
-      parsedQuestions, 
-      educationalSections, 
-      codeExamples, 
-      visualElements,
-      language
-    );
-    
-    let finalSummary = summary;
-    
-    if (!coverageCheck.isComplete) {
-      console.log(`⚠️ COVERAGE GAP DETECTED: ${coverageCheck.missingItems.join(', ')}`);
-      console.log(`🔄 AUTO-CONTINUING to address missing content...`);
-      
-      // Generate continuation prompt for missing content
-      const continuationPrompt = buildContinuationPrompt(coverageCheck, language);
-      
-      try {
-        let continuationResponseText = '';
-        if (googleApiKey) {
-          const contResp2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: systemPrompt + "\n\n" + continuationPrompt }] }],
-              generationConfig: { temperature: 0, maxOutputTokens: 2000 }
-            }),
-          });
-          if (contResp2.ok) {
-            const contJson2 = await contResp2.json();
-            continuationResponseText = contJson2.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          } else {
-            console.error('Gemini continuation error:', await contResp2.text());
-          }
-        }
-        if (!continuationResponseText && deepSeekApiKey) {
-          const dsResp2 = await fetch("https://api.deepseek.com/v1/chat/completions", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${deepSeekApiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "deepseek-chat",
-              messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: continuationPrompt },
-              ],
-              temperature: 0,
-              max_tokens: 2000,
-            }),
-          });
-          if (dsResp2.ok) {
-            const dsJson2 = await dsResp2.json();
-            continuationResponseText = dsJson2.choices?.[0]?.message?.content || '';
-          } else {
-            console.error('DeepSeek continuation error:', await dsResp2.text());
-          }
-        }
-        if (continuationResponseText && continuationResponseText.trim()) {
-          console.log(`✅ CONTINUATION SUCCESS: Added ${continuationResponseText.length} characters`);
-          finalSummary = summary + "\n\n" + continuationResponseText.trim();
-        }
-      } catch (continuationError) {
-        console.error('Coverage continuation failed, proceeding with original summary:', continuationError);
-      }
-    } else {
-      console.log('✅ COVERAGE VALIDATION PASSED: All content appears to be covered');
-    }
-
     return new Response(JSON.stringify({ 
-      summary: finalSummary,
+      summary,
       rag_pages_sent: ragPagesActuallySent,
       rag_pages_found: ragContext?.length || 0,
       rag_pages_sent_list: ragPagesSentList,
