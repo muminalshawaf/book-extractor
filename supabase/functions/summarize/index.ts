@@ -715,7 +715,30 @@ Rows:`;
       console.log('⚠️ RAG CONTEXT: No context provided or found');
     }
     // Enhanced text with visual context and RAG context
-    const enhancedText = ragContextSection + text + visualElementsText;
+    // Use structured OCR data if available, otherwise fallback to raw text
+    let mainContent = text;
+    
+    if (ocrData?.rawStructuredData?.sections) {
+      console.log(`Using structured OCR data: found ${ocrData.rawStructuredData.sections.length} sections`);
+      
+      // Build text from classified sections with their tags
+      const structuredSections = ocrData.rawStructuredData.sections.map((section: any, index: number) => {
+        const classification = section.classification || 'UNKNOWN';
+        const content = section.text || '';
+        
+        // Log each section for debugging
+        console.log(`📚 Educational content: "${content.slice(0, 50)}" - classified as ${classification}`);
+        
+        // Format section with classification tag for AI processing
+        return `--- SECTION ${index + 1} [${classification}] ---\n${content}`;
+      }).join('\n\n');
+      
+      mainContent = structuredSections;
+    } else {
+      console.log('Using raw OCR text (structured data not available)');
+    }
+    
+    const enhancedText = ragContextSection + mainContent + visualElementsText;
 
     // Create optimized prompt for question processing
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
