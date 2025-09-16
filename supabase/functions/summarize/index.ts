@@ -1388,9 +1388,14 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
     }
 
     // **POST-CHECK COVERAGE VALIDATION**
-    const educationalSections = parsedSections?.filter(s => s.content_classification === 'EDUCATIONAL_CONTENT') || [];
-    const codeExamples = parsedSections?.filter(s => s.content && (s.content.includes('class ') || s.content.includes('def ') || s.content.includes('#'))) || [];
-    const visualElements = ocrData?.visual_elements || [];
+    // Normalize structured OCR sections and variables used in coverage checks
+    const parsedSections = (ocrData?.rawStructuredData?.sections as any[]) || extractOcrSections(text) || [];
+    const parsedQuestions = questions;
+    const language = lang;
+    const visualElements = (ocrData?.rawStructuredData?.visual_elements as any[]) || [];
+
+    const educationalSections = parsedSections.filter(s => s.content_classification === 'EDUCATIONAL_CONTENT');
+    const codeExamples = parsedSections.filter(s => s.content && (s.content.includes('class ') || s.content.includes('def ') || s.content.includes('#')));
     
     const coverageCheck = validateCoverageCompleteness(
       summary, 
@@ -1411,10 +1416,47 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
       const continuationPrompt = buildContinuationPrompt(coverageCheck, language);
       
       try {
-        const continuationResponse = await callGemini25Pro(continuationPrompt, language);
-        if (continuationResponse && continuationResponse.trim()) {
-          console.log(`✅ CONTINUATION SUCCESS: Added ${continuationResponse.length} characters`);
-          finalSummary = summary + "\n\n" + continuationResponse.trim();
+        let continuationResponseText = '';
+        if (googleApiKey) {
+          const contResp2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: systemPrompt + "\n\n" + continuationPrompt }] }],
+              generationConfig: { temperature: 0, maxOutputTokens: 2000 }
+            }),
+          });
+          if (contResp2.ok) {
+            const contJson2 = await contResp2.json();
+            continuationResponseText = contJson2.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          } else {
+            console.error('Gemini continuation error:', await contResp2.text());
+          }
+        }
+        if (!continuationResponseText && deepSeekApiKey) {
+          const dsResp2 = await fetch("https://api.deepseek.com/v1/chat/completions", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${deepSeekApiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "deepseek-chat",
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: continuationPrompt },
+              ],
+              temperature: 0,
+              max_tokens: 2000,
+            }),
+          });
+          if (dsResp2.ok) {
+            const dsJson2 = await dsResp2.json();
+            continuationResponseText = dsJson2.choices?.[0]?.message?.content || '';
+          } else {
+            console.error('DeepSeek continuation error:', await dsResp2.text());
+          }
+        }
+        if (continuationResponseText && continuationResponseText.trim()) {
+          console.log(`✅ CONTINUATION SUCCESS: Added ${continuationResponseText.length} characters`);
+          finalSummary = summary + "\n\n" + continuationResponseText.trim();
         }
       } catch (continuationError) {
         console.error('Coverage continuation failed, proceeding with original summary:', continuationError);
