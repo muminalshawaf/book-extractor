@@ -188,6 +188,13 @@ RETURN THIS EXACT JSON STRUCTURE:
     {
       "order": 1,
       "type": "title|header|main_content|sidebar|example|exercise|formula|definition|career_box|highlight_box",
+      "content_classification": "QUESTION|EDUCATIONAL_CONTENT|FIGURE_REFERENCE|METADATA",
+      "question_indicators": {
+        "has_question_words": true/false,
+        "has_numbering": true/false,
+        "has_multiple_choice": true/false,
+        "has_instruction_words": true/false
+      },
       "title": "section title if present", 
       "content": "complete text content"
     }
@@ -371,7 +378,9 @@ RETURN THIS EXACT JSON STRUCTURE:
    ✓ Preserve Arabic numbers vs English numbers in context
    ✓ Maintain units and symbols: mol/L, °C, %, etc.
 
-6. **SECTION CLASSIFICATION** (Critical - identify each visual block):
+6. **ENHANCED SECTION CLASSIFICATION WITH CONTENT TYPE** (Critical - classify both visual layout AND content purpose):
+   
+   **VISUAL LAYOUT TYPES:**
    • "title" → Page headers, chapter titles (large bold text at top)
    • "header" → Section headers, subsection titles (medium bold text)
    • "main_content" → Primary educational paragraphs and explanations
@@ -382,6 +391,18 @@ RETURN THIS EXACT JSON STRUCTURE:
    • "definition" → Key terms, vocabulary, bolded concepts
    • "career_box" → Professional information, job descriptions
    • "highlight_box" → Important notes, tips, warnings in colored boxes
+   
+   **CONTENT CLASSIFICATION (MANDATORY - classify each section):**
+   • "QUESTION" → Actual questions requiring answers (اشرح، وضح، احسب، حدد، لماذا، كيف، ماذا + numbered)
+   • "EDUCATIONAL_CONTENT" → Explanations, definitions, examples, concepts (تعريف، مفهوم، شرح، خصائص)
+   • "FIGURE_REFERENCE" → References to visual elements (شكل، جدول، مخطط + number)
+   • "METADATA" → Page numbers, publisher info, dates, non-content text
+   
+   **QUESTION INDICATORS (MANDATORY - analyze each section):**
+   • "has_question_words": Check for اشرح، وضح، قارن، حدد، لماذا، كيف، ماذا، أين، متى، احسب، اذكر، عين، بين، استنتج، علل
+   • "has_numbering": Check for question numbering patterns (1. 2. 3. or ١. ٢. ٣. followed by question)
+   • "has_multiple_choice": Check for option patterns (أ. ب. ج. د. or a. b. c. d.)
+   • "has_instruction_words": Check for اختر، أكمل، ضع دائرة، املأ (these are instructions, NOT questions to answer)
 
 7. **CONTENT COMPLETENESS VERIFICATION** (Zero tolerance for missing text):
    ✓ Every Arabic word and phrase visible in the image

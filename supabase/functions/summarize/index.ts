@@ -70,8 +70,129 @@ async function fetchRagContextServer(bookId: string, currentPage: number, queryT
   }
 }
 
-// Enhanced question parsing function with improved content validation
+// Enhanced content classification with two-stage filtering
 function parseQuestions(text: string): Array<{number: string, text: string, fullMatch: string, isMultipleChoice: boolean}> {
+  const questions = [];
+  
+  // STAGE 1: Extract content from enhanced OCR classification
+  const ocrSections = extractOcrSections(text);
+  if (ocrSections.length > 0) {
+    console.log(`Using enhanced OCR classification: found ${ocrSections.length} sections`);
+    return processEnhancedOcrSections(ocrSections);
+  }
+  
+  // STAGE 2: Fallback to intelligent content analysis
+  console.log('Falling back to intelligent content analysis');
+  return processLegacyContent(text);
+}
+
+// Extract sections from enhanced OCR output
+function extractOcrSections(text: string): Array<any> {
+  try {
+    // Try to parse structured OCR output
+    const ocrMatch = text.match(/"sections":\s*\[([\s\S]*?)\]/);
+    if (!ocrMatch) return [];
+    
+    const sectionsText = ocrMatch[1];
+    const sections = [];
+    
+    // Parse each section object
+    const sectionMatches = sectionsText.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
+    if (!sectionMatches) return [];
+    
+    for (const sectionMatch of sectionMatches) {
+      try {
+        const sectionObj = JSON.parse(sectionMatch);
+        if (sectionObj.content_classification && sectionObj.question_indicators) {
+          sections.push(sectionObj);
+        }
+      } catch (e) {
+        // Skip malformed JSON
+        continue;
+      }
+    }
+    
+    return sections;
+  } catch (e) {
+    console.error('Error extracting OCR sections:', e);
+    return [];
+  }
+}
+
+// Process enhanced OCR sections with intelligent filtering
+function processEnhancedOcrSections(sections: Array<any>): Array<{number: string, text: string, fullMatch: string, isMultipleChoice: boolean}> {
+  const questions = [];
+  
+  for (const section of sections) {
+    const classification = section.content_classification;
+    const indicators = section.question_indicators || {};
+    const content = section.content || '';
+    const title = section.title || '';
+    
+    // ONLY process sections classified as QUESTION
+    if (classification === 'QUESTION') {
+      // Apply Arabic-specific validation
+      if (isDefiniteQuestion(content, indicators)) {
+        const questionNumber = extractQuestionNumber(title, content) || (questions.length + 1).toString();
+        questions.push({
+          number: questionNumber,
+          text: content,
+          fullMatch: JSON.stringify(section),
+          isMultipleChoice: indicators.has_multiple_choice || false
+        });
+        console.log(`✅ Confirmed question ${questionNumber}: ${content.substring(0, 50)}...`);
+      } else {
+        console.log(`❌ Rejected false question: "${title}" - failed validation`);
+      }
+    } else {
+      console.log(`📚 Educational content: "${title}" - classified as ${classification}`);
+    }
+  }
+  
+  return questions;
+}
+
+// Arabic-specific question validation
+function isDefiniteQuestion(content: string, indicators: any): boolean {
+  // Definite question patterns (Arabic)
+  const questionWords = /\b(اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى|احسب|اذكر|عين|بين|استنتج|علل)\b/i;
+  const questionNumbering = /^\d+[.-]\s*[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى|احسب]/i;
+  
+  // Definite NON-question patterns (Arabic)
+  const definitionWords = /\b(تعريف|مفهوم|خصائص|أنواع|مثال|شرح|توضيح)\b/i;
+  const figureReferences = /شكل\s*\d+[.-]\d+|جدول\s*\d+[.-]\d+|مخطط\s*\d+[.-]\d+/i;
+  const instructionWords = /\b(اختر|أكمل|ضع دائرة|املأ)\b/i; // Instructions, not questions to answer
+  
+  // Must have question indicators
+  const hasQuestionMarkers = questionWords.test(content) || 
+                           questionNumbering.test(content) || 
+                           indicators.has_question_words;
+  
+  // Must NOT be educational content
+  const isEducationalContent = definitionWords.test(content) || 
+                              figureReferences.test(content);
+  
+  // Must NOT be instructions (these are for students, not questions to answer)
+  const isInstruction = instructionWords.test(content) || indicators.has_instruction_words;
+  
+  return hasQuestionMarkers && !isEducationalContent && !isInstruction;
+}
+
+// Extract question number from title or content
+function extractQuestionNumber(title: string, content: string): string | null {
+  // Try title first
+  const titleMatch = title.match(/(\d+)/);
+  if (titleMatch) return titleMatch[1];
+  
+  // Try content
+  const contentMatch = content.match(/^(\d+)[.-]/);
+  if (contentMatch) return contentMatch[1];
+  
+  return null;
+}
+
+// Legacy processing for non-enhanced OCR
+function processLegacyContent(text: string): Array<{number: string, text: string, fullMatch: string, isMultipleChoice: boolean}> {
   const questions = [];
   
   // Check if this is a multiple choice section
@@ -83,11 +204,10 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
   // Check if this content contains actual questions vs educational content
   const hasQuestionWords = /\b(اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى|احسب|اذكر|عين|بين|استنتج|علل)\b/i.test(text);
   const hasExerciseMarkers = /\b(تمرين|سؤال|مسألة|exercise|question|problem)\b/i.test(text);
-  const hasNumberedItems = /\b\d+\s*[.-]\s*\w/g.test(text);
   
   // Educational content indicators (NOT questions)
-  const hasEducationalKeywords = /\b(تعريف|مفهوم|خصائص|أنواع|مثال|شرح|توضيح|definition|concept|properties|types|example|explanation)\b/i.test(text);
   const hasDataStructureContent = /\b(هياكل البيانات|البيانات الأولية|المصفوفات|القوائم|data structures|arrays|lists)\b/i.test(text);
+  const hasEducationalKeywords = /\b(تعريف|مفهوم|خصائص|أنواع|مثال|شرح|توضيح)\b/i.test(text);
   
   // If this is clearly educational content without question markers, don't parse as questions
   if (hasDataStructureContent && hasEducationalKeywords && !hasQuestionWords && !hasExerciseMarkers) {
@@ -95,167 +215,34 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
     return questions;
   }
   
-  // First, try to parse section-based content with improved regex
+  // Try to parse section-based content 
   const sectionMatches = text.match(/--- SECTION: ([^-]+) ---\s*([\s\S]*?)(?=--- SECTION: [^-]+ ---|$)/g);
   
   if (sectionMatches && sectionMatches.length > 0) {
     console.log(`Found ${sectionMatches.length} sections to analyze`);
     
-    // Parse the raw OCR data to identify actual exercise sections
-    const ocrText = text.includes('"sections":') ? text : '';
-    const actualQuestions = [];
-    
-    if (ocrText) {
-      try {
-        // Extract sections from OCR data
-        const sectionsMatch = ocrText.match(/"sections":\s*\[([\s\S]*?)\]/);
-        if (sectionsMatch) {
-          const sectionsText = sectionsMatch[1];
-          const exerciseMatches = sectionsText.match(/"type":\s*"exercise"[^}]*"title":\s*"([^"]*)"[^}]*"content":\s*"([^"]*(?:\\.[^"]*)*)"/g);
-          
-          if (exerciseMatches) {
-            exerciseMatches.forEach((match) => {
-              const titleMatch = match.match(/"title":\s*"([^"]*)"/);
-              const contentMatch = match.match(/"content":\s*"([^"]*(?:\\.[^"]*)*)"/);
-              
-              if (titleMatch && contentMatch) {
-                const questionNumber = titleMatch[1];
-                let questionText = contentMatch[1]
-                  .replace(/\\n/g, ' ')
-                  .replace(/\\"/g, '"')
-                  .trim();
-                
-                if (questionText.length > 10) {
-                  actualQuestions.push({
-                    number: questionNumber,
-                    text: questionText,
-                    fullMatch: match,
-                    isMultipleChoice: isMultipleChoiceSection
-                  });
-                }
-              }
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error parsing OCR sections:', error);
-      }
-    }
-    
-    // If we found actual exercise questions, use those
-    if (actualQuestions.length > 0) {
-      console.log(`Found ${actualQuestions.length} actual exercise questions:`, 
-        actualQuestions.map(q => q.number).join(', '));
-      questions.push(...actualQuestions);
-    } else {
-      // Improved section-based parsing with better content validation
-      sectionMatches.forEach((section) => {
-        // Extract section identifier (can be number or name)
-        const sectionHeaderMatch = section.match(/--- SECTION: ([^-]+) ---/);
-        if (!sectionHeaderMatch) return;
-        
-        const sectionId = sectionHeaderMatch[1].trim();
-        const sectionContent = section.replace(/--- SECTION: [^-]+ ---\s*/, '').trim();
-        
-        // Enhanced content validation - skip clearly educational sections
-        const isEducationalSection = (
-          sectionContent.includes('هياكل البيانات') ||
-          sectionContent.includes('البيانات الأولية') ||
-          sectionContent.includes('تعريف') ||
-          sectionContent.includes('مفهوم') ||
-          sectionContent.includes('خصائص') ||
-          sectionContent.includes('data structures') ||
-          sectionContent.includes('definition') ||
-          sectionContent.includes('concept') ||
-          sectionContent.includes('properties')
-        );
-        
-        // Only treat as question if it has question indicators AND is not educational content
-        const hasQuestionIndicators = (
-          hasQuestionWords || 
-          hasExerciseMarkers ||
-          /\d+\s*[.-]\s*\w/.test(sectionContent) ||
-          /^[اشرح|وضح|قارن|حدد|لماذا|كيف|ماذا|أين|متى|احسب|اذكر|عين|بين|استنتج|علل]/i.test(sectionContent)
-        );
-        
-        // Skip if section is clearly educational content or doesn't contain questions
-        if (isEducationalSection && !hasQuestionIndicators) {
-          console.log(`Skipping educational section: "${sectionId}" - contains educational content, not exercises`);
-          return;
-        }
-        
-        // Skip if section is too short, contains only visual context, publisher info, or is clearly not a question
-        if (sectionContent.length > 20 && 
-            !sectionContent.startsWith('**TABLE**') && 
-            !sectionContent.startsWith('**IMAGE**') &&
-            !sectionContent.includes('وزارة التعليم') &&
-            !sectionContent.includes('معلومات الجهة الناشرة') &&
-            !sectionContent.match(/^\d+$/) && // Skip page numbers
-            !sectionContent.match(/^\d{4}\s*-\s*\d{4}$/) && // Skip years like "2023 - 1447"
-            !sectionContent.includes('Ministry of Education') &&
-            hasQuestionIndicators) { // Only process if has question indicators
-          
-          // For numeric section IDs, use them directly; for text IDs, generate a number
-          let questionNumber = sectionId;
-          if (!/^\d+$/.test(sectionId)) {
-            // Generate a placeholder number for text-based sections that actually contain questions
-            questionNumber = (questions.length + 1).toString();
-            console.log(`Converting text section "${sectionId}" to question number ${questionNumber}`);
-          }
-          
-          // Extract the main question text (before any numbered sub-items)
-          let questionText = sectionContent;
-          
-          // If there are numbered sub-items, get the question text before them
-          const subItemMatch = sectionContent.match(/^(.*?)(?=\n\s*\d+\.)/s);
-          if (subItemMatch) {
-            questionText = subItemMatch[1].trim();
-            // Remove "Question Text:" prefix if present
-            questionText = questionText.replace(/^Question Text:\s*/, '');
-          }
-          
-          if (questionText.length > 10) {
-            questions.push({
-              number: questionNumber,
-              text: questionText,
-              fullMatch: section,
-              isMultipleChoice: isMultipleChoiceSection
-            });
-          }
-        }
-      });
-    }
-    
-    console.log(`Parsed ${questions.length} questions from sections:`, 
-      questions.map(q => q.number).join(', '));
-    
-    return questions;
-  }
-  
-  // Fallback to legacy parsing for non-structured content
-  const questionPatterns = [
-    /(\d+)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=\d+\.|$))/gm, // English numbers: 93. question text
-    /([٩٠-٩٩]+[٠-٩]*)\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=[٩٠-٩٩]+[٠-٩]*\.|$))/gm, // Arabic numbers: ٩٣. question text
-    /(١٠[٠-٦])\.\s*([^٠-٩\d]+(?:[^\.]*?)(?=١٠[٠-٦]\.|$))/gm, // Arabic 100-106: ١٠٠. ١٠١. etc.
-  ];
-  
-  for (const pattern of questionPatterns) {
-    let match;
-    pattern.lastIndex = 0; // Reset regex
-    while ((match = pattern.exec(text)) !== null) {
-      const questionNumber = match[1].trim();
-      const questionText = match[2].trim();
+    // Apply Arabic-specific patterns for validation
+    sectionMatches.forEach((section) => {
+      const sectionHeaderMatch = section.match(/--- SECTION: ([^-]+) ---/);
+      if (!sectionHeaderMatch) return;
       
-      // Skip if this looks like a sub-item within a larger question
-      if (questionText.length > 10 && !questionText.includes('Options:')) {
+      const sectionId = sectionHeaderMatch[1].trim();
+      const sectionContent = section.replace(/--- SECTION: [^-]+ ---\s*/, '').trim();
+      
+      // Apply two-stage validation
+      if (isDefiniteQuestion(sectionContent, { has_question_words: hasQuestionWords })) {
+        const questionNumber = extractQuestionNumber(sectionId, sectionContent) || (questions.length + 1).toString();
         questions.push({
           number: questionNumber,
-          text: questionText,
-          fullMatch: match[0],
+          text: sectionContent,
+          fullMatch: section,
           isMultipleChoice: isMultipleChoiceSection
         });
+        console.log(`✅ Legacy: Confirmed question ${questionNumber}`);
+      } else {
+        console.log(`❌ Legacy: Rejected section "${sectionId}" - not a question`);
       }
-    }
+    });
   }
   
   // Sort questions by their numeric value
@@ -265,17 +252,8 @@ function parseQuestions(text: string): Array<{number: string, text: string, full
     return parseInt(aNum) - parseInt(bNum);
   });
   
-  // Remove duplicates
-  const unique = questions.filter((question, index, self) => 
-    index === self.findIndex(q => q.number === question.number)
-  );
-  
-  console.log(`Parsed ${unique.length} questions from OCR text:`, 
-    unique.map(q => q.number).join(', '));
-  
-  return unique;
-}
-
+  console.log(`Legacy processing found ${questions.length} valid questions`);
+  return questions;
 // Tolerant answered question detection with multiple patterns
 function detectAnsweredQuestions(summaryText: string): Set<string> {
   const answeredQuestionNumbers = new Set<string>();
@@ -463,9 +441,10 @@ serve(async (req) => {
     const needsDetailedStructure = isContentPage(text);
     console.log(`Page type: ${needsDetailedStructure ? 'Content page' : 'Non-content page'}`);
 
-    // Parse questions from OCR text for validation
-    const questions = parseQuestions(text);
-    console.log(`Found ${questions.length} questions in OCR text`);
+  // Enhanced content classification with two-stage filtering
+  console.log('📊 ENHANCED CLASSIFICATION: Starting two-stage question parsing...');
+  const questions = parseQuestions(text);
+  console.log(`📊 ENHANCED CLASSIFICATION: Found ${questions.length} questions in OCR text`);
 
     // Build visual elements context
     let visualElementsText = '';
@@ -738,16 +717,27 @@ Rows:`;
     const systemPrompt = `Create clear, comprehensive educational summaries. Do not include any introductions, pleasantries, or self-references.
 
 **Your main tasks:**
-${skipConceptSummary ? 
-`1. Answer ALL numbered questions with complete accuracy and detail - DO NOT include a general concept summary
-2. Use visual data (graphs, tables, diagrams) when available and relevant  
-3. Provide step-by-step solutions for calculation problems
-4. Connect concepts logically for better understanding` :
-`1. Summarize the key concepts from the provided text clearly
-2. Answer ALL numbered questions with complete accuracy and detail
+${questions.length > 0 ? 
+`1. Answer the ${questions.length} numbered questions with complete accuracy and detail
+2. For educational content sections, provide clear concept summaries
+3. Use visual data (graphs, tables, diagrams) when available and relevant  
+4. Provide step-by-step solutions for calculation problems
+5. Connect concepts logically for better understanding
+
+**CRITICAL CONTENT CLASSIFICATION RULES:**
+- QUESTIONS (to answer): Content that asks for explanations, calculations, or analysis
+- EDUCATIONAL CONTENT (to summarize): Definitions, concepts, examples, explanations
+- Process each type appropriately - answer questions, summarize educational content
+- DO NOT treat educational content sections as questions to answer` :
+`1. Summarize the key educational concepts from the provided text clearly
+2. If any numbered questions are present, answer them with complete accuracy and detail
 3. Use visual data (graphs, tables, diagrams) when available and relevant
 4. Provide step-by-step solutions for calculation problems
-5. Connect concepts logically for better understanding`}
+5. Connect concepts logically for better understanding
+
+**CONTENT PROCESSING APPROACH:**
+- Focus on educational content summarization as the primary task
+- Distinguish between educational explanations and actual questions`}
 
 **Important guidelines:**
 - Write naturally and organize information in the most logical way
