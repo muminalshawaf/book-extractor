@@ -747,7 +747,10 @@ Rows:`;
     // Skip general concept summary if there are numbered questions (exercise pages)
     const skipConceptSummary = questions.length > 0;
     
-    const systemPrompt = `Create clear, comprehensive educational summaries. Do not include any introductions, pleasantries, or self-references.
+    const systemPrompt = `⚡ **CRITICAL TOKEN LIMIT MANDATE**
+Your complete response MUST NOT exceed 20,000 tokens. Plan your response structure to ensure comprehensive coverage of ALL content while staying within this absolute limit. Prioritize completeness over excessive detail.
+
+Create clear, comprehensive educational summaries. Do not include any introductions, pleasantries, or self-references.
 
 **Your main tasks:**
 ${questions.length > 0 ? 
@@ -972,7 +975,7 @@ ${needsDetailedStructure ? `Numbered questions found: ${questions.map(q => q.num
             ],
             generationConfig: {
               temperature: 0,
-              maxOutputTokens: 16000,
+              maxOutputTokens: 26000,
             }
           }),
         });
@@ -1078,7 +1081,7 @@ Original OCR text: ${enhancedText}`;
             ],
             temperature: 0,
             top_p: 0.9,
-            max_tokens: 12000,
+            max_tokens: 20000,
           }),
         });
 
@@ -1124,7 +1127,7 @@ Original OCR text: ${enhancedText}`;
                       { role: "user", content: continuationPrompt },
                     ],
                     temperature: 0,
-                    max_tokens: 8000,
+                    max_tokens: 15000,
                   }),
                 });
 
@@ -1239,7 +1242,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
                     { role: "user", content: completionPrompt },
                   ],
                   temperature: 0,
-                  max_tokens: 8000,
+                  max_tokens: 15000,
                 }),
               });
             } else {
@@ -1248,7 +1251,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   contents: [{ parts: [{ text: systemPrompt + "\n\n" + completionPrompt }] }],
-                  generationConfig: { temperature: 0, maxOutputTokens: 8000 }
+                  generationConfig: { temperature: 0, maxOutputTokens: 20000 }
                 }),
               });
             }
