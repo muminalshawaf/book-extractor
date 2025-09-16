@@ -1048,7 +1048,7 @@ ${needsDetailedStructure ? `Numbered questions found: ${questions.map(q => q.num
             ],
             generationConfig: {
               temperature: 0,
-              maxOutputTokens: 16000,
+              maxOutputTokens: 12000,
             }
           }),
         });
@@ -1062,26 +1062,47 @@ ${needsDetailedStructure ? `Numbered questions found: ${questions.map(q => q.num
           if (summary.trim()) {
             console.log(`Gemini 2.5 Pro API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
             
-            // Handle continuation if needed
-            if (finishReason === "MAX_TOKENS" && summary.length > 0) {
-              console.log('Gemini 2.5 Pro summary was truncated, attempting to continue...');
+            // Enhanced truncation detection - not just MAX_TOKENS
+            const isLikelyTruncated = finishReason === "MAX_TOKENS" || 
+              summary.length > 11000 || // Close to token limit
+              (lang === "ar" && (
+                summary.match(/[ابتثجحخدذرزسشصضطظعغفقكلمنهوي]$/) || // Ends with Arabic letter mid-word
+                summary.endsWith('وت') || summary.endsWith('نق') || summary.endsWith('ال') || // Common Arabic truncation patterns
+                summary.endsWith('تع') || summary.endsWith('من') || summary.endsWith('إل') ||
+                !summary.match(/[.؟!][\s]*$/) // Doesn't end with proper punctuation
+              )) ||
+              (lang === "en" && (
+                summary.match(/[a-zA-Z]$/) || // Ends with letter mid-word
+                !summary.match(/[.?!]\s*$/) // Doesn't end with proper punctuation
+              ));
+            
+            // Handle continuation if truncated
+            if (isLikelyTruncated && summary.length > 0) {
+              console.log(`🔄 TRUNCATION DETECTED (reason: ${finishReason}, length: ${summary.length}) - Attempting continuation...`);
               
               for (let attempt = 1; attempt <= 2; attempt++) {
-                console.log(`Gemini 1.5 Pro continuation attempt ${attempt}...`);
+                console.log(`Gemini 2.5 Pro continuation attempt ${attempt}...`);
                 
-                const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
+                // Detect where truncation occurred
+                const lastSentence = summary.slice(-200);
+                const hasIncompleteArabic = lang === "ar" && lastSentence.match(/[ابتثجحخدذرزسشصضطظعغفقكلمنهوي]$/);
+                const truncationPoint = hasIncompleteArabic ? "النص مقطوع في منتصف الجملة" : "text was cut mid-sentence";
+                
+                const continuationPrompt = `تكملة المحتوى المقطوع - CONTINUE THE TRUNCATED CONTENT
 
-Previous response ended with:
-${summary.slice(-500)}
+⚠️ النص السابق مقطوع عند: ${truncationPoint}
 
-REQUIREMENTS:
-- Continue from exactly where you left off
-- Process ALL remaining questions (93-106 if not covered)
-- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
-- Use $$formula$$ for math, × for multiplication
-- Complete ALL questions until finished
+آخر 300 حرف من النص المقطوع:
+${summary.slice(-300)}
 
-Original OCR text: ${enhancedText}`;
+المطلوب:
+1. تكملة النص من النقطة المقطوعة تماماً
+2. تغطية جميع الأسئلة والمحتوى التعليمي المتبقي
+3. استخدام نفس التنسيق: **س: [رقم]- [السؤال]** و **ج:** [الجواب]
+4. استخدام $$صيغة$$ للرياضيات، × للضرب
+5. إكمال جميع الأسئلة حتى النهاية
+
+النص الأصلي الكامل: ${enhancedText.slice(-2000)}`;
 
                 const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
                   method: "POST",
@@ -1096,7 +1117,7 @@ Original OCR text: ${enhancedText}`;
                     ],
                     generationConfig: {
                       temperature: 0,
-                      maxOutputTokens: 12000,
+                      maxOutputTokens: 8000,
                     }
                   }),
                 });
