@@ -779,7 +779,34 @@ ${questions.length > 0 ?
 - For calculations, show clear step-by-step work
 - Base all answers on precise calculations and data provided
 
-🧠 **STRATEGY 4: INTELLIGENT RAG CONTEXT USAGE RULES**
+🎯 **STRATEGY 4: ABSOLUTE COMPREHENSIVE COVERAGE MANDATE**
+You are STRICTLY REQUIRED to ensure COMPLETE and EXHAUSTIVE coverage of ALL content:
+
+**MANDATORY EDUCATIONAL CONTENT COVERAGE:**
+- You MUST summarize EVERY concept tagged as [EDUCATIONAL_CONTENT]
+- You MUST explain EVERY topic, definition, principle, and example present in the content
+- You MUST NOT skip ANY educational material regardless of complexity or length
+- STRICTLY FORBIDDEN to provide partial coverage or skip topics due to space constraints
+
+**MANDATORY QUESTION RESOLUTION:**
+- You MUST solve EVERY question tagged as [QUESTION] with complete step-by-step solutions
+- You MUST provide detailed explanations for each answer
+- You MUST show all calculations, reasoning, and final answers
+- STRICTLY FORBIDDEN to leave any question unanswered or partially answered
+
+**MANDATORY VISUAL INTEGRATION:**
+- You MUST reference and explain ALL relevant graphs, tables, diagrams when they support educational content or question solutions
+- You MUST integrate visual data into your explanations using exact values and descriptions
+- You MUST cite specific figures/tables when explaining concepts: "According to Table X..." or "As shown in Figure Y..."
+- STRICTLY FORBIDDEN to ignore visual elements that are essential for understanding
+
+**VERIFICATION CHECKLIST - You MUST confirm before completing:**
+✅ Have I covered ALL [EDUCATIONAL_CONTENT] sections?
+✅ Have I solved ALL [QUESTION] items completely?
+✅ Have I integrated ALL relevant visual elements?
+✅ Have I provided comprehensive explanations for every concept?
+
+🧠 **STRATEGY 5: INTELLIGENT RAG CONTEXT USAGE RULES**
 The context from previous pages has been intelligently filtered based on topic relevance. Follow these STRICT rules:
 
 **PRIMARY RULE: Current Page is Authoritative**
@@ -906,7 +933,7 @@ ${lang === "ar" || lang === "arabic" ?
 ${enhancedText}
 ---
 
-لخص هذا المحتوى بطريقة تساعد الطلاب على الفهم. أجب على جميع الأسئلة المرقمة بدقة وتفصيل.
+لخص هذا المحتوى بطريقة تساعد الطلاب على الفهم. يجب أن تغطي جميع المفاهيم التعليمية الموجودة بالمحتوى وتجيب على كل الأسئلة المرقمة بدقة وتفصيل. استخدم الجداول والرسوم البيانية المرفقة لتوضيح إجاباتك عند الضرورة.
 ${needsDetailedStructure ? `الأسئلة المرقمة الموجودة: ${questions.map(q => q.number).join('، ')}` : ''}`
   :
   `Book: ${title || "Book"} • Page: ${page ?? "?"}
