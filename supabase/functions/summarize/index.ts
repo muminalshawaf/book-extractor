@@ -1063,8 +1063,27 @@ ${needsDetailedStructure ? `Numbered questions found: ${questions.map(q => q.num
             console.log(`Gemini 2.5 Pro API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
             
             // Enhanced truncation detection - not just MAX_TOKENS
+            // Step-aware heuristics: detect incomplete enumerations (1., 2., 3. / ١. ٢. ٣. / "الخطوة")
+            const countStepMarkers = (str: string) => {
+              if (!str) return 0;
+              const patterns = [
+                /(?:^|\s)(?:[1-9])\s*(?:[.\-:\u066B\)])\s+/gm,       // 1. 1- 1: 1)
+                /(?:^|\s)(?:[١-٩])\s*(?:[.\-:\u066B\)])\s+/gm,       // ١. ٢- ٣: ٤)
+                /(?:^|\s)(?:Step|Steps?)\s*(?:[1-9])?\s*[:\-.]/gmi, // Step, Steps, Step 1:
+                /(?:^|\s)الخطو(?:ة|ات)\s*(?:الأولى|الثانية|الثالثة|الرابعة|الخامسة)?\s*[:\-]/gmu // "الخطوة ..." or "الخطوات"
+              ];
+              return patterns.reduce((acc, rx) => acc + ((str.match(rx) || []).length), 0);
+            };
+            const sourceMentionsSteps = /الخطو(?:ة|ات)|Steps?/i.test(enhancedText);
+            const expectedStepMarkers = countStepMarkers(enhancedText);
+            const producedStepMarkers = countStepMarkers(summary);
+            const missingStepsLikely = (expectedStepMarkers >= 2 && producedStepMarkers < Math.min(expectedStepMarkers, 4))
+              || (sourceMentionsSteps && producedStepMarkers < 2);
+            
+            const trimmed = summary.trim();
             const isLikelyTruncated = finishReason === "MAX_TOKENS" || 
               summary.length > 11000 || // Close to token limit
+              trimmed.endsWith(':') || trimmed.endsWith('...') ||
               (lang === "ar" && (
                 summary.match(/[ابتثجحخدذرزسشصضطظعغفقكلمنهوي]$/) || // Ends with Arabic letter mid-word
                 summary.endsWith('وت') || summary.endsWith('نق') || summary.endsWith('ال') || // Common Arabic truncation patterns
@@ -1074,13 +1093,17 @@ ${needsDetailedStructure ? `Numbered questions found: ${questions.map(q => q.num
               (lang === "en" && (
                 summary.match(/[a-zA-Z]$/) || // Ends with letter mid-word
                 !summary.match(/[.?!]\s*$/) // Doesn't end with proper punctuation
-              ));
+              )) ||
+              missingStepsLikely;
+
+            if (isLikelyTruncated && summary.length > 0) {
+              console.log(`🔄 TRUNCATION DETECTED (reason: ${finishReason}, length: ${summary.length}, expectedSteps=${expectedStepMarkers}, producedSteps=${producedStepMarkers}) - Attempting continuation...`);
             
             // Handle continuation if truncated
             if (isLikelyTruncated && summary.length > 0) {
               console.log(`🔄 TRUNCATION DETECTED (reason: ${finishReason}, length: ${summary.length}) - Attempting continuation...`);
               
-              for (let attempt = 1; attempt <= 2; attempt++) {
+              for (let attempt = 1; attempt <= 3; attempt++) {
                 console.log(`Gemini 2.5 Pro continuation attempt ${attempt}...`);
                 
                 // Detect where truncation occurred
@@ -1091,18 +1114,19 @@ ${needsDetailedStructure ? `Numbered questions found: ${questions.map(q => q.num
                 const continuationPrompt = `تكملة المحتوى المقطوع - CONTINUE THE TRUNCATED CONTENT
 
 ⚠️ النص السابق مقطوع عند: ${truncationPoint}
+${sourceMentionsSteps ? `\nتحذير: هناك خطوات تعليمية غير مكتملة.\nالمؤشرات: متوقع ${expectedStepMarkers} خطوة، المُنتج ${producedStepMarkers}.\n` : ''}
 
 آخر 300 حرف من النص المقطوع:
 ${summary.slice(-300)}
 
 المطلوب:
-1. تكملة النص من النقطة المقطوعة تماماً
-2. تغطية جميع الأسئلة والمحتوى التعليمي المتبقي
-3. استخدام نفس التنسيق: **س: [رقم]- [السؤال]** و **ج:** [الجواب]
-4. استخدام $$صيغة$$ للرياضيات، × للضرب
-5. إكمال جميع الأسئلة حتى النهاية
+1. استأنف من آخر كلمة دون إعادة ما سبق.
+2. أكمل جميع الخطوات المتبقية بالتسلسل حتى النهاية (٢، ٣، ٤... إن وُجدت).
+3. حافظ على نفس التنسيق والعناوين الفرعية للخطوات.
+4. استخدم $$صيغة$$ للرياضيات، × لعملية الضرب.
+5. لا تختصر، أكمل حتى يتم تغطية جميع النقاط.
 
-النص الأصلي الكامل: ${enhancedText.slice(-2000)}`;
+النص الأصلي (مقتطف مرجعي): ${enhancedText.slice(-2000)}`;
 
                 const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
                   method: "POST",
