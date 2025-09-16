@@ -516,11 +516,95 @@ Rows:`;
       }
     }
 
-    // Build RAG context section with server-side fallback
+    // ====== STRATEGY 4: SMART RAG CONTEXT BUILDING WITH TOPIC COHERENCE ======
+    
+    // Helper function to extract key topics from text
+    function extractTopics(text: string): Set<string> {
+      const topics = new Set<string>();
+      const cleanText = text.toLowerCase();
+      
+      // Educational topics in Arabic and English
+      const topicPatterns = [
+        // Data Structures
+        /هياكل البيانات|data structures/g,
+        /القائمة المترابطة|linked list/g,
+        /المصفوفات|arrays/g,
+        /الطابور|queue/g,
+        /المكدس|stack/g,
+        /الأشجار|trees/g,
+        /العقدة|node/g,
+        
+        // Chemistry
+        /الكيمياء|chemistry/g,
+        /الأحماض|acids/g,
+        /القواعد|bases/g,
+        /التفاعلات|reactions/g,
+        /المحاليل|solutions/g,
+        
+        // Physics
+        /الفيزياء|physics/g,
+        /الحركة|motion/g,
+        /القوة|force/g,
+        /الطاقة|energy/g,
+        /الموجات|waves/g,
+        
+        // Math
+        /الرياضيات|mathematics/g,
+        /الجبر|algebra/g,
+        /الهندسة|geometry/g,
+        /التفاضل|calculus/g,
+        
+        // Programming
+        /البرمجة|programming/g,
+        /الخوارزميات|algorithms/g,
+        /الكود|code/g,
+        /البايثون|python/g,
+      ];
+      
+      topicPatterns.forEach(pattern => {
+        const matches = cleanText.match(pattern);
+        if (matches) {
+          matches.forEach(match => topics.add(match));
+        }
+      });
+      
+      return topics;
+    }
+    
+    // Helper function to check if current page is continuation of previous content
+    function isContinuation(currentText: string): boolean {
+      const cleanText = currentText.trim();
+      
+      // Check for continuation indicators
+      const continuationPatterns = [
+        /تابع|continued?|continuing/i,
+        /^\s*[0-9]+\./m, // Starts with numbered item (likely continuation of list)
+        /^\s*[أ-ي]\)/m, // Starts with Arabic lettered option
+        /^\s*[a-z]\)/m, // Starts with lettered option
+        /^[^.!?]*[,،]/m, // Starts mid-sentence (contains comma but no sentence ending)
+      ];
+      
+      return continuationPatterns.some(pattern => pattern.test(cleanText));
+    }
+    
+    // Helper function to check for explicit references to previous content
+    function hasExplicitReferences(currentText: string): boolean {
+      const referencePatterns = [
+        /كما ذكرنا|as mentioned|as discussed|previously|earlier|سابقاً|في السابق/i,
+        /الشكل السابق|المثال السابق|previous figure|previous example/i,
+        /في الصفحة السابقة|on the previous page/i,
+        /كما رأينا|as we saw|as shown/i,
+      ];
+      
+      return referencePatterns.some(pattern => pattern.test(currentText));
+    }
+
+    // Build RAG context section with SMART filtering and topic coherence
     let ragContextSection = '';
     let ragPagesActuallySent = 0;
     let ragPagesSentList: number[] = [];
     let ragContextChars = 0;
+    let ragDecisionLog = '';
 
     // Prefer provided context; if missing, fetch on the server using book_id
     let effectiveRag = Array.isArray(ragContext) ? ragContext : [];
@@ -531,44 +615,113 @@ Rows:`;
     }
 
     if (effectiveRag && effectiveRag.length > 0) {
-      console.log(`Building RAG context from ${effectiveRag.length} previous pages`);
-      ragContextSection = "\n\nContext from previous pages in the book:\n---\n";
+      console.log(`🧠 STRATEGY 4: Analyzing RAG context with topic coherence...`);
       
-      let totalLength = ragContextSection.length;
-      const maxContextLength = 8000; // Increased from 2000 to fit more pages
+      // Extract topics from current page
+      const currentTopics = extractTopics(text);
+      const isCurrentContinuation = isContinuation(text);
+      const hasExplicitRefs = hasExplicitReferences(text);
+      
+      console.log(`📊 Current page topics: ${Array.from(currentTopics).join(', ') || 'none detected'}`);
+      console.log(`📊 Page is continuation: ${isCurrentContinuation}`);
+      console.log(`📊 Has explicit references: ${hasExplicitRefs}`);
+      
+      // Filter RAG pages based on topic coherence and relevance
+      const filteredRag = [];
+      const ragDecisions = [];
       
       for (const context of effectiveRag) {
-        // Filter out visual elements from RAG context to prevent cross-page confusion
-        let contextContent = context.content || context.ocr_text || '';
+        const contextContent = context.content || context.ocr_text || '';
+        const contextTopics = extractTopics(contextContent);
         
-        // Remove visual element descriptions from RAG context
-        contextContent = contextContent.replace(/--- VISUAL CONTEXT ---[\s\S]*?(?=---|\n\n|$)/g, '');
-        contextContent = contextContent.replace(/\*\*DIAGRAM\*\*:[\s\S]*?(?=\*\*|---|\n\n|$)/g, '');
-        contextContent = contextContent.replace(/\*\*TABLE\*\*:[\s\S]*?(?=\*\*|---|\n\n|$)/g, '');
-        contextContent = contextContent.replace(/\*\*FIGURE\*\*:[\s\S]*?(?=\*\*|---|\n\n|$)/g, '');
+        // Calculate topic overlap
+        const topicOverlap = [...currentTopics].filter(topic => contextTopics.has(topic));
+        const hasTopicMatch = topicOverlap.length > 0;
         
-        const pageContext = `Page ${context.pageNumber}${context.title ? ` (${context.title})` : ''}:\n${contextContent}\n\n`;
+        // Decision logic for including RAG context
+        let shouldInclude = false;
+        let reason = '';
         
-        if (totalLength + pageContext.length > maxContextLength) {
-          // Truncate to fit within limits
-          const remainingLength = maxContextLength - totalLength - 20;
-          if (remainingLength > 100) {
-            ragContextSection += pageContext.slice(0, remainingLength) + "...\n\n";
-            ragPagesActuallySent++;
-            ragPagesSentList.push(context.pageNumber);
-          }
-          break;
+        if (hasExplicitRefs) {
+          shouldInclude = true;
+          reason = 'Current page has explicit references to previous content';
+        } else if (isCurrentContinuation && hasTopicMatch) {
+          shouldInclude = true;
+          reason = `Continuation page with topic match: ${topicOverlap.join(', ')}`;
+        } else if (hasTopicMatch && topicOverlap.length >= 2) {
+          shouldInclude = true;
+          reason = `Strong topic match: ${topicOverlap.join(', ')}`;
+        } else if (!currentTopics.size && !contextTopics.size) {
+          shouldInclude = false;
+          reason = 'No clear topics detected in either page - likely miscellaneous content';
+        } else {
+          shouldInclude = false;
+          reason = `Topic mismatch - Current: [${Array.from(currentTopics).join(', ')}], RAG: [${Array.from(contextTopics).join(', ')}]`;
         }
         
-        ragContextSection += pageContext;
-        totalLength += pageContext.length;
-        ragPagesActuallySent++;
-        ragPagesSentList.push(context.pageNumber);
+        ragDecisions.push({
+          page: context.pageNumber,
+          included: shouldInclude,
+          reason: reason,
+          topicOverlap: topicOverlap
+        });
+        
+        if (shouldInclude) {
+          filteredRag.push(context);
+        }
       }
       
-      ragContextSection += "---\n\n";
-      ragContextChars = totalLength;
-      console.log(`✅ RAG VALIDATION: ${ragPagesActuallySent} pages actually sent to Gemini 2.5 Pro (${totalLength} characters)`);
+      // Log RAG decisions
+      ragDecisionLog = ragDecisions.map(d => 
+        `Page ${d.page}: ${d.included ? '✅ INCLUDED' : '❌ EXCLUDED'} - ${d.reason}`
+      ).join('\n');
+      
+      console.log(`🎯 RAG FILTERING DECISIONS:\n${ragDecisionLog}`);
+      console.log(`📈 RAG pages filtered: ${effectiveRag.length} → ${filteredRag.length}`);
+      
+      // Build context section only from filtered pages
+      if (filteredRag.length > 0) {
+        console.log(`Building RAG context from ${filteredRag.length} relevant pages`);
+        ragContextSection = "\n\nContext from previous pages in the book:\n---\n";
+        
+        let totalLength = ragContextSection.length;
+        const maxContextLength = 8000;
+        
+        for (const context of filteredRag) {
+          // Clean contextContent of visual elements to prevent cross-page confusion
+          let contextContent = context.content || context.ocr_text || '';
+          
+          // Remove visual element descriptions from RAG context
+          contextContent = contextContent.replace(/--- VISUAL CONTEXT ---[\s\S]*?(?=---|\n\n|$)/g, '');
+          contextContent = contextContent.replace(/\*\*DIAGRAM\*\*:[\s\S]*?(?=\*\*|---|\n\n|$)/g, '');
+          contextContent = contextContent.replace(/\*\*TABLE\*\*:[\s\S]*?(?=\*\*|---|\n\n|$)/g, '');
+          contextContent = contextContent.replace(/\*\*FIGURE\*\*:[\s\S]*?(?=\*\*|---|\n\n|$)/g, '');
+          
+          const pageContext = `Page ${context.pageNumber}${context.title ? ` (${context.title})` : ''}:\n${contextContent}\n\n`;
+          
+          if (totalLength + pageContext.length > maxContextLength) {
+            const remainingLength = maxContextLength - totalLength - 20;
+            if (remainingLength > 100) {
+              ragContextSection += pageContext.slice(0, remainingLength) + "...\n\n";
+              ragPagesActuallySent++;
+              ragPagesSentList.push(context.pageNumber);
+            }
+            break;
+          }
+          
+          ragContextSection += pageContext;
+          totalLength += pageContext.length;
+          ragPagesActuallySent++;
+          ragPagesSentList.push(context.pageNumber);
+        }
+        
+        ragContextSection += "---\n\n";
+        ragContextChars = totalLength;
+        console.log(`✅ SMART RAG: ${ragPagesActuallySent} relevant pages sent to AI (${totalLength} characters)`);
+      } else {
+        console.log('🚫 SMART RAG: No relevant pages found - RAG context filtered out completely');
+        ragContextSection = '';
+      }
     } else {
       console.log('⚠️ RAG CONTEXT: No context provided or found');
     }
@@ -603,11 +756,48 @@ ${skipConceptSummary ?
 - For calculations, show clear step-by-step work
 - Base all answers on precise calculations and data provided
 
-⚠️ **CRITICAL: Avoid Cross-Page References**
-- ONLY reference figures, tables, or diagrams that appear in the current page content
-- DO NOT mention visual elements from previous pages even if they appear in context
-- If referencing a figure/table, ensure it exists in the current page's visual elements section
-- DO NOT use phrases like "as shown previously" or "from the earlier diagram"
+🧠 **STRATEGY 4: INTELLIGENT RAG CONTEXT USAGE RULES**
+The context from previous pages has been intelligently filtered based on topic relevance. Follow these STRICT rules:
+
+**PRIMARY RULE: Current Page is Authoritative**
+- The current page content is your PRIMARY and AUTHORITATIVE source
+- All answers must be based primarily on the current page content
+- RAG context is SUPPLEMENTARY ONLY and should be used cautiously
+
+**RAG Context Usage Rules:**
+1. **Use RAG context ONLY when:**
+   - The current page explicitly references previous content ("كما ذكرنا", "as mentioned earlier")
+   - The current page appears to be a continuation of a concept from previous pages
+   - Questions specifically ask about concepts that require context from previous pages
+   - There are clear conceptual connections that need previous page context
+
+2. **NEVER use RAG context when:**
+   - The current page introduces completely new topics (e.g., linked lists vs print queues)
+   - Topics in RAG context are unrelated to current page topics
+   - The current page is self-contained and doesn't reference previous content
+   - Visual elements or examples in RAG context don't match current page content
+
+3. **Topic Coherence Check:**
+   - Always verify that RAG context topics match current page topics
+   - If discussing "linked lists", ignore RAG context about "print queues" or other unrelated topics
+   - Only use RAG context that enhances understanding of the CURRENT page topic
+
+4. **Explicit Separation Rule:**
+   - If the current page is about Topic A and RAG context is about Topic B, completely ignore RAG context
+   - Never mix answers from different educational topics unless explicitly connected
+   - Each page should be treated as potentially independent unless clearly indicated otherwise
+
+**CRITICAL ERROR PREVENTION:**
+- DO NOT let RAG context contaminate answers about unrelated topics
+- DO NOT mention concepts from RAG context that aren't relevant to current page
+- DO NOT assume continuity between different educational topics
+- ALWAYS prioritize current page content over RAG context when there's any doubt
+
+⚠️ **VISUAL ELEMENTS PRIORITY**
+- ONLY reference figures, tables, or diagrams that appear in the current page's visual elements section  
+- DO NOT mention visual elements from RAG context/previous pages
+- If referencing a figure/table, ensure it exists in the current page content
+- DO NOT use phrases like "as shown previously" unless the current page explicitly references it
 
 ${hasMultipleChoice ? `**For multiple choice questions:** Present choices clearly, explain reasoning, and identify the correct answer.` : ''}
    - You MUST extract exact values: If graph shows pH vs volume, extract exact pH values at specific volumes
@@ -1076,7 +1266,8 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
       rag_pages_sent: ragPagesActuallySent,
       rag_pages_found: ragContext?.length || 0,
       rag_pages_sent_list: ragPagesSentList,
-      rag_context_chars: ragContextChars
+      rag_context_chars: ragContextChars,
+      rag_filtering_decisions: ragDecisionLog
     }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
