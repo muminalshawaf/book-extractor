@@ -254,6 +254,8 @@ function processLegacyContent(text: string): Array<{number: string, text: string
   
   console.log(`Legacy processing found ${questions.length} valid questions`);
   return questions;
+}
+
 // Tolerant answered question detection with multiple patterns
 function detectAnsweredQuestions(summaryText: string): Set<string> {
   const answeredQuestionNumbers = new Set<string>();
