@@ -834,6 +834,7 @@ Mandate:
 
 Other Rules:
 Must use LaTeX format for equations: $$equation$$
+The reader will read Arabic. avoid explaining in english 
 Must validate answers against multiple choice options
 Must show complete calculations with exact values from tables/graphs
 Forbidden to skip content due to space constraints
