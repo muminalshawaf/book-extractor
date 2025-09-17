@@ -804,7 +804,7 @@ Rows:`;
       console.log('Using raw OCR text (structured data not available)');
     }
     
-    const enhancedText = ragContextSection + mainContent + visualElementsText;
+    // Visual elements are handled separately in the new structure
 
     // Create optimized prompt for question processing
     const hasMultipleChoice = questions.some(q => q.isMultipleChoice);
@@ -813,215 +813,33 @@ Rows:`;
     // Skip general concept summary if there are numbered questions (exercise pages)
     const skipConceptSummary = questions.length > 0;
     
-    const systemPrompt = `Create clear, comprehensive educational summaries. Do not include any introductions, pleasantries, or self-references.
-
-**Your main tasks:**
-${questions.length > 0 ? 
-`1. Answer the ${questions.length} numbered questions with complete accuracy and detail
-2. For educational content sections, provide clear concept summaries
-3. Use visual data (graphs, tables, diagrams) when available and relevant  
-4. Provide step-by-step solutions for calculation problems
-5. Connect concepts logically for better understanding
-
-**CRITICAL CONTENT CLASSIFICATION RULES:**
-- QUESTIONS (to answer): Content that asks for explanations, calculations, or analysis
-- EDUCATIONAL CONTENT (to summarize): Definitions, concepts, examples, explanations
-- Process each type appropriately - answer questions, summarize educational content
-- DO NOT treat educational content sections as questions to answer` :
-`1. Summarize the key educational concepts from the provided text clearly
-2. If any numbered questions are present, answer them with complete accuracy and detail
-3. Use visual data (graphs, tables, diagrams) when available and relevant
-4. Provide step-by-step solutions for calculation problems
-5. Connect concepts logically for better understanding
-
-**CONTENT PROCESSING APPROACH:**
-- Focus on educational content summarization as the primary task
-- Distinguish between educational explanations and actual questions`}
-
-**Important guidelines:**
-- Write naturally and organize information in the most logical way
-- Use visual elements data when questions reference them (الشكل، الجدول، المخطط)
-- For math equations, use LaTeX format: $$equation$$ 
-- For calculations, show clear step-by-step work
-- Base all answers on precise calculations and data provided
-
-🎯 **STRATEGY 4: ABSOLUTE COMPREHENSIVE COVERAGE MANDATE**
-You are STRICTLY REQUIRED to ensure COMPLETE and EXHAUSTIVE coverage of ALL content:
-
-**MANDATORY EDUCATIONAL CONTENT COVERAGE:**
-- You MUST summarize EVERY concept tagged as [EDUCATIONAL_CONTENT]
-- You MUST explain EVERY topic, definition, principle, and example present in the content
-- You MUST NOT skip ANY educational material regardless of complexity or length
-- STRICTLY FORBIDDEN to provide partial coverage or skip topics due to space constraints
-
-**MANDATORY QUESTION RESOLUTION:**
-- You MUST solve EVERY question tagged as [QUESTION] with complete step-by-step solutions
-- You MUST provide detailed explanations for each answer
-- You MUST show all calculations, reasoning, and final answers
-- STRICTLY FORBIDDEN to leave any question unanswered or partially answered
-
-**MANDATORY CODE & PROGRAMMING CONTENT:**
-- You MUST reproduce ALL code examples exactly as shown with proper formatting
-- You MUST explain EVERY line of code and its purpose
-- You MUST show expected outputs for executable code examples
-- You MUST explain programming concepts, syntax, and terminology in detail
-- You MUST provide step-by-step walkthroughs of code execution
-- You MUST connect code examples to theoretical concepts being taught
-- STRICTLY FORBIDDEN to summarize code examples without full reproduction and explanation
-
-**MANDATORY VISUAL INTEGRATION:**
-- You MUST reference and explain ALL relevant graphs, tables, diagrams when they support educational content or question solutions
-- You MUST integrate visual data into your explanations using exact values and descriptions
-- You MUST cite specific figures/tables when explaining concepts: "According to Table X..." or "As shown in Figure Y..."
-- STRICTLY FORBIDDEN to ignore visual elements that are essential for understanding
-
-**VERIFICATION CHECKLIST - You MUST confirm before completing:**
-✅ Have I covered ALL [EDUCATIONAL_CONTENT] sections?
-✅ Have I reproduced ALL code examples with full explanations?
-✅ Have I solved ALL [QUESTION] items completely?
-✅ Have I integrated ALL relevant visual elements?
-✅ Have I provided comprehensive explanations for every concept?
-
-🧠 **STRATEGY 5: INTELLIGENT RAG CONTEXT USAGE RULES**
-The context from previous pages has been intelligently filtered based on topic relevance. Follow these STRICT rules:
-
-**PRIMARY RULE: Current Page is Authoritative**
-- The current page content is your PRIMARY and AUTHORITATIVE source
-- All answers must be based primarily on the current page content
-- RAG context is SUPPLEMENTARY ONLY and should be used cautiously
-
-**RAG Context Usage Rules:**
-1. **Use RAG context ONLY when:**
-   - The current page explicitly references previous content ("كما ذكرنا", "as mentioned earlier")
-   - The current page appears to be a continuation of a concept from previous pages
-   - Questions specifically ask about concepts that require context from previous pages
-   - There are clear conceptual connections that need previous page context
-
-2. **NEVER use RAG context when:**
-   - The current page introduces completely new topics (e.g., linked lists vs print queues)
-   - Topics in RAG context are unrelated to current page topics
-   - The current page is self-contained and doesn't reference previous content
-   - Visual elements or examples in RAG context don't match current page content
-
-3. **Topic Coherence Check:**
-   - Always verify that RAG context topics match current page topics
-   - If discussing "linked lists", ignore RAG context about "print queues" or other unrelated topics
-   - Only use RAG context that enhances understanding of the CURRENT page topic
-
-4. **Explicit Separation Rule:**
-   - If the current page is about Topic A and RAG context is about Topic B, completely ignore RAG context
-   - Never mix answers from different educational topics unless explicitly connected
-   - Each page should be treated as potentially independent unless clearly indicated otherwise
-
-**CRITICAL ERROR PREVENTION:**
-- DO NOT let RAG context contaminate answers about unrelated topics
-- DO NOT mention concepts from RAG context that aren't relevant to current page
-- DO NOT assume continuity between different educational topics
-- ALWAYS prioritize current page content over RAG context when there's any doubt
-
-⚠️ **VISUAL ELEMENTS PRIORITY**
-- ONLY reference figures, tables, or diagrams that appear in the current page's visual elements section  
-- DO NOT mention visual elements from RAG context/previous pages
-- If referencing a figure/table, ensure it exists in the current page content
-- DO NOT use phrases like "as shown previously" unless the current page explicitly references it
-
-${hasMultipleChoice ? `**For multiple choice questions:** Present choices clearly, explain reasoning, and identify the correct answer.` : ''}
-   - You MUST extract exact values: If graph shows pH vs volume, extract exact pH values at specific volumes
-
-📋 **MANDATORY TABLE DATA INTEGRATION**:
-   - You MUST process ALL table headers, rows, and numerical values
-   - You MUST use table data as authoritative source for calculations
-   - You MUST cross-reference table entries with question requirements
-   - You MUST state: "According to the table, Ka for HX = 1.38 × 10⁻⁵"
-
-🔤 **ABSOLUTE MULTIPLE CHOICE ANALYSIS**:
-   - You MUST locate ALL multiple choice options (a., b., c., d. or أ., ب., ج., د.)
-   - You MUST match each option set to its corresponding question number
-   - You MUST analyze option content for chemical formulas, numerical values, units
-   - You MUST use options as validation for your calculated answers
-   - ABSOLUTE MANDATE: If multiple choice options exist, your final answer MUST match one of them
-   - You MUST format: **الإجابة الصحيحة: أ)** [or appropriate letter]
-
-🧮 **MANDATORY INTEGRATED PROBLEM SOLVING WITH VISUALS**:
-   When answering questions, you are ABSOLUTELY REQUIRED to:
-   1. **MANDATORY: Identify relevant visuals**: You MUST check if question references graphs, tables, or figures
-   2. **MANDATORY: Extract precise data**: You MUST use exact values from visual elements
-   3. **MANDATORY: Show integration**: You MUST state "Using data from Table 1 showing..." or "From Figure 2..."
-   4. **MANDATORY: Validate with options**: You MUST ensure calculated answer matches a multiple choice option
-   5. **MANDATORY: Reference visuals in explanation**: You MUST connect your solution to the visual evidence
-
-📐 **VISUAL DATA PRIORITY HIERARCHY**:
-   1. Tables with numerical data (highest priority for calculations)
-   2. Graphs with data points and scales (for trend analysis and value extraction)
-   3. Multiple choice options (for answer validation)
-   4. Diagrams and figures (for conceptual understanding)
-   5. Text content (for context and theory)
-
-⚡ **ABSOLUTE ANSWER ACCURACY WITH VISUAL VALIDATION**:
-   - CRITICAL: If multiple choice options are present, your answer MUST be one of the given choices - NO EXCEPTIONS
-   - You MUST use visual data as primary evidence for all calculations
-   - You MUST cross-check numerical results with graph scales and table values
-   - You MUST reference specific visual elements that support your conclusion
-
-🧪 **ABSOLUTE CHEMISTRY-SPECIFIC TABLE LOOKUP MANDATE**:
-   - **MANDATORY Chemical Name Matching**: You MUST match questions about specific acids/compounds with table entries using chemical knowledge
-   - **MANDATORY Ka/pH Relationship**: You MUST always use table Ka values for pH calculations, even if compound names differ slightly
-   - **MANDATORY Common Acid Identifications**: 
-     * Cyanoethanoic acid (cyanoacetic acid) ≈ Ka ~3.5×10^-3
-     * You MUST connect question compounds to closest Ka values in tables
-   - **ABSOLUTE PROHIBITION**: You are FORBIDDEN from claiming "insufficient data" if ANY Ka values or chemical data exist in tables
-   - **MANDATORY approximation methods**: You MUST use Ka = [H+]²/C for weak acid calculations when valid
-   - **ABSOLUTE REQUIREMENT**: Your final numerical answer MUST correspond to one of the multiple choice options
-
-🔢 **ABSOLUTE MANDATORY CALCULATION EXECUTION**:
-   - CRITICAL: If ANY numerical data exists (Ka, concentrations, etc.), you are REQUIRED to attempt calculations
-   - You MUST use chemical equilibrium principles even with approximate data matching
-   - You MUST apply weak acid/base formulas when Ka values are available
-   - You MUST connect table data to question parameters through chemical knowledge
-   - FAILURE TO CALCULATE WHEN DATA EXISTS IS STRICTLY FORBIDDEN
-
-10. **مانع الافتراضات غير المبررة (NO UNSTATED ASSUMPTIONS MANDATE)**: 
-   - ممنوع منعاً باتاً استخدام أي أرقام أو قيم لم تذكر في السؤال أو السياق
-   - ممنوع استخدام عبارات مثل "نفترض" أو "لنفرض" أو "assume" إلا إذا كانت موجودة في السؤال نفسه
-   - إذا كانت البيانات ناقصة، اكتب "البيانات غير كافية" واذكر ما هو مفقود تحديداً
-   - إذا كان الحل يتطلب قيم غير معطاة، اتركها كرموز (مثل m، V، T) ولا تعوض بأرقام من عندك
-   - تحقق من صحة الوحدات والأبعاد والمعقولية الفيزيائية للقيم المعطاة
-   - لا تفترض أي ظروف معيارية إلا إذا نُص عليها صراحة
-
-11. **إلزامية الدقة العلمية المطلقة - ZERO TOLERANCE (ABSOLUTE SCIENTIFIC ACCURACY MANDATE)**:
-   - ❌ CRITICAL ERROR: ممنوع تماماً تحويل النسب المئوية إلى كتل بالجرام مباشرة (مثل 78% ≠ 78 جرام)
-   - ❌ CRITICAL ERROR: لا تقل "نيتروجين: 78 جرام" - هذا خطأ علمي فادح
-   - ✅ CORRECT: النسب المئوية للغازات تعني نسبة حجمية أو كتلية نسبية، وليس كتلة مطلقة
-   - ✅ لحساب الكسر المولي من النسب المئوية: 
-     * إذا كانت نسب حجمية (الأشيع للغازات): الكسر المولي = النسبة المئوية/100
-     * إذا كانت نسب كتلية: حول إلى مولات باستخدام الكتل المولية ثم احسب الكسر المولي
-   - لا تفترض كتلة عينة إجمالية (مثل 100 جرام) إلا إذا كانت معطاة صراحة
-   - تأكد من الوحدات والأبعاد الفيزيائية لكل كمية قبل التعويض
-
-`;
+    // Simple system prompt - removed complex rules
+    const systemPrompt = "";
 
     const userPrompt = `
-${lang === "ar" || lang === "arabic" ? 
-  `الكتاب: ${title || "الكتاب"} • الصفحة: ${page ?? "؟"}
+Context:
+-=-=-=-=-=-
+${ragContextSection}
 
-المحتوى التعليمي:
----
-${enhancedText}
----
+Current page:
+-=-=-=-=-=-=-
+${mainContent}
 
-لخص هذا المحتوى بطريقة تساعد الطلاب على الفهم. يجب أن تغطي جميع المفاهيم التعليمية الموجودة بالمحتوى وتجيب على كل الأسئلة المرقمة بدقة وتفصيل. استخدم الجداول والرسوم البيانية المرفقة لتوضيح إجاباتك عند الضرورة.
-${needsDetailedStructure ? `الأسئلة المرقمة الموجودة: ${questions.map(q => q.number).join('، ')}` : ''}`
-  :
-  `Book: ${title || "Book"} • Page: ${page ?? "?"}
+Mandate:
+- Summarize the current page to help students understand the concepts on this page
+- Do not summarize the Context only use it when needed to help you answer a question or craft a better summary
+- All questions need to be answered step by step
+- visuals are referenced correctly and used to produce accurate answers
+- No unstated assumptions, scientific accuracy requirements
 
-Educational content:
----
-${enhancedText}
----
+Other Rules:
+Must use LaTeX format for equations: $$equation$$
+Must validate answers against multiple choice options
+Must show complete calculations with exact values from tables/graphs
+Forbidden to skip content due to space constraints
+${needsDetailedStructure ? `
 
-Summarize this content in a way that helps students understand. Answer all numbered questions with accuracy and detail.
-${needsDetailedStructure ? `Numbered questions found: ${questions.map(q => q.number).join(', ')}` : ''}`
-}
+Questions found: ${questions.map(q => q.number).join(', ')}` : ''}
     `;
 
 
@@ -1081,7 +899,9 @@ REQUIREMENTS:
 - Use $$formula$$ for math, × for multiplication
 - Complete ALL questions until finished
 
-Original OCR text: ${enhancedText}`;
+Original content:
+Context: ${ragContextSection}
+Current page: ${mainContent}`;
 
                 const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
                   method: "POST",
@@ -1185,7 +1005,9 @@ REQUIREMENTS:
 - Use $$formula$$ for math, × for multiplication
 - Complete ALL questions until finished
 
-Original OCR text: ${enhancedText}`;
+Original content:
+Context: ${ragContextSection}
+Current page: ${mainContent}`;
 
                 const contResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
                   method: "POST",
@@ -1292,7 +1114,7 @@ REQUIREMENTS:
 - Do NOT repeat questions already answered
 
 Missing questions from OCR text:
-${enhancedText.split('\n').filter(line => 
+${mainContent.split('\n').filter(line => 
   missingNumbers.some(num => line.includes(`${num}.`) || line.includes(`${num}-`) || line.includes(`${num} `))
 ).join('\n')}
 
