@@ -391,71 +391,6 @@ function isContentPage(text: string): boolean {
   return (educationalKeywordCount >= 2 || hasActualQuestions || hasSectionHeaders) && hasSubstantialContent;
 }
 
-// **COVERAGE VALIDATION FUNCTIONS**
-function validateCoverageCompleteness(
-  summary: string, 
-  questions: any[], 
-  educationalSections: any[], 
-  codeExamples: any[], 
-  visualElements: any[],
-  language: string
-): { isComplete: boolean; missingItems: string[] } {
-  const missingItems: string[] = [];
-  
-  // Check educational content coverage
-  const educationalKeywords = educationalSections
-    .filter(section => section.content && section.content.trim().length > 10)
-    .map(section => section.content.substring(0, 50).trim());
-    
-  for (const keyword of educationalKeywords) {
-    if (!summary.includes(keyword.substring(0, 20))) {
-      missingItems.push(`Educational content: ${keyword}`);
-    }
-  }
-  
-  // Check code example coverage
-  const codeKeywords = codeExamples
-    .filter(code => code.content && (code.content.includes('class ') || code.content.includes('def ') || code.content.includes('#')))
-    .map(code => code.content.substring(0, 30).trim());
-    
-  for (const codeSnippet of codeKeywords) {
-    if (!summary.includes(codeSnippet.substring(0, 15))) {
-      missingItems.push(`Code example: ${codeSnippet}`);
-    }
-  }
-  
-  // Check visual element integration
-  for (const visual of visualElements) {
-    if (visual.title && !summary.includes(visual.title.substring(0, 20))) {
-      missingItems.push(`Visual element: ${visual.title}`);
-    }
-  }
-  
-  return {
-    isComplete: missingItems.length === 0,
-    missingItems
-  };
-}
-
-function buildContinuationPrompt(coverageCheck: any, language: string): string {
-  const missingContent = coverageCheck.missingItems.join('\n- ');
-  
-  if (language === 'ar') {
-    return `المحتوى التالي لم يتم تغطيته بشكل كامل في الملخص السابق. يجب إضافة شرح مفصل لكل عنصر:
-
-المحتوى المفقود:
-- ${missingContent}
-
-يرجى إضافة شرح شامل ومفصل لكل عنصر مفقود مع تضمين جميع أمثلة الكود والشروحات البرمجية والعناصر البصرية ذات الصلة.`;
-  }
-  
-  return `The following content was not fully covered in the previous summary. Please provide detailed explanations for each missing element:
-
-Missing content:
-- ${missingContent}
-
-Please add comprehensive and detailed explanations for each missing item, including all code examples, programming explanations, and relevant visual elements.`;
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -1210,84 +1145,6 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
       console.log('✅ All questions appear to be processed successfully');
     }
 
-    // **POST-CHECK COVERAGE VALIDATION**
-    // Normalize structured OCR sections and variables used in coverage checks
-    const parsedSections = (ocrData?.rawStructuredData?.sections as any[]) || extractOcrSections(text) || [];
-    const parsedQuestions = questions;
-    const language = lang;
-    const visualElements = (ocrData?.rawStructuredData?.visual_elements as any[]) || [];
-
-    const educationalSections = parsedSections.filter(s => s.content_classification === 'EDUCATIONAL_CONTENT');
-    const codeExamples = parsedSections.filter(s => s.content && (s.content.includes('class ') || s.content.includes('def ') || s.content.includes('#')));
-    
-    const coverageCheck = validateCoverageCompleteness(
-      summary, 
-      parsedQuestions, 
-      educationalSections, 
-      codeExamples, 
-      visualElements,
-      language
-    );
-    
-    let finalSummary = summary;
-    
-    if (!coverageCheck.isComplete) {
-      console.log(`⚠️ COVERAGE GAP DETECTED: ${coverageCheck.missingItems.join(', ')}`);
-      console.log(`🔄 AUTO-CONTINUING to address missing content...`);
-      
-      // Generate continuation prompt for missing content
-      const continuationPrompt = buildContinuationPrompt(coverageCheck, language);
-      
-      try {
-        let continuationResponseText = '';
-        if (googleApiKey) {
-          const contResp2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: systemPrompt + "\n\n" + continuationPrompt }] }],
-              generationConfig: { temperature: 0, maxOutputTokens: 2000 }
-            }),
-          });
-          if (contResp2.ok) {
-            const contJson2 = await contResp2.json();
-            continuationResponseText = contJson2.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          } else {
-            console.error('Gemini continuation error:', await contResp2.text());
-          }
-        }
-        if (!continuationResponseText && deepSeekApiKey) {
-          const dsResp2 = await fetch("https://api.deepseek.com/v1/chat/completions", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${deepSeekApiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "deepseek-chat",
-              messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: continuationPrompt },
-              ],
-              temperature: 0,
-              max_tokens: 2000,
-            }),
-          });
-          if (dsResp2.ok) {
-            const dsJson2 = await dsResp2.json();
-            continuationResponseText = dsJson2.choices?.[0]?.message?.content || '';
-          } else {
-            console.error('DeepSeek continuation error:', await dsResp2.text());
-          }
-        }
-        if (continuationResponseText && continuationResponseText.trim()) {
-          console.log(`✅ CONTINUATION SUCCESS: Added ${continuationResponseText.length} characters`);
-          finalSummary = summary + "\n\n" + continuationResponseText.trim();
-        }
-      } catch (continuationError) {
-        console.error('Coverage continuation failed, proceeding with original summary:', continuationError);
-      }
-    } else {
-      console.log('✅ COVERAGE VALIDATION PASSED: All content appears to be covered');
-    }
-
     // **PROCEDURAL STEPS COVERAGE CHECK**
     console.log('🔍 PROCEDURAL STEPS: Starting coverage check...');
     
@@ -1369,7 +1226,7 @@ ${text}`;
 
         // Attempt continuation for missing procedural steps (up to 2 attempts)
         const maxStepAttempts = 2;
-        let currentStepSummary = finalSummary;
+        let currentStepSummary = summary;
         
         for (let attempt = 1; attempt <= maxStepAttempts; attempt++) {
           proceduralStepsMetadata.continuation_attempts = attempt;
@@ -1435,11 +1292,11 @@ ${text}`;
               if (stillMissing.length === 0) {
                 console.log('🎉 PROCEDURAL STEPS: All steps completed successfully!');
                 proceduralStepsMetadata.is_complete = true;
-                finalSummary = currentStepSummary;
+                summary = currentStepSummary;
                 break;
               } else if (stillMissing.length < missingSteps.length) {
                 // Some progress made, continue with remaining steps
-                finalSummary = currentStepSummary;
+                summary = currentStepSummary;
               }
             } else {
               console.log(`PROCEDURAL STEPS: Attempt ${attempt} returned empty continuation`);
@@ -1465,7 +1322,7 @@ ${text}`;
     }
 
     return new Response(JSON.stringify({ 
-      summary: finalSummary,
+      summary: summary,
       rag_pages_sent: ragPagesActuallySent,
       rag_pages_found: ragContext?.length || 0,
       rag_pages_sent_list: ragPagesSentList,
