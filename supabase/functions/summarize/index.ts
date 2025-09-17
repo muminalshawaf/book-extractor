@@ -1465,13 +1465,187 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
       console.log('✅ COVERAGE VALIDATION PASSED: All content appears to be covered');
     }
 
+    // **PROCEDURAL STEPS COVERAGE CHECK**
+    console.log('🔍 PROCEDURAL STEPS: Starting coverage check...');
+    
+    // Helper function to extract Arabic step markers from text
+    function extractProcedureStepsFromText(text: string): string[] {
+      const stepMarkers = [];
+      const arabicStepPattern = /الخطوة\s*(\d+|[٠-٩]+)[:\-\s]/g;
+      let match;
+      
+      while ((match = arabicStepPattern.exec(text)) !== null) {
+        const stepNumber = convertArabicToEnglishNumber(match[1]);
+        stepMarkers.push(stepNumber);
+      }
+      
+      return [...new Set(stepMarkers)].sort((a, b) => parseInt(a) - parseInt(b));
+    }
+    
+    // Helper function to extract procedure steps from summary
+    function extractProcedureStepsFromSummary(summary: string): string[] {
+      const stepMarkers = [];
+      const arabicStepPattern = /الخطوة\s*(\d+|[٠-٩]+)[:\-\s]/g;
+      let match;
+      
+      while ((match = arabicStepPattern.exec(summary)) !== null) {
+        const stepNumber = convertArabicToEnglishNumber(match[1]);
+        stepMarkers.push(stepNumber);
+      }
+      
+      return [...new Set(stepMarkers)].sort((a, b) => parseInt(a) - parseInt(b));
+    }
+    
+    // Extract expected and found steps
+    const expectedSteps = extractProcedureStepsFromText(text);
+    const stepsFound = extractProcedureStepsFromSummary(finalSummary);
+    
+    console.log(`📊 PROCEDURAL STEPS: Expected: [${expectedSteps.join(', ')}], Found: [${stepsFound.join(', ')}]`);
+    
+    let proceduralStepsMetadata = {
+      expected_steps: expectedSteps,
+      steps_found: stepsFound,
+      is_complete: true,
+      continuation_attempts: 0
+    };
+    
+    // Check for incomplete procedural sequences
+    if (expectedSteps.length > 0) {
+      const missingSteps = expectedSteps.filter(step => !stepsFound.includes(step));
+      
+      if (missingSteps.length > 0) {
+        console.log(`⚠️ PROCEDURAL STEPS: Missing steps [${missingSteps.join(', ')}], attempting continuation...`);
+        proceduralStepsMetadata.is_complete = false;
+        
+        // Generate targeted continuation prompt for missing steps
+        const stepsPrompt = lang === 'ar' ? 
+          `المحتوى السابق يحتوي على خطوات إجرائية غير مكتملة. يرجى إكمال الخطوات المفقودة:
+
+الخطوات المتوقعة: ${expectedSteps.join('، ')}
+الخطوات الموجودة: ${stepsFound.join('، ')}
+الخطوات المفقودة: ${missingSteps.join('، ')}
+
+يرجى إكمال جميع الخطوات المفقودة بنفس التنسيق والأسلوب المستخدم في الخطوات الموجودة. تأكد من تضمين جميع التفاصيل والشروحات اللازمة لكل خطوة.
+
+النص الأصلي:
+${text}` :
+          `The previous content contains incomplete procedural steps. Please complete the missing steps:
+
+Expected steps: ${expectedSteps.join(', ')}
+Found steps: ${stepsFound.join(', ')}
+Missing steps: ${missingSteps.join(', ')}
+
+Please complete all missing steps using the same format and style as the existing steps. Ensure all necessary details and explanations are included for each step.
+
+Original text:
+${text}`;
+
+        // Attempt continuation for missing procedural steps (up to 2 attempts)
+        const maxStepAttempts = 2;
+        let currentStepSummary = finalSummary;
+        
+        for (let attempt = 1; attempt <= maxStepAttempts; attempt++) {
+          proceduralStepsMetadata.continuation_attempts = attempt;
+          console.log(`🔄 PROCEDURAL STEPS: Continuation attempt ${attempt}/${maxStepAttempts}...`);
+          
+          try {
+            let stepContinuationText = '';
+            
+            // Try Gemini first
+            if (googleApiKey) {
+              const stepResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: systemPrompt + "\n\n" + stepsPrompt }] }],
+                  generationConfig: { temperature: 0, maxOutputTokens: 4000 }
+                }),
+              });
+              
+              if (stepResp.ok) {
+                const stepData = await stepResp.json();
+                stepContinuationText = stepData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              } else {
+                console.error('Gemini steps continuation error:', await stepResp.text());
+              }
+            }
+            
+            // Fallback to DeepSeek
+            if (!stepContinuationText && deepSeekApiKey) {
+              const stepResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${deepSeekApiKey}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  model: "deepseek-chat",
+                  messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: stepsPrompt },
+                  ],
+                  temperature: 0,
+                  max_tokens: 4000,
+                }),
+              });
+              
+              if (stepResp.ok) {
+                const stepData = await stepResp.json();
+                stepContinuationText = stepData.choices?.[0]?.message?.content || '';
+              } else {
+                console.error('DeepSeek steps continuation error:', await stepResp.text());
+              }
+            }
+            
+            if (stepContinuationText && stepContinuationText.trim()) {
+              currentStepSummary += "\n\n" + stepContinuationText.trim();
+              
+              // Check if missing steps were completed
+              const newStepsFound = extractProcedureStepsFromSummary(currentStepSummary);
+              const stillMissing = expectedSteps.filter(step => !newStepsFound.includes(step));
+              
+              console.log(`✅ PROCEDURAL STEPS: Attempt ${attempt} - Now found [${newStepsFound.join(', ')}], still missing [${stillMissing.join(', ')}]`);
+              
+              proceduralStepsMetadata.steps_found = newStepsFound;
+              
+              if (stillMissing.length === 0) {
+                console.log('🎉 PROCEDURAL STEPS: All steps completed successfully!');
+                proceduralStepsMetadata.is_complete = true;
+                finalSummary = currentStepSummary;
+                break;
+              } else if (stillMissing.length < missingSteps.length) {
+                // Some progress made, continue with remaining steps
+                finalSummary = currentStepSummary;
+              }
+            } else {
+              console.log(`PROCEDURAL STEPS: Attempt ${attempt} returned empty continuation`);
+              break;
+            }
+          } catch (stepError) {
+            console.error(`PROCEDURAL STEPS: Attempt ${attempt} error:`, stepError);
+            break;
+          }
+        }
+        
+        const finalMissing = expectedSteps.filter(step => !proceduralStepsMetadata.steps_found.includes(step));
+        if (finalMissing.length === 0) {
+          console.log('✅ PROCEDURAL STEPS: Final check - all steps completed');
+        } else {
+          console.log(`⚠️ PROCEDURAL STEPS: Final check - still missing [${finalMissing.join(', ')}]`);
+        }
+      } else {
+        console.log('✅ PROCEDURAL STEPS: All expected steps found in summary');
+      }
+    } else {
+      console.log('ℹ️ PROCEDURAL STEPS: No procedural steps detected in content');
+    }
+
     return new Response(JSON.stringify({ 
       summary: finalSummary,
       rag_pages_sent: ragPagesActuallySent,
       rag_pages_found: ragContext?.length || 0,
       rag_pages_sent_list: ragPagesSentList,
       rag_context_chars: ragContextChars,
-      rag_filtering_decisions: ragDecisionLog
+      rag_filtering_decisions: ragDecisionLog,
+      procedural_steps_metadata: proceduralStepsMetadata,
+      provider_used: providerUsed
     }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
