@@ -1182,7 +1182,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
     
     // Extract expected and found steps
     const expectedSteps = extractProcedureStepsFromText(text);
-    const stepsFound = extractProcedureStepsFromSummary(finalSummary);
+    const stepsFound = extractProcedureStepsFromSummary(summary);
     
     console.log(`📊 PROCEDURAL STEPS: Expected: [${expectedSteps.join(', ')}], Found: [${stepsFound.join(', ')}]`);
     
