@@ -179,6 +179,9 @@ export const BookViewer: React.FC<BookViewerProps> = ({
   const [storedRagMetadata, setStoredRagMetadata] = useState<any>(null);
   const [ragPagesSent, setRagPagesSent] = useState<number>(0);
 
+  // Manual refresh trigger for re-fetching from DB
+  const [refreshTick, setRefreshTick] = useState(0);
+
   // Navigation functions with URL sync
   const updatePageInUrl = useCallback((pageIndex: number) => {
     const pageNumber = pageIndex + 1; // Convert to 1-based
@@ -441,7 +444,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     };
     fetchFromDb();
     return () => { cancelled = true; };
-  }, [index, dbBookId, ocrKey, sumKey]);
+  }, [index, dbBookId, ocrKey, sumKey, refreshTick]);
 
   // Save current page to localStorage
   useEffect(() => {
@@ -833,6 +836,19 @@ export const BookViewer: React.FC<BookViewerProps> = ({
     setSummary(existingSummary);
     setSummaryProgress(100);
     setSummLoading(false);
+  };
+
+  // Force-refresh current page data from DB (ignores local cache)
+  const refreshFromDb = async () => {
+    try {
+      localStorage.removeItem(ocrKey);
+      localStorage.removeItem(sumKey);
+    } catch {}
+    toast.info(rtl ? "مزامنة مع قاعدة البيانات..." : "Syncing with database...");
+    setSummLoading(true);
+    setSummary("");
+    setExtractedText("");
+    setRefreshTick((t) => t + 1);
   };
 
   const summarizeExtractedText = async (text: string = extractedText, force = false) => {
@@ -1644,6 +1660,7 @@ KF (°C/m)
                           pageNumber={index + 1}
                           rtl={rtl}
                           title={title}
+                          onRefresh={refreshFromDb}
                         />
                       </div>
                     )}
@@ -2003,6 +2020,7 @@ KF (°C/m)
                             pageNumber={index + 1}
                             rtl={rtl}
                             title={title}
+                            onRefresh={refreshFromDb}
                           />
                           
                         </div>

@@ -15,6 +15,7 @@ interface EnhancedSummaryProps {
   summary: string;
   onSummaryChange?: (summary: string) => void;
   onRegenerate: () => void;
+  onRefresh?: () => void;
   isRegenerating: boolean;
   confidence?: number;
   rtl?: boolean;
@@ -26,6 +27,7 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
   summary,
   onSummaryChange,
   onRegenerate,
+  onRefresh,
   isRegenerating,
   confidence,
   rtl = false,
@@ -164,6 +166,18 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
               <div className={cn("flex items-center gap-1", rtl && "flex-row-reverse")}> 
                 <Button variant="ghost" size="icon" onClick={handleCopy} disabled={!summary} title={rtl ? "نسخ الملخص" : "Copy summary"} className="h-8 w-8">{copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}</Button>
                 <Button variant="ghost" size="icon" onClick={onRegenerate} disabled={isRegenerating} title={rtl ? "إعادة إنشاء الملخص" : "Regenerate summary"} className="h-8 w-8"><RefreshCw className={cn("h-3 w-3", isRegenerating && "animate-spin")} /></Button>
+                {onRefresh && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onRefresh}
+                    disabled={isRegenerating}
+                    title={rtl ? "مزامنة من قاعدة البيانات" : "Sync from DB"}
+                    className="h-8 w-8"
+                  >
+                    <Clock className="h-3 w-3" />
+                  </Button>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" disabled={!summary} title={rtl ? "مشاركة الملخص" : "Share summary"} className="h-8 w-8"><Share2 className="h-3 w-3" /></Button>
@@ -208,6 +222,9 @@ export const EnhancedSummary: React.FC<EnhancedSummaryProps> = ({
                     <div className="flex flex-wrap items-center gap-1">
                       <Button variant="ghost" size="icon" onClick={handleCopy} disabled={!summary} className="h-9 w-9">{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}</Button>
                       <Button variant="ghost" size="icon" onClick={onRegenerate} disabled={isRegenerating} className="h-9 w-9"><RefreshCw className={cn("h-4 w-4", isRegenerating && "animate-spin")} /></Button>
+                      {onRefresh && (
+                        <Button variant="ghost" size="icon" onClick={onRefresh} disabled={isRegenerating} className="h-9 w-9"><Clock className="h-4 w-4" /></Button>
+                      )}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" disabled={!summary} className="h-9 w-9"><Share2 className="h-4 w-4" /></Button>
