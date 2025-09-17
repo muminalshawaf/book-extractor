@@ -1326,7 +1326,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
     
     // Extract expected and found steps
     const expectedSteps = extractProcedureStepsFromText(text);
-    const stepsFound = extractProcedureStepsFromSummary(finalSummary);
+    const stepsFound = extractProcedureStepsFromSummary(summary);
     
     console.log(`📊 PROCEDURAL STEPS: Expected: [${expectedSteps.join(', ')}], Found: [${stepsFound.join(', ')}]`);
     
@@ -1337,12 +1337,13 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
       continuation_attempts: 0
     };
     
-    // Check for incomplete procedural sequences
-    if (expectedSteps.length > 0) {
+    // Check for incomplete procedural sequences - DISABLED TO PREVENT UNPREDICTABLE BEHAVIOR
+    if (expectedSteps.length > 3 && expectedSteps.length > 0) { // Only for substantial procedural content
       const missingSteps = expectedSteps.filter(step => !stepsFound.includes(step));
       
-      if (missingSteps.length > 0) {
-        console.log(`⚠️ PROCEDURAL STEPS: Missing steps [${missingSteps.join(', ')}], attempting continuation...`);
+      // Only continue if more than 50% of steps are missing and we have substantial content
+      if (missingSteps.length > expectedSteps.length * 0.5 && expectedSteps.length > 5) {
+        console.log(`⚠️ PROCEDURAL STEPS: Substantial missing steps [${missingSteps.join(', ')}] detected, but auto-continuation DISABLED`);
         proceduralStepsMetadata.is_complete = false;
         
         // Generate targeted continuation prompt for missing steps
@@ -1368,9 +1369,13 @@ Please complete all missing steps using the same format and style as the existin
 Original text:
 ${text}`;
 
+        // PROCEDURAL STEPS AUTO-CONTINUATION DISABLED
+        // This was causing unpredictable behavior by generating unwanted content
+        console.log('🚫 PROCEDURAL STEPS: Auto-continuation disabled to prevent unwanted content generation');
+        /*
         // Attempt continuation for missing procedural steps (up to 2 attempts)
         const maxStepAttempts = 2;
-        let currentStepSummary = finalSummary;
+        let currentStepSummary = summary;
         
         for (let attempt = 1; attempt <= maxStepAttempts; attempt++) {
           proceduralStepsMetadata.continuation_attempts = attempt;
@@ -1436,11 +1441,11 @@ ${text}`;
               if (stillMissing.length === 0) {
                 console.log('🎉 PROCEDURAL STEPS: All steps completed successfully!');
                 proceduralStepsMetadata.is_complete = true;
-                finalSummary = currentStepSummary;
+                summary = currentStepSummary;
                 break;
               } else if (stillMissing.length < missingSteps.length) {
                 // Some progress made, continue with remaining steps
-                finalSummary = currentStepSummary;
+                summary = currentStepSummary;
               }
             } else {
               console.log(`PROCEDURAL STEPS: Attempt ${attempt} returned empty continuation`);
@@ -1452,13 +1457,11 @@ ${text}`;
           }
         }
         
-        const finalMissing = expectedSteps.filter(step => !proceduralStepsMetadata.steps_found.includes(step));
-        if (finalMissing.length === 0) {
-          console.log('✅ PROCEDURAL STEPS: Final check - all steps completed');
-        } else {
-          console.log(`⚠️ PROCEDURAL STEPS: Final check - still missing [${finalMissing.join(', ')}]`);
-        }
+        */
       } else {
+        console.log(`ℹ️ PROCEDURAL STEPS: Missing steps [${missingSteps.join(', ')}] - but threshold not met for continuation`);
+      }
+    } else {
         console.log('✅ PROCEDURAL STEPS: All expected steps found in summary');
       }
     } else {
@@ -1466,7 +1469,7 @@ ${text}`;
     }
 
     return new Response(JSON.stringify({ 
-      summary: finalSummary,
+      summary: summary,
       rag_pages_sent: ragPagesActuallySent,
       rag_pages_found: ragContext?.length || 0,
       rag_pages_sent_list: ragPagesSentList,
