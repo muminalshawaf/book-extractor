@@ -1468,32 +1468,36 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
     // **PROCEDURAL STEPS COVERAGE CHECK**
     console.log('🔍 PROCEDURAL STEPS: Starting coverage check...');
     
-    // Helper function to extract Arabic step markers from text
-    function extractProcedureStepsFromText(text: string): string[] {
-      const stepMarkers = [];
+    // Unified extractor for procedural step numbers from text/summary
+    // Detects both explicit Arabic markers ("الخطوة 1") and numbered lists at line starts ("1.", "٢)", "3-", etc.)
+    function extractStepNumbers(source: string): string[] {
+      const found = new Set<string>();
+      // Pattern 1: explicit Arabic step marker
       const arabicStepPattern = /الخطوة\s*(\d+|[٠-٩]+)[:\-\s]/g;
-      let match;
-      
-      while ((match = arabicStepPattern.exec(text)) !== null) {
-        const stepNumber = convertArabicToEnglishNumber(match[1]);
-        stepMarkers.push(stepNumber);
+      let match1: RegExpExecArray | null;
+      while ((match1 = arabicStepPattern.exec(source)) !== null) {
+        const num = convertArabicToEnglishNumber(match1[1]);
+        found.add(num);
       }
-      
-      return [...new Set(stepMarkers)].sort((a, b) => parseInt(a) - parseInt(b));
+      // Pattern 2: enumerated list at start of line (Arabic or Western digits)
+      // Accept separators: . - : ) Arabic comma "،" and Arabic semicolon \u061B
+      const enumeratedPattern = /^(?:\s*)(\d+|[٠-٩]+)[\.\-:\)\u061B،]\s+/gm;
+      let match2: RegExpExecArray | null;
+      while ((match2 = enumeratedPattern.exec(source)) !== null) {
+        const num = convertArabicToEnglishNumber(match2[1]);
+        found.add(num);
+      }
+      return Array.from(found).sort((a, b) => parseInt(a) - parseInt(b));
     }
     
-    // Helper function to extract procedure steps from summary
+    // Helper function to extract Arabic step markers from original OCR text
+    function extractProcedureStepsFromText(text: string): string[] {
+      return extractStepNumbers(text);
+    }
+    
+    // Helper function to extract procedure steps from generated summary
     function extractProcedureStepsFromSummary(summary: string): string[] {
-      const stepMarkers = [];
-      const arabicStepPattern = /الخطوة\s*(\d+|[٠-٩]+)[:\-\s]/g;
-      let match;
-      
-      while ((match = arabicStepPattern.exec(summary)) !== null) {
-        const stepNumber = convertArabicToEnglishNumber(match[1]);
-        stepMarkers.push(stepNumber);
-      }
-      
-      return [...new Set(stepMarkers)].sort((a, b) => parseInt(a) - parseInt(b));
+      return extractStepNumbers(summary);
     }
     
     // Extract expected and found steps
