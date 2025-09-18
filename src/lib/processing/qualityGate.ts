@@ -27,6 +27,7 @@ export interface QualityResult {
   networkError?: boolean; // Flag for network-related failures
   databaseValidated?: boolean; // Flag for database validation
   retryRequired?: boolean; // Flag indicating retry is needed
+  restartPageRequired?: boolean; // Flag indicating complete page restart is needed
 }
 
 export interface RepairContext {
@@ -418,7 +419,7 @@ export async function validateDatabaseRecord(
   bookId: string,
   pageNumber: number,
   logs: string[] = []
-): Promise<{ validated: boolean; retryRequired: boolean; logs: string[] }> {
+): Promise<{ validated: boolean; retryRequired: boolean; restartRequired: boolean; logs: string[] }> {
   const requiredFields = [
     'ocr_structured',
     'rag_context_chars',
@@ -440,12 +441,12 @@ export async function validateDatabaseRecord(
     
     if (error) {
       logs.push(`❌ Database validation failed: ${error.message}`);
-      return { validated: false, retryRequired: true, logs };
+      return { validated: false, retryRequired: true, restartRequired: false, logs };
     }
     
     if (!data) {
       logs.push(`❌ No database record found for validation`);
-      return { validated: false, retryRequired: true, logs };
+      return { validated: false, retryRequired: true, restartRequired: false, logs };
     }
     
     // Check each required field
@@ -479,16 +480,17 @@ export async function validateDatabaseRecord(
     if (missingFields.length > 0) {
       logs.push(`❌ Missing required database fields: ${missingFields.join(', ')}`);
       logs.push(`📊 Current field values: ${JSON.stringify(data)}`);
-      return { validated: false, retryRequired: true, logs };
+      logs.push(`🔄 CRITICAL: Database validation failed - triggering complete page restart to ensure data integrity`);
+      return { validated: false, retryRequired: false, restartRequired: true, logs };
     }
     
     logs.push(`✅ All required database fields validated successfully`);
     logs.push(`📊 Validated fields: ocr_structured=${!!data.ocr_structured}, rag_context_chars=${data.rag_context_chars}, rag_pages_sent=${data.rag_pages_sent}, rag_pages_found=${data.rag_pages_found}, rag_pages_sent_list=${Array.isArray(data.rag_pages_sent_list) ? (data.rag_pages_sent_list as any[]).length : 0} items`);
     
-    return { validated: true, retryRequired: false, logs };
+    return { validated: true, retryRequired: false, restartRequired: false, logs };
     
   } catch (error: any) {
     logs.push(`❌ Database validation error: ${error.message}`);
-    return { validated: false, retryRequired: true, logs };
+    return { validated: false, retryRequired: true, restartRequired: false, logs };
   }
 }

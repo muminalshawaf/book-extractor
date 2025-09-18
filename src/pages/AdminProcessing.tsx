@@ -656,11 +656,22 @@ const AdminProcessing = () => {
                 // Log validation results
                 validationLogs.forEach(log => addLog(`📊 Page ${pageNum}: ${log}`));
                 
-                if (!databaseValidated && validationResult.retryRequired) {
-                  saveRetryCount++;
-                  if (saveRetryCount <= maxSaveRetries) {
-                    // Add a small delay before retry
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                if (!databaseValidated) {
+                  if (validationResult.restartRequired) {
+                    // Critical database fields missing - restart entire page processing
+                    addLog(`🔄 Page ${pageNum}: RESTARTING PAGE - Critical database fields missing, extracting OCR again and starting fresh`);
+                    validationLogs.forEach(log => addLog(`📊 Page ${pageNum}: ${log}`));
+                    
+                    // Break out of save retry loop to restart from OCR
+                    throw new Error('PAGE_RESTART_REQUIRED');
+                  } else if (validationResult.retryRequired) {
+                    saveRetryCount++;
+                    if (saveRetryCount <= maxSaveRetries) {
+                      // Add a small delay before retry
+                      await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                  } else {
+                    break;
                   }
                 } else {
                   break;
@@ -686,6 +697,21 @@ const AdminProcessing = () => {
 
               addLog(`💾 Page ${pageNum}: Saved to database${embeddingInfo}`);
             } catch (saveError) {
+              // Check if this is a page restart request
+              if (saveError.message === 'PAGE_RESTART_REQUIRED') {
+                addLog(`🔄 Page ${pageNum}: Restarting page processing from OCR extraction due to database validation failure`);
+                // Continue to the page restart logic below instead of treating as error
+                // Reset the page processing flag and continue the loop (effectively restarting this page)
+                pageNum--; // Will be incremented again at the end of the loop
+                // Add delay before restart
+                if (processingConfig.enableJitteredDelay) {
+                  await addJitteredDelay(processingConfig.minDelayMs, processingConfig.maxDelayMs);
+                } else {
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+                continue;
+              }
+              
               addLog(`❌ Page ${pageNum}: Failed to save - ${saveError.message}`);
               setPageResults(prev => [...prev, {
                 pageNumber: pageNum,

@@ -1330,11 +1330,22 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           // Log validation results
           validationLogs.forEach(log => console.log(`📊 Page ${pageNum}: ${log}`));
           
-          if (!databaseValidated && validationResult.retryRequired) {
-            saveRetryCount++;
-            if (saveRetryCount <= maxSaveRetries) {
-              // Add a small delay before retry
-              await new Promise(resolve => setTimeout(resolve, 1000));
+          if (!databaseValidated) {
+            if (validationResult.restartRequired) {
+              // Critical database fields missing - restart entire page processing
+              console.log(`🔄 Page ${pageNum}: RESTARTING PAGE - Critical database fields missing, extracting OCR again and starting fresh`);
+              validationLogs.forEach(log => console.log(`📊 Page ${pageNum}: ${log}`));
+              
+              // Break out of save retry loop to restart from OCR
+              throw new Error('PAGE_RESTART_REQUIRED');
+            } else if (validationResult.retryRequired) {
+              saveRetryCount++;
+              if (saveRetryCount <= maxSaveRetries) {
+                // Add a small delay before retry
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
+            } else {
+              break;
             }
           } else {
             break;
@@ -1363,6 +1374,15 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         toast.success(rtl ? "تم إعادة توليد النص والملخص بنجاح مع فحص الجودة" : "Successfully regenerated OCR and summary with quality checks");
         
       } catch (processingError) {
+        // Check if this is a page restart request
+        if (processingError.message === 'PAGE_RESTART_REQUIRED') {
+          console.log(`🔄 Page ${pageNum}: Restarting page processing from OCR extraction due to database validation failure`);
+          // Restart the entire process - call forceRegenerate recursively
+          toast.info(rtl ? "إعادة بدء معالجة الصفحة بسبب فشل في التحقق من قاعدة البيانات..." : "Restarting page processing due to database validation failure...");
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Brief delay
+          return await forceRegenerate(); // Recursive call to restart
+        }
+        
         console.error(`❌ Page ${pageNum}: Processing error:`, processingError);
         throw processingError;
       }
