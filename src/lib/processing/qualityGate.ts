@@ -52,6 +52,16 @@ function generateRepairPrompt(context: RepairContext): string {
   
   const issues: string[] = [];
   
+  // Check for Q&A section mismatch
+  const hasQASection = originalSummary.includes('أسئلة وأجوبة') || originalSummary.includes('الأسئلة');
+  const hasQuestionTags = context.ocrData?.structured?.some((section: any) => 
+    section.type === 'question' || (section.content && section.content.toLowerCase().includes('question'))
+  );
+  
+  if (hasQASection && !hasQuestionTags) {
+    issues.push("الملخص يحتوي على قسم أسئلة وأجوبة لكن النص الأصلي لا يحتوي على أسئلة واضحة - يجب إعادة فحص النص بدقة أكبر");
+  }
+  
   if (confidenceMeta.coverage < 0.6) {
     issues.push("المحتوى المستخرج لا يغطي النص الأصلي بشكل كافٍ");
   }
@@ -203,22 +213,49 @@ export async function runQualityGate(
     // Don't return false immediately - allow repair to fix coverage
   }
   
-  // Check if summary meets minimum quality
-  const coverageMet = !opts.minCoverage || confidenceMeta.coverage >= opts.minCoverage;
-  if (summaryConfidence >= opts.minSummaryConfidence && coverageMet) {
-    logs.push(`Summary quality ${(summaryConfidence * 100).toFixed(1)}% meets threshold ${(opts.minSummaryConfidence * 100).toFixed(1)}%`);
-    if (opts.minCoverage) {
-      logs.push(`Coverage ${(confidenceMeta.coverage * 100).toFixed(1)}% meets strict mode requirement ${(opts.minCoverage * 100).toFixed(1)}%`);
-    }
-    return {
-      passed: true,
+  // Check for Q&A section mismatch with OCR structure
+  const hasQASection = summaryMd.includes('أسئلة وأجوبة') || summaryMd.includes('الأسئلة');
+  const hasQuestionTags = context.ocrData?.structured?.some((section: any) => 
+    section.type === 'question' || (section.content && section.content.toLowerCase().includes('question'))
+  );
+  
+  if (hasQASection && !hasQuestionTags) {
+    logs.push(`⚠️ Q&A section detected in summary but no question tags found in OCR structure - forcing regeneration`);
+    // Force regeneration by treating this as low quality
+    const qaResult = {
+      passed: false,
       ocrConfidence,
-      summaryConfidence,
+      summaryConfidence: opts.repairThreshold - 0.1, // Force below repair threshold
       confidenceMeta,
-      needsRepair: false,
+      needsRepair: opts.enableRepair,
       repairAttempted: false,
       logs
     };
+    
+    if (!opts.enableRepair) {
+      logs.push(`Q&A mismatch detected but repair disabled`);
+      return qaResult;
+    }
+    
+    // Continue to repair section below
+  } else {
+    // Check if summary meets minimum quality
+    const coverageMet = !opts.minCoverage || confidenceMeta.coverage >= opts.minCoverage;
+    if (summaryConfidence >= opts.minSummaryConfidence && coverageMet) {
+      logs.push(`Summary quality ${(summaryConfidence * 100).toFixed(1)}% meets threshold ${(opts.minSummaryConfidence * 100).toFixed(1)}%`);
+      if (opts.minCoverage) {
+        logs.push(`Coverage ${(confidenceMeta.coverage * 100).toFixed(1)}% meets strict mode requirement ${(opts.minCoverage * 100).toFixed(1)}%`);
+      }
+      return {
+        passed: true,
+        ocrConfidence,
+        summaryConfidence,
+        confidenceMeta,
+        needsRepair: false,
+        repairAttempted: false,
+        logs
+      };
+    }
   }
   
   // Summary quality is below threshold OR coverage is insufficient in strict mode
