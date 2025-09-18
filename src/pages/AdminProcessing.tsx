@@ -647,8 +647,11 @@ const AdminProcessing = () => {
                 });
                 
                 // Validate database record to ensure all required fields are stored
+                addLog(`🔍 Page ${pageNum}: Validating database record for required fields...`);
                 const { validateDatabaseRecord } = await import('@/lib/processing/qualityGate');
                 const validationResult = await validateDatabaseRecord(selectedBookId, pageNum, []);
+                
+                addLog(`📊 Page ${pageNum}: Database validation result - validated: ${validationResult.validated}, restart: ${validationResult.restartRequired}, retry: ${validationResult.retryRequired}`);
                 
                 databaseValidated = validationResult.validated;
                 validationLogs = validationResult.logs;
