@@ -607,34 +607,73 @@ const AdminProcessing = () => {
                            (finalSummary && !existingData?.summary_md) || 
                            !skipProcessed;
           
-          let saveResult: any = null;
-          
-           if (shouldSave) {
-            try {
-               saveResult = await callFunction('save-page-summary', {
-                 book_id: selectedBookId,
-                 page_number: pageNum,
-                 ocr_text: cleanedOcrText || ocrText, // Save cleaned text
-                 ocr_structured: ocrResult, // Pass full structured OCR data
-                 summary_md: finalSummary,
-                 ocr_confidence: ocrConfidence,
-                 confidence: summaryConfidence,
-                 rag_pages_sent: ragPagesActuallySent,
-                 rag_pages_found: summaryResult?.rag_pages_found || 0,
-                 rag_pages_sent_list: summaryResult?.rag_pages_sent_list || [],
-                 rag_context_chars: summaryResult?.rag_context_chars || 0,
-                 rag_metadata: {
-                   ragEnabled: ragEnabled,
-                   ragPagesUsed: ragContext.length,
-                   ragPagesIncluded: ragContext.map(ctx => ({
-                     pageNumber: ctx.pageNumber,
-                     title: ctx.title,
-                     similarity: ctx.similarity
-                   })),
-                   ragThreshold: 0.4, // Matches the hardcoded value from retrieval
-                   ragMaxPages: 3      // Matches the hardcoded value from retrieval
+           let saveResult: any = null;
+           
+            if (shouldSave) {
+             try {
+               let saveRetryCount = 0;
+               const maxSaveRetries = 2;
+               let databaseValidated = false;
+               let validationLogs: string[] = [];
+               
+               while (saveRetryCount <= maxSaveRetries && !databaseValidated) {
+                 if (saveRetryCount > 0) {
+                   addLog(`🔄 Page ${pageNum}: Database validation failed, retrying save operation (attempt ${saveRetryCount + 1}/${maxSaveRetries + 1})`);
                  }
-               });
+                 
+                saveResult = await callFunction('save-page-summary', {
+                  book_id: selectedBookId,
+                  page_number: pageNum,
+                  ocr_text: cleanedOcrText || ocrText, // Save cleaned text
+                  ocr_structured: ocrResult, // Pass full structured OCR data
+                  summary_md: finalSummary,
+                  ocr_confidence: ocrConfidence,
+                  confidence: summaryConfidence,
+                  rag_pages_sent: ragPagesActuallySent,
+                  rag_pages_found: summaryResult?.rag_pages_found || 0,
+                  rag_pages_sent_list: summaryResult?.rag_pages_sent_list || [],
+                  rag_context_chars: summaryResult?.rag_context_chars || 0,
+                  rag_metadata: {
+                    ragEnabled: ragEnabled,
+                    ragPagesUsed: ragContext.length,
+                    ragPagesIncluded: ragContext.map(ctx => ({
+                      pageNumber: ctx.pageNumber,
+                      title: ctx.title,
+                      similarity: ctx.similarity
+                    })),
+                    ragThreshold: 0.4, // Matches the hardcoded value from retrieval
+                    ragMaxPages: 3      // Matches the hardcoded value from retrieval
+                  }
+                });
+                
+                // Validate database record to ensure all required fields are stored
+                const { validateDatabaseRecord } = await import('@/lib/processing/qualityGate');
+                const validationResult = await validateDatabaseRecord(selectedBookId, pageNum, []);
+                
+                databaseValidated = validationResult.validated;
+                validationLogs = validationResult.logs;
+                
+                // Log validation results
+                validationLogs.forEach(log => addLog(`📊 Page ${pageNum}: ${log}`));
+                
+                if (!databaseValidated && validationResult.retryRequired) {
+                  saveRetryCount++;
+                  if (saveRetryCount <= maxSaveRetries) {
+                    // Add a small delay before retry
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                  }
+                } else {
+                  break;
+                }
+               }
+               
+               if (!databaseValidated) {
+                 addLog(`❌ Page ${pageNum}: Failed to validate database record after ${maxSaveRetries + 1} attempts`);
+                 validationLogs.forEach(log => addLog(`📊 Page ${pageNum}: ${log}`));
+                 throw new Error(`Database validation failed after ${maxSaveRetries + 1} attempts. Required fields may not be properly stored.`);
+               } else {
+                 addLog(`✅ Page ${pageNum}: Database record validated successfully`);
+               }
 
               console.log(`Save result for page ${pageNum}:`, saveResult);
               

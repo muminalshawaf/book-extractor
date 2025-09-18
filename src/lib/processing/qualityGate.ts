@@ -2,6 +2,7 @@
 
 import { calculateSummaryConfidence, type ConfidenceMeta } from '@/lib/confidence';
 import { callFunction } from '@/lib/functionsClient';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface QualityGateOptions {
   minOcrConfidence: number; // 0-1, minimum OCR confidence to proceed
@@ -24,6 +25,8 @@ export interface QualityResult {
   repairedConfidence?: number;
   logs: string[];
   networkError?: boolean; // Flag for network-related failures
+  databaseValidated?: boolean; // Flag for database validation
+  retryRequired?: boolean; // Flag indicating retry is needed
 }
 
 export interface RepairContext {
@@ -367,5 +370,88 @@ export async function runQualityGate(
       repairSuccessful: false,
       logs
     };
+  }
+}
+
+/**
+ * Validates that all required database fields are properly stored
+ * Returns validation result with retry flag if needed
+ */
+export async function validateDatabaseRecord(
+  bookId: string,
+  pageNumber: number,
+  logs: string[] = []
+): Promise<{ validated: boolean; retryRequired: boolean; logs: string[] }> {
+  const requiredFields = [
+    'ocr_structured',
+    'rag_context_chars',
+    'rag_pages_sent_list',
+    'rag_pages_found',
+    'rag_pages_sent'
+  ];
+  
+  logs.push(`Validating database record for book ${bookId}, page ${pageNumber}`);
+  
+  try {
+    // Query the database to check if all required fields are present
+    const { data, error } = await supabase
+      .from('page_summaries')
+      .select('ocr_structured, rag_context_chars, rag_pages_sent_list, rag_pages_found, rag_pages_sent')
+      .eq('book_id', bookId)
+      .eq('page_number', pageNumber)
+      .single();
+    
+    if (error) {
+      logs.push(`❌ Database validation failed: ${error.message}`);
+      return { validated: false, retryRequired: true, logs };
+    }
+    
+    if (!data) {
+      logs.push(`❌ No database record found for validation`);
+      return { validated: false, retryRequired: true, logs };
+    }
+    
+    // Check each required field
+    const missingFields: string[] = [];
+    
+    // Check ocr_structured (should not be null/undefined)
+    if (!data.ocr_structured) {
+      missingFields.push('ocr_structured');
+    }
+    
+    // Check rag_context_chars (should be a number >= 0)
+    if (data.rag_context_chars === null || data.rag_context_chars === undefined) {
+      missingFields.push('rag_context_chars');
+    }
+    
+    // Check rag_pages_sent_list (should be an array, even if empty)
+    if (!Array.isArray(data.rag_pages_sent_list)) {
+      missingFields.push('rag_pages_sent_list');
+    }
+    
+    // Check rag_pages_found (should be a number >= 0)
+    if (data.rag_pages_found === null || data.rag_pages_found === undefined) {
+      missingFields.push('rag_pages_found');
+    }
+    
+    // Check rag_pages_sent (should be a number >= 0)
+    if (data.rag_pages_sent === null || data.rag_pages_sent === undefined) {
+      missingFields.push('rag_pages_sent');
+    }
+    
+    if (missingFields.length > 0) {
+      logs.push(`❌ Missing required database fields: ${missingFields.join(', ')}`);
+      logs.push(`📊 Current field values: ${JSON.stringify(data)}`);
+      return { validated: false, retryRequired: true, logs };
+    }
+    
+    logs.push(`✅ All required database fields validated successfully`);
+    logs.push(`📊 Validated fields: ocr_structured=${!!data.ocr_structured}, rag_context_chars=${data.rag_context_chars}, rag_pages_sent=${data.rag_pages_sent}, rag_pages_found=${data.rag_pages_found}, rag_pages_sent_list=${Array.isArray(data.rag_pages_sent_list) ? (data.rag_pages_sent_list as any[]).length : 0} items`);
+    
+    return { validated: true, retryRequired: false, logs };
+    
+  } catch (error: any) {
+    logs.push(`❌ Database validation error: ${error.message}`);
+    return { validated: false, retryRequired: true, logs };
   }
 }

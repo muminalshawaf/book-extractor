@@ -1288,26 +1288,66 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         // 5. SAVE TO DATABASE (following AdminProcessing pattern)
         console.log(`💾 Page ${pageNum}: Saving to database...`);
         
-        await callFunction('save-page-summary', {
-          book_id: dbBookId,
-          page_number: pageNum,
-          ocr_text: cleanedOcrText,
-          summary_md: finalSummary,
-          ocr_confidence: ocrConfidence,
-          confidence: summaryConfidence,
-          // RAG tracking fields (matching admin process)
-          rag_pages_sent: ragPagesSent,
-          rag_pages_found: ragPagesFound,
-          rag_pages_sent_list: ragPagesSentList,
-          rag_context_chars: ragContextChars,
-          rag_metadata: {
-            ragEnabled: true, // Always enabled for force regenerate (matching admin)
-            ragPagesUsed: ragPagesSent,
-            ragPagesIncluded: ragPagesIncluded,
-            ragThreshold: 0.4,
-            ragMaxPages: 3
+        let saveRetryCount = 0;
+        const maxSaveRetries = 2;
+        let databaseValidated = false;
+        let validationLogs: string[] = [];
+        
+        while (saveRetryCount <= maxSaveRetries && !databaseValidated) {
+          if (saveRetryCount > 0) {
+            console.log(`🔄 Page ${pageNum}: Database validation failed, retrying save operation (attempt ${saveRetryCount + 1}/${maxSaveRetries + 1})`);
           }
-        });
+          
+          await callFunction('save-page-summary', {
+            book_id: dbBookId,
+            page_number: pageNum,
+            ocr_text: cleanedOcrText,
+            ocr_structured: ocrResult, // Include OCR structured data for validation
+            summary_md: finalSummary,
+            ocr_confidence: ocrConfidence,
+            confidence: summaryConfidence,
+            // RAG tracking fields (matching admin process)
+            rag_pages_sent: ragPagesSent,
+            rag_pages_found: ragPagesFound,
+            rag_pages_sent_list: ragPagesSentList,
+            rag_context_chars: ragContextChars,
+            rag_metadata: {
+              ragEnabled: true, // Always enabled for force regenerate (matching admin)
+              ragPagesUsed: ragPagesSent,
+              ragPagesIncluded: ragPagesIncluded,
+              ragThreshold: 0.4,
+              ragMaxPages: 3
+            }
+          });
+          
+          // Validate database record to ensure all required fields are stored
+          const { validateDatabaseRecord } = await import('@/lib/processing/qualityGate');
+          const validationResult = await validateDatabaseRecord(dbBookId, pageNum, []);
+          
+          databaseValidated = validationResult.validated;
+          validationLogs = validationResult.logs;
+          
+          // Log validation results
+          validationLogs.forEach(log => console.log(`📊 Page ${pageNum}: ${log}`));
+          
+          if (!databaseValidated && validationResult.retryRequired) {
+            saveRetryCount++;
+            if (saveRetryCount <= maxSaveRetries) {
+              // Add a small delay before retry
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          } else {
+            break;
+          }
+        }
+        
+        if (!databaseValidated) {
+          console.error(`❌ Page ${pageNum}: Failed to validate database record after ${maxSaveRetries + 1} attempts`);
+          validationLogs.forEach(log => console.error(`📊 Page ${pageNum}: ${log}`));
+          throw new Error(`Database validation failed after ${maxSaveRetries + 1} attempts. Required fields may not be properly stored.`);
+        } else {
+          console.log(`✅ Page ${pageNum}: Database record validated successfully`);
+        }
         
         // Generate embedding for RAG indexing (async, non-blocking)
         console.log('🎯 About to call generateEmbeddingForCurrentPage in comprehensive flow with cleanedOcrText length:', cleanedOcrText?.length);
