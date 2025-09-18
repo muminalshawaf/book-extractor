@@ -55,8 +55,15 @@ function generateRepairPrompt(context: RepairContext): string {
   
   // Check for Q&A section mismatch
   const hasQASection = originalSummary.includes('أسئلة وأجوبة') || originalSummary.includes('الأسئلة');
-  const hasQuestionTags = context.ocrData?.structured?.some((section: any) => 
-    section.type === 'question' || (section.content && section.content.toLowerCase().includes('question'))
+  // Normalize OCR structure access - check multiple possible paths
+  const ocrSections = context.ocrData?.rawStructuredData?.sections || 
+                     context.ocrData?.sections || 
+                     context.ocrData?.structured || 
+                     [];
+  const hasQuestionTags = ocrSections.some((section: any) => 
+    section.type === 'question' || section.type === 'exercise' ||
+    (section.content && section.content.toLowerCase().includes('question')) ||
+    (section.question_indicators && section.question_indicators.has_question_words)
   );
   
   if (hasQASection && !hasQuestionTags) {
@@ -216,8 +223,15 @@ export async function runQualityGate(
   
   // Check for Q&A section mismatch with OCR structure
   const hasQASection = summaryMd.includes('أسئلة وأجوبة') || summaryMd.includes('الأسئلة');
-  const hasQuestionTags = context.ocrData?.structured?.some((section: any) => 
-    section.type === 'question' || (section.content && section.content.toLowerCase().includes('question'))
+  // Normalize OCR structure access - check multiple possible paths
+  const ocrSections = context.ocrData?.rawStructuredData?.sections || 
+                     context.ocrData?.sections || 
+                     context.ocrData?.structured || 
+                     [];
+  const hasQuestionTags = ocrSections.some((section: any) => 
+    section.type === 'question' || section.type === 'exercise' ||
+    (section.content && section.content.toLowerCase().includes('question')) ||
+    (section.question_indicators && section.question_indicators.has_question_words)
   );
   
   if (hasQASection && !hasQuestionTags) {
@@ -484,8 +498,44 @@ export async function validateDatabaseRecord(
       return { validated: false, retryRequired: false, restartRequired: true, logs };
     }
     
+    // **NEW: Logical consistency checks for RAG data**
+    const logicalIssues: string[] = [];
+    
+    // Check if RAG data is logically consistent
+    const ragPagesFound = data.rag_pages_found || 0;
+    const ragPagesSent = data.rag_pages_sent || 0;
+    const ragPagesListLength = Array.isArray(data.rag_pages_sent_list) ? data.rag_pages_sent_list.length : 0;
+    const ragContextChars = data.rag_context_chars || 0;
+    
+    // If pages were found but none sent, and context chars is 0 - this is inconsistent
+    if (ragPagesFound > 0 && ragPagesSent === 0 && ragContextChars === 0) {
+      logicalIssues.push(`RAG inconsistency: ${ragPagesFound} pages found but 0 sent and 0 context chars`);
+    }
+    
+    // If pages sent doesn't match sent list length
+    if (ragPagesSent !== ragPagesListLength) {
+      logicalIssues.push(`RAG inconsistency: rag_pages_sent=${ragPagesSent} but rag_pages_sent_list has ${ragPagesListLength} items`);
+    }
+    
+    // If context chars > 0 but no pages sent
+    if (ragContextChars > 0 && ragPagesSent === 0) {
+      logicalIssues.push(`RAG inconsistency: ${ragContextChars} context chars but 0 pages sent`);
+    }
+    
+    // If pages sent > 0 but context chars is 0
+    if (ragPagesSent > 0 && ragContextChars === 0) {
+      logicalIssues.push(`RAG inconsistency: ${ragPagesSent} pages sent but 0 context chars`);
+    }
+    
+    if (logicalIssues.length > 0) {
+      logs.push(`⚠️ RAG data logical inconsistencies detected:`);
+      logicalIssues.forEach(issue => logs.push(`  - ${issue}`));
+      logs.push(`🔄 Triggering restart to regenerate consistent RAG data`);
+      return { validated: false, retryRequired: false, restartRequired: true, logs };
+    }
+    
     logs.push(`✅ All required database fields validated successfully`);
-    logs.push(`📊 Validated fields: ocr_structured=${!!data.ocr_structured}, rag_context_chars=${data.rag_context_chars}, rag_pages_sent=${data.rag_pages_sent}, rag_pages_found=${data.rag_pages_found}, rag_pages_sent_list=${Array.isArray(data.rag_pages_sent_list) ? (data.rag_pages_sent_list as any[]).length : 0} items`);
+    logs.push(`📊 Validated fields: ocr_structured=${!!data.ocr_structured}, rag_context_chars=${ragContextChars}, rag_pages_sent=${ragPagesSent}, rag_pages_found=${ragPagesFound}, rag_pages_sent_list=${ragPagesListLength} items`);
     
     return { validated: true, retryRequired: false, restartRequired: false, logs };
     

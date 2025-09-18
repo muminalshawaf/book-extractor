@@ -621,18 +621,30 @@ const AdminProcessing = () => {
                    addLog(`🔄 Page ${pageNum}: Database validation failed, retrying save operation (attempt ${saveRetryCount + 1}/${maxSaveRetries + 1})`);
                  }
                  
-                saveResult = await callFunction('save-page-summary', {
-                  book_id: selectedBookId,
-                  page_number: pageNum,
-                  ocr_text: cleanedOcrText || ocrText, // Save cleaned text
-                  ocr_structured: ocrResult, // Pass full structured OCR data
-                  summary_md: finalSummary,
-                  ocr_confidence: ocrConfidence,
-                  confidence: summaryConfidence,
-                  rag_pages_sent: ragPagesActuallySent,
-                  rag_pages_found: summaryResult?.rag_pages_found || 0,
-                  rag_pages_sent_list: summaryResult?.rag_pages_sent_list || [],
-                  rag_context_chars: summaryResult?.rag_context_chars || 0,
+                 // **FIXED: Save normalized OCR structured data**
+                 const normalizedOcrStructured = ocrResult?.rawStructuredData || ocrResult?.structured || ocrResult;
+                 
+                 // **IMPROVED: Make RAG metrics more robust**
+                 const robustRagPagesFound = summaryResult?.rag_pages_found || ragContext.length || 0;
+                 const robustRagPagesSent = ragPagesActuallySent || (ragContext.length > 0 ? ragContext.length : 0);
+                 const robustRagPagesListSent = summaryResult?.rag_pages_sent_list?.length > 0 
+                   ? summaryResult.rag_pages_sent_list 
+                   : ragContext.map(ctx => ctx.pageNumber);
+                 const robustRagContextChars = summaryResult?.rag_context_chars || 
+                   (ragContext.length > 0 ? ragContext.map(ctx => ctx.content?.length || 0).reduce((a, b) => a + b, 0) : 0);
+                 
+                 saveResult = await callFunction('save-page-summary', {
+                   book_id: selectedBookId,
+                   page_number: pageNum,
+                   ocr_text: cleanedOcrText || ocrText, // Save cleaned text
+                   ocr_structured: normalizedOcrStructured, // **FIXED: Save normalized structured data**
+                   summary_md: finalSummary,
+                   ocr_confidence: ocrConfidence,
+                   confidence: summaryConfidence,
+                   rag_pages_sent: robustRagPagesSent, // **IMPROVED: Robust RAG metrics**
+                   rag_pages_found: robustRagPagesFound,
+                   rag_pages_sent_list: robustRagPagesListSent,
+                   rag_context_chars: robustRagContextChars,
                   rag_metadata: {
                     ragEnabled: ragEnabled,
                     ragPagesUsed: ragContext.length,
