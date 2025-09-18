@@ -1151,7 +1151,7 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         // 3. SUMMARY GENERATION WITH QUALITY GATE (following AdminProcessing pattern)
         console.log(`📝 Page ${pageNum}: Generating summary with quality gate...`);
         
-        // RAG Context Retrieval for force regenerate (mirroring admin process)
+        // RAG Context Retrieval for force regenerate (matching admin process)
         let enhancedText = cleanedOcrText;
         let ragPagesFound = 0;
         let ragPagesSent = 0;
@@ -1159,7 +1159,8 @@ export const BookViewer: React.FC<BookViewerProps> = ({
         let ragContextChars = 0;
         let ragPagesIncluded: Array<{pageNumber: number; title?: string; similarity: number}> = [];
         
-        if (ragEnabled && bookId) {
+        // Always enable RAG for force regenerate (matching admin process configuration)
+        if (bookId) {
           console.log(`🔍 Page ${pageNum}: Retrieving RAG context from previous pages...`);
           try {
             const ragContext = await retrieveRAGContext(
@@ -1213,12 +1214,12 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           title: title,
           book_id: dbBookId,
           ocrData: ocrResult,
-          ragContext: ragEnabled && ragPagesFound > 0 ? ragPagesIncluded.map(p => ({
+          ragContext: ragPagesFound > 0 ? ragPagesIncluded.map(p => ({
             pageNumber: p.pageNumber,
             title: p.title,
             content: '', // Content will be retrieved by summarize function
             similarity: p.similarity
-          })) : [] // Pass RAG context to summarize function like admin process
+          })) : [] // Pass RAG context to summarize function (matching admin process)
         }, { timeout: 180000, retries: 1 });
         
         let summary = summaryResult.summary || '';
@@ -1249,11 +1250,11 @@ export const BookViewer: React.FC<BookViewerProps> = ({
               language: 'ar'
             },
             {
-              minOcrConfidence: 0.3,
-              minSummaryConfidence: 0.6,
-              enableRepair: true,
-              repairThreshold: 0.7,
-              maxRepairAttempts: 2
+              minOcrConfidence: 0.3,        // Matching admin defaults
+              minSummaryConfidence: 0.6,    // Matching admin defaults
+              enableRepair: true,           // Matching admin defaults
+              repairThreshold: 0.7,         // Matching admin defaults
+              maxRepairAttempts: 1          // Matching admin defaults (was 2)
             }
           );
           
@@ -1294,13 +1295,13 @@ export const BookViewer: React.FC<BookViewerProps> = ({
           summary_md: finalSummary,
           ocr_confidence: ocrConfidence,
           confidence: summaryConfidence,
-          // RAG tracking fields (mirroring admin process)
+          // RAG tracking fields (matching admin process)
           rag_pages_sent: ragPagesSent,
           rag_pages_found: ragPagesFound,
           rag_pages_sent_list: ragPagesSentList,
           rag_context_chars: ragContextChars,
           rag_metadata: {
-            ragEnabled: ragEnabled,
+            ragEnabled: true, // Always enabled for force regenerate (matching admin)
             ragPagesUsed: ragPagesSent,
             ragPagesIncluded: ragPagesIncluded,
             ragThreshold: 0.4,
