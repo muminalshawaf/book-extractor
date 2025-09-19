@@ -13,7 +13,7 @@ export type ModelType = 'gemini' | 'deepseek';
 export interface ModelConfiguration {
   primaryModel: ModelType;
   enableFallback: boolean;
-  fallbackModel?: ModelType;
+  fallbackModel?: ModelType | 'none';
 }
 
 interface ModelConfigurationPanelProps {
@@ -65,10 +65,21 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
     const newConfig: ModelConfiguration = {
       primaryModel: config.primaryModel,
       enableFallback: enabled,
-      fallbackModel: enabled ? (config.primaryModel === 'gemini' ? 'deepseek' : 'gemini') : undefined
+      fallbackModel: enabled ? (config.fallbackModel || 'none') : undefined
     };
     setConfig(newConfig);
     toast.success(`Fallback ${enabled ? 'enabled' : 'disabled'}`);
+  };
+
+  const handleFallbackModelChange = (model: string) => {
+    const fallbackModel = model === 'none' ? 'none' : model as ModelType;
+    const newConfig: ModelConfiguration = {
+      primaryModel: config.primaryModel,
+      enableFallback: config.enableFallback,
+      fallbackModel: fallbackModel
+    };
+    setConfig(newConfig);
+    toast.success(model === 'none' ? 'Fallback disabled' : `Fallback set to ${MODEL_INFO[model as ModelType]?.name || model}`);
   };
 
   const ModelCard = ({ modelType, isActive, isPrimary, isFallback }: { 
@@ -180,29 +191,67 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
         <div className="space-y-4 p-4 bg-secondary/5 border border-secondary/20 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="font-semibold">Enable Fallback Model</h4>
+              <h4 className="font-semibold">Fallback Model Configuration</h4>
               <p className="text-sm text-muted-foreground">
-                Use backup model if primary fails
+                Choose backup model if primary fails
               </p>
             </div>
-            <Switch
-              checked={config.enableFallback}
-              onCheckedChange={handleFallbackToggle}
-              className="data-[state=checked]:bg-green-500"
-            />
+            <Select 
+              value={config.enableFallback && config.fallbackModel ? config.fallbackModel : 'none'} 
+              onValueChange={handleFallbackModelChange}
+            >
+              <SelectTrigger className="w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 rounded-full bg-red-500 flex items-center justify-center">
+                      <span className="text-xs text-white font-bold">✕</span>
+                    </div>
+                    <div>
+                      <div className="font-medium">No Fallback</div>
+                      <div className="text-xs text-muted-foreground">Disable backup model</div>
+                    </div>
+                  </div>
+                </SelectItem>
+                <SelectItem value="gemini" disabled={config.primaryModel === 'gemini'}>
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-blue-500" />
+                    <div>
+                      <div className="font-medium">Gemini 2.5 Pro</div>
+                      <div className="text-xs text-muted-foreground">
+                        {config.primaryModel === 'gemini' ? 'Already primary' : 'Google\'s advanced AI'}
+                      </div>
+                    </div>
+                  </div>
+                </SelectItem>
+                <SelectItem value="deepseek" disabled={config.primaryModel === 'deepseek'}>
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-purple-500" />
+                    <div>
+                      <div className="font-medium">DeepSeek Chat</div>
+                      <div className="text-xs text-muted-foreground">
+                        {config.primaryModel === 'deepseek' ? 'Already primary' : 'Fast & efficient'}
+                      </div>
+                    </div>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
-          {config.enableFallback && config.fallbackModel && (
+          {config.enableFallback && config.fallbackModel && config.fallbackModel !== 'none' && (
             <div className="flex items-center gap-2 pt-2 border-t border-secondary/20">
-              <span className="text-sm font-medium">Fallback Model:</span>
+              <span className="text-sm font-medium">Active Fallback:</span>
               <Badge variant="secondary" className="gap-1">
-                {React.createElement(MODEL_INFO[config.fallbackModel].icon, { className: "h-3 w-3" })}
-                {MODEL_INFO[config.fallbackModel].name}
+                {React.createElement(MODEL_INFO[config.fallbackModel as ModelType].icon, { className: "h-3 w-3" })}
+                {MODEL_INFO[config.fallbackModel as ModelType].name}
               </Badge>
             </div>
           )}
           
-          {!config.enableFallback && (
+          {(!config.enableFallback || config.fallbackModel === 'none') && (
             <Alert className="border-orange-200 bg-orange-50">
               <Info className="h-4 w-4 text-orange-600" />
               <AlertDescription className="text-orange-700">
@@ -224,10 +273,10 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
           
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">Fallback:</span>
-            {config.enableFallback && config.fallbackModel ? (
+            {config.enableFallback && config.fallbackModel && config.fallbackModel !== 'none' ? (
               <Badge variant="secondary" className="gap-1">
-                {React.createElement(MODEL_INFO[config.fallbackModel].icon, { className: "h-3 w-3" })}
-                {MODEL_INFO[config.fallbackModel].name}
+                {React.createElement(MODEL_INFO[config.fallbackModel as ModelType].icon, { className: "h-3 w-3" })}
+                {MODEL_INFO[config.fallbackModel as ModelType].name}
               </Badge>
             ) : (
               <Badge variant="destructive">Disabled</Badge>

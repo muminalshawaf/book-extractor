@@ -473,13 +473,15 @@ serve(async (req) => {
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
     
     // Model configuration from request or environment
-    const disableFallback = modelConfig?.enableFallback === false || Deno.env.get('DISABLE_DEEPSEEK_FALLBACK') === 'true';
+    const disableFallback = modelConfig?.enableFallback === false || modelConfig?.fallbackModel === 'none' || Deno.env.get('DISABLE_DEEPSEEK_FALLBACK') === 'true';
     const primaryModel = modelConfig?.primaryModel || 'gemini'; // Default to Gemini
+    const fallbackModel = modelConfig?.fallbackModel && modelConfig?.fallbackModel !== 'none' ? modelConfig.fallbackModel : null;
     
     console.log('🤖 Model Configuration:');
     console.log(`- Primary Model: ${primaryModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Chat'}`);
+    console.log(`- Fallback Model: ${fallbackModel ? (fallbackModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Chat') : 'None'}`);
     console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? '✅ AVAILABLE' : '❌ UNAVAILABLE'}`);
-    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? (disableFallback ? '🚫 DISABLED (fallback disabled)' : '✅ AVAILABLE (fallback)') : '❌ UNAVAILABLE'}`);
+    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? (disableFallback ? '🚫 DISABLED (fallback disabled)' : '✅ AVAILABLE') : '❌ UNAVAILABLE'}`);
     console.log(`- Fallback: ${disableFallback ? '🚫 DISABLED' : '✅ ENABLED'}`);
 
     if (!text || typeof text !== "string") {
