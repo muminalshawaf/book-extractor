@@ -465,7 +465,9 @@ const AdminProcessing = () => {
               // Store enhanced RAG metrics from summarize response
               ragPagesActuallySent = summaryResult.rag_pages_sent || 0;
               
-              addLog(`✅ Page ${pageNum}: Summary generated (${(summaryConfidence * 100).toFixed(1)}% confidence, ${summary.length} chars)`);
+              // Log with model information
+              const modelUsed = summaryResult.provider_used || 'unknown';
+              addLog(`✅ Page ${pageNum}: Summary generated using ${modelUsed} (${(summaryConfidence * 100).toFixed(1)}% confidence, ${summary.length} chars)`);
               
               // Enhanced RAG logging
               if (ragEnabled && summaryResult.rag_pages_found > 0) {
