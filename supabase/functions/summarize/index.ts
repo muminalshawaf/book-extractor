@@ -473,9 +473,9 @@ serve(async (req) => {
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
     
     // Model configuration from request or environment
-    const disableFallback = modelConfig?.enableFallback === false || modelConfig?.fallbackModel === 'none' || Deno.env.get('DISABLE_DEEPSEEK_FALLBACK') === 'true';
+    const disableFallback = modelConfig?.enableFallback === false || Deno.env.get('DISABLE_DEEPSEEK_FALLBACK') === 'true';
     const primaryModel = modelConfig?.primaryModel || 'gemini'; // Default to Gemini
-    const fallbackModel = modelConfig?.fallbackModel && modelConfig?.fallbackModel !== 'none' ? modelConfig.fallbackModel : null;
+    const fallbackModel = modelConfig?.fallbackModel || null;
     
     console.log('🤖 Model Configuration:');
     console.log(`- Primary Model: ${primaryModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Chat'}`);

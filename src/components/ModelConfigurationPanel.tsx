@@ -13,7 +13,7 @@ export type ModelType = 'gemini' | 'deepseek';
 export interface ModelConfiguration {
   primaryModel: ModelType;
   enableFallback: boolean;
-  fallbackModel?: ModelType | 'none';
+  fallbackModel?: ModelType;
 }
 
 interface ModelConfigurationPanelProps {
@@ -65,21 +65,26 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
     const newConfig: ModelConfiguration = {
       primaryModel: config.primaryModel,
       enableFallback: enabled,
-      fallbackModel: enabled ? (config.fallbackModel || 'none') : undefined
+      fallbackModel: enabled ? config.fallbackModel : undefined
     };
     setConfig(newConfig);
     toast.success(`Fallback ${enabled ? 'enabled' : 'disabled'}`);
   };
 
   const handleFallbackModelChange = (model: string) => {
-    const fallbackModel = model === 'none' ? 'none' : model as ModelType;
+    console.log('Fallback model changed to:', model); // Debug log
+    const isNone = model === 'none';
+    const fallbackModel = isNone ? undefined : (model as ModelType);
+    
     const newConfig: ModelConfiguration = {
       primaryModel: config.primaryModel,
-      enableFallback: config.enableFallback,
+      enableFallback: !isNone, // Set enableFallback based on selection
       fallbackModel: fallbackModel
     };
+    
+    console.log('New config:', newConfig); // Debug log
     setConfig(newConfig);
-    toast.success(model === 'none' ? 'Fallback disabled' : `Fallback set to ${MODEL_INFO[model as ModelType]?.name || model}`);
+    toast.success(isNone ? 'Fallback disabled' : `Fallback set to ${MODEL_INFO[model as ModelType]?.name}`);
   };
 
   const ModelCard = ({ modelType, isActive, isPrimary, isFallback }: { 
@@ -200,11 +205,11 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
               value={config.enableFallback && config.fallbackModel ? config.fallbackModel : 'none'} 
               onValueChange={handleFallbackModelChange}
             >
-              <SelectTrigger className="w-52">
-                <SelectValue />
+              <SelectTrigger className="w-52 bg-background border border-border">
+                <SelectValue placeholder="Choose fallback..." />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">
+              <SelectContent className="bg-background border border-border shadow-lg z-50">
+                <SelectItem value="none" className="bg-background hover:bg-accent">
                   <div className="flex items-center gap-2">
                     <div className="h-4 w-4 rounded-full bg-red-500 flex items-center justify-center">
                       <span className="text-xs text-white font-bold">✕</span>
@@ -215,7 +220,11 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
                     </div>
                   </div>
                 </SelectItem>
-                <SelectItem value="gemini" disabled={config.primaryModel === 'gemini'}>
+                <SelectItem 
+                  value="gemini" 
+                  disabled={config.primaryModel === 'gemini'}
+                  className="bg-background hover:bg-accent disabled:opacity-50"
+                >
                   <div className="flex items-center gap-2">
                     <Brain className="h-4 w-4 text-blue-500" />
                     <div>
@@ -226,7 +235,11 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
                     </div>
                   </div>
                 </SelectItem>
-                <SelectItem value="deepseek" disabled={config.primaryModel === 'deepseek'}>
+                <SelectItem 
+                  value="deepseek" 
+                  disabled={config.primaryModel === 'deepseek'}
+                  className="bg-background hover:bg-accent disabled:opacity-50"
+                >
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-purple-500" />
                     <div>
@@ -241,17 +254,17 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
             </Select>
           </div>
           
-          {config.enableFallback && config.fallbackModel && config.fallbackModel !== 'none' && (
+          {config.enableFallback && config.fallbackModel && (
             <div className="flex items-center gap-2 pt-2 border-t border-secondary/20">
               <span className="text-sm font-medium">Active Fallback:</span>
               <Badge variant="secondary" className="gap-1">
-                {React.createElement(MODEL_INFO[config.fallbackModel as ModelType].icon, { className: "h-3 w-3" })}
-                {MODEL_INFO[config.fallbackModel as ModelType].name}
+                {React.createElement(MODEL_INFO[config.fallbackModel].icon, { className: "h-3 w-3" })}
+                {MODEL_INFO[config.fallbackModel].name}
               </Badge>
             </div>
           )}
           
-          {(!config.enableFallback || config.fallbackModel === 'none') && (
+          {!config.enableFallback && (
             <Alert className="border-orange-200 bg-orange-50">
               <Info className="h-4 w-4 text-orange-600" />
               <AlertDescription className="text-orange-700">
@@ -273,10 +286,10 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
           
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">Fallback:</span>
-            {config.enableFallback && config.fallbackModel && config.fallbackModel !== 'none' ? (
+            {config.enableFallback && config.fallbackModel ? (
               <Badge variant="secondary" className="gap-1">
-                {React.createElement(MODEL_INFO[config.fallbackModel as ModelType].icon, { className: "h-3 w-3" })}
-                {MODEL_INFO[config.fallbackModel as ModelType].name}
+                {React.createElement(MODEL_INFO[config.fallbackModel].icon, { className: "h-3 w-3" })}
+                {MODEL_INFO[config.fallbackModel].name}
               </Badge>
             ) : (
               <Badge variant="destructive">Disabled</Badge>
