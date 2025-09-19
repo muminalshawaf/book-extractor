@@ -856,10 +856,10 @@ Questions found: ${questions.map(q => q.number).join(', ')}` : ''}
     let providerUsed = "";
 
     // Execute primary model based on configuration
-    if (primaryModel === 'gemini' && googleApiKey) {
+    if (primaryModel === 'gemini' && GOOGLE_API_KEY) {
       console.log('🎯 EXECUTING PRIMARY MODEL: Gemini 2.5 Pro');
       try {
-        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -909,7 +909,7 @@ Original content:
 Context: ${ragContextSection}
 Current page: ${mainContent}`;
 
-                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
@@ -1031,10 +1031,10 @@ Current page: ${mainContent}`;
         } catch (error) {
           console.error('❌ FALLBACK MODEL FAILED: DeepSeek Reasoner failed', error);
         }
-      } else if (primaryModel === 'deepseek' && fallbackModel === 'gemini' && googleApiKey) {
+      } else if (primaryModel === 'deepseek' && fallbackModel === 'gemini' && GOOGLE_API_KEY) {
         console.log('🔄 EXECUTING FALLBACK MODEL: Gemini 2.5 Pro');
         try {
-          const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+          const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -1147,7 +1147,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
                 }),
               });
             } else {
-              completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+              completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -1245,8 +1245,8 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
       
       try {
         let continuationResponseText = '';
-        if (googleApiKey) {
-          const contResp2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+        if (GOOGLE_API_KEY) {
+          const contResp2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
