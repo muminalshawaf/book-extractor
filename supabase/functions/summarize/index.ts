@@ -478,10 +478,10 @@ serve(async (req) => {
     const fallbackModel = modelConfig?.fallbackModel || null;
     
     console.log('🤖 Model Configuration:');
-    console.log(`- Primary Model: ${primaryModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Chat'}`);
-    console.log(`- Fallback Model: ${fallbackModel ? (fallbackModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Chat') : 'None'}`);
+    console.log(`- Primary Model: ${primaryModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Reasoner'}`);
+    console.log(`- Fallback Model: ${fallbackModel ? (fallbackModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Reasoner') : 'None'}`);
     console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? '✅ AVAILABLE' : '❌ UNAVAILABLE'}`);
-    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? (disableFallback ? '🚫 DISABLED (fallback disabled)' : '✅ AVAILABLE') : '❌ UNAVAILABLE'}`);
+    console.log(`- DeepSeek Reasoner: ${DEEPSEEK_API_KEY ? (disableFallback && fallbackModel === 'deepseek' ? '🚫 DISABLED (fallback disabled)' : '✅ AVAILABLE') : '❌ UNAVAILABLE'}`);
     console.log(`- Fallback: ${disableFallback ? '🚫 DISABLED' : '✅ ENABLED'}`);
 
     if (!text || typeof text !== "string") {
@@ -858,9 +858,13 @@ Questions found: ${questions.map(q => q.number).join(', ')}` : ''}
     let summary = "";
     let providerUsed = "";
 
-    // Try Gemini 2.5 Pro first (primary model)
-    if (googleApiKey) {
-      console.log('🎯 EXECUTING MODEL: Gemini 2.5 Pro - Starting summarization...');
+    // Determine which model to try first based on configuration
+    const shouldUseGemini = primaryModel === 'gemini';
+    const shouldUseDeepSeek = primaryModel === 'deepseek';
+    
+    // Execute primary model first
+    if (shouldUseGemini && googleApiKey) {
+      console.log('🎯 EXECUTING PRIMARY MODEL: Gemini 2.5 Pro - Starting summarization...');
       try {
         const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
           method: "POST",
@@ -957,23 +961,23 @@ Current page: ${mainContent}`;
           }
         } else {
           const errorText = await geminiResp.text();
-          console.error('Gemini 1.5 Pro API error:', geminiResp.status, errorText);
-          throw new Error(`Gemini 1.5 Pro API error: ${geminiResp.status}`);
+          console.error('Gemini 2.5 Pro API error:', geminiResp.status, errorText);
+          throw new Error(`Gemini 2.5 Pro API error: ${geminiResp.status}`);
         }
       } catch (geminiError) {
-        console.error('❌ MODEL FAILED: Gemini 2.5 Pro failed', geminiError);
-        if (disableFallback || primaryModel === 'gemini') {
-          console.log('🚫 Fallback disabled or primary model failed - No fallback will be attempted');
-        } else {
+        console.error('❌ PRIMARY MODEL FAILED: Gemini 2.5 Pro failed', geminiError);
+        if (disableFallback || !fallbackModel) {
+          console.log('🚫 Fallback disabled or no fallback model configured');
+        } else if (fallbackModel === 'deepseek') {
           console.log('🔄 Will attempt DeepSeek fallback...');
         }
       }
     }
 
-    // Try DeepSeek if it's the primary model OR if Gemini failed and fallback is enabled
-    if (shouldUseDeepSeek || (!summary.trim() && deepSeekApiKey && !disableFallback && primaryModel === 'gemini')) {
+    // Execute DeepSeek as primary model OR as fallback
+    if (shouldUseDeepSeek || (!summary.trim() && deepSeekApiKey && !disableFallback && fallbackModel === 'deepseek')) {
       const isAsFallback = !shouldUseDeepSeek && !summary.trim();
-      console.log(`🎯 EXECUTING MODEL: DeepSeek Chat - Starting ${isAsFallback ? 'fallback' : 'primary model'} execution...`);
+      console.log(`🎯 EXECUTING ${shouldUseDeepSeek ? 'PRIMARY' : 'FALLBACK'} MODEL: DeepSeek Reasoner - Starting ${isAsFallback ? 'fallback' : 'primary model'} execution...`);
       try {
         const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
@@ -996,8 +1000,8 @@ Current page: ${mainContent}`;
         if (resp.ok) {
           const data = await resp.json();
           summary = data.choices?.[0]?.message?.content ?? "";
-          providerUsed = "deepseek-chat";
-          console.log(`✅ MODEL SUCCESS: DeepSeek Chat - Summary generated (Length: ${summary.length})`);
+          providerUsed = "deepseek-reasoner";
+          console.log(`✅ MODEL SUCCESS: DeepSeek Reasoner - Summary generated (Length: ${summary.length})`);
           
           if (summary.trim()) {
             // Handle continuation if needed for DeepSeek Chat
