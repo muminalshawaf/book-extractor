@@ -480,8 +480,8 @@ serve(async (req) => {
     console.log('🤖 Model Configuration:');
     console.log(`- Primary Model: ${primaryModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Reasoner'}`);
     console.log(`- Fallback Model: ${fallbackModel ? (fallbackModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Reasoner') : 'None'}`);
-    console.log(`- Gemini 2.5 Pro: ${googleApiKey ? '✅ AVAILABLE' : '❌ UNAVAILABLE'}`);
-    console.log(`- DeepSeek Reasoner: ${deepSeekApiKey ? (disableFallback && fallbackModel === 'deepseek' ? '🚫 DISABLED (fallback disabled)' : '✅ AVAILABLE') : '❌ UNAVAILABLE'}`);
+    console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? '✅ AVAILABLE' : '❌ UNAVAILABLE'}`);
+    console.log(`- DeepSeek Reasoner: ${DEEPSEEK_API_KEY ? (disableFallback && fallbackModel === 'deepseek' ? '🚫 DISABLED (fallback disabled)' : '✅ AVAILABLE') : '❌ UNAVAILABLE'}`);
     console.log(`- Fallback: ${disableFallback ? '🚫 DISABLED' : '✅ ENABLED'}`);
 
     if (!text || typeof text !== "string") {
