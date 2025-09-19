@@ -858,13 +858,9 @@ Questions found: ${questions.map(q => q.number).join(', ')}` : ''}
     let summary = "";
     let providerUsed = "";
 
-    // Determine which model to try first based on configuration
-    const shouldUseGemini = primaryModel === 'gemini';
-    const shouldUseDeepSeek = primaryModel === 'deepseek';
-    
-    // Execute primary model first
-    if (shouldUseGemini && googleApiKey) {
-      console.log('🎯 EXECUTING PRIMARY MODEL: Gemini 2.5 Pro - Starting summarization...');
+    // Execute primary model based on configuration
+    if (primaryModel === 'gemini' && googleApiKey) {
+      console.log('🎯 EXECUTING PRIMARY MODEL: Gemini 2.5 Pro');
       try {
         const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
           method: "POST",
@@ -966,18 +962,9 @@ Current page: ${mainContent}`;
         }
       } catch (geminiError) {
         console.error('❌ PRIMARY MODEL FAILED: Gemini 2.5 Pro failed', geminiError);
-        if (disableFallback || !fallbackModel) {
-          console.log('🚫 Fallback disabled or no fallback model configured');
-        } else if (fallbackModel === 'deepseek') {
-          console.log('🔄 Will attempt DeepSeek fallback...');
-        }
       }
-    }
-
-    // Execute DeepSeek as primary model OR as fallback
-    if (shouldUseDeepSeek || (!summary.trim() && deepSeekApiKey && !disableFallback && fallbackModel === 'deepseek')) {
-      const isAsFallback = !shouldUseDeepSeek && !summary.trim();
-      console.log(`🎯 EXECUTING ${shouldUseDeepSeek ? 'PRIMARY' : 'FALLBACK'} MODEL: DeepSeek Reasoner - Starting ${isAsFallback ? 'fallback' : 'primary model'} execution...`);
+    } else if (primaryModel === 'deepseek' && deepSeekApiKey) {
+      console.log('🎯 EXECUTING PRIMARY MODEL: DeepSeek Reasoner');
       try {
         const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
@@ -1001,85 +988,86 @@ Current page: ${mainContent}`;
           const data = await resp.json();
           summary = data.choices?.[0]?.message?.content ?? "";
           providerUsed = "deepseek-reasoner";
-          console.log(`✅ MODEL SUCCESS: DeepSeek Reasoner - Summary generated (Length: ${summary.length})`);
-          
-          if (summary.trim()) {
-            // Handle continuation if needed for DeepSeek Chat
-            const finishReason = data.choices?.[0]?.finish_reason;
-            if (finishReason === "length" && summary.length > 0) {
-              console.log('DeepSeek Chat summary was truncated, attempting to continue...');
-              
-              for (let attempt = 1; attempt <= 2; attempt++) {
-                console.log(`DeepSeek Chat continuation attempt ${attempt}...`);
-                
-                const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
-
-Previous response ended with:
-${summary.slice(-500)}
-
-REQUIREMENTS:
-- Continue from exactly where you left off
-- Process ALL remaining questions (93-106 if not covered)
-- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
-- Use $$formula$$ for math, × for multiplication
-- Complete ALL questions until finished
-
-Original content:
-Context: ${ragContextSection}
-Current page: ${mainContent}`;
-
-                const contResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-                  method: "POST",
-                  headers: {
-                    "Authorization": `Bearer ${deepSeekApiKey}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    model: "deepseek-reasoner",
-                    messages: [
-                      { role: "system", content: systemPrompt },
-                      { role: "user", content: continuationPrompt },
-                    ],
-                    temperature: 0,
-                    max_tokens: 8000,
-                  }),
-                });
-
-                if (contResp.ok) {
-                  const contData = await contResp.json();
-                  const continuation = contData.choices?.[0]?.message?.content ?? "";
-                  const contFinishReason = contData.choices?.[0]?.finish_reason;
-                  
-                  if (continuation.trim()) {
-                    summary += "\n\n" + continuation;
-                    console.log(`DeepSeek Chat continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
-                    
-                    if (contFinishReason !== "length") {
-                      break;
-                    }
-                  } else {
-                    console.log(`DeepSeek Chat continuation ${attempt} returned empty content`);
-                    break;
-                  }
-                } else {
-                  console.error(`DeepSeek Chat continuation attempt ${attempt} failed:`, await contResp.text());
-                  break;
-                }
-              }
-            }
-          } else {
-            throw new Error("DeepSeek Chat returned empty content");
-          }
+          console.log(`✅ PRIMARY MODEL SUCCESS: DeepSeek Reasoner - Summary generated (Length: ${summary.length})`);
         } else {
-          const txt = await resp.text();
-          console.error('DeepSeek Chat API error:', resp.status, txt);
-          throw new Error(`DeepSeek Chat API error: ${resp.status}`);
+          const errorText = await resp.text();
+          console.error('DeepSeek Reasoner API error:', resp.status, errorText);
+          throw new Error(`DeepSeek Reasoner API error: ${resp.status}`);
         }
-      } catch (deepSeekError) {
-        console.error('❌ MODEL FAILED: DeepSeek Chat failed:', deepSeekError);
+      } catch (deepseekError) {
+        console.error('❌ PRIMARY MODEL FAILED: DeepSeek Reasoner failed', deepseekError);
       }
-    } else if (!summary.trim() && (disableFallback || primaryModel === 'deepseek')) {
-      console.log('🚫 Fallback is disabled or DeepSeek was primary - No additional models available');
+    }
+
+    // Attempt fallback if primary failed and fallback is enabled
+    if (!summary.trim() && !disableFallback && fallbackModel) {
+      if (primaryModel === 'gemini' && fallbackModel === 'deepseek' && deepSeekApiKey) {
+        console.log('🔄 EXECUTING FALLBACK MODEL: DeepSeek Reasoner');
+        try {
+          const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${deepSeekApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "deepseek-reasoner",
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt },
+              ],
+              temperature: 0,
+              top_p: 0.9,
+              max_tokens: 12000,
+            }),
+          });
+
+          if (resp.ok) {
+            const data = await resp.json();
+            summary = data.choices?.[0]?.message?.content ?? "";
+            providerUsed = "deepseek-reasoner";
+            console.log(`✅ FALLBACK MODEL SUCCESS: DeepSeek Reasoner - Summary generated (Length: ${summary.length})`);
+          } else {
+            const errorText = await resp.text();
+            console.error('DeepSeek Reasoner fallback error:', resp.status, errorText);
+          }
+        } catch (error) {
+          console.error('❌ FALLBACK MODEL FAILED: DeepSeek Reasoner failed', error);
+        }
+      } else if (primaryModel === 'deepseek' && fallbackModel === 'gemini' && googleApiKey) {
+        console.log('🔄 EXECUTING FALLBACK MODEL: Gemini 2.5 Pro');
+        try {
+          const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [{ text: systemPrompt + "\n\n" + userPrompt }]
+                }
+              ],
+              generationConfig: {
+                temperature: 0,
+                maxOutputTokens: 16000,
+              }
+            }),
+          });
+
+          if (geminiResp.ok) {
+            const geminiData = await geminiResp.json();
+            summary = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+            providerUsed = "gemini-2.5-pro";
+            console.log(`✅ FALLBACK MODEL SUCCESS: Gemini 2.5 Pro - Summary generated (Length: ${summary.length})`);
+          } else {
+            const errorText = await geminiResp.text();
+            console.error('Gemini 2.5 Pro fallback error:', geminiResp.status, errorText);
+          }
+        } catch (error) {
+          console.error('❌ FALLBACK MODEL FAILED: Gemini 2.5 Pro failed', error);
+        }
+      }
     }
 
     if (!summary.trim()) {
