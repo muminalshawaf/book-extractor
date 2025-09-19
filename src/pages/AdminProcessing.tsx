@@ -592,7 +592,9 @@ const AdminProcessing = () => {
               }
               
             } catch (summaryError) {
-              addLog(`❌ Page ${pageNum}: Summary generation failed - ${summaryError.message || summaryError}`);
+              const primaryModel = modelConfig?.primaryModel || 'unknown';
+              const fallbackInfo = modelConfig?.enableFallback ? `fallback: ${modelConfig.fallbackModel}` : 'fallback: disabled';
+              addLog(`❌ Page ${pageNum}: Summary failed (primary: ${primaryModel}, ${fallbackInfo}) - ${summaryError.message || summaryError}`);
               setPageResults(prev => [...prev, {
                 pageNumber: pageNum,
                 isContent: true,
