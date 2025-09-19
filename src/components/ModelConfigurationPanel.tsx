@@ -25,15 +25,15 @@ const MODEL_INFO = {
   gemini: {
     name: "Gemini 2.5 Pro",
     icon: Brain,
-    description: "Google's advanced multimodal AI model",
-    features: ["High accuracy", "Arabic support", "Visual understanding"],
+    description: "Google's flagship multimodal AI with vision capabilities",
+    features: ["Multimodal processing", "Visual understanding", "High accuracy", "Arabic support"],
     color: "bg-blue-500"
   },
   deepseek: {
     name: "DeepSeek Reasoner",
     icon: Zap,
-    description: "Advanced reasoning model for complex text processing",
-    features: ["Enhanced reasoning", "Cost-effective", "Good Arabic support"],
+    description: "Specialized reasoning model for complex problem-solving",
+    features: ["Advanced logical reasoning", "Step-by-step analysis", "Cost-effective", "Arabic support"],
     color: "bg-purple-500"
   }
 };
