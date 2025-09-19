@@ -480,8 +480,8 @@ serve(async (req) => {
     console.log('🤖 Model Configuration:');
     console.log(`- Primary Model: ${primaryModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Reasoner'}`);
     console.log(`- Fallback Model: ${fallbackModel ? (fallbackModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Reasoner') : 'None'}`);
-    console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? '✅ AVAILABLE' : '❌ UNAVAILABLE'}`);
-    console.log(`- DeepSeek Reasoner: ${DEEPSEEK_API_KEY ? (disableFallback && fallbackModel === 'deepseek' ? '🚫 DISABLED (fallback disabled)' : '✅ AVAILABLE') : '❌ UNAVAILABLE'}`);
+    console.log(`- Gemini 2.5 Pro: ${googleApiKey ? '✅ AVAILABLE' : '❌ UNAVAILABLE'}`);
+    console.log(`- DeepSeek Reasoner: ${deepSeekApiKey ? (disableFallback && fallbackModel === 'deepseek' ? '🚫 DISABLED (fallback disabled)' : '✅ AVAILABLE') : '❌ UNAVAILABLE'}`);
     console.log(`- Fallback: ${disableFallback ? '🚫 DISABLED' : '✅ ENABLED'}`);
 
     if (!text || typeof text !== "string") {
@@ -1132,7 +1132,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
           try {
             let completionResp;
             
-            if (providerUsed === 'deepseek-chat') {
+            if (providerUsed === 'deepseek-reasoner') {
               completionResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
                 method: "POST",
                 headers: {
@@ -1140,7 +1140,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  model: "deepseek-chat",
+                  model: "deepseek-reasoner",
                   messages: [
                     { role: "system", content: systemPrompt },
                     { role: "user", content: completionPrompt },
@@ -1269,7 +1269,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
             method: "POST",
             headers: { "Authorization": `Bearer ${deepSeekApiKey}`, "Content-Type": "application/json" },
             body: JSON.stringify({
-              model: "deepseek-chat",
+              model: "deepseek-reasoner",
               messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: continuationPrompt },
