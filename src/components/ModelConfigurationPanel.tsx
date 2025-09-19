@@ -43,7 +43,7 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
   initialConfig = { primaryModel: 'gemini', enableFallback: true, fallbackModel: 'deepseek' }
 }) => {
   const [config, setConfig] = useState<ModelConfiguration>(initialConfig);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true); // Expanded by default
 
   // Update parent when config changes
   useEffect(() => {
@@ -139,10 +139,83 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Quick Summary */}
-        <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg">
+        {/* Primary Model Selection - Always Visible */}
+        <div className="space-y-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold text-primary">Choose Primary Model</h4>
+              <p className="text-sm text-muted-foreground">
+                Select which AI model to use for processing
+              </p>
+            </div>
+            <Select value={config.primaryModel} onValueChange={handlePrimaryModelChange}>
+              <SelectTrigger className="w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gemini">
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-blue-500" />
+                    <div>
+                      <div className="font-medium">Gemini 2.5 Pro</div>
+                      <div className="text-xs text-muted-foreground">Google's advanced AI</div>
+                    </div>
+                  </div>
+                </SelectItem>
+                <SelectItem value="deepseek">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-purple-500" />
+                    <div>
+                      <div className="font-medium">DeepSeek Chat</div>
+                      <div className="text-xs text-muted-foreground">Fast & efficient</div>
+                    </div>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Fallback Configuration - Always Visible */}
+        <div className="space-y-4 p-4 bg-secondary/5 border border-secondary/20 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold">Enable Fallback Model</h4>
+              <p className="text-sm text-muted-foreground">
+                Use backup model if primary fails
+              </p>
+            </div>
+            <Switch
+              checked={config.enableFallback}
+              onCheckedChange={handleFallbackToggle}
+              className="data-[state=checked]:bg-green-500"
+            />
+          </div>
+          
+          {config.enableFallback && config.fallbackModel && (
+            <div className="flex items-center gap-2 pt-2 border-t border-secondary/20">
+              <span className="text-sm font-medium">Fallback Model:</span>
+              <Badge variant="secondary" className="gap-1">
+                {React.createElement(MODEL_INFO[config.fallbackModel].icon, { className: "h-3 w-3" })}
+                {MODEL_INFO[config.fallbackModel].name}
+              </Badge>
+            </div>
+          )}
+          
+          {!config.enableFallback && (
+            <Alert className="border-orange-200 bg-orange-50">
+              <Info className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-700">
+                <strong>No fallback:</strong> Processing will stop if your primary model fails.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+
+        {/* Current Configuration Summary */}
+        <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Primary:</span>
+            <span className="text-sm font-medium">Using:</span>
             <Badge variant="default" className="gap-1">
               {React.createElement(MODEL_INFO[config.primaryModel].icon, { className: "h-3 w-3" })}
               {MODEL_INFO[config.primaryModel].name}
@@ -157,42 +230,19 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
                 {MODEL_INFO[config.fallbackModel].name}
               </Badge>
             ) : (
-              <Badge variant="outline">Disabled</Badge>
+              <Badge variant="destructive">Disabled</Badge>
             )}
           </div>
         </div>
 
         {isExpanded && (
           <>
-            {/* Primary Model Selection */}
+            {/* Advanced Model Information */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-semibold">Primary Model</h4>
-                  <p className="text-sm text-muted-foreground">
-                    The main model used for processing
-                  </p>
-                </div>
-                <Select value={config.primaryModel} onValueChange={handlePrimaryModelChange}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gemini">
-                      <div className="flex items-center gap-2">
-                        <Brain className="h-4 w-4" />
-                        Gemini 2.5 Pro
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="deepseek">
-                      <div className="flex items-center gap-2">
-                        <Zap className="h-4 w-4" />
-                        DeepSeek Chat
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <h4 className="font-semibold">Model Details</h4>
+              <p className="text-sm text-muted-foreground">
+                Detailed information about each model
+              </p>
             </div>
 
             {/* Model Cards */}
@@ -211,40 +261,15 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
               />
             </div>
 
-            {/* Fallback Configuration */}
+            {/* Additional Configuration Details */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-semibold">Fallback Model</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Enable fallback to secondary model if primary fails
-                  </p>
-                </div>
-                <Switch
-                  checked={config.enableFallback}
-                  onCheckedChange={handleFallbackToggle}
-                />
-              </div>
-
-              {!config.enableFallback && (
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>Fallback disabled:</strong> Processing will fail if the primary model encounters errors.
-                    Only the {MODEL_INFO[config.primaryModel].name} will be used for all processing.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {config.enableFallback && config.fallbackModel && (
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>Fallback enabled:</strong> If {MODEL_INFO[config.primaryModel].name} fails, 
-                    the system will automatically retry with {MODEL_INFO[config.fallbackModel].name}.
-                  </AlertDescription>
-                </Alert>
-              )}
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>How it works:</strong> The system will always try your primary model first. 
+                  If fallback is enabled and the primary model fails, it will automatically retry with the backup model.
+                </AlertDescription>
+              </Alert>
             </div>
           </>
         )}
