@@ -202,7 +202,7 @@ Write a helpful summary that explains the page content and educational purpose.`
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-reasoner',
         messages: [
           {
             role: 'system',
