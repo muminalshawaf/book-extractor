@@ -17,6 +17,7 @@ import { enhancedBooks } from "@/data/enhancedBooks";
 import DynamicSEOHead from "@/components/seo/DynamicSEOHead";
 import { ProcessingVerification } from "@/components/ProcessingVerification";
 import { cleanOcrText } from "@/lib/ocr/ocrTextCleaner";
+import ModelConfigurationPanel, { ModelConfiguration } from "@/components/ModelConfigurationPanel";
 import { runQualityGate, type QualityGateOptions, type QualityResult } from "@/lib/processing/qualityGate";
 import { 
   DEFAULT_PROCESSING_CONFIG,
@@ -93,6 +94,11 @@ const AdminProcessing = () => {
     maxRepairAttempts: 1
   });
   const [ragEnabled, setRagEnabled] = useState(false);
+  const [modelConfig, setModelConfig] = useState<ModelConfiguration>({
+    primaryModel: 'gemini',
+    enableFallback: true,
+    fallbackModel: 'deepseek'
+  });
   const [status, setStatus] = useState<ProcessingStatus>({
     isRunning: false,
     currentPage: 0,
@@ -441,6 +447,7 @@ const AdminProcessing = () => {
                 lang: 'ar',
                 page: pageNum,
                 title: selectedBook.title,
+                modelConfig: modelConfig, // Pass model configuration
                 book_id: selectedBookId,
                 ocrData: ocrResult, // Pass the full OCR result with page context
                 ragContext: ragContext // Pass RAG context to summarize function
@@ -1051,6 +1058,12 @@ const AdminProcessing = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Model Configuration Panel */}
+          <ModelConfigurationPanel
+            onConfigChange={setModelConfig}
+            initialConfig={modelConfig}
+          />
 
           {/* Advanced Processing Settings */}
           <Card>

@@ -465,18 +465,22 @@ serve(async (req) => {
   try {
     console.log('🚀 Summarize function started');
     
-    const { text, lang = "ar", page, title, book_id = null, ocrData = null, ragContext = null } = await req.json();
+    const { text, lang = "ar", page, title, book_id = null, ocrData = null, ragContext = null, modelConfig = null } = await req.json();
     console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title}, book_id: ${book_id}, ragContext: ${ragContext ? `${ragContext.length} pages` : 'none'} }`);
     
     // Configuration settings
     const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
-    const DISABLE_DEEPSEEK_FALLBACK = Deno.env.get('DISABLE_DEEPSEEK_FALLBACK') === 'true';
+    
+    // Model configuration from request or environment
+    const disableFallback = modelConfig?.enableFallback === false || Deno.env.get('DISABLE_DEEPSEEK_FALLBACK') === 'true';
+    const primaryModel = modelConfig?.primaryModel || 'gemini'; // Default to Gemini
     
     console.log('🤖 Model Configuration:');
-    console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? '✅ AVAILABLE (primary)' : '❌ UNAVAILABLE'}`);
-    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? (DISABLE_DEEPSEEK_FALLBACK ? '🚫 DISABLED (fallback disabled)' : '✅ AVAILABLE (fallback)') : '❌ UNAVAILABLE'}`);
-    console.log(`- DeepSeek Fallback: ${DISABLE_DEEPSEEK_FALLBACK ? '🚫 DISABLED' : '✅ ENABLED'}`);
+    console.log(`- Primary Model: ${primaryModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Chat'}`);
+    console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? '✅ AVAILABLE' : '❌ UNAVAILABLE'}`);
+    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? (disableFallback ? '🚫 DISABLED (fallback disabled)' : '✅ AVAILABLE (fallback)') : '❌ UNAVAILABLE'}`);
+    console.log(`- Fallback: ${disableFallback ? '🚫 DISABLED' : '✅ ENABLED'}`);
 
     if (!text || typeof text !== "string") {
       console.error('No text provided or text is not a string');
@@ -956,17 +960,18 @@ Current page: ${mainContent}`;
         }
       } catch (geminiError) {
         console.error('❌ MODEL FAILED: Gemini 2.5 Pro failed', geminiError);
-        if (DISABLE_DEEPSEEK_FALLBACK) {
-          console.log('🚫 DeepSeek fallback is DISABLED - No fallback will be attempted');
+        if (disableFallback || primaryModel === 'gemini') {
+          console.log('🚫 Fallback disabled or primary model failed - No fallback will be attempted');
         } else {
           console.log('🔄 Will attempt DeepSeek fallback...');
         }
       }
     }
 
-    // Fallback to DeepSeek Chat if Gemini failed or not available (and not disabled)
-    if (!summary.trim() && deepSeekApiKey && !DISABLE_DEEPSEEK_FALLBACK) {
-      console.log('🎯 EXECUTING MODEL: DeepSeek Chat - Starting fallback summarization...');
+    // Try DeepSeek if it's the primary model OR if Gemini failed and fallback is enabled
+    if (shouldUseDeepSeek || (!summary.trim() && deepSeekApiKey && !disableFallback && primaryModel === 'gemini')) {
+      const isAsFallback = !shouldUseDeepSeek && !summary.trim();
+      console.log(`🎯 EXECUTING MODEL: DeepSeek Chat - Starting ${isAsFallback ? 'fallback' : 'primary model'} execution...`);
       try {
         const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
@@ -1067,8 +1072,8 @@ Current page: ${mainContent}`;
       } catch (deepSeekError) {
         console.error('❌ MODEL FAILED: DeepSeek Chat failed:', deepSeekError);
       }
-    } else if (!summary.trim() && DISABLE_DEEPSEEK_FALLBACK) {
-      console.log('🚫 DeepSeek fallback is DISABLED - No additional models available');
+    } else if (!summary.trim() && (disableFallback || primaryModel === 'deepseek')) {
+      console.log('🚫 Fallback is disabled or DeepSeek was primary - No additional models available');
     }
 
     if (!summary.trim()) {
