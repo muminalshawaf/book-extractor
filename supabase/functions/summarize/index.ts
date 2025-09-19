@@ -492,11 +492,8 @@ serve(async (req) => {
       });
     }
 
-    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
-    const googleApiKey = Deno.env.get("GOOGLE_API_KEY");
-    const deepSeekApiKey = Deno.env.get("DEEPSEEK_API_KEY");
-    
-    if (!openaiApiKey && !googleApiKey && !deepSeekApiKey) {
+    // Use the already defined API key constants
+    if (!GOOGLE_API_KEY && !DEEPSEEK_API_KEY) {
       console.error('No API keys configured');
       return new Response(JSON.stringify({ error: "No API keys configured" }), {
         status: 500,
@@ -963,13 +960,13 @@ Current page: ${mainContent}`;
       } catch (geminiError) {
         console.error('❌ PRIMARY MODEL FAILED: Gemini 2.5 Pro failed', geminiError);
       }
-    } else if (primaryModel === 'deepseek' && deepSeekApiKey) {
+    } else if (primaryModel === 'deepseek' && DEEPSEEK_API_KEY) {
       console.log('🎯 EXECUTING PRIMARY MODEL: DeepSeek Reasoner');
       try {
         const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${deepSeekApiKey}`,
+            "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -1001,13 +998,13 @@ Current page: ${mainContent}`;
 
     // Attempt fallback if primary failed and fallback is enabled
     if (!summary.trim() && !disableFallback && fallbackModel) {
-      if (primaryModel === 'gemini' && fallbackModel === 'deepseek' && deepSeekApiKey) {
+      if (primaryModel === 'gemini' && fallbackModel === 'deepseek' && DEEPSEEK_API_KEY) {
         console.log('🔄 EXECUTING FALLBACK MODEL: DeepSeek Reasoner');
         try {
           const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
             method: "POST",
             headers: {
-              "Authorization": `Bearer ${deepSeekApiKey}`,
+              "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
@@ -1136,7 +1133,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
               completionResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
                 method: "POST",
                 headers: {
-                  "Authorization": `Bearer ${deepSeekApiKey}`,
+                  "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
@@ -1264,10 +1261,10 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
             console.error('Gemini continuation error:', await contResp2.text());
           }
         }
-        if (!continuationResponseText && deepSeekApiKey) {
+        if (!continuationResponseText && DEEPSEEK_API_KEY) {
           const dsResp2 = await fetch("https://api.deepseek.com/v1/chat/completions", {
             method: "POST",
-            headers: { "Authorization": `Bearer ${deepSeekApiKey}`, "Content-Type": "application/json" },
+            headers: { "Authorization": `Bearer ${DEEPSEEK_API_KEY}`, "Content-Type": "application/json" },
             body: JSON.stringify({
               model: "deepseek-reasoner",
               messages: [
