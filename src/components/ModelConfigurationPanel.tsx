@@ -30,10 +30,10 @@ const MODEL_INFO = {
     color: "bg-blue-500"
   },
   deepseek: {
-    name: "DeepSeek Chat",
+    name: "DeepSeek Reasoner",
     icon: Zap,
-    description: "Efficient language model for text processing",
-    features: ["Fast processing", "Cost-effective", "Good Arabic support"],
+    description: "Advanced reasoning model for complex text processing",
+    features: ["Enhanced reasoning", "Cost-effective", "Good Arabic support"],
     color: "bg-purple-500"
   }
 };
@@ -182,8 +182,8 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-purple-500" />
                     <div>
-                      <div className="font-medium">DeepSeek Chat</div>
-                      <div className="text-xs text-muted-foreground">Fast & efficient</div>
+                      <div className="font-medium">DeepSeek Reasoner</div>
+                      <div className="text-xs text-muted-foreground">Advanced reasoning</div>
                     </div>
                   </div>
                 </SelectItem>
@@ -243,9 +243,9 @@ const ModelConfigurationPanel: React.FC<ModelConfigurationPanelProps> = ({
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-purple-500" />
                     <div>
-                      <div className="font-medium">DeepSeek Chat</div>
+                      <div className="font-medium">DeepSeek Reasoner</div>
                       <div className="text-xs text-muted-foreground">
-                        {config.primaryModel === 'deepseek' ? 'Already primary' : 'Fast & efficient'}
+                        {config.primaryModel === 'deepseek' ? 'Already primary' : 'Advanced reasoning'}
                       </div>
                     </div>
                   </div>
