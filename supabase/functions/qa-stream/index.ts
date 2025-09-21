@@ -209,7 +209,7 @@ Use Saudi Arabic. Output math in $$...$$ format. Language: ${lang}.`;
         "Accept": "text/event-stream",
       },
       body: JSON.stringify({
-        model: "deepseek-reasoner",
+        model: "deepseek-chat",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

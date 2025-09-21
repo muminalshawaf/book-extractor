@@ -463,26 +463,19 @@ serve(async (req) => {
   }
 
   try {
-    console.log('🚀 Summarize function started');
+    console.log('Summarize function started');
     
-    const { text, lang = "ar", page, title, book_id = null, ocrData = null, ragContext = null, modelConfig = null } = await req.json();
+    const { text, lang = "ar", page, title, book_id = null, ocrData = null, ragContext = null } = await req.json();
     console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title}, book_id: ${book_id}, ragContext: ${ragContext ? `${ragContext.length} pages` : 'none'} }`);
     
-    // Configuration settings
+    // Log model usage priority
+    // Model selection already logged above
     const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
     
-    // Model configuration from request or environment
-    const disableFallback = modelConfig?.enableFallback === false || Deno.env.get('DISABLE_DEEPSEEK_FALLBACK') === 'true';
-    const primaryModel = modelConfig?.primaryModel || 'gemini'; // Default to Gemini
-    const fallbackModel = modelConfig?.fallbackModel || null;
-    
-    console.log('🤖 Model Configuration:');
-    console.log(`- Primary Model: ${primaryModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Reasoner'}`);
-    console.log(`- Fallback Model: ${fallbackModel ? (fallbackModel === 'gemini' ? 'Gemini 2.5 Pro' : 'DeepSeek Reasoner') : 'None'}`);
-    console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? '✅ AVAILABLE' : '❌ UNAVAILABLE'}`);
-    console.log(`- DeepSeek Reasoner: ${DEEPSEEK_API_KEY ? (disableFallback && fallbackModel === 'deepseek' ? '🚫 DISABLED (fallback disabled)' : '✅ AVAILABLE') : '❌ UNAVAILABLE'}`);
-    console.log(`- Fallback: ${disableFallback ? '🚫 DISABLED' : '✅ ENABLED'}`);
+    console.log('Available models:');
+    console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
+    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? 'AVAILABLE (fallback)' : 'UNAVAILABLE'}`);
 
     if (!text || typeof text !== "string") {
       console.error('No text provided or text is not a string');
@@ -492,8 +485,11 @@ serve(async (req) => {
       });
     }
 
-    // Use the already defined API key constants
-    if (!GOOGLE_API_KEY && !DEEPSEEK_API_KEY) {
+    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
+    const googleApiKey = Deno.env.get("GOOGLE_API_KEY");
+    const deepSeekApiKey = Deno.env.get("DEEPSEEK_API_KEY");
+    
+    if (!openaiApiKey && !googleApiKey && !deepSeekApiKey) {
       console.error('No API keys configured');
       return new Response(JSON.stringify({ error: "No API keys configured" }), {
         status: 500,
@@ -855,11 +851,11 @@ Questions found: ${questions.map(q => q.number).join(', ')}` : ''}
     let summary = "";
     let providerUsed = "";
 
-    // Execute primary model based on configuration
-    if (primaryModel === 'gemini' && GOOGLE_API_KEY) {
-      console.log('🎯 EXECUTING PRIMARY MODEL: Gemini 2.5 Pro');
+    // Try Gemini 2.5 Pro first (primary model)
+    if (googleApiKey) {
+      console.log('Attempting to use Gemini 2.5 Pro for summarization...');
       try {
-        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`, {
+        const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -884,7 +880,7 @@ Questions found: ${questions.map(q => q.number).join(', ')}` : ''}
           providerUsed = "gemini-2.5-pro";
           
           if (summary.trim()) {
-            console.log(`✅ MODEL SUCCESS: Gemini 2.5 Pro - Summary generated (Length: ${summary.length}, Finish: ${finishReason})`);
+            console.log(`Gemini 2.5 Pro API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
             
             // Handle continuation if needed
             if (finishReason === "MAX_TOKENS" && summary.length > 0) {
@@ -909,7 +905,7 @@ Original content:
 Context: ${ragContextSection}
 Current page: ${mainContent}`;
 
-                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`, {
+                const contResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
@@ -954,23 +950,26 @@ Current page: ${mainContent}`;
           }
         } else {
           const errorText = await geminiResp.text();
-          console.error('Gemini 2.5 Pro API error:', geminiResp.status, errorText);
-          throw new Error(`Gemini 2.5 Pro API error: ${geminiResp.status}`);
+          console.error('Gemini 1.5 Pro API error:', geminiResp.status, errorText);
+          throw new Error(`Gemini 1.5 Pro API error: ${geminiResp.status}`);
         }
       } catch (geminiError) {
-        console.error('❌ PRIMARY MODEL FAILED: Gemini 2.5 Pro failed', geminiError);
+        console.error('Gemini 1.5 Pro failed, trying DeepSeek...', geminiError);
       }
-    } else if (primaryModel === 'deepseek' && DEEPSEEK_API_KEY) {
-      console.log('🎯 EXECUTING PRIMARY MODEL: DeepSeek Reasoner');
+    }
+
+    // Fallback to DeepSeek Chat if Gemini failed or not available
+    if (!summary.trim() && deepSeekApiKey) {
+      console.log('Using DeepSeek Chat as fallback...');
       try {
         const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
+            "Authorization": `Bearer ${deepSeekApiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "deepseek-reasoner",
+            model: "deepseek-chat",
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: userPrompt },
@@ -984,86 +983,83 @@ Current page: ${mainContent}`;
         if (resp.ok) {
           const data = await resp.json();
           summary = data.choices?.[0]?.message?.content ?? "";
-          providerUsed = "deepseek-reasoner";
-          console.log(`✅ PRIMARY MODEL SUCCESS: DeepSeek Reasoner - Summary generated (Length: ${summary.length})`);
-        } else {
-          const errorText = await resp.text();
-          console.error('DeepSeek Reasoner API error:', resp.status, errorText);
-          throw new Error(`DeepSeek Reasoner API error: ${resp.status}`);
-        }
-      } catch (deepseekError) {
-        console.error('❌ PRIMARY MODEL FAILED: DeepSeek Reasoner failed', deepseekError);
-      }
-    }
+          providerUsed = "deepseek-chat";
+          console.log(`DeepSeek Chat API responded successfully - Length: ${summary.length}, provider_used: ${providerUsed}`);
+          
+          if (summary.trim()) {
+            // Handle continuation if needed for DeepSeek Chat
+            const finishReason = data.choices?.[0]?.finish_reason;
+            if (finishReason === "length" && summary.length > 0) {
+              console.log('DeepSeek Chat summary was truncated, attempting to continue...');
+              
+              for (let attempt = 1; attempt <= 2; attempt++) {
+                console.log(`DeepSeek Chat continuation attempt ${attempt}...`);
+                
+                const continuationPrompt = `CONTINUE THE SUMMARY - Complete all remaining questions.
 
-    // Attempt fallback if primary failed and fallback is enabled
-    if (!summary.trim() && !disableFallback && fallbackModel) {
-      if (primaryModel === 'gemini' && fallbackModel === 'deepseek' && DEEPSEEK_API_KEY) {
-        console.log('🔄 EXECUTING FALLBACK MODEL: DeepSeek Reasoner');
-        try {
-          const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "deepseek-reasoner",
-              messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt },
-              ],
-              temperature: 0,
-              top_p: 0.9,
-              max_tokens: 12000,
-            }),
-          });
+Previous response ended with:
+${summary.slice(-500)}
 
-          if (resp.ok) {
-            const data = await resp.json();
-            summary = data.choices?.[0]?.message?.content ?? "";
-            providerUsed = "deepseek-reasoner";
-            console.log(`✅ FALLBACK MODEL SUCCESS: DeepSeek Reasoner - Summary generated (Length: ${summary.length})`);
-          } else {
-            const errorText = await resp.text();
-            console.error('DeepSeek Reasoner fallback error:', resp.status, errorText);
-          }
-        } catch (error) {
-          console.error('❌ FALLBACK MODEL FAILED: DeepSeek Reasoner failed', error);
-        }
-      } else if (primaryModel === 'deepseek' && fallbackModel === 'gemini' && GOOGLE_API_KEY) {
-        console.log('🔄 EXECUTING FALLBACK MODEL: Gemini 2.5 Pro');
-        try {
-          const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [{ text: systemPrompt + "\n\n" + userPrompt }]
+REQUIREMENTS:
+- Continue from exactly where you left off
+- Process ALL remaining questions (93-106 if not covered)
+- Use EXACT formatting: **س: ٩٣- [question]** and **ج:** [answer]
+- Use $$formula$$ for math, × for multiplication
+- Complete ALL questions until finished
+
+Original content:
+Context: ${ragContextSection}
+Current page: ${mainContent}`;
+
+                const contResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+                  method: "POST",
+                  headers: {
+                    "Authorization": `Bearer ${deepSeekApiKey}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    model: "deepseek-chat",
+                    messages: [
+                      { role: "system", content: systemPrompt },
+                      { role: "user", content: continuationPrompt },
+                    ],
+                    temperature: 0,
+                    max_tokens: 8000,
+                  }),
+                });
+
+                if (contResp.ok) {
+                  const contData = await contResp.json();
+                  const continuation = contData.choices?.[0]?.message?.content ?? "";
+                  const contFinishReason = contData.choices?.[0]?.finish_reason;
+                  
+                  if (continuation.trim()) {
+                    summary += "\n\n" + continuation;
+                    console.log(`DeepSeek Chat continuation ${attempt} added - New length: ${summary.length}, Finish reason: ${contFinishReason}`);
+                    
+                    if (contFinishReason !== "length") {
+                      break;
+                    }
+                  } else {
+                    console.log(`DeepSeek Chat continuation ${attempt} returned empty content`);
+                    break;
+                  }
+                } else {
+                  console.error(`DeepSeek Chat continuation attempt ${attempt} failed:`, await contResp.text());
+                  break;
                 }
-              ],
-              generationConfig: {
-                temperature: 0,
-                maxOutputTokens: 16000,
               }
-            }),
-          });
-
-          if (geminiResp.ok) {
-            const geminiData = await geminiResp.json();
-            summary = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-            providerUsed = "gemini-2.5-pro";
-            console.log(`✅ FALLBACK MODEL SUCCESS: Gemini 2.5 Pro - Summary generated (Length: ${summary.length})`);
+            }
           } else {
-            const errorText = await geminiResp.text();
-            console.error('Gemini 2.5 Pro fallback error:', geminiResp.status, errorText);
+            throw new Error("DeepSeek Chat returned empty content");
           }
-        } catch (error) {
-          console.error('❌ FALLBACK MODEL FAILED: Gemini 2.5 Pro failed', error);
+        } else {
+          const txt = await resp.text();
+          console.error('DeepSeek Chat API error:', resp.status, txt);
+          throw new Error(`DeepSeek Chat API error: ${resp.status}`);
         }
+      } catch (deepSeekError) {
+        console.error('DeepSeek Chat API failed:', deepSeekError);
       }
     }
 
@@ -1129,15 +1125,15 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
           try {
             let completionResp;
             
-            if (providerUsed === 'deepseek-reasoner') {
+            if (providerUsed === 'deepseek-chat') {
               completionResp = await fetch("https://api.deepseek.com/v1/chat/completions", {
                 method: "POST",
                 headers: {
-                  "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
+                  "Authorization": `Bearer ${deepSeekApiKey}`,
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  model: "deepseek-reasoner",
+                  model: "deepseek-chat",
                   messages: [
                     { role: "system", content: systemPrompt },
                     { role: "user", content: completionPrompt },
@@ -1147,7 +1143,7 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
                 }),
               });
             } else {
-              completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`, {
+              completionResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -1245,8 +1241,8 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
       
       try {
         let continuationResponseText = '';
-        if (GOOGLE_API_KEY) {
-          const contResp2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GOOGLE_API_KEY}`, {
+        if (googleApiKey) {
+          const contResp2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1261,12 +1257,12 @@ If you cannot fit all questions in one response, prioritize the lowest numbered 
             console.error('Gemini continuation error:', await contResp2.text());
           }
         }
-        if (!continuationResponseText && DEEPSEEK_API_KEY) {
+        if (!continuationResponseText && deepSeekApiKey) {
           const dsResp2 = await fetch("https://api.deepseek.com/v1/chat/completions", {
             method: "POST",
-            headers: { "Authorization": `Bearer ${DEEPSEEK_API_KEY}`, "Content-Type": "application/json" },
+            headers: { "Authorization": `Bearer ${deepSeekApiKey}`, "Content-Type": "application/json" },
             body: JSON.stringify({
-              model: "deepseek-reasoner",
+              model: "deepseek-chat",
               messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: continuationPrompt },
