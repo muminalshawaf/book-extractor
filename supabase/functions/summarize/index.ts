@@ -463,20 +463,19 @@ serve(async (req) => {
   }
 
   try {
-    console.log('🚀 Summarize function started');
+    console.log('Summarize function started');
     
     const { text, lang = "ar", page, title, book_id = null, ocrData = null, ragContext = null } = await req.json();
     console.log(`Request body received: { text: ${text ? `${text.length} chars` : 'null'}, lang: ${lang}, page: ${page}, title: ${title}, book_id: ${book_id}, ragContext: ${ragContext ? `${ragContext.length} pages` : 'none'} }`);
     
-    // Configuration settings
+    // Log model usage priority
+    // Model selection already logged above
     const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
     const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
-    const DISABLE_DEEPSEEK_FALLBACK = Deno.env.get('DISABLE_DEEPSEEK_FALLBACK') === 'true';
     
-    console.log('🤖 Model Configuration:');
-    console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? '✅ AVAILABLE (primary)' : '❌ UNAVAILABLE'}`);
-    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? (DISABLE_DEEPSEEK_FALLBACK ? '🚫 DISABLED (fallback disabled)' : '✅ AVAILABLE (fallback)') : '❌ UNAVAILABLE'}`);
-    console.log(`- DeepSeek Fallback: ${DISABLE_DEEPSEEK_FALLBACK ? '🚫 DISABLED' : '✅ ENABLED'}`);
+    console.log('Available models:');
+    console.log(`- Gemini 2.5 Pro: ${GOOGLE_API_KEY ? 'AVAILABLE (primary)' : 'UNAVAILABLE'}`);
+    console.log(`- DeepSeek Chat: ${DEEPSEEK_API_KEY ? 'AVAILABLE (fallback)' : 'UNAVAILABLE'}`);
 
     if (!text || typeof text !== "string") {
       console.error('No text provided or text is not a string');
@@ -854,7 +853,7 @@ Questions found: ${questions.map(q => q.number).join(', ')}` : ''}
 
     // Try Gemini 2.5 Pro first (primary model)
     if (googleApiKey) {
-      console.log('🎯 EXECUTING MODEL: Gemini 2.5 Pro - Starting summarization...');
+      console.log('Attempting to use Gemini 2.5 Pro for summarization...');
       try {
         const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${googleApiKey}`, {
           method: "POST",
@@ -881,7 +880,7 @@ Questions found: ${questions.map(q => q.number).join(', ')}` : ''}
           providerUsed = "gemini-2.5-pro";
           
           if (summary.trim()) {
-            console.log(`✅ MODEL SUCCESS: Gemini 2.5 Pro - Summary generated (Length: ${summary.length}, Finish: ${finishReason})`);
+            console.log(`Gemini 2.5 Pro API responded successfully - Length: ${summary.length}, Finish reason: ${finishReason}, provider_used: ${providerUsed}`);
             
             // Handle continuation if needed
             if (finishReason === "MAX_TOKENS" && summary.length > 0) {
@@ -955,18 +954,13 @@ Current page: ${mainContent}`;
           throw new Error(`Gemini 1.5 Pro API error: ${geminiResp.status}`);
         }
       } catch (geminiError) {
-        console.error('❌ MODEL FAILED: Gemini 2.5 Pro failed', geminiError);
-        if (DISABLE_DEEPSEEK_FALLBACK) {
-          console.log('🚫 DeepSeek fallback is DISABLED - No fallback will be attempted');
-        } else {
-          console.log('🔄 Will attempt DeepSeek fallback...');
-        }
+        console.error('Gemini 1.5 Pro failed, trying DeepSeek...', geminiError);
       }
     }
 
-    // Fallback to DeepSeek Chat if Gemini failed or not available (and not disabled)
-    if (!summary.trim() && deepSeekApiKey && !DISABLE_DEEPSEEK_FALLBACK) {
-      console.log('🎯 EXECUTING MODEL: DeepSeek Chat - Starting fallback summarization...');
+    // Fallback to DeepSeek Chat if Gemini failed or not available
+    if (!summary.trim() && deepSeekApiKey) {
+      console.log('Using DeepSeek Chat as fallback...');
       try {
         const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
@@ -990,7 +984,7 @@ Current page: ${mainContent}`;
           const data = await resp.json();
           summary = data.choices?.[0]?.message?.content ?? "";
           providerUsed = "deepseek-chat";
-          console.log(`✅ MODEL SUCCESS: DeepSeek Chat - Summary generated (Length: ${summary.length})`);
+          console.log(`DeepSeek Chat API responded successfully - Length: ${summary.length}, provider_used: ${providerUsed}`);
           
           if (summary.trim()) {
             // Handle continuation if needed for DeepSeek Chat
@@ -1065,10 +1059,8 @@ Current page: ${mainContent}`;
           throw new Error(`DeepSeek Chat API error: ${resp.status}`);
         }
       } catch (deepSeekError) {
-        console.error('❌ MODEL FAILED: DeepSeek Chat failed:', deepSeekError);
+        console.error('DeepSeek Chat API failed:', deepSeekError);
       }
-    } else if (!summary.trim() && DISABLE_DEEPSEEK_FALLBACK) {
-      console.log('🚫 DeepSeek fallback is DISABLED - No additional models available');
     }
 
     if (!summary.trim()) {

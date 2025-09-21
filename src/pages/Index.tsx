@@ -130,36 +130,6 @@ const Index = () => {
             {enhancedBook.description || currentBook.description || "كتب المنهج السعودي للمملكة العربية السعودية - اكتشف محتوى الكتاب مع الملخصات الذكية والبحث المتقدم"}
           </p>
           <TopSearchTabs currentBookId={currentBook.id} />
-          
-          {/* Gemini 2.5 Pro Test Button */}
-          <button 
-            onClick={async () => {
-              try {
-                const response = await fetch('https://ukznsekygmipnucpouoy.supabase.co/functions/v1/summarize', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrem5zZWt5Z21pcG51Y3BvdW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjY4NzMsImV4cCI6MjA3MDIwMjg3M30.5gvy46gGEU-B9O3cutLNmLoX62dmEvKLC236yeaQ6So'
-                  },
-                  body: JSON.stringify({
-                    ocrText: 'This is a test chemistry lesson about acids and bases. What is pH? pH measures acidity.',
-                    bookId: 'test-book',
-                    pageNumber: 1,
-                    language: 'en'
-                  })
-                });
-                
-                const data = await response.json();
-                const status = response.ok ? '✅ Working!' : '❌ Failed';
-                alert(`Gemini 2.5 Pro Test: ${status}\n\nResponse: ${JSON.stringify(data, null, 2)}`);
-              } catch (error) {
-                alert(`Gemini 2.5 Pro Test: ❌ Error\n\n${error.message}`);
-              }
-            }}
-            className="mb-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            🧪 Test Gemini 2.5 Pro
-          </button>
         </div>
 
         <BookViewer
